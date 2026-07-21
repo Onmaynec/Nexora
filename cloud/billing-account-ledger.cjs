@@ -279,14 +279,32 @@ module.exports = {
 
   recordProviderEvent({ provider, eventId, eventType, payloadHash }) {
     const id = requireId(eventId, "providerEventId");
+    const normalizedProvider = String(provider);
+    const normalizedType = String(eventType);
+    const normalizedHash = String(payloadHash);
     const existing = this.db.prepare("SELECT * FROM provider_events WHERE provider_event_id = ?").get(id);
-    if (existing) return { event: serializeRow(existing), duplicate: true };
+    if (existing) {
+      if (existing.provider !== normalizedProvider || existing.event_type !== normalizedType || existing.payload_hash !== normalizedHash) {
+        throw new BillingError("Provider event ID повторно использован с другим payload.", "IDEMPOTENCY_CONFLICT", 409);
+      }
+      if (existing.status === "processed") return { event: serializeRow(existing), duplicate: true, retry: false };
+      if (existing.status === "received") return { event: serializeRow(existing), duplicate: true, inProgress: true, retry: false };
+      this.db.prepare(`
+        UPDATE provider_events SET status='received', processed_at=NULL, error_code=NULL, received_at=?
+        WHERE provider_event_id=?
+      `).run(this.clock().toISOString(), id);
+      return {
+        event: serializeRow(this.db.prepare("SELECT * FROM provider_events WHERE provider_event_id = ?").get(id)),
+        duplicate: false,
+        retry: true,
+      };
+    }
     const receivedAt = this.clock().toISOString();
     this.db.prepare(`
       INSERT INTO provider_events(provider_event_id, provider, event_type, payload_hash, status, received_at)
       VALUES (?, ?, ?, ?, 'received', ?)
-    `).run(id, String(provider), String(eventType), String(payloadHash), receivedAt);
-    return { event: serializeRow(this.db.prepare("SELECT * FROM provider_events WHERE provider_event_id = ?").get(id)), duplicate: false };
+    `).run(id, normalizedProvider, normalizedType, normalizedHash, receivedAt);
+    return { event: serializeRow(this.db.prepare("SELECT * FROM provider_events WHERE provider_event_id = ?").get(id)), duplicate: false, retry: false };
   },
 
   markProviderEvent(eventId, status, errorCode = null) {
