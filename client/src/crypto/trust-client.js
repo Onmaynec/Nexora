@@ -441,6 +441,43 @@ export async function prepareEncryptedText({ conversation, text, replyToId = nul
   });
 }
 
+export async function prepareEncryptedEdit({ conversation, messageId, text }) {
+  return serializeConversationOperation(conversation.id, async () => {
+    const { device, local, remote } = await ensureConversationGroupInternal(conversation);
+    const createdAt = new Date().toISOString();
+    const content = { version: 1, type: "text", operation: "edit", messageId: String(messageId), text: String(text) };
+    const authenticatedData = {
+      version: 1,
+      operation: "edit",
+      targetMessageId: String(messageId),
+      conversationId: conversation.id,
+      senderUserId: current().userId,
+      senderDeviceId: device.id,
+      createdAt,
+    };
+    const encrypted = await encryptApplicationMessage({
+      state: local.state,
+      content,
+      authenticatedData,
+      resolveDevice: resolveTrustedDevice,
+    });
+    const messageHash = await sha256Hex(encrypted.message);
+    await persistGroup(conversation.id, remote.id, encrypted.state, encrypted.publicStateHash);
+    await saveDecryptedContent(current().serverId, current().userId, messageHash, content);
+    return {
+      conversationId: conversation.id,
+      messageId: String(messageId),
+      deviceId: device.id,
+      groupRecordId: remote.id,
+      epoch: encrypted.epoch,
+      generation: null,
+      contentType: "text",
+      message: toBase64(encrypted.message),
+      authenticatedDataHash: encrypted.authenticatedDataHash,
+    };
+  });
+}
+
 export async function processCommitEvent(event) {
   if (!event?.groupId || !Number.isFinite(Number(event.epoch))) return false;
   const group = await loadLocalGroup(event.conversationId);
