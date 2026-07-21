@@ -67,12 +67,13 @@ function compactStatus(status) {
 }
 
 class DeveloperCommandService {
-  constructor({ instance, store, log = () => {}, clock = () => new Date() } = {}) {
+  constructor({ instance, store, pulseSandbox = null, log = () => {}, clock = () => new Date() } = {}) {
     if (!instance || !store) {
       throw new DeveloperCommandError("Command service requires server instance and store.", "COMMAND_SERVICE_MISCONFIGURED");
     }
     this.instance = instance;
     this.store = store;
+    this.pulseSandbox = pulseSandbox;
     this.log = log;
     this.clock = clock;
   }
@@ -106,7 +107,7 @@ class DeveloperCommandService {
 
     if (root === "help") {
       result = {
-        output: "help | status | health | users list | rooms list | backup create [passphrase] | storage cleanup | read-only on|off | audit tail [count]",
+        output: "help | status | health | users list | rooms list | backup create [passphrase] | storage cleanup | read-only on|off | pulse sandbox on|off | pulse user <user> | plus grant <user> [days] | plus revoke <user> | impulses grant|revoke <user> <amount> [reason] | audit tail [count]",
       };
     } else if (root === "status") {
       result = { data: compactStatus(this.instance.status()), output: "Статус сервера получен." };
@@ -166,6 +167,28 @@ class DeveloperCommandService {
         data: { enabled },
         output: enabled ? "Emergency read-only включён." : "Emergency read-only выключен.",
       };
+    } else if (root === "pulse" && action === "sandbox") {
+      if (!this.pulseSandbox) throw new DeveloperCommandError("Pulse sandbox недоступен.", "PULSE_SANDBOX_UNAVAILABLE");
+      const enabled = args[0] === "on" ? true : args[0] === "off" ? false : null;
+      if (enabled == null) throw new DeveloperCommandError("Используйте pulse sandbox on или pulse sandbox off.", "COMMAND_VALIDATION_FAILED");
+      result = { data: await this.pulseSandbox.setEnabled(enabled, actor), output: enabled ? "Pulse sandbox включён." : "Pulse sandbox выключен." };
+      mutated = true;
+    } else if (root === "pulse" && action === "user") {
+      if (!this.pulseSandbox || !args[0]) throw new DeveloperCommandError("Укажите пользователя.", "COMMAND_VALIDATION_FAILED");
+      result = { data: { overview: this.pulseSandbox.overview(args[0]), transactions: this.pulseSandbox.transactions(args[0], 20) }, output: "Тестовое состояние Pulse получено." };
+    } else if (root === "plus" && ["grant", "revoke"].includes(action)) {
+      if (!this.pulseSandbox || !args[0]) throw new DeveloperCommandError("Укажите пользователя.", "COMMAND_VALIDATION_FAILED");
+      result = action === "grant"
+        ? { data: await this.pulseSandbox.grantPlus(args[0], { days: args[1], actor }), output: "Тестовая подписка Plus выдана." }
+        : { data: await this.pulseSandbox.revokePlus(args[0], { actor }), output: "Тестовая подписка Plus отозвана." };
+      mutated = true;
+    } else if (root === "impulses" && ["grant", "revoke"].includes(action)) {
+      if (!this.pulseSandbox || !args[0]) throw new DeveloperCommandError("Укажите пользователя и количество.", "COMMAND_VALIDATION_FAILED");
+      const amount = Math.abs(Math.trunc(Number(args[1])));
+      if (!Number.isSafeInteger(amount) || amount < 1) throw new DeveloperCommandError("Количество должно быть положительным целым числом.", "COMMAND_VALIDATION_FAILED");
+      const delta = action === "grant" ? amount : -amount;
+      result = { data: await this.pulseSandbox.adjustImpulses(args[0], delta, { actor, reason: args.slice(2).join(" ") || "operator_adjustment" }), output: action === "grant" ? "Импульсы выданы." : "Импульсы изъяты." };
+      mutated = true;
     } else if (root === "audit" && action === "tail") {
       const count = Math.max(1, Math.min(200, Number(args[0]) || 50));
       const rows = this.store.read((state) => (state.integrationAudit || []).slice(-count).reverse());

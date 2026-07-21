@@ -85,7 +85,8 @@ export default function PulsePageV31({ initialOverview = null, rooms = [], me, o
   const wallet = overview?.wallet || { balance: 0, currency: "IMPULSE" };
   const subscription = overview?.subscription || null;
   const plusActive = Boolean(subscription && ["active", "trialing"].includes(subscription.status));
-  const cloudOnline = status?.cloud?.mode === "production" && !overview?.cached;
+  const sandboxMode = status?.cloud?.mode === "sandbox";
+  const cloudOnline = sandboxMode || (status?.cloud?.mode === "production" && !overview?.cached);
 
   const loadStatus = useCallback(async () => {
     const [pulseStatus, linkStatus] = await Promise.all([
@@ -286,7 +287,7 @@ export default function PulsePageV31({ initialOverview = null, rooms = [], me, o
       </div>
       <div className={`pulse31-cloud-state${cloudOnline ? " online" : ""}`}>
         {cloudOnline ? <Cloud size={20} /> : <CloudOff size={20} />}
-        <span><strong>{cloudOnline ? "Pulse Cloud online" : status?.cloud?.mode === "production" ? "Проверенный кэш" : "Cloud отключён"}</strong><small>{linked ? "Cloud Account связан" : "Требуется связь аккаунта"}</small></span>
+        <span><strong>{sandboxMode ? "Pulse Sandbox active" : cloudOnline ? "Pulse Cloud online" : status?.cloud?.mode === "production" ? "Проверенный кэш" : "Cloud отключён"}</strong><small>{sandboxMode ? "Тестовая модель управляется Nexora Server" : linked ? "Cloud Account связан" : "Требуется связь аккаунта"}</small></span>
         <button type="button" onClick={refreshPulse} disabled={sectionBusy}><RefreshCcw className={sectionBusy ? "spin" : ""} size={16} /></button>
       </div>
     </header>
@@ -304,14 +305,14 @@ export default function PulsePageV31({ initialOverview = null, rooms = [], me, o
 
     {tab === "overview" && <main className="pulse31-content">
       <div className="pulse31-stats">
-        <StatCard icon={Coins} label="Баланс" value={`${wallet.balance ?? 0} ◈`} detail={overview?.cached ? `Кэш от ${formatDate(overview.cachedAt)}` : "Подтверждено Pulse Cloud"} accent />
+        <StatCard icon={Coins} label="Баланс" value={`${wallet.balance ?? 0} ◈`} detail={sandboxMode ? "Локальный тестовый баланс" : overview?.cached ? `Кэш от ${formatDate(overview.cachedAt)}` : "Подтверждено Pulse Cloud"} accent />
         <StatCard icon={Crown} label="Nexora Plus" value={plusActive ? "Активен" : "Не подключён"} detail={field(subscription, "currentPeriodEnd", "current_period_end") ? `До ${formatDate(field(subscription, "currentPeriodEnd", "current_period_end"))}` : "Базовые функции бесплатны"} />
         <StatCard icon={BadgeCheck} label="Cloud Account" value={linked ? "Связан" : "Не связан"} detail={account?.cloudAccountId ? `ID ${account.cloudAccountId.slice(0, 12)}…` : "Отдельная Cloud Identity"} />
       </div>
       <section className={`pulse31-plus-card${plusActive ? " active" : ""}`}>
         <div className="pulse31-plus-symbol"><Crown size={30} /></div>
         <div><span>{plusActive ? "PLUS ACTIVE" : "NEXORA PLUS"}</span><h2>{plusActive ? "Plus работает на этом аккаунте" : "Персональный уровень Nexora"}</h2><p>Дополнительное оформление, реакции и 400 Импульсов каждый подтверждённый расчётный период.</p><ul><li><Check size={14} /> 400 Импульсов в месяц</li><li><Check size={14} /> Премиальные рамки и акценты</li><li><Check size={14} /> Покупки привязаны к Cloud Account</li></ul></div>
-        <div className="pulse31-plus-actions">{plusActive ? <><button type="button" onClick={openPortal} disabled={busy}><ExternalLink size={16} /> Управление</button>{!field(subscription, "cancelAtPeriodEnd", "cancel_at_period_end", false) && <button type="button" className="secondary" onClick={cancelSubscription} disabled={busy}>Отменить продление</button>}</> : <button type="button" onClick={() => checkout("plus")} disabled={busy || !linked}>Подключить Plus <ExternalLink size={16} /></button>}</div>
+        <div className="pulse31-plus-actions">{sandboxMode ? <span>Управляется через консоль Nexora Server</span> : plusActive ? <><button type="button" onClick={openPortal} disabled={busy}><ExternalLink size={16} /> Управление</button>{!field(subscription, "cancelAtPeriodEnd", "cancel_at_period_end", false) && <button type="button" className="secondary" onClick={cancelSubscription} disabled={busy}>Отменить продление</button>}</> : <button type="button" onClick={() => checkout("plus")} disabled={busy || !linked}>Подключить Plus <ExternalLink size={16} /></button>}</div>
       </section>
       <section className="pulse31-principles">
         <article><ShieldCheck /><h3>Без paywall</h3><p>Общение, комнаты, файлы и история не требуют Plus.</p></article>
@@ -323,7 +324,7 @@ export default function PulsePageV31({ initialOverview = null, rooms = [], me, o
     {tab === "wallet" && <main className="pulse31-content">
       <section className="pulse31-wallet-panel">
         <div className="pulse31-wallet-visual"><CircleDollarSign size={34} /><small>Текущий баланс</small><strong>{wallet.balance ?? 0}</strong><span>Импульсов</span></div>
-        <div><h2>Кошелёк Импульсов</h2><p>Импульсы используются для коллективных целей. Их нельзя вывести, обменять на деньги или передать напрямую.</p><div className="pulse31-wallet-actions"><button type="button" onClick={() => checkout("impulses")} disabled={!linked || busy}><PackagePlus size={16} /> Купить 500</button><button type="button" className="secondary" onClick={() => setTab("transactions")}><History size={16} /> История</button></div></div>
+        <div><h2>Кошелёк Импульсов</h2><p>Импульсы используются для коллективных целей. Их нельзя вывести, обменять на деньги или передать напрямую.</p><div className="pulse31-wallet-actions"><button type="button" onClick={() => checkout("impulses")} disabled={!linked || busy || sandboxMode}><PackagePlus size={16} /> {sandboxMode ? "Покупки отключены" : "Купить 500"}</button><button type="button" className="secondary" onClick={() => setTab("transactions")}><History size={16} /> История</button></div></div>
       </section>
       <section className="pulse31-info-grid"><article><strong>Double-entry</strong><p>Каждое изменение баланса имеет равную дебетовую и кредитовую запись.</p></article><article><strong>Без отрицательного баланса</strong><p>Возвраты и chargeback оформляются компенсациями.</p></article><article><strong>Идемпотентность</strong><p>Повтор запроса не создаёт повторное списание.</p></article></section>
     </main>}
@@ -354,7 +355,7 @@ export default function PulsePageV31({ initialOverview = null, rooms = [], me, o
 
     {tab === "security" && <main className="pulse31-content">
       <header className="pulse31-section-head"><div><span>CLOUD IDENTITY</span><h2>Связь аккаунтов</h2><p>Local Account автономен. Cloud Account используется только для покупок и переносимых прав.</p></div></header>
-      <section className={`pulse31-link-card${linked ? " linked" : ""}`}><span>{linked ? <BadgeCheck size={30} /> : <Link2 size={30} />}</span><div><small>{linked ? "ACCOUNT LINKED" : "NOT LINKED"}</small><h3>{linked ? "Cloud Account подключён" : "Подключите Cloud Account"}</h3><p>{linked ? `Связь подтверждена ${formatDate(account.linkedAt)}. Cloud Account: ${account.cloudAccountId}` : "Local Server не получает Cloud-пароль, MFA-secret, refresh token и платёжные реквизиты."}</p></div>{linked ? <button type="button" className="danger" onClick={unlinkAccount} disabled={busy}><Unlink size={16} /> Отвязать</button> : <button type="button" onClick={connectAccount} disabled={busy}><Link2 size={16} /> Подключить</button>}</section>
+      <section className={`pulse31-link-card${linked ? " linked" : ""}`}><span>{linked ? <BadgeCheck size={30} /> : <Link2 size={30} />}</span><div><small>{linked ? "ACCOUNT LINKED" : "NOT LINKED"}</small><h3>{linked ? "Cloud Account подключён" : "Подключите Cloud Account"}</h3><p>{linked ? `Связь подтверждена ${formatDate(account.linkedAt)}. Cloud Account: ${account.cloudAccountId}` : "Local Server не получает Cloud-пароль, MFA-secret, refresh token и платёжные реквизиты."}</p></div>{sandboxMode ? <span>LOCAL TEST MODE</span> : linked ? <button type="button" className="danger" onClick={unlinkAccount} disabled={busy}><Unlink size={16} /> Отвязать</button> : <button type="button" onClick={connectAccount} disabled={busy}><Link2 size={16} /> Подключить</button>}</section>
       <div className="pulse31-security-list"><article><ShieldCheck size={19} /><div><strong>OAuth 2.1 + PKCE</strong><p>Одноразовый authorization code и S256 challenge.</p></div></article><article><KeyRound size={19} /><div><strong>Ed25519</strong><p>Проверяются Server ID, Local User ID, link ID и nonce.</p></div></article><article><LogOut size={19} /><div><strong>Отзыв связи</strong><p>Отвязывание требует текущий пароль Local Account.</p></div></article></div>
     </main>}
   </div>;

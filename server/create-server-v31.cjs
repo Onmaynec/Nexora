@@ -8,6 +8,7 @@ const { mountPulseV3Routes } = require("./pulse-v3-routes.cjs");
 const { mountPulseProductRoutes } = require("./pulse-product-routes.cjs");
 const { PulseSyncWorker } = require("./pulse-sync-worker.cjs");
 const { DeveloperCommandService } = require("./developer-commands.cjs");
+const { PulseSandboxService } = require("./pulse-sandbox-service.cjs");
 
 function parsePublicKeys(options = {}) {
   const values = [];
@@ -64,6 +65,8 @@ async function createNexoraServer(options = {}) {
       log,
     });
 
+    const sandbox = new PulseSandboxService({ store: instance.store, productionMode: client.status().mode === "production", clock: options.clock, log });
+
     const pulseRoutes = mountPulseV3Routes({
       app: instance.app,
       store: instance.store,
@@ -71,6 +74,7 @@ async function createNexoraServer(options = {}) {
       serverId: instance.status().serverId,
       client,
       repository,
+      sandbox,
       log,
     });
     const syncWorker = new PulseSyncWorker({
@@ -88,7 +92,7 @@ async function createNexoraServer(options = {}) {
     instance.status = () => ({
       ...baseStatus(),
       schemaVersion: 7,
-      pulseV3: { ...client.status(), sync: syncWorker.status() },
+      pulseV3: { ...client.status(), ...(sandbox.enabled() ? { mode: "sandbox", enabled: true, productionReady: false, testMode: true } : {}), sync: syncWorker.status() },
       migration,
     });
     const baseListen = instance.listen.bind(instance);
@@ -106,7 +110,8 @@ async function createNexoraServer(options = {}) {
     instance.pulseCloudClient = client;
     instance.pulseSyncWorker = syncWorker;
     instance.pulseMigration = migration;
-    instance.commandService = new DeveloperCommandService({ instance, store: instance.store, log, clock: options.clock });
+    instance.pulseSandbox = sandbox;
+    instance.commandService = new DeveloperCommandService({ instance, store: instance.store, pulseSandbox: sandbox, log, clock: options.clock });
     return instance;
   } catch (error) {
     await instance.close().catch((closeError) => log(`Failed to close Local Server after Pulse initialization error: ${closeError.message}`, "error"));

@@ -278,9 +278,10 @@ app.whenReady().then(async () => {
       }
     },
   });
-  setTimeout(() => updateService.check().catch(() => {}), 12_000);
+  updateService.start();
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 
+app.on("before-quit", () => updateService?.stop());
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 process.on("unhandledRejection", (error) => logClient(`unhandledRejection: ${error?.stack || error}`, "error"));
