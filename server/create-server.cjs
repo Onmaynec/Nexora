@@ -2065,6 +2065,7 @@ async function createNexoraServer(options = {}) {
     emitMessage,
     roomPostingError,
     maintenance,
+    conversationUsesMls,
     uploadsDir,
     incomingDir,
     maxFileBytes: LIMITS.fileBytes,
@@ -2132,6 +2133,9 @@ async function createNexoraServer(options = {}) {
       const targetConversation = findConversation(state, targetConversationId);
       if (!source || !canAccessConversation(state, sourceConversation, user.id) || !canAccessConversation(state, targetConversation, user.id)) {
         return acknowledge({ ok: false, error: "Пересылка недоступна." });
+      }
+      if (conversationUsesMls(targetConversation.id)) {
+        return acknowledge({ ok: false, code: "E2EE_FORWARD_REQUIRED", error: "Пересылка в MLS-диалог должна быть зашифрована на клиенте." });
       }
       const postingKind = source.type === "voice" ? "voice" : source.fileId ? "file" : "text";
       const posting = roomPostingError(state, targetConversation, user.id, postingKind);
