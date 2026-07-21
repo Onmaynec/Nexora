@@ -1,0 +1,54 @@
+name: Materialize clean Nexora 3.1.2 release
+
+on:
+  push:
+    branches:
+      - automation/nexora-3.1.2-finalize
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - name: Materialize verified bug-fix diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main agent/nexora-3.1.2-bugfix
+          git switch -C agent/nexora-3.1.2-final origin/main
+
+          files=(
+            client/src/audio-player.js
+            electron/update-service.cjs
+            server/pulse-sandbox-service.cjs
+            test/audio-player.test.cjs
+            test/update-service.test.cjs
+            test/pulse-sandbox-service.test.cjs
+          )
+          for file in "${files[@]}"; do
+            mkdir -p "$(dirname "$file")"
+            git show "origin/agent/nexora-3.1.2-bugfix:$file" > "$file"
+          done
+          git show origin/agent/nexora-3.1.2-bugfix:scripts/apply-3.1.2.cjs > /tmp/apply-3.1.2.cjs
+          node /tmp/apply-3.1.2.cjs
+          node scripts/sync-release-metadata.cjs
+          npm ci
+          npm run release:check
+
+          git add -A
+          git commit -m "release: Nexora 3.1.2 updater, voice and Pulse sandbox fixes"
+          git push --force-with-lease origin HEAD:agent/nexora-3.1.2-final
