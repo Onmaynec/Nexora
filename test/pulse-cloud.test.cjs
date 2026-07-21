@@ -72,8 +72,20 @@ test("one subscription period grants exactly 400 impulses", (t) => {
   const account = createLinkedAccount(database, "plus");
   const periodStart = "2026-07-01T00:00:00.000Z";
   const periodEnd = "2026-08-01T00:00:00.000Z";
-  const first = database.activatePlusPeriod({ accountId: account.id, serverId: "server-main", providerSubscriptionId: "sub-testplus01", periodStart, periodEnd });
-  const duplicate = database.activatePlusPeriod({ accountId: account.id, serverId: "server-main", providerSubscriptionId: "sub-testplus01", periodStart, periodEnd });
+  const first = database.activatePlusPeriod({
+    accountId: account.id,
+    serverId: "server-main",
+    providerSubscriptionId: "sub-testplus01",
+    periodStart,
+    periodEnd,
+  });
+  const duplicate = database.activatePlusPeriod({
+    accountId: account.id,
+    serverId: "server-main",
+    providerSubscriptionId: "sub-testplus01",
+    periodStart,
+    periodEnd,
+  });
   assert.equal(first.grantDuplicate, false);
   assert.equal(duplicate.grantDuplicate, true);
   assert.equal(database.getBalance(account.id), MONTHLY_PLUS_IMPULSES);
@@ -88,9 +100,29 @@ test("last room-goal contribution is accepted partially", (t) => {
   const secondAccount = createLinkedAccount(database, "goal-b");
   database.grantImpulses(firstAccount.id, 100, { idempotencyKey: "grant-goal-a" });
   database.grantImpulses(secondAccount.id, 100, { idempotencyKey: "grant-goal-b" });
-  const goal = database.createGoal({ serverId: "server-main", roomId: "room-alpha", createdBy: "user-goal-a", productCode: "room_reaction_pack", title: "Reaction pack", targetAmount: 135, expiresAt: "2027-01-01T00:00:00.000Z" });
-  const first = database.contributeToGoal({ serverId: "server-main", localUserId: "user-goal-a", goalId: goal.id, requestedAmount: 100, idempotencyKey: "contribution-a-001" });
-  const final = database.contributeToGoal({ serverId: "server-main", localUserId: "user-goal-b", goalId: goal.id, requestedAmount: 100, idempotencyKey: "contribution-b-001" });
+  const goal = database.createGoal({
+    serverId: "server-main",
+    roomId: "room-alpha",
+    createdBy: "user-goal-a",
+    productCode: "room_reaction_pack",
+    title: "Reaction pack",
+    targetAmount: 135,
+    expiresAt: "2027-01-01T00:00:00.000Z",
+  });
+  const first = database.contributeToGoal({
+    serverId: "server-main",
+    localUserId: "user-goal-a",
+    goalId: goal.id,
+    requestedAmount: 100,
+    idempotencyKey: "contribution-a-001",
+  });
+  const final = database.contributeToGoal({
+    serverId: "server-main",
+    localUserId: "user-goal-b",
+    goalId: goal.id,
+    requestedAmount: 100,
+    idempotencyKey: "contribution-b-001",
+  });
   assert.equal(first.acceptedPulse, 100);
   assert.equal(final.acceptedPulse, 35);
   assert.equal(final.refusedPulse, 65);
@@ -98,7 +130,11 @@ test("last room-goal contribution is accepted partially", (t) => {
   assert.equal(database.getGoal(goal.id).current_amount, 135);
   assert.equal(database.getGoal(goal.id).status, "funded");
   assert.ok(final.entitlement?.payload);
-  const payload = verifySignedEnvelope(final.entitlement, { "test-key-1": publicKey }, { serverId: "server-main", roomId: "room-alpha", productCode: "room_reaction_pack" });
+  const payload = verifySignedEnvelope(final.entitlement, { "test-key-1": publicKey }, {
+    serverId: "server-main",
+    roomId: "room-alpha",
+    productCode: "room_reaction_pack",
+  });
   assert.equal(payload.roomId, "room-alpha");
   assert.equal(database.ledgerInvariant().ok, true);
 });
@@ -107,8 +143,22 @@ test("duplicate goal contribution does not debit wallet twice", (t) => {
   const { database } = createFixture(t);
   const account = createLinkedAccount(database, "duplicate");
   database.grantImpulses(account.id, 100, { idempotencyKey: "grant-duplicate" });
-  const goal = database.createGoal({ serverId: "server-main", roomId: "room-duplicate", createdBy: "user-duplicate", productCode: "room_reaction_pack", title: "Duplicate guard", targetAmount: 200, expiresAt: "2027-01-01T00:00:00.000Z" });
-  const input = { serverId: "server-main", localUserId: "user-duplicate", goalId: goal.id, requestedAmount: 60, idempotencyKey: "contribution-duplicate-001" };
+  const goal = database.createGoal({
+    serverId: "server-main",
+    roomId: "room-duplicate",
+    createdBy: "user-duplicate",
+    productCode: "room_reaction_pack",
+    title: "Duplicate guard",
+    targetAmount: 200,
+    expiresAt: "2027-01-01T00:00:00.000Z",
+  });
+  const input = {
+    serverId: "server-main",
+    localUserId: "user-duplicate",
+    goalId: goal.id,
+    requestedAmount: 60,
+    idempotencyKey: "contribution-duplicate-001",
+  };
   const first = database.contributeToGoal(input);
   const duplicate = database.contributeToGoal(input);
   assert.equal(first.duplicate, false);
@@ -124,11 +174,29 @@ test("active goal cancellation refunds every accepted contribution", (t) => {
   const secondAccount = createLinkedAccount(database, "refund-b");
   database.grantImpulses(firstAccount.id, 100, { idempotencyKey: "grant-refund-a" });
   database.grantImpulses(secondAccount.id, 100, { idempotencyKey: "grant-refund-b" });
-  const goal = database.createGoal({ serverId: "server-main", roomId: "room-refund", createdBy: "user-refund-a", productCode: "room_reaction_pack", title: "Refund goal", targetAmount: 250, expiresAt: "2027-01-01T00:00:00.000Z" });
+  const goal = database.createGoal({
+    serverId: "server-main",
+    roomId: "room-refund",
+    createdBy: "user-refund-a",
+    productCode: "room_reaction_pack",
+    title: "Refund goal",
+    targetAmount: 250,
+    expiresAt: "2027-01-01T00:00:00.000Z",
+  });
   database.contributeToGoal({ serverId: "server-main", localUserId: "user-refund-a", goalId: goal.id, requestedAmount: 70, idempotencyKey: "refund-contribution-a" });
   database.contributeToGoal({ serverId: "server-main", localUserId: "user-refund-b", goalId: goal.id, requestedAmount: 50, idempotencyKey: "refund-contribution-b" });
-  const result = database.cancelGoal({ serverId: "server-main", localUserId: "user-refund-a", goalId: goal.id, idempotencyKey: "cancel-refund-goal" });
-  const duplicate = database.cancelGoal({ serverId: "server-main", localUserId: "user-refund-a", goalId: goal.id, idempotencyKey: "cancel-refund-goal" });
+  const result = database.cancelGoal({
+    serverId: "server-main",
+    localUserId: "user-refund-a",
+    goalId: goal.id,
+    idempotencyKey: "cancel-refund-goal",
+  });
+  const duplicate = database.cancelGoal({
+    serverId: "server-main",
+    localUserId: "user-refund-a",
+    goalId: goal.id,
+    idempotencyKey: "cancel-refund-goal",
+  });
   assert.equal(result.refundedPulse, 120);
   assert.equal(result.goal.status, "refunded");
   assert.equal(duplicate.duplicate, true);
@@ -142,7 +210,12 @@ test("chargeback never produces a negative wallet and restricts debt", (t) => {
   const { database } = createFixture(t);
   const account = createLinkedAccount(database, "chargeback");
   database.grantImpulses(account.id, 30, { idempotencyKey: "grant-chargeback" });
-  const result = database.applyChargeback({ accountId: account.id, amount: 50, referenceId: "dispute-test-1", idempotencyKey: "chargeback-test-1" });
+  const result = database.applyChargeback({
+    accountId: account.id,
+    amount: 50,
+    referenceId: "dispute-test-1",
+    idempotencyKey: "chargeback-test-1",
+  });
   assert.equal(result.balance, 0);
   assert.equal(result.reclaim, 30);
   assert.equal(result.shortfall, 20);
@@ -154,23 +227,66 @@ test("chargeback never produces a negative wallet and restricts debt", (t) => {
 
 test("entitlement verification rejects scope mismatch and expiry", (t) => {
   const { signer, publicKey } = createFixture(t);
-  const active = signer({ jti: "entitlement-active", serverId: "server-main", roomId: "room-a", productCode: "room_reaction_pack", status: "active", issuedAt: "2026-07-21T00:00:00.000Z", notBefore: "2026-07-21T00:00:00.000Z", expiresAt: "2026-07-22T00:00:00.000Z" });
-  const verified = verifySignedEnvelope(active, { "test-key-1": publicKey }, { now: "2026-07-21T12:00:00.000Z", serverId: "server-main", roomId: "room-a", productCode: "room_reaction_pack" });
+  const active = signer({
+    jti: "entitlement-active",
+    serverId: "server-main",
+    roomId: "room-a",
+    productCode: "room_reaction_pack",
+    status: "active",
+    issuedAt: "2026-07-21T00:00:00.000Z",
+    notBefore: "2026-07-21T00:00:00.000Z",
+    expiresAt: "2026-07-22T00:00:00.000Z",
+  });
+  const verified = verifySignedEnvelope(active, { "test-key-1": publicKey }, {
+    now: "2026-07-21T12:00:00.000Z",
+    serverId: "server-main",
+    roomId: "room-a",
+    productCode: "room_reaction_pack",
+  });
   assert.equal(verified.jti, "entitlement-active");
-  assert.throws(() => verifySignedEnvelope(active, { "test-key-1": publicKey }, { now: "2026-07-21T12:00:00.000Z", serverId: "server-other" }), (error) => error instanceof BillingError && error.code === "PULSE_SCOPE_MISMATCH");
-  assert.throws(() => verifySignedEnvelope(active, { "test-key-1": publicKey }, { now: "2026-07-23T00:00:00.000Z" }), (error) => error instanceof BillingError && error.code === "ENTITLEMENT_EXPIRED");
+  assert.throws(() => verifySignedEnvelope(active, { "test-key-1": publicKey }, {
+    now: "2026-07-21T12:00:00.000Z",
+    serverId: "server-other",
+  }), (error) => error instanceof BillingError && error.code === "PULSE_SCOPE_MISMATCH");
+  assert.throws(() => verifySignedEnvelope(active, { "test-key-1": publicKey }, {
+    now: "2026-07-23T00:00:00.000Z",
+  }), (error) => error instanceof BillingError && error.code === "ENTITLEMENT_EXPIRED");
 });
 
 test("Stripe webhook requires a valid HMAC and fresh timestamp", () => {
   const secret = "whsec_test_secret";
   const timestamp = 1_721_586_000;
-  const body = Buffer.from(JSON.stringify({ id: "evt_test_1", type: "checkout.session.completed", data: { object: { id: "cs_test_1" } } }));
+  const body = Buffer.from(JSON.stringify({
+    id: "evt_test_1",
+    type: "checkout.session.completed",
+    data: { object: { id: "cs_test_1" } },
+  }));
   const signature = crypto.createHmac("sha256", secret).update(`${timestamp}.`).update(body).digest("hex");
   const header = `t=${timestamp},v1=${signature}`;
   const event = verifyStripeWebhook(body, header, secret, { nowMs: timestamp * 1000 });
   assert.equal(event.id, "evt_test_1");
   assert.throws(() => verifyStripeWebhook(body, `t=${timestamp},v1=deadbeef`, secret, { nowMs: timestamp * 1000 }), (error) => error.code === "WEBHOOK_SIGNATURE_INVALID");
   assert.throws(() => verifyStripeWebhook(body, header, secret, { nowMs: (timestamp + 301) * 1000 }), (error) => error.code === "WEBHOOK_TIMESTAMP_INVALID");
+});
+
+test("failed provider events can retry but processed events stay idempotent", (t) => {
+  const { database } = createFixture(t);
+  const first = database.recordProviderEvent({ provider: "stripe", eventId: "evt-retry-1", eventType: "invoice.paid", payloadHash: "hash-a" });
+  assert.equal(first.duplicate, false);
+  const inProgress = database.recordProviderEvent({ provider: "stripe", eventId: "evt-retry-1", eventType: "invoice.paid", payloadHash: "hash-a" });
+  assert.equal(inProgress.inProgress, true);
+  database.markProviderEvent("evt-retry-1", "failed", "TEMPORARY_ERROR");
+  const retry = database.recordProviderEvent({ provider: "stripe", eventId: "evt-retry-1", eventType: "invoice.paid", payloadHash: "hash-a" });
+  assert.equal(retry.retry, true);
+  assert.equal(retry.duplicate, false);
+  database.markProviderEvent("evt-retry-1", "processed");
+  const processed = database.recordProviderEvent({ provider: "stripe", eventId: "evt-retry-1", eventType: "invoice.paid", payloadHash: "hash-a" });
+  assert.equal(processed.duplicate, true);
+  assert.equal(processed.retry, false);
+  assert.throws(
+    () => database.recordProviderEvent({ provider: "stripe", eventId: "evt-retry-1", eventType: "invoice.paid", payloadHash: "hash-b" }),
+    (error) => error.code === "IDEMPOTENCY_CONFLICT",
+  );
 });
 
 test("Pulse Cloud startup validation rejects unsupported providers and invalid ports", () => {
