@@ -10,6 +10,7 @@ const elements = Object.fromEntries([
   "password-upper", "password-lower", "password-number", "password-symbol", "login-max-attempts", "login-lock-minutes",
   "server-update-status", "check-server-update", "apply-server-update",
   "pulse-status-dot", "pulse-status-title", "pulse-status-detail",
+  "command-output", "command-form", "command-input", "console-help",
 ].map((id) => [id, document.getElementById(id)]));
 let status;
 let logs = [];
@@ -147,6 +148,24 @@ function renderLogs() {
   elements["log-list"].scrollTop = elements["log-list"].scrollHeight;
 }
 
+function appendCommandResult(command, result, error = null) {
+  const row = document.createElement("div");
+  row.className = error ? "command-result error" : "command-result";
+  const prompt = document.createElement("code"); prompt.textContent = `> ${command}`;
+  const message = document.createElement("pre");
+  message.textContent = error ? `[${error.code || "COMMAND_FAILED"}] ${error.message}` : [result.output, result.data == null ? "" : JSON.stringify(result.data, null, 2)].filter(Boolean).join("\n");
+  row.append(prompt, message); elements["command-output"].append(row); elements["command-output"].scrollTop = elements["command-output"].scrollHeight;
+}
+
+async function runCommand(command) {
+  const value = String(command || "").trim();
+  if (!value) return;
+  elements["command-input"].disabled = true;
+  try { appendCommandResult(value, await window.nexoraServer.runCommand(value)); }
+  catch (error) { appendCommandResult(value, null, error); }
+  finally { elements["command-input"].disabled = false; elements["command-input"].focus(); }
+}
+
 function renderUpdate(next) {
   updateState = next;
   const labels = {
@@ -168,6 +187,8 @@ document.querySelectorAll("nav button").forEach((button) => button.addEventListe
   if (button.dataset.view === "storage") refreshBackups();
 }));
 elements["server-toggle"].addEventListener("click", async () => renderStatus(status?.running ? await window.nexoraServer.stop() : await window.nexoraServer.start()));
+elements["command-form"].addEventListener("submit", (event) => { event.preventDefault(); const value = elements["command-input"].value; elements["command-input"].value = ""; runCommand(value); });
+elements["console-help"].addEventListener("click", () => runCommand("help"));
 document.getElementById("copy-url").addEventListener("click", () => window.nexoraServer.copy(status.primaryUrl).then(() => showToast("Адрес скопирован")));
 document.getElementById("copy-fingerprint").addEventListener("click", () => window.nexoraServer.copy(status.fingerprint).then(() => showToast("Отпечаток скопирован")));
 document.getElementById("data-folder").addEventListener("click", () => window.nexoraServer.openDataFolder());

@@ -7,6 +7,7 @@ const { upgradeStoreToSchema7 } = require("./pulse-schema7.cjs");
 const { mountPulseV3Routes } = require("./pulse-v3-routes.cjs");
 const { mountPulseProductRoutes } = require("./pulse-product-routes.cjs");
 const { PulseSyncWorker } = require("./pulse-sync-worker.cjs");
+const { DeveloperCommandService } = require("./developer-commands.cjs");
 
 function parsePublicKeys(options = {}) {
   const values = [];
@@ -105,6 +106,7 @@ async function createNexoraServer(options = {}) {
     instance.pulseCloudClient = client;
     instance.pulseSyncWorker = syncWorker;
     instance.pulseMigration = migration;
+    instance.commandService = new DeveloperCommandService({ instance, store: instance.store, log, clock: options.clock });
     return instance;
   } catch (error) {
     await instance.close().catch((closeError) => log(`Failed to close Local Server after Pulse initialization error: ${closeError.message}`, "error"));

@@ -175,6 +175,7 @@ app.whenReady().then(async () => {
     shell.showItemInFolder(logFile);
     return logFile;
   });
+  ipcMain.handle("server:command", async (_event, command) => { if (!instance?.commandService) throw new Error("Сервер не запущен."); return instance.commandService.execute(command, { actor: "electron-admin" }); });
   ipcMain.handle("server:update-status", () => updateService?.status() ?? { enabled: false, status: "initializing" });
   ipcMain.handle("server:check-update", () => updateService?.check() ?? { enabled: false });
   ipcMain.handle("server:download-update", () => updateService?.download() ?? { enabled: false });

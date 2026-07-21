@@ -54,6 +54,7 @@ const { SqliteStore } = require("./store.cjs");
 const { createTotpService } = require("./totp.cjs");
 const { activeRoomInvite, mountV3Features, sniffMime } = require("./v3-features.cjs");
 const { version: APP_VERSION } = require("../package.json");
+const { createOperationalRuntime } = require("./operational-runtime.cjs");
 
 const LIMITS = Object.freeze({
   displayName: 48,
@@ -197,6 +198,21 @@ async function createNexoraServer(options = {}) {
   }
 
   const app = express();
+  const operational = createOperationalRuntime({
+    service: "nexora-local-server",
+    version: APP_VERSION,
+    metricsToken: options.metricsToken ?? process.env.NEXORA_METRICS_TOKEN ?? "",
+    healthProvider: async () => {
+      const stats = store.stats();
+      return { ready: stats.integrity === "ok", checks: { sqlite: stats.integrity, schemaVersion: stats.schemaVersion, emergencyReadOnly: store.read((state) => Boolean(state.settings.emergencyReadOnly)) } };
+    },
+    log: (message, level = "info") => {
+      const entry = { level, message, createdAt: nowIso() };
+      events.emit("log", entry);
+      if (!options.quiet) console[level === "error" ? "error" : level === "warn" ? "warn" : "log"](`[Nexora] ${message}`);
+    },
+  });
+  operational.mount(app);
   const server = tlsEnabled
     ? https.createServer({ key: certificates.key, cert: certificates.cert }, app)
     : http.createServer(app);
@@ -2312,6 +2328,7 @@ async function createNexoraServer(options = {}) {
       redirectServer.on("error", (error) => log(`HTTP redirect не запущен: ${error.message}`, "warn"));
       redirectServer.listen(redirectPort, host);
     }
+    operational.markReady();
     log(`Сервер запущен: ${tlsEnabled ? "https" : "http"}://localhost:${actualPort}`);
     events.emit("status", status());
     return status();
@@ -2332,6 +2349,8 @@ async function createNexoraServer(options = {}) {
       fingerprint,
       compatibility: COMPATIBILITY,
       pulse: pulse.status(),
+      operations: operational.snapshot(),
+      emergencyReadOnly: store.read((state) => Boolean(state.settings.emergencyReadOnly)),
       dataDir,
       databaseFile,
       backupsDir: maintenance.backupsDir,
@@ -2340,11 +2359,13 @@ async function createNexoraServer(options = {}) {
   }
 
   async function close() {
+    operational.beginDrain();
     v3Features?.stop();
     maintenance.stop();
     if (redirectServer?.listening) await new Promise((resolve) => redirectServer.close(resolve));
     if (server.listening) await new Promise((resolve) => io.close(resolve));
     await store.close();
+    operational.close();
     events.emit("status", status());
   }
 
@@ -2522,6 +2543,7 @@ async function createNexoraServer(options = {}) {
     io,
     store,
     events,
+    operational,
     dataDir,
     certificates,
     listen,
