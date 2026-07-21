@@ -1,0 +1,39 @@
+name: Apply Nexora 3.1.1 hardening
+
+on:
+  push:
+    branches:
+      - agent/nexora-3.1.1-production-hardening
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ !contains(github.event.head_commit.message, '[3.1.1-applied]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/nexora-3.1.1-production-hardening
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - run: node scripts/apply-3.1.1.cjs
+      - run: node scripts/sync-release-metadata.cjs
+      - run: npm ci
+      - run: npm run release:check
+      - name: Commit verified patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f scripts/apply-3.1.1.cjs .github/workflows/apply-3.1.1.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "release: Nexora 3.1.1 production hardening [3.1.1-applied]"
+          git push origin HEAD:agent/nexora-3.1.1-production-hardening
