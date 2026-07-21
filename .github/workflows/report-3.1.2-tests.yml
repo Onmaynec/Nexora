@@ -1,0 +1,45 @@
+name: Report focused Nexora 3.1.2 tests
+
+on:
+  push:
+    branches:
+      - agent/nexora-3.1.2-bugfix
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  report:
+    if: ${{ !contains(github.event.head_commit.message, '[3.1.2-focused-reported]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/nexora-3.1.2-bugfix
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - run: npm ci
+      - name: Run focused regression tests and comment
+        shell: bash
+        run: |
+          set +e
+          node --test test/audio-player.test.cjs test/update-service.test.cjs test/pulse-sandbox-service.test.cjs > /tmp/focused.log 2>&1
+          code=$?
+          {
+            echo '### Focused 3.1.2 regression output'
+            echo
+            echo '```text'
+            cat /tmp/focused.log
+            echo '```'
+            echo
+            echo "exit_code=$code"
+          } > /tmp/comment.md
+          gh pr comment 9 --repo Onmaynec/Nexora --body-file /tmp/comment.md
+          exit "$code"
