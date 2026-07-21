@@ -1,0 +1,38 @@
+name: Materialize Nexora 3.1 final branch
+
+on:
+  push:
+    branches:
+      - automation/nexora-3.1.0-finalize
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Materialize verified productization diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main agent/nexora-3.1.0-productization
+          git switch -C agent/nexora-3.1.0-final origin/main
+          while IFS= read -r -d '' file; do
+            if git cat-file -e "origin/agent/nexora-3.1.0-productization:${file}" 2>/dev/null; then
+              mkdir -p "$(dirname "$file")"
+              git show "origin/agent/nexora-3.1.0-productization:${file}" > "$file"
+              git add -- "$file"
+            else
+              git rm -f --ignore-unmatch -- "$file"
+            fi
+          done < <(git diff --name-only -z ebcb8109d676778b46d2c4fbb04362ede49273b6 origin/agent/nexora-3.1.0-productization -- . ':(exclude).github/workflows/rebase-productization.yml')
+          git commit -m "release: materialize Nexora 3.1.0 on current main"
+          git push --force-with-lease origin HEAD:agent/nexora-3.1.0-final
