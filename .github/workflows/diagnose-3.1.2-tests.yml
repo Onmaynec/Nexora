@@ -1,0 +1,40 @@
+name: Diagnose Nexora 3.1.2 tests
+
+on:
+  push:
+    branches:
+      - agent/nexora-3.1.2-bugfix
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose-tests:
+    if: ${{ !contains(github.event.head_commit.message, '[3.1.2-test-diagnostic]') && !contains(github.event.head_commit.message, '[3.1.2-applied]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/nexora-3.1.2-bugfix
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - run: npm ci
+      - name: Capture full test output
+        shell: bash
+        run: |
+          set +e
+          npm test > /tmp/nexora-3.1.2-test.log 2>&1
+          code=$?
+          mkdir -p .diagnostics
+          cp /tmp/nexora-3.1.2-test.log .diagnostics/test-3.1.2.log
+          printf '\nexit_code=%s\n' "$code" >> .diagnostics/test-3.1.2.log
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .diagnostics/test-3.1.2.log
+          git commit -m "ci: capture 3.1.2 test output [3.1.2-test-diagnostic] [3.1.2-applied]"
+          git push origin HEAD:agent/nexora-3.1.2-bugfix
