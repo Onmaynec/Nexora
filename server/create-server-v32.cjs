@@ -4,6 +4,7 @@ const { createNexoraServerV31 } = require("./create-server-v31.cjs");
 const { upgradeStoreToSchema8 } = require("./trust-schema8.cjs");
 const { TrustRepository } = require("./trust-repository.cjs");
 const { mountTrustV4Routes } = require("./trust-v4-routes.cjs");
+const { mountTrustDiscoveryRoutes } = require("./trust-discovery-routes.cjs");
 
 function trustStats(repository) {
   const db = repository.db;
@@ -35,6 +36,12 @@ async function createNexoraServerV32(options = {}) {
       repository,
       log,
     });
+    const discovery = mountTrustDiscoveryRoutes({
+      app: instance.app,
+      store: instance.store,
+      repository,
+      log,
+    });
     const originalStatus = instance.status.bind(instance);
     instance.status = () => ({
       ...originalStatus(),
@@ -51,6 +58,7 @@ async function createNexoraServerV32(options = {}) {
     instance.trustMigration = migration;
     instance.trustRepository = repository;
     instance.trustRoutes = routes;
+    instance.trustDiscovery = discovery;
     return instance;
   } catch (error) {
     await instance.close().catch(() => {});
