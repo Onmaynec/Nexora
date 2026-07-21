@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { AtSign, Eye, EyeOff, KeyRound, LockKeyhole, Radio, UserRound, Zap } from "lucide-react";
+import { AtSign, Eye, EyeOff, Fingerprint, KeyRound, LockKeyhole, Radio, UserRound, Zap } from "lucide-react";
 import { post } from "../api";
 import ParticleField from "./ParticleField";
 import { NexoraLogo } from "./ui";
@@ -23,9 +23,11 @@ export default function AuthScreen({ onAuthenticated, serverOnline, passwordPoli
   const [form, setForm] = useState({ displayName: "", username: "", password: "", confirm: "" });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [totpChallenge, setTotpChallenge] = useState(null);
+  const [totpCode, setTotpCode] = useState("");
   const minimum = passwordPolicy?.minLength ?? 10;
 
-  useEffect(() => setError(""), [mode]);
+  useEffect(() => { setError(""); setTotpChallenge(null); setTotpCode(""); }, [mode]);
 
   function update(field) {
     return (event) => setForm((current) => ({ ...current, [field]: event.target.value }));
@@ -40,9 +42,16 @@ export default function AuthScreen({ onAuthenticated, serverOnline, passwordPoli
     }
     setBusy(true);
     try {
-      const result = await post(`/api/auth/${mode}`, mode === "login"
-        ? { username: form.username, password: form.password }
-        : { displayName: form.displayName, username: form.username, password: form.password });
+      const result = totpChallenge
+        ? await post("/api/auth/login/totp", { challengeId: totpChallenge, code: totpCode })
+        : await post(`/api/auth/${mode}`, mode === "login"
+          ? { username: form.username, password: form.password }
+          : { displayName: form.displayName, username: form.username, password: form.password });
+      if (result.requiresTotp) {
+        setTotpChallenge(result.challengeId);
+        setForm((current) => ({ ...current, password: "" }));
+        return;
+      }
       onAuthenticated(result);
     } catch (requestError) {
       setError(requestError.message);
@@ -103,8 +112,8 @@ export default function AuthScreen({ onAuthenticated, serverOnline, passwordPoli
                 </motion.div>
               )}
             </AnimatePresence>
-            <Field icon={AtSign} label="Username" value={form.username} onChange={update("username")} autoComplete="username" maxLength={24} pattern="[a-zA-Z0-9_.-]{3,24}" placeholder="your_username" required />
-            <label className="auth-field">
+            {!totpChallenge && <Field icon={AtSign} label="Username" value={form.username} onChange={update("username")} autoComplete="username" maxLength={24} pattern="[a-zA-Z0-9_.-]{3,24}" placeholder="your_username" required />}
+            {!totpChallenge && <label className="auth-field">
               <span>Пароль</span>
               <div className="auth-input-wrap">
                 <KeyRound size={17} />
@@ -113,16 +122,18 @@ export default function AuthScreen({ onAuthenticated, serverOnline, passwordPoli
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
-            </label>
+            </label>}
+            {totpChallenge && <Field icon={Fingerprint} label="Код двухфакторной защиты" value={totpCode} onChange={(event) => setTotpCode(event.target.value.replace(/\s/g, ""))} autoComplete="one-time-code" inputMode="numeric" maxLength={20} placeholder="6 цифр или резервный код" autoFocus required />}
             {mode === "register" && (
               <Field icon={KeyRound} label="Повторите пароль" type={showPassword ? "text" : "password"} value={form.confirm} onChange={update("confirm")} autoComplete="new-password" minLength={minimum} placeholder="Ещё раз" required />
             )}
             <p className="auth-error" role="alert">{error}</p>
             <button className="auth-submit" type="submit" disabled={busy || !serverOnline}>
-              <span>{busy ? "Подключаем…" : mode === "login" ? "Войти в Nexora" : "Создать аккаунт"}</span>
+              <span>{busy ? "Подключаем…" : totpChallenge ? "Подтвердить вход" : mode === "login" ? "Войти в Nexora" : "Создать аккаунт"}</span>
               <b aria-hidden="true">↗</b>
             </button>
           </form>
+          {totpChallenge && <button type="button" className="auth-back" onClick={() => { setTotpChallenge(null); setTotpCode(""); }}>Вернуться к паролю</button>}
           <p className="auth-footnote">Сессия хранится только на вашем локальном сервере.</p>
         </section>
       </motion.div>

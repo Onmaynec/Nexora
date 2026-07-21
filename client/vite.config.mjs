@@ -12,6 +12,17 @@ export default defineConfig({
     outDir: path.join(directory, "dist"),
     emptyOutDir: true,
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/react") || id.includes("node_modules/scheduler")) return "react-vendor";
+          if (id.includes("node_modules/framer-motion")) return "motion";
+          if (id.includes("node_modules/socket.io-client") || id.includes("node_modules/engine.io-client")) return "realtime";
+          if (id.includes("node_modules/lucide-react")) return "icons";
+          return undefined;
+        },
+      },
+    },
   },
   server: {
     host: "0.0.0.0",

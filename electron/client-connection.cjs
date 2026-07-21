@@ -17,12 +17,16 @@ function connectionError(message, code) {
 function isAllowedHost(hostname) {
   const host = String(hostname || "").toLowerCase();
   if (host === "localhost" || host === "127.0.0.1") return true;
-  if (!net.isIPv4(host)) return false;
-  const octets = host.split(".").map(Number);
-  return octets[0] === 26
-    || octets[0] === 10
-    || (octets[0] === 192 && octets[1] === 168)
-    || (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31);
+  if (net.isIPv4(host)) {
+    const octets = host.split(".").map(Number);
+    return octets[0] === 26
+      || octets[0] === 10
+      || (octets[0] === 192 && octets[1] === 168)
+      || (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31);
+  }
+  return host.length <= 253
+    && host.includes(".")
+    && host.split(".").every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(label));
 }
 
 function isAllowedNexoraUrl(value) {
@@ -75,15 +79,16 @@ function normalizeServerUrl(value) {
 
   const authority = candidate.replace(/^https:\/\//i, "").split(/[/?#]/, 1)[0];
   const match = authority.match(/^([^:]+)(?::(\d{1,5}))?$/);
-  if (!match) throw connectionError("Поддерживается полный IPv4-адрес сервера с портом 3443.", "ADDRESS_INVALID");
+  if (!match) throw connectionError("Укажите полный IPv4-адрес или публичное доменное имя сервера.", "ADDRESS_INVALID");
   const rawHostname = match[1].toLowerCase();
-  if (rawHostname !== "localhost" && !net.isIPv4(rawHostname)) {
+  if (rawHostname !== "localhost" && /^\d+(?:\.\d*){0,3}$/.test(rawHostname) && !net.isIPv4(rawHostname)) {
     throw connectionError("Введите полный IPv4-адрес. Например: https://26.4.1.76:3443", "IPV4_INCOMPLETE");
   }
   if (!isAllowedHost(rawHostname)) {
-    throw connectionError("Разрешены только адреса Radmin VPN и локальной сети.", "ADDRESS_NOT_LOCAL");
+    throw connectionError("Разрешены адреса Radmin/LAN или полное публичное доменное имя.", "ADDRESS_NOT_ALLOWED");
   }
-  const port = Number(match[2] || DEFAULT_SERVER_PORT);
+  const localAddress = rawHostname === "localhost" || net.isIPv4(rawHostname);
+  const port = Number(match[2] || (localAddress ? DEFAULT_SERVER_PORT : 443));
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw connectionError("Порт сервера должен быть числом от 1 до 65535.", "PORT_INVALID");
   return `https://${rawHostname}:${port}`;
 }

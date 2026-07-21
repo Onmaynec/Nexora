@@ -1,8 +1,9 @@
 "use strict";
 
 const fs = require("node:fs/promises");
+const crypto = require("node:crypto");
 const path = require("node:path");
-const { app, BrowserWindow, dialog, ipcMain, session, shell } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
 const {
   inspectNexoraServer,
   isAllowedNexoraUrl,
@@ -19,6 +20,25 @@ let config = { servers: [], activeServerId: null, legacyUrl: null };
 let updateService = null;
 let clientLogFile = null;
 let activeTrust = null;
+let activeClientSession = null;
+let currentPartition = null;
+
+const CONNECTOR_PARTITION = "persist:nexora-connector";
+
+function partitionForServer(serverId) {
+  if (!serverId) return CONNECTOR_PARTITION;
+  const digest = crypto.createHash("sha256").update(String(serverId)).digest("hex").slice(0, 24);
+  return `persist:nexora-server-${digest}`;
+}
+
+function isActiveServerUrl(value) {
+  if (!activeTrust?.url) return false;
+  try {
+    return new URL(value).origin === new URL(activeTrust.url).origin;
+  } catch {
+    return false;
+  }
+}
 
 async function logClient(message, level = "info") {
   try {
@@ -28,17 +48,16 @@ async function logClient(message, level = "info") {
   } catch {}
 }
 
-function configurePermissions() {
-  const clientSession = session.defaultSession;
+function configurePermissions(clientSession) {
   clientSession.setPermissionCheckHandler((_webContents, permission, requestingOrigin, details = {}) => {
     const requestingUrl = details.requestingUrl || details.securityOrigin || requestingOrigin;
-    if (!isAllowedNexoraUrl(requestingUrl)) return false;
+    if (!isActiveServerUrl(requestingUrl)) return false;
     if (permission === "notifications") return true;
     if (permission === "media") return details.mediaType === "audio";
     return false;
   });
   clientSession.setPermissionRequestHandler((webContents, permission, callback, details = {}) => {
-    const trusted = isAllowedNexoraUrl(details.requestingUrl || details.securityOrigin || webContents.getURL());
+    const trusted = isActiveServerUrl(details.requestingUrl || details.securityOrigin || webContents.getURL());
     if (!trusted) return callback(false);
     if (permission === "notifications") return callback(true);
     const mediaTypes = Array.isArray(details.mediaTypes) ? details.mediaTypes : [];
@@ -46,8 +65,8 @@ function configurePermissions() {
   });
 }
 
-function installCertificateVerifier() {
-  const clientSession = session.defaultSession;
+function installCertificateVerifier(clientSession = activeClientSession) {
+  if (!clientSession) return;
   clientSession.setCertificateVerifyProc(null);
   clientSession.setCertificateVerifyProc((request, callback) => {
     const trusted = activeTrust && matchesPinnedCertificate([activeTrust], {
@@ -60,7 +79,14 @@ function installCertificateVerifier() {
 
 function activateTrust(server = null) {
   activeTrust = server;
-  installCertificateVerifier();
+  installCertificateVerifier(activeClientSession);
+}
+
+function restartIntoPartition() {
+  setTimeout(() => {
+    app.relaunch();
+    app.exit(0);
+  }, 250);
 }
 
 async function loadConfig() {
@@ -131,6 +157,10 @@ async function connectServer(value, confirmation = null) {
   config.activeServerId = entry.id;
   config.legacyUrl = null;
   await saveConfig();
+  if (currentPartition !== partitionForServer(entry.id)) {
+    restartIntoPartition();
+    return { ok: true, server: entry, restarting: true };
+  }
   activateTrust(entry);
   await mainWindow.loadURL(url);
   return { ok: true, server: entry };
@@ -141,11 +171,17 @@ async function forgetServer(serverId) {
   if (config.activeServerId === serverId) config.activeServerId = null;
   await saveConfig();
   if (activeTrust?.id === serverId) activateTrust(null);
+  if (!config.activeServerId && currentPartition !== CONNECTOR_PARTITION) {
+    restartIntoPartition();
+    return publicConfig();
+  }
   await showConnector();
   return publicConfig();
 }
 
 function createWindow() {
+  const active = config.servers.find((item) => item.id === config.activeServerId);
+  currentPartition = partitionForServer(active?.id);
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 820,
@@ -160,8 +196,12 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      partition: currentPartition,
     },
   });
+  activeClientSession = mainWindow.webContents.session;
+  configurePermissions(activeClientSession);
+  installCertificateVerifier(activeClientSession);
   mainWindow.setMenuBarVisibility(false);
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:/i.test(url)) shell.openExternal(url);
@@ -174,7 +214,6 @@ function createWindow() {
     }
   });
   mainWindow.webContents.on("render-process-gone", (_event, details) => logClient(`render-process-gone: ${details.reason} (${details.exitCode})`, "error"));
-  const active = config.servers.find((item) => item.id === config.activeServerId);
   showConnector("", active?.url || "").then(async () => {
     if (!active) return;
     try {
@@ -206,7 +245,7 @@ function requireConnector(event) {
 function requireNexoraWindow(event) {
   const senderUrl = event.senderFrame?.url || event.sender?.getURL?.() || "";
   try {
-    if (new URL(senderUrl).protocol === "file:" || isAllowedNexoraUrl(senderUrl)) return;
+    if (new URL(senderUrl).protocol === "file:" || isActiveServerUrl(senderUrl)) return;
   } catch {}
   throw new Error("Недоверенное окно не может управлять Nexora Client.");
 }
@@ -214,8 +253,6 @@ function requireNexoraWindow(event) {
 app.whenReady().then(async () => {
   app.setAppUserModelId("com.nexora.client");
   await loadConfig();
-  configurePermissions();
-  installCertificateVerifier();
   ipcMain.handle("client:connect", (event, { url, confirmation }) => { requireConnector(event); return connectServer(url, confirmation || null); });
   ipcMain.handle("client:forget-server", (event, serverId) => { requireConnector(event); return forgetServer(serverId); });
   ipcMain.handle("client:get-config", (event) => { requireConnector(event); return publicConfig(); });
@@ -223,6 +260,12 @@ app.whenReady().then(async () => {
   ipcMain.handle("client:update-status", () => updateService?.status() ?? { enabled: false, status: "initializing" });
   ipcMain.handle("client:check-update", () => updateService?.check() ?? { enabled: false });
   ipcMain.handle("client:install-update", () => updateService?.install() ?? false);
+  ipcMain.on("client:renderer-error", (event, report = {}) => {
+    requireNexoraWindow(event);
+    const message = String(report.message || "Unknown renderer error").replace(/[\r\n]+/g, " ").slice(0, 500);
+    const componentStack = String(report.componentStack || "").replace(/[\r\n]+/g, " ").slice(0, 4_000);
+    logClient(`renderer-error: ${message} ${componentStack}`, "error");
+  });
   createWindow();
   updateService = await createUpdateService({
     kind: "client",

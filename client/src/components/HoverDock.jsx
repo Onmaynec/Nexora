@@ -1,8 +1,9 @@
-import { ContactRound, DoorOpen, Files, MessageCircleMore, Search, Settings2, Sparkles, UsersRound } from "lucide-react";
+import { Bell, ContactRound, DoorOpen, Files, MessageCircleMore, Search, Settings2, Sparkles, UsersRound } from "lucide-react";
 
 const items = [
   { id: "chats", label: "Чаты", icon: MessageCircleMore },
   { id: "search", label: "Поиск", icon: Search },
+  { id: "notifications", label: "Уведомления", icon: Bell },
   { id: "rooms", label: "Комнаты", icon: UsersRound },
   { id: "contacts", label: "Контакты", icon: ContactRound },
   { id: "files", label: "Файлы", icon: Files },

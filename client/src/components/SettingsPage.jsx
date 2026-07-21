@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  Bell, BellOff, Camera, DownloadCloud, Fingerprint, KeyRound, Laptop, LoaderCircle,
+  Bell, BellOff, Camera, Copy, DownloadCloud, Fingerprint, KeyRound, Laptop, LoaderCircle, QrCode,
   LogOut, MonitorSmartphone, RefreshCcw, Server, ShieldBan, ShieldCheck, Smartphone,
   Volume2, X,
 } from "lucide-react";
@@ -25,6 +25,13 @@ export default function SettingsPage({ me, blocked, version, server, preferences
   const [saving, setSaving] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [update, setUpdate] = useState(null);
+  const [totpEnabled, setTotpEnabled] = useState(Boolean(me.totpEnabled));
+  const [totpSetup, setTotpSetup] = useState(null);
+  const [recoveryCodes, setRecoveryCodes] = useState([]);
+  const [notificationMode, setNotificationMode] = useState(preferences?.notificationMode ?? "all");
+  const [quietHoursStart, setQuietHoursStart] = useState(preferences?.quietHoursStart ?? "");
+  const [quietHoursEnd, setQuietHoursEnd] = useState(preferences?.quietHoursEnd ?? "");
+  const [installReady, setInstallReady] = useState(Boolean(window.nexoraInstallPrompt));
   const avatarInput = useRef(null);
 
   async function loadSessions() {
@@ -33,9 +40,12 @@ export default function SettingsPage({ me, blocked, version, server, preferences
 
   useEffect(() => {
     loadSessions();
-    if (!window.nexoraClient?.updateStatus) return undefined;
+    const onInstallReady = () => setInstallReady(true);
+    window.addEventListener("nexora:install-ready", onInstallReady);
+    if (!window.nexoraClient?.updateStatus) return () => window.removeEventListener("nexora:install-ready", onInstallReady);
     window.nexoraClient.updateStatus().then(setUpdate);
-    return window.nexoraClient.onUpdate?.(setUpdate);
+    const removeUpdate = window.nexoraClient.onUpdate?.(setUpdate);
+    return () => { removeUpdate?.(); window.removeEventListener("nexora:install-ready", onInstallReady); };
   }, []);
 
   async function saveProfile(event) {
@@ -120,9 +130,51 @@ export default function SettingsPage({ me, blocked, version, server, preferences
     onLogout();
   }
 
+  async function beginTotp() {
+    try { setTotpSetup(await post("/api/users/me/totp/setup")); } catch (error) { showToast(error.message, "error"); }
+  }
+
+  async function enableTotp(event) {
+    event.preventDefault();
+    try {
+      const result = await post("/api/users/me/totp/enable", { code: new FormData(event.currentTarget).get("code") });
+      setRecoveryCodes(result.recoveryCodes);
+      setTotpEnabled(true);
+      setTotpSetup(null);
+      onMeChanged({ ...me, totpEnabled: true });
+      showToast("Двухфакторная защита включена");
+    } catch (error) { showToast(error.message, "error"); }
+  }
+
+  async function disableTotp(event) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    try {
+      await api("/api/users/me/totp", { method: "DELETE", body: JSON.stringify({ password: form.get("password"), code: form.get("code") }) });
+      setTotpEnabled(false); setRecoveryCodes([]); onMeChanged({ ...me, totpEnabled: false }); event.currentTarget.reset();
+      showToast("Двухфакторная защита выключена");
+    } catch (error) { showToast(error.message, "error"); }
+  }
+
+  async function saveNotificationPreferences() {
+    try {
+      await patch("/api/users/me/preferences", { notificationMode, quietHoursStart, quietHoursEnd });
+      showToast("Режим уведомлений сохранён");
+    } catch (error) { showToast(error.message, "error"); }
+  }
+
+  async function installPwa() {
+    const prompt = window.nexoraInstallPrompt;
+    if (!prompt) return;
+    await prompt.prompt();
+    await prompt.userChoice;
+    window.nexoraInstallPrompt = null;
+    setInstallReady(false);
+  }
+
   return (
     <div className="section-page settings-page">
-      <header className="section-page-head"><div><span>IDENTITY & DEVICES</span><h1>Настройки</h1><p>Профиль, безопасность и уведомления Nexora.</p></div><div className="release-badge"><span>STABLE RELEASE</span><strong>v{version ?? "2.0.0"}</strong></div></header>
+      <header className="section-page-head"><div><span>IDENTITY & DEVICES</span><h1>Настройки</h1><p>Профиль, безопасность и уведомления Nexora.</p></div><div className="release-badge"><span>RELEASE</span><strong>v{version ?? "3.0.0"}</strong></div></header>
       <div className="settings-grid settings-grid-v3">
         <section className="settings-card profile-settings-card">
           <div className="settings-card-title"><ShieldCheck size={20} /><div><h3>Профиль</h3><span>@{me.username}</span></div></div>
@@ -134,7 +186,20 @@ export default function SettingsPage({ me, blocked, version, server, preferences
           <div className="settings-card-title">{notifications ? <Bell size={20} /> : <BellOff size={20} />}<div><h3>Windows-уведомления</h3><span>Для новых сообщений в фоне</span></div></div>
           <button type="button" className={`toggle${notifications ? " on" : ""}`} onClick={toggleNotifications}><i /><span>{notifications ? "Включены" : "Выключены"}</span></button>
           <label className="sound-select"><span><Volume2 size={16} /> Звук уведомлений</span><select value={sound} onChange={(event) => changeSound(event.target.value)}><option value="none">Без звука</option><option value="subtle">Тихий</option><option value="pulse">Импульс</option><option value="chime">Сигнал</option></select></label>
+          <label className="sound-select"><span>Какие события показывать</span><select value={notificationMode} onChange={(event) => setNotificationMode(event.target.value)}><option value="all">Все сообщения</option><option value="mentions">Только упоминания и ответы</option><option value="none">Не показывать</option></select></label>
+          <div className="quiet-hours"><label>Тихие часы с<input type="time" value={quietHoursStart} onChange={(event) => setQuietHoursStart(event.target.value)} /></label><label>до<input type="time" value={quietHoursEnd} onChange={(event) => setQuietHoursEnd(event.target.value)} /></label></div>
+          <button type="button" className="server-switch" onClick={saveNotificationPreferences}>Сохранить режим</button>
         </section>
+
+        <section className="settings-card totp-card">
+          <div className="settings-card-title"><QrCode size={20} /><div><h3>Двухфакторная защита</h3><span>{totpEnabled ? "Включена" : "TOTP и резервные коды"}</span></div></div>
+          {!totpEnabled && !totpSetup && <button type="button" className="server-switch" onClick={beginTotp}>Настроить 2FA</button>}
+          {totpSetup && <><img className="totp-qr" src={totpSetup.qrCode} alt="QR-код TOTP" /><code className="totp-secret">{totpSetup.secret}</code><form className="password-form" onSubmit={enableTotp}><input name="code" inputMode="numeric" autoComplete="one-time-code" placeholder="Код из приложения" required /><button type="submit">Подтвердить</button></form></>}
+          {totpEnabled && <form className="password-form" onSubmit={disableTotp}><input name="password" type="password" autoComplete="current-password" placeholder="Текущий пароль" required /><input name="code" autoComplete="one-time-code" placeholder="Одноразовый или резервный код" required /><button type="submit" className="outline-danger">Выключить 2FA</button></form>}
+          {recoveryCodes.length > 0 && <div className="recovery-codes"><strong>Сохраните коды сейчас — повторно они не показываются</strong><code>{recoveryCodes.join("\n")}</code><button type="button" onClick={() => navigator.clipboard.writeText(recoveryCodes.join("\n"))}><Copy size={15} /> Копировать</button></div>}
+        </section>
+
+        {(installReady || window.matchMedia?.("(display-mode: standalone)").matches) && <section className="settings-card pwa-card"><div className="settings-card-title"><DownloadCloud size={20} /><div><h3>Приложение для браузера и Android</h3><span>{window.matchMedia?.("(display-mode: standalone)").matches ? "Уже установлено" : "PWA с офлайн-историей"}</span></div></div>{installReady && <button type="button" className="server-switch" onClick={installPwa}>Установить Nexora</button>}</section>}
 
         <section className="settings-card password-card">
           <div className="settings-card-title"><KeyRound size={20} /><div><h3>Изменить пароль</h3><span>Остальные устройства будут отключены</span></div></div>

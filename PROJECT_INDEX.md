@@ -1,78 +1,79 @@
-# Индекс проекта Nexora 2.0.0
+# Индекс проекта Nexora 3.0.0
 
 ## Точки запуска
 
 | Файл | Назначение |
 |---|---|
-| `server/cli.cjs` | консольный локальный Server |
-| `electron/server-main.cjs` | Nexora Server.exe и IPC admin panel |
-| `electron/client-main.cjs` | Nexora Client.exe, trusted servers и certificate pinning |
-| `client/src/main.jsx` | React web/desktop renderer |
+| `server/cli.cjs` | консольный Nexora Server |
+| `electron/server-main.cjs` | Windows Server shell и IPC admin panel |
+| `electron/client-main.cjs` | Windows Client, trusted servers, sessions и updater |
+| `client/src/main.jsx` | общий React renderer для desktop/browser/PWA/Android |
+| `android/app/.../MainActivity.kt` | безопасная Android WebView shell и server picker |
 
-## Сервер
+## Server
 
 | Файл | Ответственность |
 |---|---|
-| `server/create-server.cjs` | REST, Socket.IO, users/rooms/messages/media/admin/Pulse routes |
-| `server/store.cjs` | `node:sqlite`, schema 5, migration, FTS5 и транзакционный diff/UPSERT |
-| `server/maintenance.cjs` | backup/restore, AES-256-GCM, retention, quota и cleanup |
-| `server/model.cjs` | права доступа, Saved Messages и API serialization |
-| `server/security.cjs` | passwords, sessions, CSRF и публичные профили |
-| `server/certificates.cjs` | local CA, SAN, fingerprints и Radmin/LAN addresses |
-| `server/pulse.cjs` | Plus entitlement, wallet/goals, sandbox и signed Pulse Cloud contract |
+| `server/create-server.cjs` | REST, Socket.IO, auth/TOTP, users, rooms, messages, media, admin и Pulse |
+| `server/v3-features.cjs` | sync/drafts/schedule/polls/moderation/bots/webhooks/resumable upload/metrics |
+| `server/events.cjs` | монотонный event stream, visibility и notifications |
+| `server/totp.cjs` | TOTP, recovery codes и AES-256-GCM secret storage |
+| `server/store.cjs` | `node:sqlite`, schema 6, migration backup, FTS5 и transactional UPSERT |
+| `server/maintenance.cjs` | backup/restore, retention, quota и cleanup |
+| `server/model.cjs` | permissions, custom roles и API serialization |
+| `server/security.cjs` | passwords, sessions, CSRF и public profiles |
+| `server/certificates.cjs` | local CA, SAN и fingerprints |
+| `server/pulse.cjs` | sandbox и signed Pulse Cloud contract |
 
-Schema 5 нормализует users/sessions/contacts/blocks, rooms/members/bans/requests/audit, conversations/settings, messages/reactions/reads/bookmarks/FTS, files/voice listens/uploads, security events/rate limits и Pulse entities.
+Schema 6 хранит основные нормализованные коллекции и v3 registry: events, notifications, drafts, scheduled messages, polls, edit history, invites/reports/appeals/roles/categories, bots/tokens/webhooks/audit и Pulse ledger events.
 
 ## React Client
 
 | Файл | Ответственность |
 |---|---|
-| `client/src/App.jsx` | session/bootstrap/presence/notifications/outbox lifecycle |
-| `components/Workspace.jsx` | dock, rails, rooms, contacts, files, details и profile modal |
-| `components/MessagePane.jsx` | лента, actions/reactions, search, composer, upload и selection |
-| `components/UserProfileModal.jsx` | Telegram-like profile surface |
-| `components/PulsePage.jsx` | Plus, wallet, premium profile и room goals |
-| `components/GlobalSearch.jsx` | global search и bookmarks |
-| `components/SettingsPage.jsx` | profile/password/sessions/sound/trust/update preferences |
-| `components/VoiceRecorder.jsx` | record/pause/resume/preview/wave/noise gate |
-| `components/VoicePlayer.jsx` | waveform/speed/listened |
-| `audio-player.js` | непрерывное воспроизведение между чатами |
-| `outbox.js` | offline queue и retry |
-| `api.js` | fetch/CSRF/version и XHR upload progress/cancel |
-| `styles.css` | Violet Grid, responsive containment и motion |
+| `client/src/App.jsx` | session/bootstrap, offline fallback, delta sync и outbox lifecycle |
+| `components/Workspace.jsx` | navigation, rooms, moderation, integrations и profile modal |
+| `components/MessagePane.jsx` | history, threads, schedule/silent send, polls, drafts и resumable upload |
+| `components/UserProfileModal.jsx` | profile surface с null-safe relationship state |
+| `components/NotificationsPage.jsx` | mentions/replies/security activity |
+| `components/SettingsPage.jsx` | profile, TOTP, sessions, notification/PWA preferences |
+| `components/GlobalSearch.jsx` | FTS search с user/date/type filters |
+| `offline-store.js` | IndexedDB bootstrap/message cache |
+| `outbox.js` | durable idempotent message queue |
+| `api.js` | fetch/CSRF/API version и chunk upload |
+| `public/sw.js` | application-shell cache без API/Socket.IO |
 
-## Desktop и релиз
+## Desktop, Android и релиз
 
 | Файл | Ответственность |
 |---|---|
-| `electron/client-connection.cjs` | URL validation, HTTPS probe, SAN и PEM SHA-256 |
-| `electron/update-service.cjs` | GitHub Client updater и generic Server updater |
-| `electron/client-shell/*` | server list/fingerprint confirmation/connect diagnostics |
-| `electron/server-shell/*` | admin overview/users/rooms/storage/security/logs |
+| `electron/client-connection.cjs` | HTTPS URL, public/local address, SAN и PEM SHA-256 |
+| `electron/update-service.cjs` | signed GitHub Client updater и generic Server updater |
+| `android/` | Gradle Android client source, deep link и strict TLS policy |
 | `electron-builder.*.yml` | отдельные NSIS installers |
-| `.github/workflows/ci.yml` | Windows/Linux verification |
-| `.github/workflows/release.yml` | signed Windows Release и checksums |
+| `.github/workflows/ci.yml` | Windows/Linux/Android verification |
+| `.github/workflows/release.yml` | immutable tag, source/PWA/SBOM и conditional signed release |
 
-## Основные REST-группы
+## API-группы
 
 - `/api/auth/*`, `/api/users/me*`, `/api/users/:id/profile`, `/api/sessions*`;
-- `/api/contacts*`, `/api/blocks*`, `/api/users/search`;
-- `/api/rooms*` — membership, moderation, settings, invite, audit, export;
-- `/api/conversations/:id/messages|media|upload|upload-capacity|settings`;
-- `/api/messages/:id/bookmark|listened`, `/api/bookmarks`, `/api/files/:id`;
-- `/api/search/messages`;
-- `/api/pulse/overview|checkout`, `/api/pulse/rooms/:id/goals`, `/api/pulse/goals/:id/contributions`;
-- `/api/admin/*`.
+- `/api/v3/sync`, `/api/v3/drafts*`, `/api/notifications*`;
+- `/api/rooms*` — membership, roles, categories, moderation, invites, reports и audit;
+- `/api/conversations/:id/messages|polls|media|upload|uploads|settings`;
+- `/api/messages/:id/edits|report|moderation|bookmark|listened`;
+- `/api/v3/bot/*`, `/api/bots/*`, `/api/rooms/:roomId/webhooks|integrations`;
+- `/api/pulse/*` и `/api/admin/*`.
 
-Изменяющие REST-запросы требуют session cookie, совпадающий Origin и `X-Nexora-CSRF`. Client передаёт `X-Nexora-Client-Version: 2.0.0`; API version — 2.
+Изменяющие пользовательские REST-запросы требуют session cookie, совпадающий Origin и `X-Nexora-CSRF`. Client передаёт `X-Nexora-Client-Version: 3.0.0`; Server сообщает API version 3 и диапазон совместимых major 2–3. Bot API использует отдельный bearer token со scopes.
 
 ## Проверки
 
 | Команда | Назначение |
 |---|---|
-| `npm run check` | 30 Node syntax checks, builder schema, Vite production build |
-| `npm test` | 41 functional/reliability/load/connection/Pulse/UI-regression tests |
-| `npm run audit:security` | security invariants + production npm audit |
-| `npm run test:soak` | configurable integrity soak, default 60 минут |
-| `npm run dist:windows` | test NSIS Client + Server |
-| `npm run release:windows` | full checks + signing gate + installers |
+| `npm run check` | Node syntax, builder config и Vite production build |
+| `npm test` | самодостаточная web build + unit/integration/reliability/load/UI regression suite |
+| `npm run audit:security` | security invariants + production dependency audit |
+| `npm run test:soak` | integrity soak, по умолчанию 60 минут |
+| `gradle -p android :app:assembleDebug` | Android source build |
+| `npm run dist:windows` | локальные тестовые NSIS Client/Server |
+| `npm run release:windows` | release checks, signing gate и installers |

@@ -22,9 +22,11 @@ test("нормализует полный Radmin/LAN-адрес и не прев
   assert.equal(normalizeServerUrl("26.4.1.76"), "https://26.4.1.76:3443");
   assert.equal(normalizeServerUrl("https://192.168.0.200:3443/"), "https://192.168.0.200:3443");
   assert.equal(normalizeServerUrl("172.16.5.4:4567"), "https://172.16.5.4:4567");
+  assert.equal(normalizeServerUrl("chat.example.com"), "https://chat.example.com:443");
   assert.throws(() => normalizeServerUrl("https://26."), (error) => error.code === "IPV4_INCOMPLETE");
-  assert.throws(() => normalizeServerUrl("https://8.8.8.8:3443"), (error) => error.code === "ADDRESS_NOT_LOCAL");
-  assert.throws(() => normalizeServerUrl("https://172.32.0.1:3443"), (error) => error.code === "ADDRESS_NOT_LOCAL");
+  assert.throws(() => normalizeServerUrl("https://8.8.8.8:3443"), (error) => error.code === "ADDRESS_NOT_ALLOWED");
+  assert.throws(() => normalizeServerUrl("https://172.32.0.1:3443"), (error) => error.code === "ADDRESS_NOT_ALLOWED");
+  assert.throws(() => normalizeServerUrl("https://single-label"), (error) => error.code === "ADDRESS_NOT_ALLOWED");
   assert.throws(() => normalizeServerUrl("http://26.4.1.76:3443"), (error) => error.code === "HTTPS_REQUIRED");
 });
 
@@ -51,13 +53,13 @@ test("проверяет Nexora health по самоподписанному HTT
   const fingerprint = new crypto.X509Certificate(certificates.cert).fingerprint256;
   const server = https.createServer({ key: certificates.key, cert: certificates.cert }, (request, response) => {
     response.setHeader("Content-Type", "application/json");
-    response.end(JSON.stringify({ service: "nexora", serverId: "server-test", version: "2.0.0", fingerprint, compatibility: { apiVersion: 2 } }));
+    response.end(JSON.stringify({ service: "nexora", serverId: "server-test", version: "3.0.0", fingerprint, compatibility: { apiVersion: 3 } }));
   });
   context.after(() => new Promise((resolve) => server.close(resolve)));
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
   const port = server.address().port;
-  const result = await inspectNexoraServer(`https://127.0.0.1:${port}`, { clientVersion: "2.0.0" });
+  const result = await inspectNexoraServer(`https://127.0.0.1:${port}`, { clientVersion: "3.0.0" });
   assert.equal(result.id, "server-test");
   assert.equal(result.fingerprint, fingerprint);
   assert.equal(result.url, `https://127.0.0.1:${port}`);

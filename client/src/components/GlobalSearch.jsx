@@ -15,6 +15,8 @@ export default function GlobalSearch({ onOpen, onOpenProfile, showToast }) {
   const [results, setResults] = useState([]);
   const [busy, setBusy] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [type, setType] = useState("");
+  const [after, setAfter] = useState("");
 
   async function search(event) {
     event?.preventDefault();
@@ -22,7 +24,10 @@ export default function GlobalSearch({ onOpen, onOpenProfile, showToast }) {
     setBusy(true);
     setSearched(true);
     try {
-      const result = await api(`/api/search/messages?q=${encodeURIComponent(query.trim())}`);
+      const parameters = new URLSearchParams({ q: query.trim() });
+      if (type) parameters.set("type", type);
+      if (after) parameters.set("after", new Date(`${after}T00:00:00`).toISOString());
+      const result = await api(`/api/search/messages?${parameters}`);
       setResults(result.results);
     } catch (error) {
       showToast(error.message, "error");
@@ -50,7 +55,7 @@ export default function GlobalSearch({ onOpen, onOpenProfile, showToast }) {
     <div className="section-page global-search-page">
       <header className="section-page-head"><div><span>MESSAGE INDEX</span><h1>Глобальный поиск</h1><p>Ищите текст и названия вложений во всех доступных чатах и комнатах.</p></div></header>
       <div className="search-modes"><button type="button" className={mode === "search" ? "active" : ""} onClick={() => { setMode("search"); setResults([]); setSearched(false); }}><Search size={16} /> Поиск</button><button type="button" className={mode === "bookmarks" ? "active" : ""} onClick={() => setMode("bookmarks")}><Bookmark size={16} /> Сохранённые</button></div>
-      {mode === "search" && <form className="global-search-form" onSubmit={search}><Search size={20} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Что найти в Nexora?" autoFocus /><button type="submit" disabled={busy || query.trim().length < 2}>{busy ? "Ищем…" : "Найти"}</button></form>}
+      {mode === "search" && <form className="global-search-form" onSubmit={search}><Search size={20} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Что найти в Nexora?" autoFocus /><select value={type} onChange={(event) => setType(event.target.value)} aria-label="Тип сообщения"><option value="">Все типы</option><option value="text">Текст</option><option value="media">Медиа и файлы</option><option value="voice">Голосовые</option><option value="poll">Опросы</option></select><input type="date" value={after} onChange={(event) => setAfter(event.target.value)} aria-label="Искать после даты" /><button type="submit" disabled={busy || query.trim().length < 2}>{busy ? "Ищем…" : "Найти"}</button></form>}
       <div className="global-search-results">
         {results.map(({ message, conversation }) => <button type="button" key={message.id} onClick={() => onOpen(conversation.id, message.id)}><Avatar user={message.sender} size="small" onClick={(event) => { event.stopPropagation(); onOpenProfile(message.sender); }} /><span className="search-result-copy"><span><strong>{message.sender.displayName}</strong><b>{conversation.title}</b><time>{formatTime(message.createdAt)}</time></span><small>{resultText(message)}</small></span></button>)}
         {searched && !busy && !results.length && <EmptyState icon={mode === "bookmarks" ? Bookmark : FileText} title={mode === "bookmarks" ? "Сохранённых сообщений нет" : "Совпадений нет"} description={mode === "bookmarks" ? "Добавляйте важные сообщения в сохранённые через меню действий." : "Попробуйте другое слово или часть названия файла."} />}

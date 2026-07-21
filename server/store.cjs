@@ -6,8 +6,27 @@ const path = require("node:path");
 const { EventEmitter } = require("node:events");
 const { DatabaseSync, backup } = require("node:sqlite");
 
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 const DEFAULT_STORAGE_QUOTA_BYTES = 5 * 1024 * 1024 * 1024;
+const V3_COLLECTIONS = Object.freeze([
+  "events",
+  "scheduledMessages",
+  "drafts",
+  "messageEdits",
+  "polls",
+  "pollVotes",
+  "roomInvites",
+  "roomReports",
+  "moderationAppeals",
+  "customRoles",
+  "roomCategories",
+  "botAccounts",
+  "apiTokens",
+  "webhooks",
+  "integrationAudit",
+  "paymentEvents",
+  "pulseLedger",
+]);
 
 function initialState() {
   return {
@@ -16,6 +35,7 @@ function initialState() {
       serverId: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
       migratedFromJsonAt: null,
+      lastEventSequence: 0,
     },
     settings: {
       storageQuotaBytes: DEFAULT_STORAGE_QUOTA_BYTES,
@@ -31,6 +51,9 @@ function initialState() {
       loginLockMinutes: 15,
       pulseEnabled: false,
       pulseCloudUrl: "",
+      emergencyReadOnly: false,
+      registrationPolicy: "open",
+      updateChannel: "stable",
     },
     users: [],
     sessions: [],
@@ -58,6 +81,7 @@ function initialState() {
     pulseContributions: [],
     loginAttempts: [],
     rateLimits: [],
+    ...Object.fromEntries(V3_COLLECTIONS.map((collection) => [collection, []])),
   };
 }
 
@@ -89,6 +113,13 @@ function normalizeState(value) {
     profileColor: "violet",
     avatarFrame: "none",
     plusBadgeVisible: true,
+    notificationMode: "all",
+    quietHoursStart: "",
+    quietHoursEnd: "",
+    locale: "ru",
+    totpEnabled: false,
+    totpSecret: null,
+    recoveryCodeHashes: [],
     ...user,
   }));
   normalized.sessions = normalized.sessions.map((session) => ({
@@ -104,15 +135,34 @@ function normalizeState(value) {
     inviteExpiresAt: null,
     inviteMaxUses: 0,
     inviteUseCount: 0,
+    description: "",
+    rules: "",
+    categoryId: null,
+    announcementOnly: false,
+    preapproveMessages: false,
+    allowImages: true,
     ...room,
   }));
+  normalized.roomMembers = normalized.roomMembers.map((member) => ({
+    customRoleIds: [],
+    restrictedUntil: null,
+    ...member,
+  }));
+  normalized.roomBans = normalized.roomBans.map((ban) => ({ expiresAt: null, ...ban }));
   normalized.conversationSettings = normalized.conversationSettings.map((setting) => ({
     muted: false,
     pinned: false,
     archived: false,
     folder: "all",
+    background: "default",
+    compact: false,
+    notificationMode: "all",
     ...setting,
   }));
+  normalized.meta.lastEventSequence = Math.max(
+    Number(normalized.meta.lastEventSequence) || 0,
+    ...normalized.events.map((event) => Number(event.sequence) || 0),
+  );
   return normalized;
 }
 
@@ -146,6 +196,28 @@ class SqliteStore extends EventEmitter {
     this.db.exec("PRAGMA busy_timeout = 5000");
     this.db.exec("PRAGMA wal_autocheckpoint = 250");
     this.createSchema();
+  }
+
+  async backupBeforeMigration() {
+    let source = null;
+    try {
+      const file = await fs.stat(this.filePath).catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error));
+      if (!file?.size) return null;
+      source = new DatabaseSync(this.filePath);
+      let row = null;
+      try { row = source.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get(); } catch { row = null; }
+      const current = Number(row?.value || 0);
+      if (current >= SCHEMA_VERSION) return null;
+      const destination = `${this.filePath}.pre-schema-${SCHEMA_VERSION}-${timestampSlug()}.bak`;
+      await backup(source, destination);
+      this.emit("log", { level: "info", message: `Создана резервная копия перед миграцией schema ${current || "legacy"} → ${SCHEMA_VERSION}: ${destination}` });
+      return destination;
+    } catch (error) {
+      if (error?.code === "ENOENT") return null;
+      throw Object.assign(new Error(`Не удалось создать резервную копию перед миграцией: ${error.message}`), { code: "MIGRATION_BACKUP_FAILED" });
+    } finally {
+      source?.close();
+    }
   }
 
   createSchema() {
@@ -367,6 +439,16 @@ class SqliteStore extends EventEmitter {
         hits INTEGER NOT NULL,
         data TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS v3_entities (
+        collection TEXT NOT NULL,
+        id TEXT NOT NULL,
+        scope_id TEXT,
+        created_at TEXT NOT NULL,
+        data TEXT NOT NULL,
+        PRIMARY KEY (collection, id)
+      );
+      CREATE INDEX IF NOT EXISTS v3_entities_scope_created
+        ON v3_entities(collection, scope_id, created_at DESC);
       CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
         message_id UNINDEXED,
         conversation_id UNINDEXED,
@@ -398,6 +480,7 @@ class SqliteStore extends EventEmitter {
 
   async init() {
     await fs.mkdir(path.dirname(this.filePath), { recursive: true });
+    await this.backupBeforeMigration();
     this.open();
     const check = this.integrityCheck();
     if (!check.ok) {
@@ -450,6 +533,10 @@ class SqliteStore extends EventEmitter {
   loadState() {
     const meta = parsed(this.db.prepare("SELECT value FROM meta WHERE key = 'state_meta'").get()?.value, {});
     const settings = parsed(this.db.prepare("SELECT value FROM meta WHERE key = 'settings'").get()?.value, {});
+    const v3 = Object.fromEntries(V3_COLLECTIONS.map((collection) => [
+      collection,
+      this.db.prepare("SELECT data FROM v3_entities WHERE collection = ? ORDER BY created_at, id").all(collection).map((row) => parsed(row.data)).filter(Boolean),
+    ]));
     return normalizeState({
       meta,
       settings,
@@ -479,6 +566,7 @@ class SqliteStore extends EventEmitter {
       pulseContributions: this.loadRows("pulse_contributions"),
       loginAttempts: this.loadRows("login_attempts"),
       rateLimits: this.loadRows("rate_limits"),
+      ...v3,
     });
   }
 
@@ -643,6 +731,16 @@ class SqliteStore extends EventEmitter {
         remove: "DELETE FROM rate_limits WHERE key = ?", removeArgs: (item) => [item.key],
       },
     };
+    for (const collection of V3_COLLECTIONS) {
+      definitions[collection] = {
+        table: "v3_entities",
+        key: (item) => item.id,
+        upsert: "INSERT INTO v3_entities (collection, id, scope_id, created_at, data) VALUES (?, ?, ?, ?, ?) ON CONFLICT(collection, id) DO UPDATE SET scope_id=excluded.scope_id, created_at=excluded.created_at, data=excluded.data",
+        args: (item) => [collection, item.id, item.scopeId ?? item.roomId ?? item.conversationId ?? item.userId ?? null, item.createdAt ?? item.scheduledAt ?? new Date(0).toISOString(), json(item)],
+        remove: "DELETE FROM v3_entities WHERE collection = ? AND id = ?",
+        removeArgs: (item) => [collection, item.id],
+      };
+    }
     const write = () => {
       for (const [collection, definition] of Object.entries(definitions)) {
         const before = new Map(previous[collection].map((item) => [definition.key(item), item]));
@@ -731,6 +829,13 @@ class SqliteStore extends EventEmitter {
       state.rateLimits = state.rateLimits.filter((bucket) => Date.parse(bucket.windowStartedAt) > now - 24 * 60 * 60 * 1000);
       state.notificationEvents = state.notificationEvents.filter((event) => Date.parse(event.createdAt) > now - 90 * 24 * 60 * 60 * 1000);
       state.uploadSessions = state.uploadSessions.filter((session) => session.status === "complete" || Date.parse(session.expiresAt) > now);
+      state.events = state.events
+        .filter((event) => Date.parse(event.createdAt) > now - 30 * 24 * 60 * 60 * 1000)
+        .slice(-50_000);
+      state.scheduledMessages = state.scheduledMessages.filter((message) => message.status === "pending" || Date.parse(message.updatedAt || message.scheduledAt) > now - 90 * 24 * 60 * 60 * 1000);
+      state.roomInvites = state.roomInvites.filter((invite) => !invite.revokedAt || Date.parse(invite.revokedAt) > now - 90 * 24 * 60 * 60 * 1000);
+      state.paymentEvents = state.paymentEvents.slice(-20_000);
+      state.integrationAudit = state.integrationAudit.slice(-20_000);
       for (const goal of state.pulseGoals) {
         if (goal.status === "active" && goal.expiresAt && Date.parse(goal.expiresAt) <= now) goal.status = "expired";
       }
@@ -855,6 +960,7 @@ class SqliteStore extends EventEmitter {
 module.exports = {
   DEFAULT_STORAGE_QUOTA_BYTES,
   SCHEMA_VERSION,
+  V3_COLLECTIONS,
   SqliteStore,
   initialState,
   normalizeState,

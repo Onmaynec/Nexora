@@ -9,6 +9,7 @@ const { EventEmitter } = require("node:events");
 
 const express = require("express");
 const multer = require("multer");
+const QRCode = require("qrcode");
 const { Server } = require("socket.io");
 
 const { ensureCertificates, networkAddresses } = require("./certificates.cjs");
@@ -24,6 +25,7 @@ const {
   findUser,
   isBlockedEither,
   isRoomBanned,
+  roomPermission,
   roomRole,
   roomView,
   safeDownloadName,
@@ -46,8 +48,11 @@ const {
   verifyPassword,
 } = require("./security.cjs");
 const { MaintenanceService } = require("./maintenance.cjs");
+const { addNotification, appendEvent, mentionedUsers } = require("./events.cjs");
 const { MAX_ACTIVE_GOALS, ROOM_CATALOG, PulseError, activeEntitlement, createPulseService } = require("./pulse.cjs");
 const { SqliteStore } = require("./store.cjs");
+const { createTotpService } = require("./totp.cjs");
+const { activeRoomInvite, mountV3Features, sniffMime } = require("./v3-features.cjs");
 const { version: APP_VERSION } = require("../package.json");
 
 const LIMITS = Object.freeze({
@@ -66,7 +71,7 @@ const LIMITS = Object.freeze({
 
 const REACTIONS = new Set(["👍", "❤️", "🔥", "😂", "👀", "🎉"]);
 const PLUS_REACTIONS = new Set(["✨", "💜", "⚡", "🫡", "🤝", "🚀"]);
-const COMPATIBILITY = Object.freeze({ minClientVersion: "2.0.0", maxClientMajor: 2, apiVersion: 2 });
+const COMPATIBILITY = Object.freeze({ minClientVersion: "2.0.0", minClientMajor: 2, maxClientMajor: 3, apiVersion: 3 });
 
 function nowIso() {
   return new Date().toISOString();
@@ -110,6 +115,11 @@ function majorVersion(value) {
   return match ? Number(match[1]) : null;
 }
 
+function compatibleClientVersion(value) {
+  const major = majorVersion(value);
+  return major != null && major >= COMPATIBILITY.minClientMajor && major <= COMPATIBILITY.maxClientMajor;
+}
+
 function certificateFingerprint(certificate) {
   try { return new crypto.X509Certificate(certificate).fingerprint256; } catch { return null; }
 }
@@ -150,10 +160,12 @@ async function createNexoraServer(options = {}) {
   const uploadsDir = path.join(dataDir, "uploads");
   const incomingDir = path.join(uploadsDir, ".incoming");
   const certificatesDir = path.join(dataDir, "certificates");
+  const secretsDir = path.join(dataDir, "secrets");
 
   await Promise.all([
     fs.mkdir(uploadsDir, { recursive: true }),
     fs.mkdir(incomingDir, { recursive: true }),
+    fs.mkdir(secretsDir, { recursive: true }),
   ]);
 
   const events = new EventEmitter();
@@ -161,6 +173,9 @@ async function createNexoraServer(options = {}) {
   store.on("log", (entry) => events.emit("log", entry));
   store.on("changed", () => events.emit("stats", store.stats()));
   await store.init();
+  const totp = await createTotpService({ keyFile: path.join(secretsDir, "local-secrets.key"), issuer: "Nexora" });
+  const totpChallenges = new Map();
+  const pendingTotp = new Map();
 
   let certificates = null;
   if (tlsEnabled) certificates = await ensureCertificates(certificatesDir);
@@ -294,21 +309,33 @@ async function createNexoraServer(options = {}) {
     const conversation = state.conversations.find((candidate) => candidate.roomId === roomId);
     const role = roomRole(state, roomId, viewerId);
     const serverAdmin = findUser(state, viewerId)?.role === "server_admin";
+    const builtInModerator = Boolean(room && conversation && (serverAdmin || ["owner", "moderator"].includes(role)));
+    const canManageMembers = Boolean(room && roomPermission(state, roomId, viewerId, "room.manage_members"));
+    const canManageReports = Boolean(room && roomPermission(state, roomId, viewerId, "room.manage_reports"));
     return {
       room, conversation, role, serverAdmin,
-      canModerate: Boolean(room && conversation && (serverAdmin || ["owner", "moderator"].includes(role))),
+      canConfigure: builtInModerator,
+      canManageMembers,
+      canManageReports,
+      canModerate: builtInModerator || canManageMembers || canManageReports,
       canManage: Boolean(room && conversation && (serverAdmin || role === "owner")),
     };
   }
 
   function roomPostingError(state, conversation, userId, kind = "text") {
+    if (state.settings.emergencyReadOnly) return { code: "SERVER_READ_ONLY", message: "Сервер временно работает только для чтения." };
     if (conversation?.type !== "room") return null;
     const room = state.rooms.find((candidate) => candidate.id === conversation.roomId);
     if (!room) return { code: "ROOM_NOT_FOUND", message: "Комната не найдена." };
     if (isRoomBanned(state, room.id, userId)) return { code: "ROOM_BANNED", message: "Вы заблокированы в этой комнате." };
     const privileged = canModerateConversation(state, conversation, userId);
+    const member = state.roomMembers.find((item) => item.roomId === room.id && item.userId === userId);
+    if (member?.restrictedUntil && Date.parse(member.restrictedUntil) > Date.now()) return { code: "MEMBER_RESTRICTED", message: "Отправка временно ограничена модератором." };
     if (room.readOnly && !privileged) return { code: "ROOM_READ_ONLY", message: "Комната работает в режиме «только чтение»." };
+    if (room.announcementOnly && !privileged) return { code: "ROOM_ANNOUNCEMENTS_ONLY", message: "Публиковать в канале объявлений могут только модераторы." };
+    if (!roomPermission(state, room.id, userId, "room.send_messages")) return { code: "ROOM_PERMISSION_DENIED", message: "У вашей роли нет права отправлять сообщения." };
     if (kind === "file" && room.allowFiles === false) return { code: "ROOM_FILES_DISABLED", message: "Отправка файлов в этой комнате отключена." };
+    if (kind === "image" && room.allowImages === false) return { code: "ROOM_IMAGES_DISABLED", message: "Отправка изображений в этой комнате отключена." };
     if (kind === "voice" && room.allowVoice === false) return { code: "ROOM_VOICE_DISABLED", message: "Голосовые сообщения в этой комнате отключены." };
     const slowSeconds = Number(room.slowModeSeconds || 0);
     if (slowSeconds > 0 && !privileged) {
@@ -319,6 +346,73 @@ async function createNexoraServer(options = {}) {
       if (retryAfter > 0) return { code: "ROOM_SLOW_MODE", message: `Медленный режим: повторите через ${retryAfter} сек.`, retryAfter };
     }
     return null;
+  }
+
+  let v3Features = null;
+
+  function notificationAllowed(state, recipientId, conversationId, mentioned) {
+    const recipient = findUser(state, recipientId);
+    const setting = state.conversationSettings.find((item) => item.userId === recipientId && item.conversationId === conversationId);
+    const mode = setting?.muted ? "none" : setting?.notificationMode ?? recipient?.notificationMode ?? "all";
+    return mode === "all" || (mode === "mentions" && mentioned);
+  }
+
+  async function createTextMessage({ senderId, conversationId, text: rawText, replyToId = null, clientId = null, silent = false, threadRootId = null }) {
+    const text = cleanText(rawText);
+    if (!text) throw Object.assign(new Error("Сообщение пустое."), { code: "MESSAGE_EMPTY" });
+    const safeClientId = /^[a-zA-Z0-9_-]{8,80}$/.test(String(clientId ?? "")) ? String(clientId) : null;
+    const result = await store.mutate((state) => {
+      const sender = findUser(state, senderId);
+      const conversation = findConversation(state, cleanLine(conversationId, 64));
+      if (!sender || !canAccessConversation(state, conversation, senderId)) throw Object.assign(new Error("Чат недоступен."), { code: "FORBIDDEN" });
+      const posting = roomPostingError(state, conversation, senderId, "text");
+      if (posting) throw Object.assign(new Error(posting.message), { code: posting.code, retryAfter: posting.retryAfter });
+      const duplicate = safeClientId ? state.messages.find((message) => message.senderId === senderId && message.clientId === safeClientId) : null;
+      if (duplicate) return { message: duplicate, conversation, duplicate: true, recipients: usersForConversation(state, conversation), event: null };
+      const peer = dmPeer(state, conversation, senderId);
+      if (peer && isBlockedEither(state, senderId, peer.id)) throw Object.assign(new Error("Отправка недоступна из-за блокировки."), { code: "CONTACT_BLOCKED" });
+      const reply = replyToId ? state.messages.find((message) => message.id === replyToId && message.conversationId === conversation.id && !message.deletedAt) : null;
+      if (replyToId && !reply) throw Object.assign(new Error("Исходное сообщение не найдено."), { code: "REPLY_NOT_FOUND" });
+      const root = threadRootId ? state.messages.find((message) => message.id === threadRootId && message.conversationId === conversation.id && !message.deletedAt) : null;
+      if (threadRootId && !root) throw Object.assign(new Error("Ветка обсуждения не найдена."), { code: "THREAD_NOT_FOUND" });
+      const recipients = usersForConversation(state, conversation);
+      const mentions = mentionedUsers(state, text, recipients).map((user) => user.id);
+      const room = conversation.type === "room" ? state.rooms.find((item) => item.id === conversation.roomId) : null;
+      const canReview = conversation.type === "room" && (canModerateConversation(state, conversation, senderId) || roomPermission(state, conversation.roomId, senderId, "room.manage_reports"));
+      const pendingApproval = Boolean(room?.preapproveMessages && !canReview);
+      const createdAt = nowIso();
+      const message = {
+        id: crypto.randomUUID(), conversationId: conversation.id, senderId, type: "text", text,
+        fileId: null, replyToId: reply?.id ?? null, threadRootId: root?.id ?? null,
+        forwardedFromId: null, forwardedSnapshot: null, clientId: safeClientId,
+        silent: Boolean(silent), mentions, pendingApproval,
+        createdAt, updatedAt: null, deletedAt: null, pinnedAt: null, pinnedBy: null,
+      };
+      state.messages.push(message);
+      const event = appendEvent(state, { type: pendingApproval ? "message.awaiting_approval" : "message.created", actorId: senderId, conversationId: conversation.id, roomId: conversation.roomId, payload: { messageId: message.id, type: message.type, silent: message.silent } });
+      if (!silent && !pendingApproval) {
+        for (const recipientId of recipients.filter((id) => id !== senderId)) {
+          const mentioned = mentions.includes(recipientId);
+          const replied = reply?.senderId === recipientId;
+          if (!notificationAllowed(state, recipientId, conversation.id, mentioned || replied)) continue;
+          addNotification(state, recipientId, mentioned ? "message.mention" : replied ? "message.reply" : "message.new", { conversationId: conversation.id, messageId: message.id, senderId });
+        }
+      }
+      const visibleRecipients = pendingApproval
+        ? recipients.filter((id) => id === senderId || canModerateConversation(state, conversation, id) || roomPermission(state, conversation.roomId, id, "room.manage_reports"))
+        : recipients;
+      return { message, conversation, duplicate: false, recipients: visibleRecipients, event };
+    });
+    if (result.event) v3Features?.dispatchEvent(result.event).catch(() => {});
+    return result;
+  }
+
+  function emitMessage(result) {
+    const state = store.read();
+    const recipients = result.recipients ?? usersForConversation(state, result.conversation);
+    const eventName = result.isUpdate ? "message:updated" : "message:new";
+    for (const participantId of recipients) io.to(userSocketRoom(participantId)).emit(eventName, serializeMessage(state, result.message, participantId));
+    refreshUsers(recipients);
   }
 
   async function joinConversationSockets(userId, conversationId) {
@@ -379,6 +473,39 @@ async function createNexoraServer(options = {}) {
     });
   }
 
+  async function establishSession(user, request, response) {
+    const token = createSessionToken();
+    const csrfToken = createCsrfToken();
+    const createdAt = nowIso();
+    const userAgent = cleanLine(request.headers["user-agent"], 180);
+    const ip = cleanLine(request.ip, 64);
+    await store.mutate((state) => {
+      ensureSavedConversation(state, user.id);
+      const knownDevice = state.sessions.some((session) => session.userId === user.id && session.userAgent === userAgent);
+      const session = {
+        id: crypto.randomUUID(), userId: user.id, tokenHash: hashToken(token), csrfToken,
+        createdAt, expiresAt: new Date(Date.now() + SESSION_DURATION_MS).toISOString(), lastSeenAt: createdAt,
+        userAgent, ip,
+      };
+      state.sessions.push(session);
+      if (!knownDevice && state.sessions.some((candidate) => candidate.userId === user.id && candidate.id !== session.id)) {
+        addNotification(state, user.id, "security.new_device", { sessionId: session.id, ip, userAgent });
+      }
+      appendEvent(state, { type: "session.created", actorId: user.id, userIds: [user.id], payload: { sessionId: session.id, newDevice: !knownDevice } });
+    });
+    await recordLoginAttempt({ username: user.username, ip, userId: user.id, success: true, reason: "success", userAgent });
+    setSessionCookie(response, token, tlsEnabled);
+    return { ok: true, user: publicUser(store.read((state) => findUser(state, user.id))), csrfToken, serverId, fingerprint };
+  }
+
+  function verifySecondFactor(user, code) {
+    const recoveryHash = totp.recoveryCodeHash(code);
+    const recoveryIndex = (user.recoveryCodeHashes ?? []).findIndex((value) => value === recoveryHash);
+    if (recoveryIndex >= 0) return { ok: true, recoveryHash };
+    if (!user.totpSecret) return { ok: false };
+    try { return { ok: totp.verify(totp.decrypt(user.totpSecret), code), recoveryHash: null }; } catch { return { ok: false }; }
+  }
+
   function passwordError(password) {
     const validation = validatePassword(password, store.read((state) => state.settings));
     return validation.ok ? null : `Пароль не соответствует политике: ${validation.errors.join(", ")}.`;
@@ -402,6 +529,11 @@ async function createNexoraServer(options = {}) {
     const passwordAllowed = request.path === "/api/users/me/password" || request.path === "/api/auth/logout";
     if (user.mustChangePassword && !passwordAllowed) {
       apiError(response, 428, "Перед продолжением необходимо изменить временный пароль.", "PASSWORD_CHANGE_REQUIRED");
+      return;
+    }
+    const emergencyAllowed = request.path === "/api/auth/logout" || request.path === "/api/admin/runtime";
+    if (store.read((state) => state.settings.emergencyReadOnly) && !["GET", "HEAD", "OPTIONS"].includes(request.method) && !emergencyAllowed) {
+      apiError(response, 503, "Сервер временно работает только для чтения.", "SERVER_READ_ONLY");
       return;
     }
     next();
@@ -432,8 +564,7 @@ async function createNexoraServer(options = {}) {
       return apiError(response, 403, "Origin запроса не разрешён.", "ORIGIN_REJECTED");
     }
     const clientVersion = request.headers["x-nexora-client-version"];
-    const clientMajor = majorVersion(clientVersion);
-    if (clientVersion && clientMajor !== COMPATIBILITY.maxClientMajor) {
+    if (clientVersion && !compatibleClientVersion(clientVersion)) {
       return apiError(response, 426, `Клиент ${clientVersion} несовместим с сервером ${APP_VERSION}.`, "CLIENT_VERSION_INCOMPATIBLE");
     }
     next();
@@ -521,7 +652,13 @@ async function createNexoraServer(options = {}) {
             readOnly: false,
             slowModeSeconds: 0,
             allowFiles: true,
+            allowImages: true,
             allowVoice: true,
+            description: "",
+            rules: "",
+            categoryId: null,
+            announcementOnly: false,
+            preapproveMessages: false,
             createdAt,
           };
           state.rooms.push(general);
@@ -566,25 +703,37 @@ async function createNexoraServer(options = {}) {
       await recordLoginAttempt({ username, ip, userId: user?.id ?? null, success: false, reason: user?.disabledAt ? "disabled" : "invalid_credentials", userAgent: request.headers["user-agent"] });
       return apiError(response, 401, "Неверный username или пароль.", "INVALID_CREDENTIALS");
     }
-    const token = createSessionToken();
-    const csrfToken = createCsrfToken();
-    await store.mutate((state) => {
-      ensureSavedConversation(state, user.id);
-      state.sessions.push({
-        id: crypto.randomUUID(),
-        userId: user.id,
-        tokenHash: hashToken(token),
-        csrfToken,
-        createdAt: nowIso(),
-        expiresAt: new Date(Date.now() + SESSION_DURATION_MS).toISOString(),
-        lastSeenAt: nowIso(),
-        userAgent: cleanLine(request.headers["user-agent"], 180),
-        ip: cleanLine(request.ip, 64),
+    if (user.totpEnabled) {
+      const challengeId = crypto.randomBytes(32).toString("base64url");
+      totpChallenges.set(challengeId, { userId: user.id, ip, userAgent: cleanLine(request.headers["user-agent"], 180), expiresAt: Date.now() + 5 * 60 * 1000, attempts: 0 });
+      return response.status(202).json({ ok: true, requiresTotp: true, challengeId, expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString() });
+    }
+    response.json(await establishSession(user, request, response));
+  });
+
+  app.post("/api/auth/login/totp", async (request, response) => {
+    const challengeId = cleanLine(request.body?.challengeId, 100);
+    const challenge = totpChallenges.get(challengeId);
+    if (!challenge || challenge.expiresAt <= Date.now() || challenge.attempts >= 5) {
+      totpChallenges.delete(challengeId);
+      return apiError(response, 401, "Проверка истекла. Введите пароль ещё раз.", "TOTP_CHALLENGE_EXPIRED");
+    }
+    challenge.attempts += 1;
+    const user = store.read((state) => findUser(state, challenge.userId));
+    const verification = user ? verifySecondFactor(user, request.body?.code) : { ok: false };
+    if (!verification.ok) {
+      await recordLoginAttempt({ username: user?.username ?? "", ip: challenge.ip, userId: user?.id ?? null, success: false, reason: "invalid_totp", userAgent: challenge.userAgent });
+      return apiError(response, 401, "Неверный одноразовый или резервный код.", "TOTP_INVALID");
+    }
+    totpChallenges.delete(challengeId);
+    if (verification.recoveryHash) {
+      await store.mutate((state) => {
+        const current = findUser(state, user.id);
+        current.recoveryCodeHashes = (current.recoveryCodeHashes ?? []).filter((value) => value !== verification.recoveryHash);
+        addNotification(state, user.id, "security.recovery_code_used", {});
       });
-    });
-    await recordLoginAttempt({ username, ip, userId: user.id, success: true, reason: "success", userAgent: request.headers["user-agent"] });
-    setSessionCookie(response, token, tlsEnabled);
-    response.json({ ok: true, user: publicUser(user), csrfToken, serverId, fingerprint });
+    }
+    response.json(await establishSession(user, request, response));
   });
 
   app.post("/api/auth/logout", authRequired, async (request, response) => {
@@ -615,6 +764,9 @@ async function createNexoraServer(options = {}) {
       me: publicUser(request.nexora.user),
       preferences: {
         notificationSound: request.nexora.user.notificationSound ?? "subtle",
+        notificationMode: request.nexora.user.notificationMode ?? "all",
+        quietHoursStart: request.nexora.user.quietHoursStart ?? "",
+        quietHoursEnd: request.nexora.user.quietHoursEnd ?? "",
       },
       conversations: conversationList(state, viewerId, online),
       rooms: state.rooms
@@ -628,6 +780,13 @@ async function createNexoraServer(options = {}) {
       limits: LIMITS,
       passwordPolicy: passwordPolicy(state.settings),
       pulse: pulse.localOverview(viewerId),
+      notificationCount: state.notificationEvents.filter((event) => event.userId === viewerId && !event.readAt).length,
+      drafts: state.drafts.filter((draft) => draft.userId === viewerId && canAccessConversation(state, findConversation(state, draft.conversationId), viewerId)),
+      sync: { apiVersion: 3, latestSequence: Number(state.meta.lastEventSequence || 0) },
+      capabilities: {
+        offlineSync: true, scheduledMessages: true, polls: true, communities: true,
+        resumableUploads: true, bots: true, pwa: true, android: true, totp: true,
+      },
     });
   });
 
@@ -909,6 +1068,63 @@ async function createNexoraServer(options = {}) {
     response.json({ ok: true, user: publicUser(store.read((state) => findUser(state, user.id))) });
   });
 
+  app.post("/api/users/me/totp/setup", authRequired, async (request, response) => {
+    const user = store.read((state) => findUser(state, request.nexora.user.id));
+    if (user.totpEnabled) return apiError(response, 409, "Двухфакторная защита уже включена.", "TOTP_ALREADY_ENABLED");
+    const setup = totp.generate(user.username);
+    pendingTotp.set(user.id, { secret: setup.secret, expiresAt: Date.now() + 10 * 60 * 1000 });
+    const qrCode = await QRCode.toDataURL(setup.uri, { width: 240, margin: 1, errorCorrectionLevel: "M" });
+    response.json({ ok: true, secret: setup.secret, uri: setup.uri, qrCode, expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString() });
+  });
+
+  app.post("/api/users/me/totp/enable", authRequired, async (request, response) => {
+    const pending = pendingTotp.get(request.nexora.user.id);
+    if (!pending || pending.expiresAt <= Date.now()) {
+      pendingTotp.delete(request.nexora.user.id);
+      return apiError(response, 410, "Настройка истекла. Создайте новый QR-код.", "TOTP_SETUP_EXPIRED");
+    }
+    if (!totp.verify(pending.secret, request.body?.code)) return apiError(response, 400, "Неверный код приложения-аутентификатора.", "TOTP_INVALID");
+    const recoveryCodes = totp.createRecoveryCodes();
+    await store.mutate((state) => {
+      const user = findUser(state, request.nexora.user.id);
+      user.totpSecret = totp.encrypt(pending.secret);
+      user.totpEnabled = true;
+      user.recoveryCodeHashes = recoveryCodes.map(totp.recoveryCodeHash);
+      appendEvent(state, { type: "security.totp.enabled", actorId: user.id, userIds: [user.id] });
+    });
+    pendingTotp.delete(request.nexora.user.id);
+    response.json({ ok: true, recoveryCodes });
+  });
+
+  app.post("/api/users/me/totp/recovery-codes", authRequired, async (request, response) => {
+    const user = store.read((state) => findUser(state, request.nexora.user.id));
+    const verification = user?.totpEnabled ? verifySecondFactor(user, request.body?.code) : { ok: false };
+    if (!verification.ok) return apiError(response, 401, "Подтвердите действие одноразовым кодом.", "TOTP_INVALID");
+    const recoveryCodes = totp.createRecoveryCodes();
+    await store.mutate((state) => {
+      const current = findUser(state, user.id);
+      current.recoveryCodeHashes = recoveryCodes.map(totp.recoveryCodeHash);
+      appendEvent(state, { type: "security.recovery_codes.rotated", actorId: user.id, userIds: [user.id] });
+    });
+    response.json({ ok: true, recoveryCodes });
+  });
+
+  app.delete("/api/users/me/totp", authRequired, async (request, response) => {
+    const user = store.read((state) => findUser(state, request.nexora.user.id));
+    if (!user?.totpEnabled) return apiError(response, 409, "Двухфакторная защита уже выключена.", "TOTP_NOT_ENABLED");
+    if (!(await verifyPassword(String(request.body?.password ?? ""), user.passwordSalt, user.passwordHash))) return apiError(response, 401, "Неверный пароль.", "INVALID_CREDENTIALS");
+    const verification = verifySecondFactor(user, request.body?.code);
+    if (!verification.ok) return apiError(response, 401, "Неверный одноразовый или резервный код.", "TOTP_INVALID");
+    await store.mutate((state) => {
+      const current = findUser(state, user.id);
+      current.totpEnabled = false;
+      current.totpSecret = null;
+      current.recoveryCodeHashes = [];
+      appendEvent(state, { type: "security.totp.disabled", actorId: user.id, userIds: [user.id] });
+    });
+    response.json({ ok: true });
+  });
+
   app.get("/api/sessions", authRequired, (request, response) => {
     const currentHash = hashToken(request.nexora.token);
     const sessions = store.read((state) => state.sessions
@@ -1113,7 +1329,9 @@ async function createNexoraServer(options = {}) {
         inviteCode: crypto.randomBytes(8).toString("base64url"),
         inviteExpiresAt: null, inviteMaxUses: 0, inviteUseCount: 0,
         joinPolicy: privacy === "private" ? "invite" : "open",
-        readOnly: false, slowModeSeconds: 0, allowFiles: true, allowVoice: true,
+        readOnly: false, slowModeSeconds: 0, allowFiles: true, allowImages: true, allowVoice: true,
+        description: cleanText(request.body?.description, 500), rules: cleanText(request.body?.rules, 2_000),
+        categoryId: null, announcementOnly: false, preapproveMessages: false,
         createdAt: nowIso(),
       };
       const conversation = { id: crypto.randomUUID(), type: "room", roomId: room.id, userIds: [], createdAt: nowIso() };
@@ -1181,18 +1399,20 @@ async function createNexoraServer(options = {}) {
     let result;
     try {
       result = await store.mutate((state) => {
-        const room = state.rooms.find((candidate) => candidate.inviteCode === code);
+        const multipleInvite = state.roomInvites.find((candidate) => candidate.code === code && activeRoomInvite(candidate));
+        const room = state.rooms.find((candidate) => candidate.inviteCode === code || candidate.id === multipleInvite?.roomId);
         if (!room) throw Object.assign(new Error("INVALID_CODE"), { status: 404 });
         if (isRoomBanned(state, room.id, viewerId)) throw Object.assign(new Error("ROOM_BANNED"), { status: 403 });
-        if (room.inviteExpiresAt && Date.parse(room.inviteExpiresAt) <= Date.now()) throw Object.assign(new Error("INVITE_EXPIRED"), { status: 410 });
-        if (Number(room.inviteMaxUses || 0) > 0 && Number(room.inviteUseCount || 0) >= Number(room.inviteMaxUses)) {
+        if (!multipleInvite && room.inviteExpiresAt && Date.parse(room.inviteExpiresAt) <= Date.now()) throw Object.assign(new Error("INVITE_EXPIRED"), { status: 410 });
+        if (!multipleInvite && Number(room.inviteMaxUses || 0) > 0 && Number(room.inviteUseCount || 0) >= Number(room.inviteMaxUses)) {
           throw Object.assign(new Error("INVITE_EXHAUSTED"), { status: 410 });
         }
         const conversation = state.conversations.find((candidate) => candidate.roomId === room.id);
         let systemMessage = null;
         if (!roomRole(state, room.id, viewerId)) {
           state.roomMembers.push({ roomId: room.id, userId: viewerId, role: "member", joinedAt: nowIso() });
-          room.inviteUseCount = Number(room.inviteUseCount || 0) + 1;
+          if (!multipleInvite) room.inviteUseCount = Number(room.inviteUseCount || 0) + 1;
+          if (multipleInvite) multipleInvite.useCount = Number(multipleInvite.useCount || 0) + 1;
           state.roomJoinRequests = state.roomJoinRequests.filter((item) => !(item.roomId === room.id && item.userId === viewerId));
           systemMessage = addSystemMessage(state, conversation, viewerId, "member.joined", `${displayNameFor(state, viewerId)} присоединился(-ась) по приглашению`, viewerId);
           addRoomAudit(state, room.id, viewerId, "member.joined", viewerId, { source: "invite" });
@@ -1225,11 +1445,13 @@ async function createNexoraServer(options = {}) {
         const room = state.rooms.find((candidate) => candidate.id === request.params.roomId);
         const candidate = state.conversations.find((item) => item.roomId === room?.id);
         if (!room || !candidate) throw Object.assign(new Error("ROOM_NOT_FOUND"), { status: 404 });
-        if (!canModerateConversation(state, candidate, viewerId)) throw Object.assign(new Error("FORBIDDEN"), { status: 403 });
+        if (!canModerateConversation(state, candidate, viewerId) && !roomPermission(state, room.id, viewerId, "room.manage_members")) throw Object.assign(new Error("FORBIDDEN"), { status: 403 });
         if (request.params.userId === room.ownerId) throw Object.assign(new Error("OWNER"), { status: 400 });
         const viewerRole = roomRole(state, room.id, viewerId);
+        const viewerAdmin = findUser(state, viewerId)?.role === "server_admin";
         const targetRole = roomRole(state, room.id, request.params.userId);
         if (!targetRole) throw Object.assign(new Error("MEMBER_NOT_FOUND"), { status: 404 });
+        if (["owner", "moderator"].includes(targetRole) && !viewerAdmin && viewerRole !== "owner") throw Object.assign(new Error("FORBIDDEN"), { status: 403 });
         if (viewerRole === "moderator" && targetRole === "moderator") throw Object.assign(new Error("FORBIDDEN"), { status: 403 });
         const targetName = displayNameFor(state, request.params.userId);
         state.roomMembers = state.roomMembers.filter((member) => !(member.roomId === room.id && member.userId === request.params.userId));
@@ -1282,7 +1504,7 @@ async function createNexoraServer(options = {}) {
     try {
       result = await store.mutate((state) => {
         const management = roomManagement(state, request.params.roomId, viewerId);
-        if (!management.canModerate) throw Object.assign(new Error("FORBIDDEN"), { status: 403 });
+        if (!management.canConfigure) throw Object.assign(new Error("FORBIDDEN"), { status: 403 });
         const changed = {};
         if (request.body?.name != null) {
           const name = cleanLine(request.body.name, LIMITS.roomName);
@@ -1291,7 +1513,12 @@ async function createNexoraServer(options = {}) {
         }
         if (request.body?.readOnly != null) { management.room.readOnly = Boolean(request.body.readOnly); changed.readOnly = management.room.readOnly; }
         if (request.body?.allowFiles != null) { management.room.allowFiles = Boolean(request.body.allowFiles); changed.allowFiles = management.room.allowFiles; }
+        if (request.body?.allowImages != null) { management.room.allowImages = Boolean(request.body.allowImages); changed.allowImages = management.room.allowImages; }
         if (request.body?.allowVoice != null) { management.room.allowVoice = Boolean(request.body.allowVoice); changed.allowVoice = management.room.allowVoice; }
+        if (request.body?.description != null) { management.room.description = cleanText(request.body.description, 500); changed.description = true; }
+        if (request.body?.rules != null) { management.room.rules = cleanText(request.body.rules, 2_000); changed.rules = true; }
+        if (request.body?.announcementOnly != null) { management.room.announcementOnly = Boolean(request.body.announcementOnly); changed.announcementOnly = management.room.announcementOnly; }
+        if (request.body?.preapproveMessages != null) { management.room.preapproveMessages = Boolean(request.body.preapproveMessages); changed.preapproveMessages = management.room.preapproveMessages; }
         if (request.body?.slowModeSeconds != null) {
           management.room.slowModeSeconds = Math.max(0, Math.min(3600, Math.round(Number(request.body.slowModeSeconds) || 0)));
           changed.slowModeSeconds = management.room.slowModeSeconds;
@@ -1363,17 +1590,19 @@ async function createNexoraServer(options = {}) {
     try {
       result = await store.mutate((state) => {
         const management = roomManagement(state, request.params.roomId, viewerId);
-        if (!management.canModerate) throw Object.assign(new Error("FORBIDDEN"), { status: 403 });
+        if (!management.canManageMembers) throw Object.assign(new Error("FORBIDDEN"), { status: 403 });
         const targetRole = roomRole(state, management.room.id, request.params.userId);
         if (request.params.userId === management.room.ownerId || (management.role === "moderator" && targetRole === "moderator")) {
           throw Object.assign(new Error("FORBIDDEN"), { status: 403 });
         }
         if (!findUser(state, request.params.userId)) throw Object.assign(new Error("USER_NOT_FOUND"), { status: 404 });
         let ban = state.roomBans.find((item) => item.roomId === management.room.id && item.userId === request.params.userId);
+        const durationMinutes = Math.max(0, Math.min(525_600, Math.round(Number(request.body?.durationMinutes) || 0)));
+        const expiresAt = durationMinutes ? new Date(Date.now() + durationMinutes * 60_000).toISOString() : null;
         if (!ban) {
-          ban = { id: crypto.randomUUID(), roomId: management.room.id, userId: request.params.userId, byUserId: viewerId, reason: cleanLine(request.body?.reason, 180), createdAt: nowIso() };
+          ban = { id: crypto.randomUUID(), roomId: management.room.id, userId: request.params.userId, byUserId: viewerId, reason: cleanLine(request.body?.reason, 180), expiresAt, createdAt: nowIso() };
           state.roomBans.push(ban);
-        }
+        } else Object.assign(ban, { byUserId: viewerId, reason: cleanLine(request.body?.reason, 180), expiresAt, createdAt: nowIso() });
         state.roomMembers = state.roomMembers.filter((member) => !(member.roomId === management.room.id && member.userId === request.params.userId));
         state.roomJoinRequests = state.roomJoinRequests.filter((item) => !(item.roomId === management.room.id && item.userId === request.params.userId));
         const systemMessage = addSystemMessage(state, management.conversation, viewerId, "member.banned", `${displayNameFor(state, request.params.userId)} заблокирован(а) в комнате`, request.params.userId);
@@ -1394,7 +1623,7 @@ async function createNexoraServer(options = {}) {
     try {
       await store.mutate((state) => {
         const management = roomManagement(state, request.params.roomId, viewerId);
-        if (!management.canModerate) throw Object.assign(new Error("FORBIDDEN"), { status: 403 });
+        if (!management.canManageMembers) throw Object.assign(new Error("FORBIDDEN"), { status: 403 });
         state.roomBans = state.roomBans.filter((item) => !(item.roomId === management.room.id && item.userId === request.params.userId));
         addRoomAudit(state, management.room.id, viewerId, "member.unbanned", request.params.userId);
       });
@@ -1445,7 +1674,7 @@ async function createNexoraServer(options = {}) {
     try {
       result = await store.mutate((state) => {
         const management = roomManagement(state, request.params.roomId, viewerId);
-        if (!management.canModerate) throw Object.assign(new Error("FORBIDDEN"), { status: 403 });
+        if (!management.canManageMembers) throw Object.assign(new Error("FORBIDDEN"), { status: 403 });
         const joinRequest = state.roomJoinRequests.find((item) => item.id === request.params.requestId && item.roomId === management.room.id && item.status === "pending");
         if (!joinRequest) throw Object.assign(new Error("REQUEST_NOT_FOUND"), { status: 404 });
         if (isRoomBanned(state, management.room.id, joinRequest.userId)) throw Object.assign(new Error("ROOM_BANNED"), { status: 409 });
@@ -1473,8 +1702,10 @@ async function createNexoraServer(options = {}) {
     const state = store.read();
     const conversation = findConversation(state, request.params.id);
     if (!canAccessConversation(state, conversation, viewerId)) return apiError(response, 403, "Чат недоступен.", "FORBIDDEN");
+    const canReview = canModerateConversation(state, conversation, viewerId)
+      || (conversation.type === "room" && roomPermission(state, conversation.roomId, viewerId, "room.manage_reports"));
     const allMessages = state.messages
-      .filter((message) => message.conversationId === conversation.id)
+      .filter((message) => message.conversationId === conversation.id && (!message.pendingApproval || canReview || message.senderId === viewerId))
       .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
     const aroundId = cleanLine(request.query.around, 64);
     if (aroundId) {
@@ -1501,6 +1732,10 @@ async function createNexoraServer(options = {}) {
     if (query.length < 2) return response.json({ ok: true, results: [] });
     const viewerId = request.nexora.user.id;
     const requestedConversationId = cleanLine(request.query.conversationId, 64);
+    const requestedUserId = cleanLine(request.query.userId, 64);
+    const requestedType = cleanLine(request.query.type, 24);
+    const before = request.query.before ? Date.parse(request.query.before) : Number.POSITIVE_INFINITY;
+    const after = request.query.after ? Date.parse(request.query.after) : Number.NEGATIVE_INFINITY;
     const state = store.read();
     if (requestedConversationId && !canAccessConversation(state, findConversation(state, requestedConversationId), viewerId)) {
       return apiError(response, 403, "Чат недоступен.", "FORBIDDEN");
@@ -1508,7 +1743,10 @@ async function createNexoraServer(options = {}) {
     const conversations = new Map(conversationList(state, viewerId, onlineUserIds()).map((conversation) => [conversation.id, conversation]));
     const indexedIds = new Set(store.searchMessageIds(query, { conversationId: requestedConversationId || null, limit: 160 }));
     const results = state.messages
-      .filter((message) => !message.deletedAt && (!requestedConversationId || message.conversationId === requestedConversationId))
+      .filter((message) => !message.deletedAt && !message.pendingApproval && (!requestedConversationId || message.conversationId === requestedConversationId))
+      .filter((message) => !requestedUserId || message.senderId === requestedUserId)
+      .filter((message) => !requestedType || message.type === requestedType || (requestedType === "media" && ["image", "file", "voice"].includes(message.type)))
+      .filter((message) => Date.parse(message.createdAt) < before && Date.parse(message.createdAt) > after)
       .filter((message) => {
         if (!conversations.has(message.conversationId)) return false;
         const file = message.fileId ? state.files.find((item) => item.id === message.fileId) : null;
@@ -1534,6 +1772,16 @@ async function createNexoraServer(options = {}) {
     if (request.body?.muted != null) updates.muted = Boolean(request.body.muted);
     if (request.body?.pinned != null) updates.pinned = Boolean(request.body.pinned);
     if (request.body?.archived != null) updates.archived = Boolean(request.body.archived);
+    if (request.body?.compact != null) updates.compact = Boolean(request.body.compact);
+    if (request.body?.background != null) {
+      const background = cleanLine(request.body.background, 24);
+      if (!["default", "midnight", "nebula", "graphite"].includes(background)) return apiError(response, 400, "Неизвестный фон чата.");
+      updates.background = background;
+    }
+    if (request.body?.notificationMode != null) {
+      if (!["all", "mentions", "none"].includes(request.body.notificationMode)) return apiError(response, 400, "Неизвестный режим уведомлений.");
+      updates.notificationMode = request.body.notificationMode;
+    }
     if (request.body?.folder != null) {
       const folder = cleanLine(request.body.folder, 24);
       if (!["all", "personal", "rooms", "work"].includes(folder)) return apiError(response, 400, "Неизвестная папка чата.");
@@ -1542,7 +1790,7 @@ async function createNexoraServer(options = {}) {
     const setting = await store.mutate((state) => {
       let item = state.conversationSettings.find((candidate) => candidate.userId === viewerId && candidate.conversationId === conversation.id);
       if (!item) {
-        item = { userId: viewerId, conversationId: conversation.id, muted: false, pinned: false, archived: false, folder: "all", updatedAt: nowIso() };
+        item = { userId: viewerId, conversationId: conversation.id, muted: false, pinned: false, archived: false, folder: "all", background: "default", compact: false, notificationMode: "all", updatedAt: nowIso() };
         state.conversationSettings.push(item);
       }
       Object.assign(item, updates);
@@ -1552,6 +1800,7 @@ async function createNexoraServer(options = {}) {
     refreshUsers([viewerId]);
     response.json({ ok: true, settings: {
       muted: Boolean(setting.muted), pinned: Boolean(setting.pinned), archived: Boolean(setting.archived), folder: setting.folder ?? "all",
+      background: setting.background ?? "default", compact: Boolean(setting.compact), notificationMode: setting.notificationMode ?? "all",
     } });
   });
 
@@ -1647,12 +1896,24 @@ async function createNexoraServer(options = {}) {
       return apiError(response, 403, "Отправка недоступна из-за блокировки.", "CONTACT_BLOCKED");
     }
     const requestedKind = ["voice", "image", "file"].includes(request.body?.kind) ? request.body.kind : "file";
-    const kind = requestedKind === "voice" && request.file.mimetype.startsWith("audio/")
+    const probeHandle = await fs.open(request.file.path, "r");
+    const probe = Buffer.alloc(Math.min(32, request.file.size));
+    try { await probeHandle.read(probe, 0, probe.length, 0); } finally { await probeHandle.close(); }
+    const detectedMime = sniffMime(probe, request.file.mimetype);
+    if (requestedKind === "image" && !detectedMime.startsWith("image/")) {
+      await fs.unlink(request.file.path).catch(() => {});
+      return apiError(response, 415, "Содержимое файла не является изображением.", "FILE_TYPE_MISMATCH");
+    }
+    if (requestedKind === "voice" && !detectedMime.startsWith("audio/")) {
+      await fs.unlink(request.file.path).catch(() => {});
+      return apiError(response, 415, "Содержимое файла не является аудио.", "FILE_TYPE_MISMATCH");
+    }
+    const kind = requestedKind === "voice" && detectedMime.startsWith("audio/")
       ? "voice"
-      : requestedKind === "image" && request.file.mimetype.startsWith("image/")
+      : requestedKind === "image" && detectedMime.startsWith("image/")
         ? "image"
-        : request.file.mimetype.startsWith("image/") ? "image" : "file";
-    const posting = roomPostingError(state, conversation, viewerId, kind === "voice" ? "voice" : "file");
+        : detectedMime.startsWith("image/") ? "image" : "file";
+    const posting = roomPostingError(state, conversation, viewerId, kind === "voice" ? "voice" : kind === "image" ? "image" : "file");
     if (posting) {
       await fs.unlink(request.file.path).catch(() => {});
       return apiError(response, 403, posting.message, posting.code);
@@ -1685,7 +1946,7 @@ async function createNexoraServer(options = {}) {
         const file = {
           id: crypto.randomUUID(), conversationId: conversation.id, uploaderId: viewerId,
           originalName: cleanLine(request.file.originalname, 180) || "file",
-          storedName, mimeType: request.file.mimetype || "application/octet-stream",
+          storedName, mimeType: detectedMime,
           size: request.file.size, kind, duration, waveform, createdAt, deletedAt: null,
         };
         const message = {
@@ -1696,7 +1957,8 @@ async function createNexoraServer(options = {}) {
         };
         mutable.files.push(file);
         mutable.messages.push(message);
-        return message;
+        const event = appendEvent(mutable, { type: "message.created", actorId: viewerId, conversationId: conversation.id, roomId: conversation.roomId, payload: { messageId: message.id, type: message.type } });
+        return { message, conversation, event };
       });
     } catch (error) {
       await fs.unlink(finalPath).catch(() => {});
@@ -1704,11 +1966,9 @@ async function createNexoraServer(options = {}) {
       throw error;
     }
     const freshState = store.read();
-    for (const participantId of usersForConversation(freshState, conversation)) {
-      io.to(userSocketRoom(participantId)).emit("message:new", serializeMessage(freshState, result, participantId));
-    }
-    refreshUsers(usersForConversation(freshState, conversation));
-    response.status(201).json({ ok: true, message: serializeMessage(freshState, result, viewerId) });
+    emitMessage(result);
+    v3Features?.dispatchEvent(result.event).catch(() => {});
+    response.status(201).json({ ok: true, message: serializeMessage(freshState, result.message, viewerId) });
     });
   });
 
@@ -1760,9 +2020,26 @@ async function createNexoraServer(options = {}) {
     response.json({ ok: true, stats: store.stats() });
   });
 
+  v3Features = mountV3Features({
+    app,
+    store,
+    io,
+    authRequired,
+    serverAdminRequired,
+    createTextMessage,
+    emitMessage,
+    roomPostingError,
+    maintenance,
+    uploadsDir,
+    incomingDir,
+    maxFileBytes: LIMITS.fileBytes,
+    secretService: totp,
+    log,
+  });
+
   io.use((socket, next) => {
     const clientVersion = socket.handshake.auth?.clientVersion;
-    if (clientVersion && majorVersion(clientVersion) !== COMPATIBILITY.maxClientMajor) return next(new Error("CLIENT_VERSION_INCOMPATIBLE"));
+    if (clientVersion && !compatibleClientVersion(clientVersion)) return next(new Error("CLIENT_VERSION_INCOMPATIBLE"));
     const token = parseSessionToken(socket.request.headers.cookie);
     const user = sessionUser(store, token);
     if (!user) return next(new Error("UNAUTHORIZED"));
@@ -1792,42 +2069,22 @@ async function createNexoraServer(options = {}) {
     broadcastPresence();
 
     socket.on("message:send", async (payload, acknowledge = () => {}) => {
-      const conversationId = cleanLine(payload?.conversationId, 64);
-      const text = cleanText(payload?.text);
-      if (!text) return acknowledge({ ok: false, error: "Сообщение пустое." });
-      const clientId = /^[a-zA-Z0-9_-]{8,64}$/.test(String(payload?.clientId ?? "")) ? String(payload.clientId) : null;
-      const state = store.read();
-      const conversation = findConversation(state, conversationId);
-      if (!canAccessConversation(state, conversation, user.id)) return acknowledge({ ok: false, error: "Чат недоступен." });
-      const posting = roomPostingError(state, conversation, user.id, "text");
-      if (posting) return acknowledge({ ok: false, error: posting.message, code: posting.code, retryAfter: posting.retryAfter });
-      const existing = clientId ? state.messages.find((message) => message.senderId === user.id && message.clientId === clientId) : null;
-      if (existing) return acknowledge({ ok: true, message: serializeMessage(state, existing, user.id), duplicate: true });
       if (!messageRate(user.id)) return acknowledge({ ok: false, error: "Слишком много сообщений. Сделайте паузу." });
-      const peer = dmPeer(state, conversation, user.id);
-      if (peer && isBlockedEither(state, user.id, peer.id)) return acknowledge({ ok: false, error: "Отправка недоступна из-за блокировки." });
-      const replyToId = cleanLine(payload?.replyToId, 64) || null;
-      if (replyToId && !state.messages.some((message) => message.id === replyToId && message.conversationId === conversationId)) {
-        return acknowledge({ ok: false, error: "Исходное сообщение не найдено." });
+      try {
+        const result = await createTextMessage({
+          senderId: user.id,
+          conversationId: payload?.conversationId,
+          text: payload?.text,
+          replyToId: cleanLine(payload?.replyToId, 64) || null,
+          threadRootId: cleanLine(payload?.threadRootId, 64) || null,
+          clientId: payload?.clientId,
+          silent: Boolean(payload?.silent),
+        });
+        if (!result.duplicate) emitMessage(result);
+        acknowledge({ ok: true, message: serializeMessage(store.read(), result.message, user.id), duplicate: result.duplicate });
+      } catch (error) {
+        acknowledge({ ok: false, error: error.message || "Сообщение не отправлено.", code: error.code, retryAfter: error.retryAfter });
       }
-      const result = await store.mutate((mutable) => {
-        const duplicate = clientId ? mutable.messages.find((item) => item.senderId === user.id && item.clientId === clientId) : null;
-        if (duplicate) return { message: duplicate, duplicate: true };
-        const created = {
-          id: crypto.randomUUID(), conversationId, senderId: user.id, type: "text", text,
-          fileId: null, replyToId, forwardedFromId: null, forwardedSnapshot: null, clientId,
-          createdAt: nowIso(), updatedAt: null,
-          deletedAt: null, pinnedAt: null, pinnedBy: null,
-        };
-        mutable.messages.push(created);
-        return { message: created, duplicate: false };
-      });
-      const freshState = store.read();
-      if (result.duplicate) return acknowledge({ ok: true, message: serializeMessage(freshState, result.message, user.id), duplicate: true });
-      for (const participantId of usersForConversation(freshState, conversation)) {
-        io.to(userSocketRoom(participantId)).emit("message:new", serializeMessage(freshState, result.message, participantId));
-      }
-      acknowledge({ ok: true, message: serializeMessage(freshState, result.message, user.id) });
     });
 
     socket.on("message:forward", async (payload, acknowledge = () => {}) => {
@@ -1867,7 +2124,8 @@ async function createNexoraServer(options = {}) {
           clientId, createdAt: nowIso(), updatedAt: null, deletedAt: null, pinnedAt: null, pinnedBy: null,
         };
         draft.messages.push(created);
-        return { message: created, duplicate: false };
+        const event = appendEvent(draft, { type: "message.created", actorId: user.id, conversationId: targetConversation.id, roomId: targetConversation.roomId, payload: { messageId: created.id, forwarded: true } });
+        return { message: created, duplicate: false, event };
       });
       const freshState = store.read();
       if (result.duplicate) return acknowledge({ ok: true, message: serializeMessage(freshState, result.message, user.id), duplicate: true });
@@ -1875,28 +2133,31 @@ async function createNexoraServer(options = {}) {
         io.to(userSocketRoom(participantId)).emit("message:new", serializeMessage(freshState, result.message, participantId));
       }
       refreshUsers(usersForConversation(freshState, targetConversation));
+      v3Features?.dispatchEvent(result.event).catch(() => {});
       acknowledge({ ok: true, message: serializeMessage(freshState, result.message, user.id) });
     });
 
     socket.on("message:edit", async (payload, acknowledge = () => {}) => {
       const text = cleanText(payload?.text);
       if (!text) return acknowledge({ ok: false, error: "Сообщение пустое." });
-      let message;
+      let result;
       try {
-        message = await store.mutate((state) => {
+        result = await store.mutate((state) => {
           const candidate = state.messages.find((item) => item.id === payload?.messageId);
           if (!candidate || candidate.senderId !== user.id || candidate.deletedAt || candidate.type !== "text") throw new Error("FORBIDDEN");
+          state.messageEdits.push({ id: crypto.randomUUID(), messageId: candidate.id, editorId: user.id, previousText: candidate.text, createdAt: nowIso() });
           candidate.text = text;
           candidate.updatedAt = nowIso();
-          return candidate;
+          const conversation = findConversation(state, candidate.conversationId);
+          candidate.mentions = mentionedUsers(state, text, usersForConversation(state, conversation)).map((mentioned) => mentioned.id);
+          const event = appendEvent(state, { type: "message.edited", actorId: user.id, conversationId: conversation.id, roomId: conversation.roomId, payload: { messageId: candidate.id } });
+          return { message: candidate, conversation, event, isUpdate: true };
         });
       } catch {
         return acknowledge({ ok: false, error: "Редактирование недоступно." });
       }
-      const conversation = findConversation(store.read(), message.conversationId);
-      for (const participantId of usersForConversation(store.read(), conversation)) {
-        io.to(userSocketRoom(participantId)).emit("message:updated", serializeMessage(store.read(), message, participantId));
-      }
+      emitMessage(result);
+      v3Features?.dispatchEvent(result.event).catch(() => {});
       acknowledge({ ok: true });
     });
 
@@ -1907,7 +2168,7 @@ async function createNexoraServer(options = {}) {
         result = await store.mutate((state) => {
           const message = state.messages.find((item) => item.id === payload?.messageId);
           const conversation = findConversation(state, message?.conversationId);
-          if (!message || message.deletedAt || (message.senderId !== user.id && !canModerateConversation(state, conversation, user.id))) throw new Error("FORBIDDEN");
+          if (!message || message.deletedAt || (message.senderId !== user.id && !(conversation?.type === "room" && roomPermission(state, conversation.roomId, user.id, "room.delete_messages")))) throw new Error("FORBIDDEN");
           message.deletedAt = nowIso();
           message.updatedAt = message.deletedAt;
           message.pinnedAt = null;
@@ -1915,7 +2176,8 @@ async function createNexoraServer(options = {}) {
           const file = message.fileId ? state.files.find((candidate) => candidate.id === message.fileId) : null;
           const fileStillReferenced = file && state.messages.some((candidate) => candidate.id !== message.id && candidate.fileId === file.id && !candidate.deletedAt);
           if (file && !fileStillReferenced) file.deletedAt = message.deletedAt;
-          return { message, file: fileStillReferenced ? null : file, conversation };
+          const event = appendEvent(state, { type: "message.deleted", actorId: user.id, conversationId: conversation.id, roomId: conversation.roomId, payload: { messageId: message.id } });
+          return { message, file: fileStillReferenced ? null : file, conversation, event };
         });
       } catch {
         return acknowledge({ ok: false, error: "Удаление недоступно." });
@@ -1924,6 +2186,7 @@ async function createNexoraServer(options = {}) {
       for (const participantId of usersForConversation(store.read(), result.conversation)) {
         io.to(userSocketRoom(participantId)).emit("message:updated", serializeMessage(store.read(), result.message, participantId));
       }
+      v3Features?.dispatchEvent(result.event).catch(() => {});
       acknowledge({ ok: true });
       });
     });
@@ -1943,7 +2206,8 @@ async function createNexoraServer(options = {}) {
           const index = state.reactions.findIndex((reaction) => reaction.messageId === message.id && reaction.userId === user.id && reaction.emoji === emoji);
           if (index >= 0) state.reactions.splice(index, 1);
           else state.reactions.push({ id: crypto.randomUUID(), messageId: message.id, userId: user.id, emoji, createdAt: nowIso() });
-          return { message, conversation };
+          const event = appendEvent(state, { type: "message.reaction", actorId: user.id, conversationId: conversation.id, roomId: conversation.roomId, payload: { messageId: message.id, emoji } });
+          return { message, conversation, event };
         });
       } catch (error) {
         return acknowledge({ ok: false, error: error.message === "PLUS_REQUIRED" ? "Эта реакция входит в Nexora Plus или пакет комнаты." : "Реакция недоступна.", code: error.message });
@@ -1951,6 +2215,7 @@ async function createNexoraServer(options = {}) {
       for (const participantId of usersForConversation(store.read(), result.conversation)) {
         io.to(userSocketRoom(participantId)).emit("message:updated", serializeMessage(store.read(), result.message, participantId));
       }
+      v3Features?.dispatchEvent(result.event).catch(() => {});
       acknowledge({ ok: true });
     });
 
@@ -1960,7 +2225,7 @@ async function createNexoraServer(options = {}) {
         result = await store.mutate((state) => {
           const message = state.messages.find((item) => item.id === payload?.messageId && !item.deletedAt);
           const conversation = findConversation(state, message?.conversationId);
-          if (!message || !canModerateConversation(state, conversation, user.id)) throw new Error("FORBIDDEN");
+          if (!message || conversation?.type !== "room" || !roomPermission(state, conversation.roomId, user.id, "room.pin_messages")) throw new Error("FORBIDDEN");
           if (message.pinnedAt) {
             message.pinnedAt = null;
             message.pinnedBy = null;
@@ -1968,7 +2233,8 @@ async function createNexoraServer(options = {}) {
             message.pinnedAt = nowIso();
             message.pinnedBy = user.id;
           }
-          return { message, conversation };
+          const event = appendEvent(state, { type: message.pinnedAt ? "message.pinned" : "message.unpinned", actorId: user.id, conversationId: conversation.id, roomId: conversation.roomId, payload: { messageId: message.id } });
+          return { message, conversation, event };
         });
       } catch {
         return acknowledge({ ok: false, error: "Закрепление недоступно." });
@@ -1976,6 +2242,7 @@ async function createNexoraServer(options = {}) {
       for (const participantId of usersForConversation(store.read(), result.conversation)) {
         io.to(userSocketRoom(participantId)).emit("message:updated", serializeMessage(store.read(), result.message, participantId));
       }
+      v3Features?.dispatchEvent(result.event).catch(() => {});
       acknowledge({ ok: true });
     });
 
@@ -2073,6 +2340,7 @@ async function createNexoraServer(options = {}) {
   }
 
   async function close() {
+    v3Features?.stop();
     maintenance.stop();
     if (redirectServer?.listening) await new Promise((resolve) => redirectServer.close(resolve));
     if (server.listening) await new Promise((resolve) => io.close(resolve));

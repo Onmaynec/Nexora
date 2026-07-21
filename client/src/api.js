@@ -7,7 +7,7 @@ export class ApiError extends Error {
   }
 }
 
-export const CLIENT_VERSION = "2.0.0";
+export const CLIENT_VERSION = "3.0.0";
 let csrfToken = sessionStorage.getItem("nexora:csrf") || "";
 
 export function setCsrfToken(value) {
@@ -50,7 +50,39 @@ export function remove(path) {
   return api(path, { method: "DELETE" });
 }
 
+async function resumableUpload(conversationId, file, kind, caption, options) {
+  let upload;
+  try {
+    upload = options.uploadId
+      ? (await api(`/api/uploads/${encodeURIComponent(options.uploadId)}`)).upload
+      : (await post(`/api/conversations/${encodeURIComponent(conversationId)}/uploads`, { name: file.name, size: file.size, mimeType: file.type || "application/octet-stream", kind })).upload;
+    const received = new Set(upload.receivedChunks || []);
+    let completedBytes = [...received].reduce((sum, index) => sum + Math.min(upload.chunkSize, file.size - index * upload.chunkSize), 0);
+    for (let index = 0; index < upload.totalChunks; index += 1) {
+      if (received.has(index)) continue;
+      if (options.signal?.aborted) throw Object.assign(new Error("Загрузка отменена."), { code: "UPLOAD_ABORTED" });
+      const chunk = file.slice(index * upload.chunkSize, Math.min(file.size, (index + 1) * upload.chunkSize));
+      const digest = await crypto.subtle.digest("SHA-256", await chunk.arrayBuffer());
+      const checksum = [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, "0")).join("");
+      const response = await fetch(`/api/uploads/${encodeURIComponent(upload.id)}/chunks/${index}`, {
+        method: "PUT", credentials: "include", body: chunk, signal: options.signal,
+        headers: { "Content-Type": "application/octet-stream", "X-Nexora-Client-Version": CLIENT_VERSION, "X-Chunk-SHA256": checksum, ...(csrfToken ? { "X-Nexora-CSRF": csrfToken } : {}) },
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new ApiError(result.error || `Ошибка ${response.status}`, response.status, result.code);
+      completedBytes += chunk.size;
+      options.onProgress?.(Math.min(100, Math.round(completedBytes / file.size * 100)), completedBytes, file.size);
+    }
+    return post(`/api/uploads/${encodeURIComponent(upload.id)}/complete`, { caption });
+  } catch (error) {
+    if (upload?.id) error.uploadId = upload.id;
+    if (error.name === "AbortError") error.code = "UPLOAD_ABORTED";
+    throw error;
+  }
+}
+
 export function uploadFile(conversationId, file, kind, duration = 0, caption = "", options = {}) {
+  if (file.size > 2 * 1024 * 1024 && kind !== "voice" && globalThis.crypto?.subtle) return resumableUpload(conversationId, file, kind, caption, options);
   const body = new FormData();
   body.append("file", file);
   body.append("kind", kind);

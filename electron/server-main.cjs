@@ -36,7 +36,7 @@ async function decoratedStatus() {
     version: app.getVersion(),
     logFile: logFile ?? path.join(app.getPath("logs"), "nexora-server.log"),
     primaryUrl: primary?.url ?? status.localUrl ?? "https://localhost:3443",
-    qrCode: primary?.url ? await QRCode.toDataURL(primary.url, { width: 220, margin: 1, color: { dark: "#1b1028", light: "#ead8ff" } }) : null,
+    qrCode: primary?.url ? await QRCode.toDataURL(`nexora://connect?url=${encodeURIComponent(primary.url)}`, { width: 220, margin: 1, color: { dark: "#1b1028", light: "#ead8ff" } }) : null,
   };
 }
 

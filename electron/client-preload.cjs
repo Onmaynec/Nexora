@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld("nexoraClient", {
   updateStatus: () => ipcRenderer.invoke("client:update-status"),
   checkForUpdates: () => ipcRenderer.invoke("client:check-update"),
   installUpdate: () => ipcRenderer.invoke("client:install-update"),
+  reportRendererError: (report) => ipcRenderer.send("client:renderer-error", report),
   onUpdate: (callback) => {
     const listener = (_event, state) => callback(state);
     ipcRenderer.on("client:update", listener);

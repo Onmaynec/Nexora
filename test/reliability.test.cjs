@@ -75,7 +75,7 @@ test("автоматически мигрирует nexora.json в нормал�
   await fs.rm(directory, { recursive: true, force: true });
 });
 
-test("обновление SQLite schema 3 до schema 5 сохраняет данные и создаёт новые таблицы", async () => {
+test("обновление SQLite schema 3 до schema 6 сохраняет данные и создаёт резервную копию", async () => {
   const directory = await temporaryDirectory("nexora-schema-upgrade-");
   const databasePath = path.join(directory, "nexora.sqlite");
   let store = new SqliteStore(databasePath, { legacyJsonPath: path.join(directory, "nexora.json") });
@@ -83,18 +83,19 @@ test("обновление SQLite schema 3 до schema 5 сохраняет да
   await store.mutate((state) => Object.assign(state, seedState()));
   await store.close();
   const legacy = new DatabaseSync(databasePath);
-  for (const table of ["room_bans", "room_join_requests", "room_audit_log", "voice_listens", "login_attempts", "rate_limits"]) legacy.exec(`DROP TABLE ${table}`);
+  for (const table of ["room_bans", "room_join_requests", "room_audit_log", "voice_listens", "login_attempts", "rate_limits", "v3_entities"]) legacy.exec(`DROP TABLE ${table}`);
   legacy.prepare("UPDATE meta SET value = ? WHERE key = 'schema_version'").run("3");
   legacy.close();
   store = new SqliteStore(databasePath, { legacyJsonPath: path.join(directory, "nexora.json") });
   await store.init();
-  assert.equal(store.stats().schemaVersion, 5);
+  assert.equal(store.stats().schemaVersion, 6);
   assert.equal(store.read((state) => state.messages.find((message) => message.id === "message-1").text), "Сообщение из JSON");
   const upgraded = new DatabaseSync(databasePath, { readOnly: true });
   const tables = new Set(upgraded.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map((row) => row.name));
-  for (const table of ["room_bans", "room_join_requests", "room_audit_log", "voice_listens", "login_attempts", "rate_limits", "message_bookmarks", "notification_events", "upload_sessions", "billing_links", "billing_entitlements", "pulse_goals", "pulse_contributions", "messages_fts"]) assert.ok(tables.has(table));
+  for (const table of ["room_bans", "room_join_requests", "room_audit_log", "voice_listens", "login_attempts", "rate_limits", "message_bookmarks", "notification_events", "upload_sessions", "billing_links", "billing_entitlements", "pulse_goals", "pulse_contributions", "messages_fts", "v3_entities"]) assert.ok(tables.has(table));
   upgraded.close();
   await store.close();
+  assert.ok((await fs.readdir(directory)).some((name) => name.startsWith("nexora.sqlite.pre-schema-6-") && name.endsWith(".bak")));
   await fs.rm(directory, { recursive: true, force: true });
 });
 

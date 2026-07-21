@@ -1,9 +1,9 @@
-# Nexora 2.0.0 Release Checklist
+# Nexora 3.0.0 Release Checklist
 
 ## Код и данные
 
-- [ ] `package.json`, Client header и UI показывают 2.0.0.
-- [ ] migration `nexora.json` и schema 3/4 → 5 протестирована на копии данных.
+- [ ] `package.json`, Client header, Android и UI показывают 3.0.0.
+- [ ] migration schema 3/4/5 → 6 протестирована на копии данных и создаёт pre-migration backup.
 - [ ] backup создан, restore проверен, password backup известен ответственному.
 - [ ] `PRAGMA integrity_check` возвращает `ok`.
 - [ ] `npm run check`, `npm test`, `npm run audit:security` — PASS.
@@ -17,6 +17,8 @@
 - [ ] message actions/dock/details не пересекают границы;
 - [ ] проверены 1920×1080, 1366×768 и узкое окно;
 - [ ] `prefers-reduced-motion` отключает декоративное движение.
+- [ ] профиль открывается и при `relationship: null`, без blank screen/error boundary.
+- [ ] offline cache/outbox/delta sync восстанавливаются после перезапуска.
 
 ## Windows
 
@@ -32,6 +34,8 @@
 - [ ] localhost, LAN и Radmin VPN full address работают;
 - [ ] certificate fingerprint совпадает, смена требует подтверждения;
 - [ ] browser `.crt` flow и microphone проверены;
+- [ ] public FQDN принимается только по HTTPS;
+- [ ] Android отменяет TLS error и не принимает HTTP/mixed content;
 - [ ] firewall ограничен private/Radmin scope;
 - [ ] несовместимый Client получает понятный HTTP 426.
 
@@ -39,9 +43,17 @@
 
 - [x] public `Onmaynec/Nexora` существует;
 - [ ] `main` protected, CI required, 2FA включена;
-- [ ] signing secrets добавлены;
-- [ ] Release не prerelease и содержит `.exe`, blockmap, `latest.yml`, checksums;
-- [ ] update n-1 → 2.0.0 проверен на установленном Client.
+- [ ] Source/PWA prerelease содержит source ZIP, PWA ZIP, SPDX SBOM и checksums;
+- [ ] для stable Windows release signing secrets добавлены;
+- [ ] stable Release не prerelease и содержит Client/Server `.exe`, blockmap, `latest.yml`, source/PWA/SBOM/checksums;
+- [ ] update n-1 → 3.0.0 проверен на установленном Client.
+
+## Android и браузер
+
+- [ ] `gradle -p android :app:assembleDebug` проходит на JDK 17 / SDK 36;
+- [ ] PWA устанавливается и обновляет application shell;
+- [ ] Service Worker не кэширует API/Socket.IO;
+- [ ] deep link `nexora://connect` принимает только HTTPS URL.
 
 ## Pulse production (если включается)
 

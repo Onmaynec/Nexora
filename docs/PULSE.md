@@ -1,12 +1,12 @@
 # Nexora Plus / Pulse
 
-Этот документ адаптирует спецификацию Nexora Pulse к версии 2.0.0. Звонки исключены из каталога, базовое общение остаётся бесплатным.
+Этот документ описывает границу Nexora Pulse в версии 3.0.0. Звонки исключены из каталога, базовое общение остаётся бесплатным.
 
 ## Продуктовая модель
 
 Nexora Plus даёт 400 импульсов за расчётный месяц, премиальные темы/акценты, avatar frames, дополнительные sounds/reactions, увеличенный offline cache и скрываемый badge.
 
-Импульсы — целочисленные внутренние единицы: они не переводятся между пользователями, не обмениваются на деньги и используются для коллективных room goals. Каталог показывает backup 20 ГБ, analytics, flexible retention, invite branding и reaction pack. В локальном 2.0.0 полностью применяется только `room_reaction_pack`; остальные позиции защищены capability gate и не могут собирать импульсы до подключения соответствующего Cloud-адаптера.
+Импульсы — целочисленные внутренние единицы: они не переводятся между пользователями, не обмениваются на деньги и используются для коллективных room goals. Каталог показывает backup 20 ГБ, analytics, flexible retention, invite branding и reaction pack. Локальный Server применяет только явно поддержанные capabilities; остальные позиции закрыты capability gate до подключения соответствующего Cloud-адаптера.
 
 ## Режимы
 
@@ -50,6 +50,8 @@ Server проверяет signature, `expiresAt`, `serverId` и `userId`, зат
 - `POST /v1/goals/{goalId}/contributions` с `Idempotency-Key`.
 
 Cloud должен быть authority для customer mapping, subscription, monthly grants, ledger, refunds/revocation и webhook reconciliation. Никогда не доверяйте сумме/entitlement из Client.
+
+Schema 6 содержит локальные audit/cache сущности `paymentEvents` и `pulseLedger`, но они не превращают Server в платёжный источник истины. Production webhook и ledger поступают только из отдельного Pulse Cloud после проверки подписи и idempotency.
 
 ## Room goals
 

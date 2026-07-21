@@ -7,6 +7,7 @@ import Workspace from "./components/Workspace";
 import { LoadingScreen } from "./components/ui";
 import { getSocket } from "./socket";
 import { flushOutbox } from "./outbox";
+import { cacheBootstrap, readLastBootstrap, syncSequenceKey } from "./offline-store";
 
 function playNotificationSound(name) {
   if (!name || name === "none") return;
@@ -31,12 +32,25 @@ function playNotificationSound(name) {
   } catch {}
 }
 
+function quietHoursActive(preferences, date = new Date()) {
+  const start = String(preferences?.quietHoursStart || "");
+  const end = String(preferences?.quietHoursEnd || "");
+  if (!/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(end) || start === end) return false;
+  const minutes = date.getHours() * 60 + date.getMinutes();
+  const [startHour, startMinute] = start.split(":").map(Number);
+  const [endHour, endMinute] = end.split(":").map(Number);
+  const from = startHour * 60 + startMinute;
+  const until = endHour * 60 + endMinute;
+  return from < until ? minutes >= from && minutes < until : minutes >= from || minutes < until;
+}
+
 export default function App() {
   const [authState, setAuthState] = useState("loading");
   const [me, setMe] = useState(null);
   const [bootstrap, setBootstrap] = useState(null);
   const [serverOnline, setServerOnline] = useState(false);
   const [serverInfo, setServerInfo] = useState(null);
+  const [offlineMode, setOfflineMode] = useState(false);
   const [onlineUserIds, setOnlineUserIds] = useState(new Set());
   const [toast, setToast] = useState(null);
   const refreshTimer = useRef(null);
@@ -56,6 +70,8 @@ export default function App() {
       const result = await api("/api/bootstrap");
       setBootstrap(result);
       bootstrapRef.current = result;
+      cacheBootstrap(result).catch(() => {});
+      setOfflineMode(false);
       setMe((current) => current?.id === result.me.id
         && current.displayName === result.me.displayName
         && current.status === result.me.status
@@ -71,7 +87,8 @@ export default function App() {
         setAuthState("anonymous");
         socket.disconnect();
       } else {
-        showToast(error.message, "error");
+        setOfflineMode(true);
+        if (!bootstrapRef.current) showToast(error.message, "error");
       }
       return null;
     }
@@ -94,11 +111,21 @@ export default function App() {
 
   useEffect(() => {
     api("/api/auth/me")
-      .then((result) => {
+      .then(async (result) => {
         setMe(result.user);
         setAuthState(result.user ? "authenticated" : "anonymous");
       })
-      .catch(() => setAuthState("anonymous"));
+      .catch(async () => {
+        const cached = await readLastBootstrap().catch(() => null);
+        if (cached?.me) {
+          setMe(cached.me);
+          setBootstrap(cached);
+          bootstrapRef.current = cached;
+          setOnlineUserIds(new Set());
+          setOfflineMode(true);
+          setAuthState("authenticated");
+        } else setAuthState("anonymous");
+      });
   }, []);
 
   useEffect(() => {
@@ -118,22 +145,37 @@ export default function App() {
       const snapshot = bootstrapRef.current;
       const conversation = snapshot?.conversations?.find((item) => item.id === message.conversationId);
       if (conversation?.notificationSettings?.muted) return;
-      const sound = snapshot?.preferences?.notificationSound ?? "subtle";
+      const preferences = snapshot?.preferences ?? {};
+      const mode = conversation?.notificationSettings?.mode ?? preferences.notificationMode ?? "all";
+      const direct = message.mentions?.includes(me.id) || message.reply?.senderId === me.id;
+      if (message.silent || mode === "none" || (mode === "mentions" && !direct) || quietHoursActive(preferences)) return;
+      const sound = preferences.notificationSound ?? "subtle";
       if ("Notification" in window && Notification.permission === "granted") {
         const body = message.type === "text" ? message.text : message.type === "voice" ? "Голосовое сообщение" : "Новое вложение";
         new Notification(message.sender.displayName, { body, tag: `nexora-${message.conversationId}`, silent: true });
         playNotificationSound(sound);
       }
     };
-    const onConnect = () => {
+    const onConnect = async () => {
       setServerOnline(true);
+      setOfflineMode(false);
       flushOutbox(socket, me.id).then((result) => {
         if (result.sent) scheduleRefresh();
         if (result.failed) showToast(`${result.failed} сообщений ожидают повторной отправки`, "error");
       });
+      const snapshot = bootstrapRef.current;
+      if (snapshot?.server?.id) {
+        const key = syncSequenceKey(snapshot.server.id, me.id);
+        const after = Number(localStorage.getItem(key) || snapshot.sync?.latestSequence || 0);
+        try {
+          const delta = await api(`/api/v3/sync?after=${Math.max(0, after)}&limit=500`);
+          localStorage.setItem(key, String(delta.latestSequence || after));
+          if (delta.resyncRequired || delta.events.length) scheduleRefresh();
+        } catch {}
+      }
       scheduleRefresh();
     };
-    const onDisconnect = () => setServerOnline(false);
+    const onDisconnect = () => { setServerOnline(false); setOfflineMode(true); };
     const onConnectError = (error) => {
       if (error.message === "UNAUTHORIZED") {
         setMe(null);
@@ -192,6 +234,7 @@ export default function App() {
         onLogout={logout}
         showToast={showToast}
       />
+      {offlineMode && <div className="offline-banner" role="status">Офлайн-режим · история доступна из локального кэша, новые сообщения стоят в очереди</div>}
       <GlobalVoiceDock />
       <div className={`toast${toast ? " visible" : ""}${toast?.type === "error" ? " error" : ""}`} role="status">{toast?.message ?? ""}</div>
     </>

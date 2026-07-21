@@ -76,6 +76,8 @@ function publicUser(user) {
     profileColor: user.profileColor ?? "violet",
     plusBadgeVisible: user.plusBadgeVisible !== false,
     role: user.role,
+    isBot: Boolean(user.isBot),
+    totpEnabled: Boolean(user.totpEnabled),
     mustChangePassword: Boolean(user.mustChangePassword),
     createdAt: user.createdAt,
   };

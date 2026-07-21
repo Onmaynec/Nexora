@@ -1,6 +1,7 @@
 "use strict";
 
 const assert = require("node:assert/strict");
+const crypto = require("node:crypto");
 const fs = require("node:fs/promises");
 const https = require("node:https");
 const os = require("node:os");
@@ -10,6 +11,7 @@ const { after, before, test } = require("node:test");
 const request = require("supertest");
 const { io: createSocket } = require("socket.io-client");
 const { createNexoraServer } = require("../server/create-server.cjs");
+const { totp } = require("../server/totp.cjs");
 
 let instance;
 let directory;
@@ -39,13 +41,13 @@ function browserAgent(agent, csrf) {
       if (["post", "put", "patch", "delete"].includes(property)) {
         return (...args) => {
           const requestBuilder = target[property](...args)
-            .set("X-Nexora-Client-Version", "2.0.0");
+            .set("X-Nexora-Client-Version", "3.0.0");
           const token = csrf();
           return token ? requestBuilder.set("X-Nexora-CSRF", token) : requestBuilder;
         };
       }
       if (typeof target[property] === "function") {
-        return (...args) => target[property](...args).set("X-Nexora-Client-Version", "2.0.0");
+        return (...args) => target[property](...args).set("X-Nexora-Client-Version", "3.0.0");
       }
       return target[property];
     },
@@ -85,8 +87,9 @@ after(async () => {
 test("health-check отвечает", async () => {
   const response = await request(instance.app).get("/api/health").expect(200);
   assert.equal(response.body.ok, true);
-  assert.equal(response.body.version, "2.0.0");
-  assert.equal(response.body.compatibility.apiVersion, 2);
+  assert.equal(response.body.version, "3.0.0");
+  assert.equal(response.body.compatibility.apiVersion, 3);
+  assert.equal(response.body.compatibility.maxClientMajor, 3);
   assert.ok(response.body.serverId);
   assert.equal(response.body.tls, false);
   const incompatible = await request(instance.app).get("/api/health").set("X-Nexora-Client-Version", "1.0.2").expect(426);
@@ -200,7 +203,7 @@ test("загружает файл до 25 МБ и создаёт сообщен�
 test("загружает голосовое сообщение с длительностью и отдаёт аудио", async () => {
   const bootstrap = await adminAgent.get("/api/bootstrap").expect(200);
   const general = bootstrap.body.rooms.find((room) => room.slug === "general");
-  const audio = Buffer.from("nexora voice fixture");
+  const audio = Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), Buffer.from("nexora voice fixture")]);
   const uploaded = await adminAgent
     .post(`/api/conversations/${general.conversationId}/upload`)
     .field("kind", "voice")
@@ -246,7 +249,11 @@ test("владелец управляет ролями, заявками, бан
   await adminAgent.delete(`/api/rooms/${roomId}/members/${novaUser.id}`).expect(200);
   await adminAgent.post(`/api/rooms/${roomId}/bans/${novaUser.id}`).send({ reason: "integration test" }).expect(201);
   await nova.post(`/api/rooms/${roomId}/join`).send({}).expect(403);
-  await adminAgent.delete(`/api/rooms/${roomId}/bans/${novaUser.id}`).expect(200);
+  const appeal = await nova.post(`/api/rooms/${roomId}/appeals`).send({ reason: "Прошу пересмотреть тестовую блокировку" }).expect(201);
+  adminBootstrap = await adminAgent.get("/api/bootstrap").expect(200);
+  roomConversation = adminBootstrap.body.conversations.find((item) => item.roomId === roomId);
+  assert.ok(roomConversation.appeals.some((item) => item.id === appeal.body.appeal.id));
+  await adminAgent.patch(`/api/rooms/${roomId}/appeals/${appeal.body.appeal.id}`).send({ status: "accepted", resolution: "Проверено" }).expect(200);
   const secondRequest = await nova.post(`/api/rooms/${roomId}/join`).send({}).expect(202);
   await adminAgent.patch(`/api/rooms/${roomId}/join-requests/${secondRequest.body.requestId}`).send({ decision: "reject" }).expect(200);
 
@@ -262,7 +269,7 @@ test("владелец управляет ролями, заявками, бан
   assert.equal(deniedText.ok, false);
   assert.match(deniedText.error, /только чтение/i);
   await userAgent.post(`/api/conversations/${privateConversationId}/upload`).field("kind", "file").attach("file", Buffer.from("x"), { filename: "x.txt", contentType: "text/plain" }).expect(403);
-  await userAgent.post(`/api/conversations/${privateConversationId}/upload`).field("kind", "voice").attach("file", Buffer.from("voice"), { filename: "x.webm", contentType: "audio/webm" }).expect(403);
+  await userAgent.post(`/api/conversations/${privateConversationId}/upload`).field("kind", "voice").attach("file", Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), { filename: "x.webm", contentType: "audio/webm" }).expect(403);
 
   await adminAgent.patch(`/api/rooms/${privateRoomId}`).send({ readOnly: false, allowFiles: true, allowVoice: true, slowModeSeconds: 30 }).expect(200);
   const firstSlow = await emitAck(roomSocket, "message:send", { conversationId: privateConversationId, text: "первое в slow mode" });
@@ -303,6 +310,150 @@ test("профиль поддерживает статус, аватар и вы
   assert.equal(publicProfile.body.user.status, "Тестирую надёжность");
   assert.equal(publicProfile.body.relationship.contact, true);
   assert.ok(publicProfile.body.relationship.sharedRooms.some((room) => room.name === "Общий"));
+});
+
+test("API v3 синхронизирует события, уведомления и отложенные сообщения", async () => {
+  const bootstrap = await adminAgent.get("/api/bootstrap").expect(200);
+  assert.equal(bootstrap.body.sync.apiVersion, 3);
+  assert.equal(bootstrap.body.capabilities.offlineSync, true);
+  assert.equal(bootstrap.body.capabilities.android, true);
+
+  const preferences = await userAgent.patch("/api/users/me/preferences").send({
+    notificationMode: "mentions",
+    quietHoursStart: "22:30",
+    quietHoursEnd: "07:15",
+  }).expect(200);
+  assert.equal(preferences.body.preferences.notificationMode, "mentions");
+
+  const draft = await adminAgent.put(`/api/v3/drafts/${generalConversationId}`).send({ text: "Черновик между устройствами" }).expect(200);
+  assert.equal(draft.body.draft.text, "Черновик между устройствами");
+  assert.ok((await adminAgent.get("/api/bootstrap").expect(200)).body.drafts.some((item) => item.conversationId === generalConversationId));
+  await adminAgent.delete(`/api/v3/drafts/${generalConversationId}`).expect(200);
+
+  const scheduled = await adminAgent.post("/api/messages/scheduled").send({
+    conversationId: generalConversationId,
+    text: "Отложенное сообщение",
+    silent: true,
+    scheduledAt: new Date(Date.now() + 60_000).toISOString(),
+  }).expect(201);
+  assert.equal(scheduled.body.scheduledMessage.status, "pending");
+  await adminAgent.delete(`/api/messages/scheduled/${scheduled.body.scheduledMessage.id}`).expect(200);
+
+  const socket = createSocket(baseUrl, { transports: ["websocket"], extraHeaders: { Cookie: adminCookie }, auth: { clientVersion: "3.0.0" } });
+  await once(socket, "connect");
+  const sent = await emitAck(socket, "message:send", { conversationId: generalConversationId, text: "Проверка @mira" });
+  socket.disconnect();
+  assert.equal(sent.ok, true);
+  assert.equal(sent.message.silent, false);
+
+  const notifications = await userAgent.get("/api/notifications?unreadOnly=1").expect(200);
+  assert.ok(notifications.body.notifications.some((item) => item.type === "message.mention" && item.messageId === sent.message.id));
+  await userAgent.patch("/api/notifications/read").send({ all: true }).expect(200);
+  assert.equal((await userAgent.get("/api/notifications?unreadOnly=1").expect(200)).body.unreadCount, 0);
+
+  const sync = await adminAgent.get("/api/v3/sync?after=0&limit=500").expect(200);
+  assert.equal(sync.body.apiVersion, 3);
+  assert.ok(sync.body.latestSequence > 0);
+  assert.ok(sync.body.events.some((event) => event.type === "message.created"));
+  const reset = await adminAgent.get(`/api/v3/sync?after=${sync.body.latestSequence + 100}`).expect(200);
+  assert.equal(reset.body.resyncRequired, true);
+});
+
+test("опросы, история правок и scoped bot API работают в рамках комнаты", async () => {
+  const created = await adminAgent.post(`/api/conversations/${generalConversationId}/polls`).send({
+    question: "Какой режим тестируем?",
+    options: ["Offline", "Online"],
+    multiple: false,
+  }).expect(201);
+  const poll = created.body.message.poll;
+  assert.equal(poll.options.length, 2);
+  const vote = await userAgent.post(`/api/polls/${poll.id}/votes`).send({ optionIds: [poll.options[0].id] }).expect(200);
+  assert.equal(vote.body.message.poll.options[0].votes, 1);
+  assert.equal(vote.body.message.poll.options[0].selectedByMe, true);
+  await adminAgent.post(`/api/polls/${poll.id}/close`).send({}).expect(200);
+
+  const edits = await adminAgent.get(`/api/messages/${dmMessageId}/edits`).expect(200);
+  assert.ok(edits.body.edits.some((edit) => edit.previousText === "Привет, Nexora!"));
+
+  const bootstrap = await adminAgent.get("/api/bootstrap").expect(200);
+  const general = bootstrap.body.rooms.find((room) => room.slug === "general");
+  const reportRole = await adminAgent.post(`/api/rooms/${general.id}/roles`).send({ name: "Report reviewer", permissions: ["room.manage_reports"] }).expect(201);
+  await adminAgent.patch(`/api/rooms/${general.id}/members/${user.id}/custom-roles`).send({ roleIds: [reportRole.body.role.id] }).expect(200);
+  const userGeneral = (await userAgent.get("/api/bootstrap").expect(200)).body.conversations.find((item) => item.roomId === general.id);
+  assert.equal(userGeneral.permissions.canManageReports, true);
+  const reportTarget = (await userAgent.get(`/api/conversations/${generalConversationId}/messages`).expect(200)).body.messages.find((message) => !message.isOwn && message.type !== "deleted");
+  const report = await userAgent.post(`/api/messages/${reportTarget.id}/report`).send({ reason: "Проверка scoped роли модерации" }).expect(201);
+  await userAgent.patch(`/api/rooms/${general.id}/reports/${report.body.report.id}`).send({ status: "resolved" }).expect(200);
+
+  const bot = await adminAgent.post(`/api/rooms/${general.id}/bots`).send({ displayName: "Build Bot", username: "build_bot" }).expect(201);
+  const token = await adminAgent.post(`/api/bots/${bot.body.bot.id}/tokens`).send({ name: "CI", scopes: ["messages:write"] }).expect(201);
+  assert.match(token.body.token.value, /^nxa_/);
+  await request(instance.app).get("/api/v3/bot/me").set("Authorization", `Bearer ${token.body.token.value}`).expect(200);
+  const botMessage = await request(instance.app).post("/api/v3/bot/messages")
+    .set("Authorization", `Bearer ${token.body.token.value}`)
+    .set("X-Nexora-Client-Version", "3.0.0")
+    .send({ conversationId: generalConversationId, text: "Сборка завершена" }).expect(201);
+  assert.equal(botMessage.body.message.sender.isBot, true);
+  await request(instance.app).post("/api/v3/bot/messages")
+    .set("Authorization", `Bearer ${token.body.token.value}`)
+    .send({ conversationId: dmConversationId, text: "Нельзя читать другой scope" }).expect(403);
+  const integrations = await adminAgent.get(`/api/rooms/${general.id}/integrations`).expect(200);
+  const listedToken = integrations.body.bots.find((item) => item.id === bot.body.bot.id).tokens.find((item) => item.id === token.body.token.id);
+  assert.equal(listedToken.tokenHash, undefined);
+  await adminAgent.delete(`/api/bots/${bot.body.bot.id}/tokens/${token.body.token.id}`).expect(200);
+  await request(instance.app).get("/api/v3/bot/me").set("Authorization", `Bearer ${token.body.token.value}`).expect(401);
+});
+
+test("возобновляемая загрузка проверяет части и реальный тип медиа", async () => {
+  const payload = Buffer.alloc(1024 * 1024 + 19, 0x4e);
+  const opened = await adminAgent.post(`/api/conversations/${generalConversationId}/uploads`).send({
+    name: "large.bin", size: payload.length, mimeType: "application/octet-stream", kind: "file",
+  }).expect(201);
+  const upload = opened.body.upload;
+  assert.equal(upload.totalChunks, 2);
+  for (let index = 0; index < upload.totalChunks; index += 1) {
+    const chunk = payload.subarray(index * upload.chunkSize, Math.min(payload.length, (index + 1) * upload.chunkSize));
+    const hash = crypto.createHash("sha256").update(chunk).digest("hex");
+    await adminAgent.put(`/api/uploads/${upload.id}/chunks/${index}`)
+      .set("Content-Type", "application/octet-stream").set("X-Chunk-SHA256", hash).send(chunk).expect(200);
+  }
+  const resumed = await adminAgent.get(`/api/uploads/${upload.id}`).expect(200);
+  assert.deepEqual(resumed.body.upload.receivedChunks.sort(), [0, 1]);
+  const completed = await adminAgent.post(`/api/uploads/${upload.id}/complete`).send({ caption: "resumable" }).expect(201);
+  assert.equal(completed.body.message.file.size, payload.length);
+
+  const spoofed = await adminAgent.post(`/api/conversations/${generalConversationId}/uploads`).send({
+    name: "fake.png", size: 4, mimeType: "image/png", kind: "image",
+  }).expect(201);
+  await adminAgent.put(`/api/uploads/${spoofed.body.upload.id}/chunks/0`)
+    .set("Content-Type", "application/octet-stream").send(Buffer.from("nope")).expect(400);
+  const spoofHash = crypto.createHash("sha256").update(Buffer.from("nope")).digest("hex");
+  await adminAgent.put(`/api/uploads/${spoofed.body.upload.id}/chunks/0`)
+    .set("Content-Type", "application/octet-stream").set("X-Chunk-SHA256", spoofHash).send(Buffer.from("nope")).expect(200);
+  const rejected = await adminAgent.post(`/api/uploads/${spoofed.body.upload.id}/complete`).send({}).expect(415);
+  assert.equal(rejected.body.code, "FILE_TYPE_MISMATCH");
+  await adminAgent.delete(`/api/uploads/${spoofed.body.upload.id}`).expect(200);
+});
+
+test("TOTP требует второй фактор и хранит secret только в зашифрованном виде", async () => {
+  let csrf = "";
+  const raw = request.agent(instance.app);
+  const protectedAgent = browserAgent(raw, () => csrf);
+  const registered = await protectedAgent.post("/api/auth/register").send({
+    displayName: "Тотп Тестер", username: "totp-tester", password: "TotpStrongPass123!",
+  }).expect(201);
+  csrf = registered.body.csrfToken;
+  const setup = await protectedAgent.post("/api/users/me/totp/setup").send({}).expect(200);
+  const enabled = await protectedAgent.post("/api/users/me/totp/enable").send({ code: totp(setup.body.secret) }).expect(200);
+  assert.equal(enabled.body.recoveryCodes.length, 10);
+  const stored = instance.store.read((state) => state.users.find((item) => item.username === "totp-tester"));
+  assert.equal(stored.totpEnabled, true);
+  assert.ok(stored.totpSecret && !stored.totpSecret.includes(setup.body.secret));
+
+  const login = await request(instance.app).post("/api/auth/login").send({ username: "totp-tester", password: "TotpStrongPass123!" }).expect(202);
+  assert.equal(login.body.requiresTotp, true);
+  const completed = await request(instance.app).post("/api/auth/login/totp").send({ challengeId: login.body.challengeId, code: totp(setup.body.secret) }).expect(200);
+  assert.equal(completed.body.user.username, "totp-tester");
 });
 
 test("CSRF, Origin, постоянная блокировка входа и политика паролей защищают сервер", async () => {

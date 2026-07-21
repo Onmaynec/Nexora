@@ -7,7 +7,7 @@ body:
     id: version
     attributes:
       label: Версии Client / Server
-      placeholder: 2.0.0 / 2.0.0
+      placeholder: 3.0.0 / 3.0.0
     validations:
       required: true
   - type: dropdown
@@ -21,7 +21,7 @@ body:
     id: surface
     attributes:
       label: Интерфейс
-      options: [Nexora Client.exe, Веб-клиент, Nexora Server.exe]
+      options: [Nexora Client.exe, Веб-клиент / PWA, Android, Nexora Server.exe]
     validations:
       required: true
   - type: textarea

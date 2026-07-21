@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowDown, Bookmark, Check, CheckCheck, CheckSquare, ChevronDown, Copy, Download, File as FileIcon,
-  Forward, Image as ImageIcon, Info, ListChecks, LoaderCircle, MoreHorizontal, Paperclip,
+  ArrowDown, BarChart3, BellOff, Bookmark, Check, CheckCheck, CheckSquare, ChevronDown, Clock3, Copy, Download, File as FileIcon,
+  Flag, Forward, GitBranch, History, Image as ImageIcon, Info, ListChecks, LoaderCircle, MoreHorizontal, Paperclip,
   Pencil, Pin, RefreshCcw, Reply, Search, Send, SmilePlus, Trash2, UploadCloud, UsersRound,
   Volume2, VolumeX, X,
 } from "lucide-react";
@@ -11,11 +11,18 @@ import {
   retryOutboxEntry,
 } from "../outbox";
 import { emitAck } from "../socket";
+import { cacheMessages, readCachedMessages } from "../offline-store";
 import VoiceRecorder from "./VoiceRecorder";
 import VoicePlayer from "./VoicePlayer";
 import { Avatar, EmptyState, formatBytes, formatTime, InlineLoader } from "./ui";
 
 const reactionChoices = ["👍", "❤️", "🔥", "😂", "👀", "🎉"];
+
+function localDateTimeValue(timestamp) {
+  const date = new Date(timestamp);
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
 
 function FileContent({ message, onPreview }) {
   const file = message.file;
@@ -42,6 +49,24 @@ function FileContent({ message, onPreview }) {
   );
 }
 
+function PollContent({ message, onVote }) {
+  const poll = message.poll;
+  const [selected, setSelected] = useState(() => new Set(poll.options.filter((option) => option.selectedByMe).map((option) => option.id)));
+  function toggle(id) {
+    setSelected((current) => {
+      if (!poll.multiple) return new Set([id]);
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+  const totalVotes = poll.options.reduce((sum, option) => sum + option.votes, 0);
+  return <div className="poll-card"><strong>{poll.question}</strong><div className="poll-options">{poll.options.map((option) => {
+    const percent = totalVotes ? Math.round(option.votes / totalVotes * 100) : 0;
+    return <button type="button" key={option.id} className={selected.has(option.id) ? "selected" : ""} disabled={Boolean(poll.closedAt)} onClick={() => toggle(option.id)}><i style={{ width: `${percent}%` }} /><span>{option.text}</span><small>{option.votes} · {percent}%</small></button>;
+  })}</div><footer><span>{poll.totalVoters} голосов{poll.closedAt ? " · завершён" : poll.multiple ? " · несколько вариантов" : ""}</span>{!poll.closedAt && <button type="button" disabled={!selected.size} onClick={() => onVote(message, [...selected])}>Голосовать</button>}</footer></div>;
+}
+
 function ReadStatus({ message, conversation }) {
   if (!message.isOwn || message.type === "deleted" || message.deliveryState) return null;
   if (conversation.type === "dm") {
@@ -60,7 +85,7 @@ function messageCopyText(message) {
 
 function MessageItem({
   message, conversation, onReply, onEdit, onDelete, onReact, onPin, onBookmark, onPreview, onJump,
-  onForward, onOpenProfile, selectionMode, selected, onToggleSelect, onRetry, onDiscard,
+  onForward, onOpenProfile, onPollVote, onReport, onHistory, selectionMode, selected, onToggleSelect, onRetry, onDiscard,
 }) {
   const [actions, setActions] = useState(false);
   const [reactions, setReactions] = useState(false);
@@ -108,10 +133,13 @@ function MessageItem({
                 <span>{message.reply.deletedAt ? "Сообщение удалено" : message.reply.text || (message.reply.type === "voice" ? "Голосовое сообщение" : "Вложение")}</span>
               </button>
             )}
+            {message.threadRootId && <button type="button" className="thread-label" onClick={() => onJump(message.threadRootId)}><GitBranch size={12} /> Ветка обсуждения</button>}
             {deleted ? (
               <em className="deleted-copy">Сообщение удалено</em>
             ) : message.type === "expired" ? (
               <div className="expired-attachment"><FileIcon size={18} /><span>Вложение удалено по сроку хранения</span></div>
+            ) : message.poll ? (
+              <PollContent message={message} onVote={onPollVote} />
             ) : message.type === "text" ? (
               <p>{message.text}</p>
             ) : (
@@ -130,7 +158,9 @@ function MessageItem({
               <button type="button" className={message.bookmarkedByMe ? "active" : ""} onClick={() => { onBookmark(message); setActions(false); }} title={message.bookmarkedByMe ? "Убрать из сохранённых" : "Сохранить сообщение"}><Bookmark size={15} fill={message.bookmarkedByMe ? "currentColor" : "none"} /></button>
               {message.canPin && <button type="button" onClick={() => { onPin(message); setActions(false); }} title={message.pinnedAt ? "Открепить" : "Закрепить"}><Pin size={15} /></button>}
               {message.canEdit && <button type="button" onClick={() => { onEdit(message); setActions(false); }} title="Редактировать"><Pencil size={15} /></button>}
+              {message.editCount > 0 && <button type="button" onClick={() => { onHistory(message); setActions(false); }} title="История правок"><History size={15} /></button>}
               {message.canDelete && <button type="button" className="danger" onClick={() => { onDelete(message); setActions(false); }} title="Удалить"><Trash2 size={15} /></button>}
+              {!message.isOwn && conversation.type === "room" && <button type="button" className="danger" onClick={() => { onReport(message); setActions(false); }} title="Пожаловаться"><Flag size={15} /></button>}
               <button className="actions-more" type="button" aria-expanded={actions} onClick={() => { setReactions(false); setActions((value) => !value); }} title="Действия"><MoreHorizontal size={15} /></button>
             </div>
           )}
@@ -153,6 +183,7 @@ function pendingMessage(entry, me) {
     type: "text",
     text: entry.kind === "forward" ? entry.previewText : entry.text,
     forwarded: entry.kind === "forward" ? { senderName: "ожидает пересылки" } : null,
+    threadRootId: entry.threadRootId ?? null,
     reactions: [],
     createdAt: entry.createdAt,
     updatedAt: null,
@@ -168,13 +199,13 @@ function pendingMessage(entry, me) {
   };
 }
 
-export default function MessagePane({ conversation, conversations, initialMessageId, onJumpHandled, me, socket, onlineUserIds, onRefresh, onDetails, onOpenProfile, showToast }) {
+export default function MessagePane({ conversation, conversations, initialDraft = "", initialMessageId, onJumpHandled, me, socket, onlineUserIds, onRefresh, onDetails, onOpenProfile, showToast }) {
   const draftKey = `nexora:draft:${me.id}:${conversation.id}`;
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [text, setText] = useState(() => localStorage.getItem(draftKey) ?? "");
+  const [text, setText] = useState(() => localStorage.getItem(draftKey) ?? initialDraft);
   const [replyingTo, setReplyingTo] = useState(null);
   const [editing, setEditing] = useState(null);
   const [typingUsers, setTypingUsers] = useState(new Map());
@@ -192,12 +223,17 @@ export default function MessagePane({ conversation, conversations, initialMessag
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [outbox, setOutbox] = useState(() => readOutbox(me.id));
+  const [silentNext, setSilentNext] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [pollOpen, setPollOpen] = useState(false);
+  const [editHistory, setEditHistory] = useState(null);
   const fileInputRef = useRef(null);
   const listRef = useRef(null);
   const typingTimer = useRef(null);
   const reloadTimer = useRef(null);
   const highlightTimer = useRef(null);
   const uploadControllers = useRef(new Map());
+  const draftSyncTimer = useRef(null);
   const firstUnreadId = useRef(conversation.firstUnreadMessageId);
 
   const uploading = voiceUploading || uploadJobs.some((job) => job.status === "uploading" || job.status === "checking");
@@ -207,7 +243,16 @@ export default function MessagePane({ conversation, conversations, initialMessag
     if (text) localStorage.setItem(draftKey, text);
     else localStorage.removeItem(draftKey);
     window.dispatchEvent(new CustomEvent("nexora:drafts", { detail: { conversationId: conversation.id } }));
-  }, [conversation.id, draftKey, editing, text]);
+    clearTimeout(draftSyncTimer.current);
+    if (socket.connected) {
+      draftSyncTimer.current = setTimeout(() => {
+        api(`/api/v3/drafts/${encodeURIComponent(conversation.id)}`, text
+          ? { method: "PUT", body: JSON.stringify({ text }) }
+          : { method: "DELETE" }).catch(() => {});
+      }, 600);
+    }
+    return () => clearTimeout(draftSyncTimer.current);
+  }, [conversation.id, draftKey, editing, socket.connected, text]);
 
   useEffect(() => {
     const sync = (event) => { if (!event.detail?.userId || event.detail.userId === me.id) setOutbox(readOutbox(me.id)); };
@@ -229,15 +274,24 @@ export default function MessagePane({ conversation, conversations, initialMessag
     try {
       const result = await api(`/api/conversations/${conversation.id}/messages`);
       setMessages(result.messages);
+      cacheMessages(me.id, conversation.id, result.messages).catch(() => {});
       setHasMore(result.hasMore);
       scrollToBottom("auto");
       if (shouldMarkRead) markRead();
     } catch (error) {
-      showToast(error.message, "error");
+      const cached = await readCachedMessages(me.id, conversation.id);
+      if (cached.length) {
+        setMessages(cached);
+        setHasMore(false);
+      } else showToast(error.message, "error");
     } finally {
       setLoading(false);
     }
-  }, [conversation?.id, markRead, scrollToBottom, showToast]);
+  }, [conversation?.id, markRead, me.id, scrollToBottom, showToast]);
+
+  useEffect(() => {
+    if (messages.length) cacheMessages(me.id, conversation.id, messages).catch(() => {});
+  }, [conversation.id, me.id, messages]);
 
   useEffect(() => {
     setMessages([]);
@@ -344,9 +398,10 @@ export default function MessagePane({ conversation, conversations, initialMessag
       }
       return;
     }
-    enqueueMessage(me.id, { conversationId: conversation.id, text: value, replyToId: replyingTo?.id ?? null });
+    enqueueMessage(me.id, { conversationId: conversation.id, text: value, replyToId: replyingTo?.id ?? null, threadRootId: conversation.type === "room" && replyingTo ? (replyingTo.threadRootId ?? replyingTo.id) : null, silent: silentNext });
     setText("");
     setReplyingTo(null);
+    setSilentNext(false);
     localStorage.removeItem(draftKey);
     socket.emit("typing:set", { conversationId: conversation.id, isTyping: false });
     scrollToBottom();
@@ -357,6 +412,50 @@ export default function MessagePane({ conversation, conversations, initialMessag
     const result = await flushOutbox(socket, me.id);
     if (result.failed) showToast("Сообщение не отправлено — доступен повтор", "error");
     else await onRefresh();
+  }
+
+  async function scheduleMessage(event) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const value = text.trim();
+    if (!value) return;
+    try {
+      await post("/api/messages/scheduled", { conversationId: conversation.id, text: value, replyToId: replyingTo?.id ?? null, threadRootId: conversation.type === "room" && replyingTo ? (replyingTo.threadRootId ?? replyingTo.id) : null, silent: silentNext, scheduledAt: new Date(String(form.get("scheduledAt"))).toISOString() });
+      setText(""); setReplyingTo(null); setSilentNext(false); setScheduleOpen(false); localStorage.removeItem(draftKey);
+      showToast("Сообщение запланировано");
+    } catch (error) { showToast(error.message, "error"); }
+  }
+
+  async function createPoll(event) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const options = form.getAll("option").map(String).map((value) => value.trim()).filter(Boolean);
+    try {
+      const result = await post(`/api/conversations/${conversation.id}/polls`, { question: form.get("question"), options, multiple: form.get("multiple") === "on", anonymous: form.get("anonymous") === "on" });
+      setMessages((current) => current.some((item) => item.id === result.message.id) ? current : [...current, result.message]);
+      setPollOpen(false);
+    } catch (error) { showToast(error.message, "error"); }
+  }
+
+  async function votePoll(message, optionIds) {
+    try {
+      const result = await post(`/api/polls/${message.poll.id}/votes`, { optionIds });
+      setMessages((current) => current.map((item) => item.id === message.id ? result.message : item));
+    } catch (error) { showToast(error.message, "error"); }
+  }
+
+  async function reportMessage(message) {
+    const reason = window.prompt("Опишите причину жалобы");
+    if (!reason) return;
+    try { await post(`/api/messages/${message.id}/report`, { reason }); showToast("Жалоба отправлена модераторам"); }
+    catch (error) { showToast(error.message, "error"); }
+  }
+
+  async function showEditHistory(message) {
+    try {
+      const result = await api(`/api/messages/${message.id}/edits`);
+      setEditHistory({ message, edits: result.edits });
+    } catch (error) { showToast(error.message, "error"); }
   }
 
   function onInput(event) {
@@ -384,6 +483,7 @@ export default function MessagePane({ conversation, conversations, initialMessag
     try {
       const result = await uploadFile(conversation.id, job.file, job.kind, 0, "", {
         signal: controller.signal,
+        uploadId: job.uploadId,
         onProgress: (progress) => updateUpload(job.id, { progress }),
       });
       appendUploaded(result.message);
@@ -391,7 +491,7 @@ export default function MessagePane({ conversation, conversations, initialMessag
       return true;
     } catch (error) {
       const cancelled = error.code === "UPLOAD_ABORTED";
-      updateUpload(job.id, { status: cancelled ? "cancelled" : "failed", error: error.message });
+      updateUpload(job.id, { status: cancelled ? "cancelled" : "failed", error: error.message, uploadId: error.uploadId ?? job.uploadId });
       if (!cancelled) showToast(`${job.file.name}: ${error.message}`, "error");
       return false;
     } finally {
@@ -535,11 +635,11 @@ export default function MessagePane({ conversation, conversations, initialMessag
   const typingNames = [...typingUsers.values()];
   const pending = outbox.filter((entry) => entry.conversationId === conversation.id && !messages.some((message) => message.clientId === entry.id)).map((entry) => pendingMessage(entry, me));
   const displayMessages = useMemo(() => [...messages, ...pending].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt)), [messages, pending]);
-  const cannotPost = conversation.type === "room" && conversation.permissions?.readOnly && !conversation.permissions?.canModerate;
+  const cannotPost = conversation.type === "room" && (conversation.permissions?.readOnly || conversation.permissions?.announcementOnly) && !conversation.permissions?.canBypassPosting;
   const slowMode = conversation.type === "room" ? Number(conversation.permissions?.slowModeSeconds || 0) : 0;
 
   return (
-    <section className={`message-pane${dragging ? " dragging-files" : ""}`} onDragEnter={(event) => { if (event.dataTransfer?.types?.includes("Files")) { event.preventDefault(); setDragging(true); } }} onDragOver={(event) => { if (event.dataTransfer?.types?.includes("Files")) event.preventDefault(); }} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setDragging(false); }} onDrop={(event) => { event.preventDefault(); setDragging(false); handleFiles(event.dataTransfer.files); }}>
+    <section className={`message-pane background-${conversation.notificationSettings?.background ?? "default"}${conversation.notificationSettings?.compact ? " compact-messages" : ""}${dragging ? " dragging-files" : ""}`} onDragEnter={(event) => { if (event.dataTransfer?.types?.includes("Files")) { event.preventDefault(); setDragging(true); } }} onDragOver={(event) => { if (event.dataTransfer?.types?.includes("Files")) event.preventDefault(); }} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setDragging(false); }} onDrop={(event) => { event.preventDefault(); setDragging(false); handleFiles(event.dataTransfer.files); }}>
       <header className="conversation-header">
         <div className="conversation-identity"><Avatar user={conversation.peer ?? conversation} online={titleOnline} onClick={conversation.type === "dm" ? () => onOpenProfile(conversation.peer) : undefined} /><div><h2>{conversation.title}</h2><span>{conversation.type === "dm" ? (titleOnline ? "в сети" : conversation.peer?.status || conversation.subtitle) : `${conversation.members?.length ?? 0} участников · ${conversation.privacy === "private" ? "приватная" : "публичная"}`}</span></div></div>
         <div className="conversation-tools">
@@ -554,7 +654,7 @@ export default function MessagePane({ conversation, conversations, initialMessag
 
       <div className="message-list" ref={listRef} onScroll={(event) => { const node = event.currentTarget; setShowJump(node.scrollHeight - node.scrollTop - node.clientHeight > 260); }}>
         {hasMore && <button type="button" className="load-earlier" onClick={loadEarlier} disabled={loadingMore}>{loadingMore ? <InlineLoader label="Загрузка" /> : <><ChevronDown size={15} /> Более ранние сообщения</>}</button>}
-        {loading ? <div className="messages-loading"><InlineLoader label="Загружаем переписку" /></div> : displayMessages.length === 0 ? <EmptyState icon={conversation.type === "dm" ? Send : UsersRound} title={conversation.isSavedMessages ? "Ваше личное пространство" : "Начало разговора"} description={conversation.isSavedMessages ? "Сохраняйте здесь заметки, файлы и сообщения — они доступны только вам на этом сервере." : conversation.type === "dm" ? `Напишите первое сообщение для ${conversation.title}.` : "В этой комнате пока тихо. Начните обсуждение."} /> : displayMessages.map((message) => <div key={message.id} className={highlightedId === message.id ? "message-highlight" : ""}>{firstUnreadId.current === message.id && <div className="unread-divider"><span>Новые сообщения</span></div>}<MessageItem message={message} conversation={conversation} onReply={(item) => { setReplyingTo(item); setEditing(null); }} onEdit={(item) => { setEditing(item); setReplyingTo(null); setText(item.text); }} onDelete={(item) => window.confirm("Удалить сообщение? Это действие нельзя отменить.") && action("message:delete", { messageId: item.id })} onReact={(item, emoji) => action("message:react", { messageId: item.id, emoji })} onPin={(item) => action("message:pin", { messageId: item.id })} onBookmark={toggleBookmark} onPreview={setImagePreview} onJump={jumpToMessage} onForward={setForwarding} onOpenProfile={onOpenProfile} selectionMode={selectionMode} selected={selectedIds.has(message.id)} onToggleSelect={toggleSelected} onRetry={retryPending} onDiscard={(item) => removeOutboxEntry(me.id, item.outboxId)} /></div>)}
+        {loading ? <div className="messages-loading"><InlineLoader label="Загружаем переписку" /></div> : displayMessages.length === 0 ? <EmptyState icon={conversation.type === "dm" ? Send : UsersRound} title={conversation.isSavedMessages ? "Ваше личное пространство" : "Начало разговора"} description={conversation.isSavedMessages ? "Сохраняйте здесь заметки, файлы и сообщения — они доступны только вам на этом сервере." : conversation.type === "dm" ? `Напишите первое сообщение для ${conversation.title}.` : "В этой комнате пока тихо. Начните обсуждение."} /> : displayMessages.map((message) => <div key={message.id} className={highlightedId === message.id ? "message-highlight" : ""}>{firstUnreadId.current === message.id && <div className="unread-divider"><span>Новые сообщения</span></div>}<MessageItem message={message} conversation={conversation} onReply={(item) => { setReplyingTo(item); setEditing(null); }} onEdit={(item) => { setEditing(item); setReplyingTo(null); setText(item.text); }} onDelete={(item) => window.confirm("Удалить сообщение? Это действие нельзя отменить.") && action("message:delete", { messageId: item.id })} onReact={(item, emoji) => action("message:react", { messageId: item.id, emoji })} onPin={(item) => action("message:pin", { messageId: item.id })} onBookmark={toggleBookmark} onPreview={setImagePreview} onJump={jumpToMessage} onForward={setForwarding} onOpenProfile={onOpenProfile} onPollVote={votePoll} onReport={reportMessage} onHistory={showEditHistory} selectionMode={selectionMode} selected={selectedIds.has(message.id)} onToggleSelect={toggleSelected} onRetry={retryPending} onDiscard={(item) => removeOutboxEntry(me.id, item.outboxId)} /></div>)}
       </div>
 
       {showJump && <button type="button" className="jump-latest" onClick={() => scrollToBottom()}><ArrowDown size={17} /> К последнему</button>}
@@ -581,12 +681,18 @@ export default function MessagePane({ conversation, conversations, initialMessag
           )}
           <div className="typing-line">{cannotPost ? "Комната работает в режиме «только чтение»" : typingNames.length ? `${typingNames.slice(0, 2).join(" и ")} ${typingNames.length > 1 ? "печатают" : "печатает"}…` : !socket.connected ? "Нет соединения · текстовые сообщения попадут в очередь" : slowMode ? `Медленный режим · ${slowMode} сек.` : ""}</div>
           {(replyingTo || editing) && <div className="composer-context">{editing ? <Pencil size={16} /> : <Reply size={16} />}<div><strong>{editing ? "Редактирование" : `Ответ для ${replyingTo.sender.displayName}`}</strong><span>{editing?.text ?? replyingTo?.text ?? "Вложение"}</span></div><button type="button" onClick={() => { setReplyingTo(null); setEditing(null); if (editing) setText(localStorage.getItem(draftKey) ?? ""); }}><X size={16} /></button></div>}
-          <form className="composer" onSubmit={submit}><input ref={fileInputRef} type="file" hidden multiple onChange={(event) => handleFiles(event.target.files)} /><button type="button" className="composer-icon-button" onClick={() => fileInputRef.current?.click()} disabled={cannotPost || conversation.permissions?.allowFiles === false} title={conversation.permissions?.allowFiles === false ? "Файлы отключены в комнате" : "Прикрепить файлы"}>{uploading ? <LoaderCircle className="spin" size={19} /> : <Paperclip size={19} />}</button><textarea value={text} disabled={cannotPost} onChange={onInput} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submit(); } }} rows={1} maxLength={4000} placeholder={cannotPost ? "Только чтение" : editing ? "Измените сообщение…" : socket.connected ? "Сообщение…" : "Сообщение будет отправлено после подключения…"} /><VoiceRecorder maxSeconds={300} disabled={cannotPost || voiceUploading || !socket.connected || conversation.permissions?.allowVoice === false} onRecorded={handleVoice} onError={(message) => showToast(message, "error")} /><button className="composer-send" type="submit" disabled={cannotPost || !text.trim()} title="Отправить"><Send size={19} /></button></form>
+          <form className="composer" onSubmit={submit}><input ref={fileInputRef} type="file" hidden multiple onChange={(event) => handleFiles(event.target.files)} /><button type="button" className="composer-icon-button" onClick={() => fileInputRef.current?.click()} disabled={cannotPost || conversation.permissions?.allowFiles === false} title={conversation.permissions?.allowFiles === false ? "Файлы отключены в комнате" : "Прикрепить файлы"}>{uploading ? <LoaderCircle className="spin" size={19} /> : <Paperclip size={19} />}</button><button type="button" className="composer-icon-button" onClick={() => setPollOpen(true)} disabled={cannotPost || !socket.connected} title="Создать опрос"><BarChart3 size={18} /></button><textarea value={text} disabled={cannotPost} onChange={onInput} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submit(); } }} rows={1} maxLength={4000} placeholder={cannotPost ? "Только чтение" : editing ? "Измените сообщение…" : socket.connected ? "Сообщение…" : "Сообщение будет отправлено после подключения…"} /><button type="button" className={`composer-icon-button${silentNext ? " active" : ""}`} onClick={() => setSilentNext((value) => !value)} disabled={cannotPost || editing} title="Отправить без уведомления"><BellOff size={18} /></button><button type="button" className="composer-icon-button" onClick={() => setScheduleOpen(true)} disabled={cannotPost || editing || !text.trim() || !socket.connected} title="Отложить отправку"><Clock3 size={18} /></button><VoiceRecorder maxSeconds={300} disabled={cannotPost || voiceUploading || !socket.connected || conversation.permissions?.allowVoice === false} onRecorded={handleVoice} onError={(message) => showToast(message, "error")} /><button className="composer-send" type="submit" disabled={cannotPost || !text.trim()} title={silentNext ? "Отправить без уведомления" : "Отправить"}><Send size={19} /></button></form>
           <div className="composer-foot"><span>{text && !editing ? "Черновик сохраняется автоматически" : "Enter — отправить"}</span><span>Файл до 25 МБ · голосовое до 5 минут</span></div>
         </>}
       </footer>
 
       {forwarding && <div className="modal-backdrop" role="dialog" aria-modal="true" onMouseDown={(event) => event.target === event.currentTarget && setForwarding(null)}><section className="modal-card forward-modal"><header><div><span>FORWARD</span><h2>Переслать сообщение</h2></div><button type="button" onClick={() => setForwarding(null)}><X size={18} /></button></header><p className="forward-preview">{messageCopyText(forwarding)}</p><div className="forward-conversations">{conversations.filter((item) => item.id !== conversation.id).map((item) => <button type="button" key={item.id} onClick={() => forwardTo(item)}><Avatar user={item.peer ?? item} size="small" /><span><strong>{item.title}</strong><small>{item.subtitle}</small></span><Forward size={16} /></button>)}</div></section></div>}
+
+      {scheduleOpen && <div className="modal-backdrop" role="dialog" aria-modal="true"><section className="modal-card mini-feature-modal"><header><div><span>SCHEDULE</span><h2>Отложенная отправка</h2></div><button type="button" onClick={() => setScheduleOpen(false)}><X size={18} /></button></header><form className="modal-form" onSubmit={scheduleMessage}><label>Дата и время<input type="datetime-local" name="scheduledAt" min={localDateTimeValue(Date.now() + 60_000)} required /></label><p>{text.trim()}</p><button className="violet-button" type="submit"><Clock3 size={17} /> Запланировать</button></form></section></div>}
+
+      {pollOpen && <div className="modal-backdrop" role="dialog" aria-modal="true"><section className="modal-card mini-feature-modal"><header><div><span>POLL</span><h2>Новый опрос</h2></div><button type="button" onClick={() => setPollOpen(false)}><X size={18} /></button></header><form className="modal-form" onSubmit={createPoll}><label>Вопрос<input name="question" maxLength={240} required /></label>{[1, 2, 3, 4].map((index) => <label key={index}>Вариант {index}<input name="option" maxLength={120} required={index < 3} /></label>)}<label className="check-row"><input type="checkbox" name="multiple" /><span>Можно выбрать несколько</span></label><label className="check-row"><input type="checkbox" name="anonymous" /><span>Анонимный опрос</span></label><button className="violet-button" type="submit"><BarChart3 size={17} /> Опубликовать</button></form></section></div>}
+
+      {editHistory && <div className="modal-backdrop" role="dialog" aria-modal="true" onMouseDown={(event) => event.target === event.currentTarget && setEditHistory(null)}><section className="modal-card mini-feature-modal"><header><div><span>EDIT HISTORY</span><h2>История правок</h2></div><button type="button" onClick={() => setEditHistory(null)}><X size={18} /></button></header><div className="edit-history-list">{editHistory.edits.map((edit) => <article key={edit.id}><time>{new Date(edit.createdAt).toLocaleString("ru")}</time><p>{edit.previousText}</p></article>)}</div><div className="edit-history-current"><strong>Текущая версия</strong><p>{editHistory.message.text}</p></div></section></div>}
 
       {imagePreview && <div className="lightbox" role="dialog" aria-modal="true" aria-label="Просмотр вложения" onClick={() => setImagePreview(null)}><button type="button" onClick={() => setImagePreview(null)}><X size={22} /></button>{imagePreview.kind === "image" ? <img src={imagePreview.url} alt={imagePreview.name} onClick={(event) => event.stopPropagation()} /> : <iframe src={`${imagePreview.url}?preview=1`} title={imagePreview.name} onClick={(event) => event.stopPropagation()} />}<span>{imagePreview.name}</span></div>}
     </section>

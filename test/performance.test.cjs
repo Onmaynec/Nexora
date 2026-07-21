@@ -49,7 +49,7 @@ test("нагрузка общей комнаты: 20 клиентов однов
       }
     });
     for (const cookie of cookies) {
-      const socket = createSocket(baseUrl, { transports: ["websocket"], extraHeaders: { Cookie: cookie }, auth: { clientVersion: "2.0.0" } });
+      const socket = createSocket(baseUrl, { transports: ["websocket"], extraHeaders: { Cookie: cookie }, auth: { clientVersion: "3.0.0" } });
       sockets.push(socket);
       await once(socket, "connect");
     }

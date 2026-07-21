@@ -13,7 +13,7 @@ npm run audit:security
 
 ## Правила изменений
 
-- сохраняйте совместимость API внутри major 2 либо документируйте migration;
+- сохраняйте совместимость API внутри major 3 либо документируйте migration и диапазон Client;
 - изменения данных оформляйте schema migration и reliability test;
 - изменяющие routes обязаны использовать session, Origin и CSRF checks;
 - денежные/Plus entitlement нельзя подтверждать локальным production-флагом;

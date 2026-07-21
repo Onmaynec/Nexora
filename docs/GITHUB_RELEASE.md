@@ -25,9 +25,9 @@ git pull --ff-only
 npm ci
 npm run release:check
 npm run audit:security
-git tag -s v2.0.0 -m "Nexora 2.0.0"
+git tag -s v3.0.0 -m "Nexora 3.0.0"
 git push origin main
-git push origin v2.0.0
+git push origin v3.0.0
 ```
 
 Если signed Git tags пока не настроены, используйте annotated tag, но не lightweight tag.
@@ -36,19 +36,20 @@ Workflow `.github/workflows/release.yml` на Windows:
 
 1. запускается после успешного `CI` release-коммита, прямого push тега или ручного выбора существующего тега;
 2. устанавливает Node 22.16, создаёт отсутствующий аннотированный tag и проверяет его соответствие `package.json`;
-3. запускает build/tests/signing gate;
-4. собирает Client и через Electron Builder загружает `.exe`, blockmap и `latest.yml` только в невидимый draft Release;
-5. собирает Server, добавляет его и `SHA256SUMS.txt`, затем проверяет полный список assets;
-6. публикует Release только после успешной загрузки всех assets.
+3. запускает build/tests и определяет наличие Authenticode secrets;
+4. всегда создаёт source ZIP, PWA ZIP, SPDX SBOM и `SHA256SUMS.txt`;
+5. при наличии secrets собирает Client в невидимый draft, добавляет Server и проверяет `.exe`, blockmap и `latest.yml`;
+6. публикует стабильный Latest только после проверки всех подписанных assets;
+7. без secrets публикует Source/PWA prerelease, намеренно исключая `.exe`, blockmap и `latest.yml`.
 
 Ручной запуск требует уже существующий стабильный tag в поле `release_tag`; сборка произвольного состояния `main` как релиза запрещена.
-Незавершённый draft можно безопасно пересобрать. Уже опубликованный Release workflow не изменяет: исправление выпускается новой patch-версией и новым тегом.
+Незавершённый draft и Source/PWA prerelease можно безопасно заменить при повторном запуске. Уже опубликованный стабильный Release workflow не изменяет: исправление выпускается новой версией и новым тегом.
 
 ## Проверка auto-update
 
-1. Опубликуйте подписанный `v2.0.0`.
+1. Опубликуйте подписанный `v3.0.0`.
 2. Соберите/установите предыдущую тестовую версию с тем же `appId`.
-3. Опубликуйте `v2.0.1` без prerelease-флага.
+3. Опубликуйте следующую patch-версию без prerelease-флага.
 4. Запустите старый Client: он должен показать downloading/downloaded.
 5. Закройте Client и убедитесь, что новая подписанная версия установилась.
 6. Проверьте, что пользовательские trusted servers и сессия сохранились.

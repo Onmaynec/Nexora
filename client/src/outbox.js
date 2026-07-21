@@ -37,6 +37,8 @@ export function enqueueMessage(userId, payload) {
     conversationId: payload.conversationId,
     text: payload.text,
     replyToId: payload.replyToId ?? null,
+    silent: Boolean(payload.silent),
+    threadRootId: payload.threadRootId ?? null,
     createdAt: new Date().toISOString(),
     state: "queued",
     error: null,
@@ -89,7 +91,7 @@ export function flushOutbox(socket, userId) {
         if (current.kind === "forward") {
           await emitAck(socket, "message:forward", { messageId: current.messageId, conversationId: current.conversationId, clientId: current.id }, 12_000);
         } else {
-          await emitAck(socket, "message:send", { conversationId: current.conversationId, text: current.text, replyToId: current.replyToId, clientId: current.id }, 12_000);
+          await emitAck(socket, "message:send", { conversationId: current.conversationId, text: current.text, replyToId: current.replyToId, threadRootId: current.threadRootId, silent: current.silent, clientId: current.id }, 12_000);
         }
         removeOutboxEntry(userId, current.id);
         sent += 1;

@@ -35,7 +35,7 @@ function simpleCell(text) { const td = document.createElement("td"); td.textCont
 function renderStatus(next) {
   status = next;
   elements["status-dot"].classList.toggle("online", next.running);
-  elements["side-status-text"].textContent = `${next.running ? "Сервер работает" : "Сервер остановлен"} · v${next.version ?? "2.0.0"}`;
+  elements["side-status-text"].textContent = `${next.running ? "Сервер работает" : "Сервер остановлен"} · v${next.version ?? "3.0.0"}`;
   elements["server-toggle"].textContent = next.running ? "Остановить" : "Запустить";
   elements["primary-url"].textContent = next.primaryUrl ?? "—";
   elements["server-id"].textContent = next.serverId ?? "—";

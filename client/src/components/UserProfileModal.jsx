@@ -9,13 +9,13 @@ import { Avatar } from "./ui";
 export default function UserProfileModal({
   initialUser, onClose, onOpenConversation, onSendRequest, onBlock, onOpenSettings, showToast,
 }) {
-  const [profile, setProfile] = useState(initialUser ? { user: initialUser, relationship: null } : null);
+  const [profile, setProfile] = useState(initialUser ? { user: initialUser, relationship: {} } : null);
   const [loading, setLoading] = useState(true);
   const userId = initialUser?.id;
 
   useEffect(() => {
     let cancelled = false;
-    setProfile(initialUser ? { user: initialUser, relationship: null } : null);
+    setProfile(initialUser ? { user: initialUser, relationship: {} } : null);
     setLoading(true);
     api(`/api/users/${encodeURIComponent(userId)}/profile`)
       .then((result) => { if (!cancelled) setProfile(result); })
@@ -31,7 +31,8 @@ export default function UserProfileModal({
   }, [onClose]);
 
   if (!profile?.user) return null;
-  const { user, relationship = {} } = profile;
+  const { user } = profile;
+  const relationship = profile.relationship ?? {};
   const joined = user.createdAt ? new Intl.DateTimeFormat("ru", { month: "long", year: "numeric" }).format(new Date(user.createdAt)) : null;
 
   async function copyUsername() {

@@ -16,7 +16,27 @@ function roomRole(state, roomId, userId) {
 }
 
 function isRoomBanned(state, roomId, userId) {
-  return state.roomBans?.some((ban) => ban.roomId === roomId && ban.userId === userId) ?? false;
+  const now = Date.now();
+  return state.roomBans?.some((ban) => ban.roomId === roomId && ban.userId === userId && (!ban.expiresAt || Date.parse(ban.expiresAt) > now)) ?? false;
+}
+
+function roomPermission(state, roomId, userId, permission) {
+  const user = findUser(state, userId);
+  if (user?.role === "server_admin") return true;
+  const member = state.roomMembers.find((item) => item.roomId === roomId && item.userId === userId);
+  if (!member) return false;
+  if (member.role === "owner") return true;
+  const moderatorDefaults = new Set([
+    "room.view", "room.send_messages", "room.upload_files", "room.send_voice", "room.pin_messages",
+    "room.manage_members", "room.delete_messages", "room.manage_reports", "room.mention_everyone",
+  ]);
+  const memberDefaults = new Set(["room.view", "room.send_messages", "room.upload_files", "room.send_voice"]);
+  const defaults = member.role === "moderator" ? moderatorDefaults : memberDefaults;
+  if (defaults.has(permission)) return true;
+  return (member.customRoleIds ?? []).some((roleId) => {
+    const role = state.customRoles?.find((candidate) => candidate.id === roleId && candidate.roomId === roomId);
+    return role?.permissions?.includes(permission);
+  });
 }
 
 function isBlockedEither(state, firstUserId, secondUserId) {
@@ -86,6 +106,7 @@ function messagePreview(state, message) {
   return {
     id: message.id,
     conversationId: message.conversationId,
+    senderId: message.senderId,
     senderName: sender?.displayName ?? "Удалённый пользователь",
     text: message.deletedAt ? "Сообщение удалено" : message.text,
     type: message.type,
@@ -119,6 +140,22 @@ function serializeMessage(state, message, viewerId) {
   const deleted = Boolean(message.deletedAt);
   const attachmentExpired = Boolean(message.attachmentExpiredAt && !deleted);
   const listened = state.voiceListens?.filter((item) => item.messageId === message.id) ?? [];
+  const poll = message.pollId ? state.polls?.find((item) => item.id === message.pollId) : null;
+  const pollVotes = poll ? state.pollVotes?.filter((vote) => vote.pollId === poll.id) ?? [] : [];
+  const pollView = poll ? {
+    id: poll.id,
+    question: poll.question,
+    multiple: Boolean(poll.multiple),
+    anonymous: Boolean(poll.anonymous),
+    closedAt: poll.closedAt ?? null,
+    totalVoters: new Set(pollVotes.map((vote) => vote.userId)).size,
+    options: poll.options.map((option) => ({
+      id: option.id,
+      text: option.text,
+      votes: pollVotes.filter((vote) => vote.optionId === option.id).length,
+      selectedByMe: pollVotes.some((vote) => vote.optionId === option.id && vote.userId === viewerId),
+    })),
+  } : null;
 
   return {
     id: message.id,
@@ -129,26 +166,34 @@ function serializeMessage(state, message, viewerId) {
     file: deleted || attachmentExpired ? null : fileView(file),
     reply,
     forwarded: message.forwardedSnapshot ?? null,
+    poll: deleted ? null : pollView,
     reactions: [...grouped.values()],
     createdAt: message.createdAt,
     updatedAt: message.updatedAt ?? null,
     deletedAt: message.deletedAt ?? null,
     pinnedAt: message.pinnedAt ?? null,
+    silent: Boolean(message.silent),
+    mentions: Array.isArray(message.mentions) ? message.mentions : [],
+    threadRootId: message.threadRootId ?? null,
+    editCount: state.messageEdits?.filter((edit) => edit.messageId === message.id).length ?? 0,
+    pendingApproval: Boolean(message.pendingApproval),
     bookmarkedByMe: state.messageBookmarks?.some((item) => item.messageId === message.id && item.userId === viewerId) ?? false,
     clientId: message.senderId === viewerId ? message.clientId ?? null : null,
     readCount,
     listenedByMe: listened.some((item) => item.userId === viewerId),
     listenedCount: listened.length,
     isOwn: message.senderId === viewerId,
-    canEdit: message.senderId === viewerId && !deleted && !attachmentExpired && message.type === "text",
-    canDelete: (message.senderId === viewerId || canModerateConversation(state, conversation, viewerId)) && !deleted,
-    canPin: canModerateConversation(state, conversation, viewerId) && !deleted,
+    canEdit: message.senderId === viewerId && !deleted && !attachmentExpired && message.type === "text" && !message.pendingApproval,
+    canDelete: (message.senderId === viewerId || (conversation?.type === "room" && roomPermission(state, conversation.roomId, viewerId, "room.delete_messages"))) && !deleted,
+    canPin: conversation?.type === "room" && roomPermission(state, conversation.roomId, viewerId, "room.pin_messages") && !deleted,
   };
 }
 
 function serializeConversation(state, conversation, viewerId, onlineUserIds = new Set()) {
+  const viewerCanModerate = canModerateConversation(state, conversation, viewerId)
+    || (conversation.type === "room" && (roomPermission(state, conversation.roomId, viewerId, "room.delete_messages") || roomPermission(state, conversation.roomId, viewerId, "room.manage_reports")));
   const messages = state.messages
-    .filter((message) => message.conversationId === conversation.id)
+    .filter((message) => message.conversationId === conversation.id && (!message.pendingApproval || viewerCanModerate || message.senderId === viewerId))
     .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
   const lastMessage = messages.at(-1) ?? null;
   const viewerReadAt = readAt(state, conversation.id, viewerId);
@@ -184,6 +229,9 @@ function serializeConversation(state, conversation, viewerId, onlineUserIds = ne
         pinned: Boolean(notificationSettings.pinned),
         archived: Boolean(notificationSettings.archived),
         folder: notificationSettings.folder ?? "all",
+        background: notificationSettings.background ?? "default",
+        compact: Boolean(notificationSettings.compact),
+        mode: notificationSettings.notificationMode ?? "all",
       },
       lastMessage: lastMessage ? serializeMessage(state, lastMessage, viewerId) : null,
       updatedAt: lastMessage?.createdAt ?? conversation.createdAt,
@@ -199,23 +247,47 @@ function serializeConversation(state, conversation, viewerId, onlineUserIds = ne
   if (!room) return null;
   const members = state.roomMembers
     .filter((member) => member.roomId === room.id)
-    .map((member) => ({ ...publicUser(findUser(state, member.userId)), roomRole: member.role, online: onlineUserIds.has(member.userId) }))
+    .map((member) => ({
+      ...publicUser(findUser(state, member.userId)),
+      roomRole: member.role,
+      customRoleIds: member.customRoleIds ?? [],
+      restrictedUntil: member.restrictedUntil ?? null,
+      online: onlineUserIds.has(member.userId),
+    }))
     .filter((member) => member.id);
-  const privileged = canModerateConversation(state, conversation, viewerId);
-  const inviteVisible = privileged;
-  const bannedMembers = privileged ? (state.roomBans ?? [])
+  const builtInModerator = canModerateConversation(state, conversation, viewerId);
+  const canManage = findUser(state, viewerId)?.role === "server_admin" || roomRole(state, room.id, viewerId) === "owner";
+  const canManageMembers = roomPermission(state, room.id, viewerId, "room.manage_members");
+  const canManageReports = roomPermission(state, room.id, viewerId, "room.manage_reports");
+  const canDeleteMessages = roomPermission(state, room.id, viewerId, "room.delete_messages");
+  const canPinMessages = roomPermission(state, room.id, viewerId, "room.pin_messages");
+  const canModerate = builtInModerator || canManageMembers || canManageReports || canDeleteMessages || canPinMessages;
+  const inviteVisible = canManage;
+  const bannedMembers = canManageMembers ? (state.roomBans ?? [])
     .filter((ban) => ban.roomId === room.id)
     .map((ban) => ({ ...ban, user: publicUser(findUser(state, ban.userId)), actor: publicUser(findUser(state, ban.byUserId)) }))
     .filter((ban) => ban.user) : [];
-  const joinRequests = privileged ? (state.roomJoinRequests ?? [])
+  const joinRequests = canManageMembers ? (state.roomJoinRequests ?? [])
     .filter((request) => request.roomId === room.id && request.status === "pending")
     .map((request) => ({ ...request, user: publicUser(findUser(state, request.userId)) }))
     .filter((request) => request.user) : [];
-  const auditLog = privileged ? (state.roomAuditLog ?? [])
+  const auditLog = builtInModerator ? (state.roomAuditLog ?? [])
     .filter((entry) => entry.roomId === room.id)
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
     .slice(0, 100)
     .map((entry) => ({ ...entry, actor: publicUser(findUser(state, entry.actorId)), target: publicUser(findUser(state, entry.targetUserId)) })) : [];
+  const activeInvites = canManage ? (state.roomInvites ?? [])
+    .filter((invite) => invite.roomId === room.id && !invite.revokedAt)
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)) : [];
+  const reports = canManageReports ? (state.roomReports ?? [])
+    .filter((report) => report.roomId === room.id && report.status === "pending")
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)) : [];
+  const appeals = canManageReports ? (state.moderationAppeals ?? [])
+    .filter((appeal) => appeal.roomId === room.id && appeal.status === "pending")
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+    .map((appeal) => ({ ...appeal, user: publicUser(findUser(state, appeal.userId)) })) : [];
+  const customRoles = canManage ? (state.customRoles ?? []).filter((role) => role.roomId === room.id) : [];
+  const category = state.roomCategories?.find((item) => item.id === room.categoryId && item.roomId === room.id) ?? null;
 
   return {
     id: conversation.id,
@@ -224,6 +296,9 @@ function serializeConversation(state, conversation, viewerId, onlineUserIds = ne
     title: room.name,
     subtitle: room.privacy === "private" ? "Приватная комната" : "Публичная комната",
     privacy: room.privacy,
+    description: room.description ?? "",
+    rules: room.rules ?? "",
+    category,
     ownerId: room.ownerId,
     inviteCode: inviteVisible ? room.inviteCode : null,
     inviteExpiresAt: inviteVisible ? room.inviteExpiresAt ?? null : null,
@@ -231,14 +306,27 @@ function serializeConversation(state, conversation, viewerId, onlineUserIds = ne
     inviteUseCount: inviteVisible ? Number(room.inviteUseCount || 0) : null,
     viewerRole: roomRole(state, room.id, viewerId),
     permissions: {
-      canModerate: privileged,
-      canManage: findUser(state, viewerId)?.role === "server_admin" || roomRole(state, room.id, viewerId) === "owner",
+      canModerate,
+      canManage,
+      canConfigure: builtInModerator,
+      canManageMembers,
+      canManageReports,
+      canDeleteMessages,
+      canPinMessages,
+      canBypassPosting: builtInModerator,
       readOnly: Boolean(room.readOnly),
       slowModeSeconds: Number(room.slowModeSeconds || 0),
       allowFiles: room.allowFiles !== false,
+      allowImages: room.allowImages !== false,
       allowVoice: room.allowVoice !== false,
+      announcementOnly: Boolean(room.announcementOnly),
+      preapproveMessages: Boolean(room.preapproveMessages),
       joinPolicy: room.joinPolicy ?? (room.privacy === "private" ? "invite" : "open"),
     },
+    activeInvites,
+    reports,
+    appeals,
+    customRoles,
     bannedMembers,
     joinRequests,
     auditLog,
@@ -250,6 +338,9 @@ function serializeConversation(state, conversation, viewerId, onlineUserIds = ne
       pinned: Boolean(notificationSettings.pinned),
       archived: Boolean(notificationSettings.archived),
       folder: notificationSettings.folder ?? "all",
+      background: notificationSettings.background ?? "default",
+      compact: Boolean(notificationSettings.compact),
+      mode: notificationSettings.notificationMode ?? "all",
     },
     lastMessage: lastMessage ? serializeMessage(state, lastMessage, viewerId) : null,
     updatedAt: lastMessage?.createdAt ?? conversation.createdAt,
@@ -282,6 +373,9 @@ function roomView(state, room, viewerId, onlineUserIds = new Set()) {
     name: room.name,
     slug: room.slug,
     privacy: room.privacy,
+    description: room.description ?? "",
+    rules: room.rules ?? "",
+    categoryId: room.categoryId ?? null,
     owner: publicUser(owner),
     memberCount: state.roomMembers.filter((member) => member.roomId === room.id).length,
     joined: Boolean(membership),
@@ -357,6 +451,7 @@ module.exports = {
   isRoomBanned,
   readAt,
   roomRole,
+  roomPermission,
   roomView,
   safeDownloadName,
   serializeConversation,

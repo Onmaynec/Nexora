@@ -1,10 +1,10 @@
 {
   "name": "nexora",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "engines": {
     "node": ">=22.16.0"
   },
-  "description": "Nexora private messenger for a local Radmin VPN network",
+  "description": "Nexora self-hosted messenger for Windows, browsers and Android",
   "author": "Nexora",
   "homepage": "https://github.com/Onmaynec/Nexora#readme",
   "repository": {
