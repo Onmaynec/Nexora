@@ -48,6 +48,36 @@ export function enqueueMessage(userId, payload) {
   return entry;
 }
 
+export function enqueueEncryptedMessage(userId, prepared) {
+  if (!prepared?.id || prepared.kind !== "mls-message" || !prepared.payload?.message) {
+    throw new Error("MLS_OUTBOX_ENTRY_INVALID");
+  }
+  const entry = {
+    id: String(prepared.id),
+    kind: "mls-message",
+    conversationId: String(prepared.conversationId),
+    createdAt: prepared.createdAt || new Date().toISOString(),
+    state: "queued",
+    error: null,
+    attempts: 0,
+    payload: {
+      conversationId: String(prepared.payload.conversationId),
+      clientId: String(prepared.payload.clientId),
+      deviceId: String(prepared.payload.deviceId),
+      groupRecordId: String(prepared.payload.groupRecordId),
+      epoch: Number(prepared.payload.epoch),
+      generation: prepared.payload.generation == null ? null : Number(prepared.payload.generation),
+      contentType: String(prepared.payload.contentType || "text"),
+      message: String(prepared.payload.message),
+      authenticatedDataHash: prepared.payload.authenticatedDataHash || null,
+      silent: Boolean(prepared.payload.silent),
+    },
+  };
+  const entries = readOutbox(userId).filter((item) => item.id !== entry.id);
+  writeOutbox(userId, [...entries, entry]);
+  return entry;
+}
+
 export function enqueueForward(userId, payload) {
   const entry = {
     id: clientId(),
@@ -90,6 +120,8 @@ export function flushOutbox(socket, userId) {
       try {
         if (current.kind === "forward") {
           await emitAck(socket, "message:forward", { messageId: current.messageId, conversationId: current.conversationId, clientId: current.id }, 12_000);
+        } else if (current.kind === "mls-message") {
+          await emitAck(socket, "mls:message", current.payload, 20_000);
         } else {
           await emitAck(socket, "message:send", { conversationId: current.conversationId, text: current.text, replyToId: current.replyToId, threadRootId: current.threadRootId, silent: current.silent, clientId: current.id }, 12_000);
         }
