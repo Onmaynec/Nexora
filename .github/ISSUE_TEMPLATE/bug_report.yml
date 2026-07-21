@@ -1,51 +1,127 @@
 name: Ошибка
+
 description: Сообщить о воспроизводимой проблеме Nexora
+
 title: "bug: "
-labels: [bug, triage]
+
+labels:
+  - bug
+  - triage
+
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Спасибо за отчёт. Для уязвимостей и утечек данных не используйте этот шаблон — следуйте SECURITY.md и создайте приватный Security Advisory.
+
   - type: input
-    id: version
+    id: versions
     attributes:
-      label: Версии Client / Server
-      placeholder: 3.0.0 / 3.0.0
+      label: Версии Client и Server
+      description: Укажите обе версии, даже если проблема видна только в одном компоненте.
+      placeholder: "Client 3.0.0 / Server 3.0.0"
     validations:
       required: true
-  - type: dropdown
-    id: windows
-    attributes:
-      label: Windows
-      options: [Windows 10, Windows 11]
-    validations:
-      required: true
+
   - type: dropdown
     id: surface
     attributes:
-      label: Интерфейс
-      options: [Nexora Client.exe, Веб-клиент / PWA, Android, Nexora Server.exe]
+      label: Компонент
+      options:
+        - Windows Client
+        - Windows Server
+        - Browser / PWA
+        - Android
+        - API / Socket.IO
+        - Installer / updater
+        - Documentation
+        - Другое
     validations:
       required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Среда
+      options:
+        - Windows 11
+        - Windows 10
+        - Android
+        - Linux server
+        - Browser only
+        - Другое
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Тип подключения
+      options:
+        - localhost
+        - LAN
+        - Radmin VPN / private VPN
+        - Public HTTPS domain
+        - Не применимо
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Краткое описание
+      description: Что сломано и как это влияет на работу?
+    validations:
+      required: true
+
   - type: textarea
     id: steps
     attributes:
       label: Шаги воспроизведения
-      placeholder: "1. ...\n2. ...\n3. ..."
+      placeholder: |
+        1. Открыть ...
+        2. Нажать ...
+        3. Увидеть ...
     validations:
       required: true
+
   - type: textarea
     id: expected
     attributes:
-      label: Ожидаемый и фактический результат
+      label: Ожидаемый результат
     validations:
       required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Фактический результат
+    validations:
+      required: true
+
   - type: textarea
     id: diagnostics
     attributes:
       label: Диагностика
-      description: Приложите screenshot/log без паролей, cookies, keys и invite codes.
-  - type: checkboxes
-    id: safety
+      description: Приложите очищенный log, screenshot или video. Не публикуйте пароли, cookies, tokens, private keys, invite codes и пользовательские данные.
+      render: shell
+
+  - type: textarea
+    id: regression
     attributes:
-      label: Безопасность данных
+      label: Регрессия и дополнительный контекст
+      description: Работало ли это раньше? Есть ли временный обходной путь?
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Проверки перед отправкой
       options:
-        - label: Я удалил пароли, session cookies, API keys и приватные коды.
+        - label: Я проверил существующие Issues и не нашёл дубликат.
+          required: true
+        - label: Я воспроизвёл проблему на актуальной поддерживаемой версии либо объяснил, почему это невозможно.
+          required: true
+        - label: Я удалил пароли, session cookies, API keys, private keys, invite codes и персональные данные.
+          required: true
+        - label: Это не приватный отчёт об уязвимости.
           required: true
