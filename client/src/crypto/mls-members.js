@@ -1,5 +1,5 @@
 const decoder = new TextDecoder();
-const MLS_LEAF_NODE_TYPE = 1;
+const MLS_LEAF_NODE_TYPE = "leaf";
 
 function parseCredential(credential) {
   if (!credential?.identity) return null;
