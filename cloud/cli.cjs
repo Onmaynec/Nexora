@@ -50,8 +50,8 @@ function start() {
   const port = positivePort(process.env.PORT, 4545);
   const host = String(process.env.HOST || "127.0.0.1").trim();
   const options = buildOptions();
-  const { createCloudApp } = require("./create-cloud-server.cjs");
-  const { app, database } = createCloudApp(options);
+  const { createCloudAppV11 } = require("./create-cloud-server-v11.cjs");
+  const { app, database } = createCloudAppV11(options);
   const server = http.createServer(app);
   server.keepAliveTimeout = 65_000;
   server.headersTimeout = 70_000;
@@ -59,7 +59,7 @@ function start() {
 
   const shutdown = (signal) => {
     server.close((error) => {
-      try { database.close(); } catch {}
+      try { database.close(); } catch (closeError) { console.error(`[Pulse Cloud] close failed: ${closeError.message}`); }
       if (error) {
         console.error(`[Pulse Cloud] ${signal}: ${error.message}`);
         process.exitCode = 1;
