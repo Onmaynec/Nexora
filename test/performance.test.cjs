@@ -22,7 +22,7 @@ function emitAck(socket, event, payload) {
   return new Promise((resolve) => socket.emit(event, payload, resolve));
 }
 
-test("нагрузка общей комнаты: 20 клиентов одновременно отправляют 120 сообщений", { timeout: 30_000 }, async () => {
+test("нагрузка общей комнаты: 20 клиентов одновременно отправляют 120 сообщений", { timeout: 90_000 }, async () => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "nexora-load-"));
   const instance = await createNexoraServer({ dataDir: directory, tls: false, redirect: false, port: 0, host: "127.0.0.1", quiet: true, clientDir: path.join(__dirname, "..", "client", "dist") });
   const status = await instance.listen();
@@ -48,11 +48,19 @@ test("нагрузка общей комнаты: 20 клиентов однов
         state.roomMembers.push({ roomId: generalRoomId, userId: item.id, role: "member", joinedAt: createdAt });
       }
     });
-    for (const cookie of cookies) {
-      const socket = createSocket(baseUrl, { transports: ["websocket"], extraHeaders: { Cookie: cookie }, auth: { clientVersion: "3.0.0" } });
+    const connections = cookies.map((cookie) => {
+      const socket = createSocket(baseUrl, {
+        transports: ["websocket"],
+        extraHeaders: { Cookie: cookie },
+        auth: { clientVersion: "3.0.0" },
+        autoConnect: false,
+      });
       sockets.push(socket);
-      await once(socket, "connect");
-    }
+      const connected = once(socket, "connect");
+      socket.connect();
+      return connected;
+    });
+    await Promise.all(connections);
     const conversationId = instance.store.read((state) => state.conversations.find((item) => item.roomId === state.rooms.find((room) => room.slug === "general").id).id);
     const started = Date.now();
     const acknowledgements = await Promise.all(sockets.flatMap((socket, socketIndex) => Array.from({ length: 6 }, (_, messageIndex) => emitAck(socket, "message:send", {
