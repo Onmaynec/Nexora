@@ -1,0 +1,49 @@
+name: Isolate Nexora 3.1.2 failing test file
+
+on:
+  push:
+    branches:
+      - agent/nexora-3.1.2-bugfix
+
+permissions:
+  contents: write
+
+jobs:
+  isolate:
+    if: ${{ !contains(github.event.head_commit.message, '[file-isolated]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/nexora-3.1.2-bugfix
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - name: Apply patch and isolate test files
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/apply-3.1.2.cjs >/tmp/setup.log 2>&1
+          node scripts/sync-release-metadata.cjs >>/tmp/setup.log 2>&1
+          npm ci >>/tmp/setup.log 2>&1
+          : > /tmp/failures.txt
+          for file in test/*.test.cjs; do
+            if ! node --test "$file" >/tmp/one.log 2>&1; then
+              echo "FILE=$file" >> /tmp/failures.txt
+              grep -n -A 35 '^not ok ' /tmp/one.log >> /tmp/failures.txt || tail -n 80 /tmp/one.log >> /tmp/failures.txt
+              echo >> /tmp/failures.txt
+            fi
+          done
+          git reset --hard HEAD
+          mkdir -p .diagnostics
+          if [ ! -s /tmp/failures.txt ]; then echo 'NO_ISOLATED_FAILURES' > /tmp/failures.txt; fi
+          cp /tmp/failures.txt .diagnostics/isolated-3.1.2-test.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .diagnostics/isolated-3.1.2-test.txt
+          git commit -m "ci: isolate 3.1.2 failing test file [file-isolated] [3.1.2-applied]"
+          git push origin HEAD:agent/nexora-3.1.2-bugfix
