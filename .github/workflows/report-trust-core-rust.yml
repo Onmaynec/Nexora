@@ -1,0 +1,44 @@
+name: Report Trust Core diagnostics
+
+on:
+  push:
+    branches:
+      - agent/nexora-3.2.0-trust-core
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  report:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/nexora-3.2.0-trust-core
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.85.1"
+          targets: wasm32-unknown-unknown
+          components: clippy
+      - name: Compile and report diagnostics
+        shell: bash
+        run: |
+          set +e
+          cargo clippy --manifest-path native/Cargo.toml --all-targets --all-features -- -D warnings > /tmp/rust.log 2>&1
+          code=$?
+          {
+            echo '### Trust Core compiler diagnostics'
+            echo
+            echo '```text'
+            grep -E -A 8 -B 3 '^(error|warning)(\[|:)' /tmp/rust.log | tail -n 260
+            echo '```'
+            echo
+            echo "exit_code=$code"
+          } > /tmp/comment.md
+          gh pr comment 11 --repo Onmaynec/Nexora --body-file /tmp/comment.md
+          exit "$code"
