@@ -21,7 +21,15 @@
 
 ## GitHub CI
 
-Первичный GitHub CI для объединённого дерева 3.0.0 будет зафиксирован здесь перед созданием неизменяемого тега `v3.0.0`.
+GitHub CI №3 для объединённого дерева завершён успешно:
+
+- run: <https://github.com/Onmaynec/Nexora/actions/runs/29838199630>;
+- commit: `56e4d58c46192fb827ed9184b74f52a25574e3a4`;
+- `linux-tests`: PASS — чистая установка зависимостей, production web build, 51/51 тестов;
+- `verify` на Windows: PASS — syntax/builder configs/icons, production build, 51/51 тестов и security audit;
+- `android-source`: PASS — Gradle 8.13, JDK 17, `:app:assembleDebug`.
+
+Финальный тег создаётся только следующим `release:`-commit после повторного успешного CI, поэтому проверенное дерево и release report остаются частью самого тега.
 
 ## Release policy
 
