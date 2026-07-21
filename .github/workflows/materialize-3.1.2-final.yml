@@ -43,8 +43,9 @@ jobs:
             mkdir -p "$(dirname "$file")"
             git show "origin/agent/nexora-3.1.2-bugfix:$file" > "$file"
           done
-          git show origin/agent/nexora-3.1.2-bugfix:scripts/apply-3.1.2.cjs > /tmp/apply-3.1.2.cjs
-          node /tmp/apply-3.1.2.cjs
+          git show origin/agent/nexora-3.1.2-bugfix:scripts/apply-3.1.2.cjs > scripts/apply-3.1.2.cjs
+          node scripts/apply-3.1.2.cjs
+          rm -f scripts/apply-3.1.2.cjs
           node scripts/sync-release-metadata.cjs
           npm ci
           npm run release:check
