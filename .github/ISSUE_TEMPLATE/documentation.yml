@@ -1,0 +1,65 @@
+name: Документация
+
+description: Сообщить о неточной, устаревшей или отсутствующей документации
+
+title: "docs: "
+
+labels:
+  - documentation
+  - triage
+
+body:
+  - type: input
+    id: location
+    attributes:
+      label: Документ или раздел
+      description: Укажите путь к файлу, заголовок раздела или ссылку.
+      placeholder: "README.md — Развёртывание"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: problem_type
+    attributes:
+      label: Тип проблемы
+      options:
+        - Устаревшая информация
+        - Неточная или неоднозначная инструкция
+        - Неработающая ссылка
+        - Отсутствующий раздел
+        - Опечатка или форматирование
+        - Другое
+    validations:
+      required: true
+
+  - type: textarea
+    id: current
+    attributes:
+      label: Что указано сейчас
+      description: Приведите короткий фрагмент или опишите текущее состояние. Не копируйте большие документы целиком.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Как должно быть
+      description: Предложите корректную формулировку, структуру или источник истины.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Дополнительный контекст
+      description: Версия Nexora, платформа, связанный Issue или Pull Request.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Проверки
+      options:
+        - label: Я проверил актуальную версию документа в ветке main.
+          required: true
+        - label: В обращении нет секретов, приватных логов и пользовательских данных.
+          required: true
