@@ -251,9 +251,9 @@ async function persistGroup(conversationId, groupRecordId, state, publicStateHas
   return { conversationId, groupRecordId, state, publicStateHash, ...metadata };
 }
 
-async function claimWelcome(device) {
+async function claimWelcome(device, conversationId) {
   const { serverId, userId } = current();
-  const result = await trustApi("/welcomes/claim", { method: "POST", deviceId: device.id, body: {} });
+  const result = await trustApi(`/conversations/${encodeURIComponent(conversationId)}/welcome/claim`, { method: "POST", deviceId: device.id, body: {} });
   if (!result.welcome) return null;
   const packages = await listKeyPackages(serverId, userId);
   const joined = await joinFromWelcome({
@@ -346,7 +346,7 @@ async function addMissingDevices(conversation, local, remote, device) {
 async function ensureConversationGroupInternal(conversation) {
   const device = await ensureTrustDevice();
   if (device.trustState !== "verified") throw Object.assign(new Error("Подтвердите это устройство перед использованием E2EE."), { code: "TRUST_DEVICE_UNVERIFIED" });
-  await claimWelcome(device).catch((error) => {
+  await claimWelcome(device, conversation.id).catch((error) => {
     if (!["MLS_WELCOME_NO_MATCHING_KEY_PACKAGE", "MLS_WELCOME_RACE"].includes(error.code || error.message)) throw error;
   });
   let local = await loadLocalGroup(conversation.id);
@@ -373,14 +373,14 @@ async function ensureConversationGroupInternal(conversation) {
     });
     remote = created.group;
     if (remote.groupId && remote.groupId !== initial.protocolGroupId) {
-      const joined = await claimWelcome(device);
+      const joined = await claimWelcome(device, conversation.id);
       if (!joined) throw Object.assign(new Error("MLS group создан другим устройством; ожидается Welcome."), { code: "MLS_WELCOME_PENDING" });
       local = joined;
     } else {
       local = await persistGroup(conversation.id, remote.id, initial.state, initial.publicStateHash);
     }
   } else if (!local) {
-    const joined = await claimWelcome(device);
+    const joined = await claimWelcome(device, conversation.id);
     local = joined || await loadLocalGroup(conversation.id);
     if (!local) {
       const member = (remote.members || []).find((item) => item.deviceId === device.id && item.status === "active");
