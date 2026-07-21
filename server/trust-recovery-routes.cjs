@@ -1,7 +1,7 @@
 "use strict";
 
 const { TrustCoreError } = require("./trust-core.cjs");
-const { claimKeyPackageForDevice, listCommits } = require("./trust-recovery.cjs");
+const { claimKeyPackageForDevice, claimWelcomeForConversation, listCommits } = require("./trust-recovery.cjs");
 
 function mountTrustRecoveryRoutes({ app, trustCore, authRequired, requireConversation, usersCanExchangeKeys } = {}) {
   if (!app || !trustCore || !authRequired || !requireConversation || !usersCanExchangeKeys) {
@@ -37,6 +37,18 @@ function mountTrustRecoveryRoutes({ app, trustCore, authRequired, requireConvers
       requesterDeviceId,
     });
     response.json({ ok: true, requestId: request.trustRequestId, keyPackage });
+  }));
+
+  app.post("/api/v4/trust/conversations/:conversationId/welcome/claim", authRequired, asyncRoute(async (request, response) => {
+    requireConversation(request.trustAuth.user.id, request.params.conversationId);
+    const requesterDeviceId = String(request.headers["x-nexora-device-id"] || "");
+    if (!requesterDeviceId) throw new TrustCoreError("Укажите X-Nexora-Device-ID.", "TRUST_DEVICE_REQUIRED", 401);
+    const welcome = claimWelcomeForConversation(trustCore, {
+      conversationId: request.params.conversationId,
+      requesterUserId: request.trustAuth.user.id,
+      requesterDeviceId,
+    });
+    response.json({ ok: true, requestId: request.trustRequestId, welcome });
   }));
 
   app.get("/api/v4/trust/groups/:groupId/commits", authRequired, asyncRoute(async (request, response) => {
