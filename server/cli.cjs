@@ -1,7 +1,7 @@
 "use strict";
 
 const path = require("node:path");
-const { createNexoraServer } = require("./create-server.cjs");
+const { createNexoraServer } = require("./create-server-v31.cjs");
 
 function boolEnv(value, fallback) {
   if (value == null) return fallback;
@@ -27,6 +27,8 @@ async function main() {
     console.log(`\nКорневой сертификат для тестеров: ${status.caCertificate}`);
     console.log("Его нужно добавить в доверенные корневые центры Windows перед использованием микрофона в браузере.");
   }
+  console.log(`SQLite schema: ${status.schemaVersion || status.stats?.schemaVersion}`);
+  console.log(`Pulse: ${status.pulseV3?.mode || status.pulse?.mode || "disabled"}`);
   if (status.stats.firstAccountPending) console.log("\nПервый зарегистрированный аккаунт получит права администратора сервера.");
 
   let stopping = false;
@@ -41,6 +43,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error("Nexora Server не запустился:", error);
+  console.error(`Nexora Server не запустился (${error.code || "INTERNAL_ERROR"}):`, error.message);
   process.exit(1);
 });

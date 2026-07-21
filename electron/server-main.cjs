@@ -4,7 +4,7 @@ const fs = require("node:fs/promises");
 const path = require("node:path");
 const { app, BrowserWindow, clipboard, dialog, ipcMain, shell } = require("electron");
 const QRCode = require("qrcode");
-const { createNexoraServer } = require("../server/create-server.cjs");
+const { createNexoraServer } = require("../server/create-server-v31.cjs");
 const { createUpdateService } = require("./update-service.cjs");
 
 let window;
@@ -57,7 +57,7 @@ async function startServer() {
     });
     instance.events.on("log", (entry) => {
       send("server:log", entry);
-      persistLog(entry).catch(() => {});
+      persistLog(entry).catch((error) => console.error(`[Nexora Server] log write failed: ${error.message}`));
     });
     instance.events.on("status", async () => send("server:status-changed", await decoratedStatus()));
     instance.events.on("stats", async () => send("server:status-changed", await decoratedStatus()));

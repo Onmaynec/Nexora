@@ -1,0 +1,101 @@
+"use strict";
+
+const { createNexoraServer: createBaseNexoraServer, LIMITS, REACTIONS } = require("./create-server.cjs");
+const { PulseCloudClient } = require("./pulse-cloud-client.cjs");
+const { PulseLocalRepository } = require("./pulse-local-repository.cjs");
+const { upgradeStoreToSchema7 } = require("./pulse-schema7.cjs");
+const { mountPulseV3Routes } = require("./pulse-v3-routes.cjs");
+
+function parsePublicKeys(options = {}) {
+  const values = [];
+  const configured = options.pulsePublicKeys ?? process.env.NEXORA_PULSE_PUBLIC_KEYS_JSON;
+  if (configured) {
+    let parsed = configured;
+    if (typeof configured === "string") {
+      try { parsed = JSON.parse(configured); } catch { throw Object.assign(new Error("NEXORA_PULSE_PUBLIC_KEYS_JSON содержит неверный JSON."), { code: "PULSE_CLOUD_MISCONFIGURED" }); }
+    }
+    if (Array.isArray(parsed)) values.push(...parsed);
+    else if (parsed && typeof parsed === "object") {
+      for (const [keyId, publicKey] of Object.entries(parsed)) values.push({ keyId, publicKey });
+    }
+  }
+  const singleKey = options.pulsePublicKey ?? process.env.NEXORA_PULSE_PUBLIC_KEY;
+  const singleKeyId = options.pulsePublicKeyId ?? process.env.NEXORA_PULSE_PUBLIC_KEY_ID ?? process.env.ENTITLEMENT_SIGNING_KEY_ID;
+  if (singleKey && singleKeyId) values.push({ keyId: singleKeyId, publicKey: singleKey });
+  return values;
+}
+
+async function createNexoraServer(options = {}) {
+  const instance = await createBaseNexoraServer(options);
+  const log = (message, level = "info") => {
+    const entry = { level, message, createdAt: new Date().toISOString() };
+    instance.events.emit("log", entry);
+    if (!options.quiet) console[level === "error" ? "error" : level === "warn" ? "warn" : "log"](`[Nexora] ${message}`);
+  };
+
+  try {
+    const migration = await upgradeStoreToSchema7(instance.store, {
+      databaseFile: instance.status().databaseFile,
+      log: (message) => log(message, "info"),
+    });
+    const repository = new PulseLocalRepository(instance.store, { clock: options.clock });
+    for (const item of parsePublicKeys(options)) {
+      repository.trustPublicKey({
+        keyId: item.keyId,
+        publicKey: item.publicKey,
+        algorithm: item.algorithm || "Ed25519",
+        source: item.source || "configuration",
+        notBefore: item.notBefore || null,
+        expiresAt: item.expiresAt || null,
+      });
+    }
+    const client = new PulseCloudClient({
+      mode: options.pulseMode ?? process.env.NEXORA_PULSE_MODE ?? "disabled",
+      cloudUrl: options.pulseCloudUrl ?? process.env.NEXORA_PULSE_CLOUD_URL ?? "",
+      apiKey: options.pulseApiKey ?? process.env.NEXORA_PULSE_API_KEY ?? "",
+      serverId: instance.status().serverId,
+      repository,
+      fetchImpl: options.pulseFetch ?? options.fetchImpl ?? globalThis.fetch,
+      timeoutMs: options.pulseTimeoutMs ?? process.env.NEXORA_PULSE_TIMEOUT_MS,
+      clock: options.clock,
+      log,
+    });
+
+    mountPulseV3Routes({
+      app: instance.app,
+      store: instance.store,
+      io: instance.io,
+      serverId: instance.status().serverId,
+      client,
+      repository,
+      log,
+    });
+
+    const baseStatus = instance.status.bind(instance);
+    instance.status = () => ({
+      ...baseStatus(),
+      schemaVersion: 7,
+      pulseV3: client.status(),
+      migration,
+    });
+    const baseListen = instance.listen.bind(instance);
+    instance.listen = async () => {
+      await baseListen();
+      return instance.status();
+    };
+    instance.pulseRepository = repository;
+    instance.pulseCloudClient = client;
+    instance.pulseMigration = migration;
+    return instance;
+  } catch (error) {
+    await instance.close().catch((closeError) => log(`Failed to close Local Server after Pulse initialization error: ${closeError.message}`, "error"));
+    throw error;
+  }
+}
+
+module.exports = {
+  LIMITS,
+  REACTIONS,
+  createNexoraServer,
+  parsePublicKeys,
+};
