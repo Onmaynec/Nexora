@@ -1,5 +1,14 @@
 blank_issues_enabled: false
+
 contact_links:
   - name: Security vulnerability
     url: https://github.com/Onmaynec/Nexora/security/advisories/new
-    about: Не публикуйте уязвимости и секреты в обычном Issue.
+    about: Не публикуйте уязвимости, exploits, secrets или пользовательские данные в обычном Issue.
+
+  - name: Support and installation
+    url: https://github.com/Onmaynec/Nexora/blob/main/SUPPORT.md
+    about: Проверьте инструкции для установки, эксплуатации и выбора правильного шаблона обращения.
+
+  - name: Contribution guidelines
+    url: https://github.com/Onmaynec/Nexora/blob/main/CONTRIBUTING.md
+    about: Требования к изменениям, тестам, безопасности и Pull Request.

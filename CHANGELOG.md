@@ -2,6 +2,15 @@
 
 Формат основан на Keep a Changelog. Версии следуют Semantic Versioning.
 
+## [Unreleased]
+
+### Documentation
+
+- добавлены MIT License, Code of Conduct и единая политика поддержки;
+- README сокращён до актуального обзора, запуска, архитектуры и границ безопасности;
+- обновлены CONTRIBUTING и SECURITY для текущей версии 3.0.x;
+- расширены формы ошибок, предложений, документации и шаблон Pull Request.
+
 ## [3.0.0] — 2026-07-21
 
 ### Added
