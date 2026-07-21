@@ -5,6 +5,8 @@ const { PulseCloudClient } = require("./pulse-cloud-client.cjs");
 const { PulseLocalRepository } = require("./pulse-local-repository.cjs");
 const { upgradeStoreToSchema7 } = require("./pulse-schema7.cjs");
 const { mountPulseV3Routes } = require("./pulse-v3-routes.cjs");
+const { mountPulseProductRoutes } = require("./pulse-product-routes.cjs");
+const { PulseSyncWorker } = require("./pulse-sync-worker.cjs");
 
 function parsePublicKeys(options = {}) {
   const values = [];
@@ -61,7 +63,7 @@ async function createNexoraServer(options = {}) {
       log,
     });
 
-    mountPulseV3Routes({
+    const pulseRoutes = mountPulseV3Routes({
       app: instance.app,
       store: instance.store,
       io: instance.io,
@@ -70,21 +72,38 @@ async function createNexoraServer(options = {}) {
       repository,
       log,
     });
+    const syncWorker = new PulseSyncWorker({
+      client,
+      repository,
+      store: instance.store,
+      io: instance.io,
+      serverId: instance.status().serverId,
+      log,
+      intervalMs: options.pulseSyncIntervalMs ?? process.env.NEXORA_PULSE_SYNC_INTERVAL_MS,
+    });
+    mountPulseProductRoutes({ app: instance.app, authRequired: pulseRoutes.authRequired, client, repository, syncWorker });
 
     const baseStatus = instance.status.bind(instance);
     instance.status = () => ({
       ...baseStatus(),
       schemaVersion: 7,
-      pulseV3: client.status(),
+      pulseV3: { ...client.status(), sync: syncWorker.status() },
       migration,
     });
     const baseListen = instance.listen.bind(instance);
     instance.listen = async () => {
       await baseListen();
+      syncWorker.start();
       return instance.status();
+    };
+    const baseClose = instance.close.bind(instance);
+    instance.close = async () => {
+      syncWorker.stop();
+      await baseClose();
     };
     instance.pulseRepository = repository;
     instance.pulseCloudClient = client;
+    instance.pulseSyncWorker = syncWorker;
     instance.pulseMigration = migration;
     return instance;
   } catch (error) {

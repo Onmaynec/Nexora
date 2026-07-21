@@ -1,13 +1,14 @@
 export class ApiError extends Error {
-  constructor(message, status, code) {
+  constructor(message, status, code, details = {}) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
+    this.details = details;
   }
 }
 
-export const CLIENT_VERSION = "3.0.0";
+export const CLIENT_VERSION = "3.1.0";
 let csrfToken = sessionStorage.getItem("nexora:csrf") || "";
 
 export function setCsrfToken(value) {
@@ -34,7 +35,7 @@ export async function api(path, options = {}) {
   const type = response.headers.get("content-type") ?? "";
   const body = type.includes("application/json") ? await response.json() : null;
   if (body?.csrfToken) setCsrfToken(body.csrfToken);
-  if (!response.ok) throw new ApiError(body?.error ?? `Ошибка ${response.status}`, response.status, body?.code);
+  if (!response.ok) throw new ApiError(body?.message ?? body?.error ?? `Ошибка ${response.status}`, response.status, body?.code, body?.details);
   return body;
 }
 
@@ -46,8 +47,8 @@ export function patch(path, body) {
   return api(path, { method: "PATCH", body: JSON.stringify(body ?? {}) });
 }
 
-export function remove(path) {
-  return api(path, { method: "DELETE" });
+export function remove(path, body) {
+  return api(path, { method: "DELETE", body: body === undefined ? undefined : JSON.stringify(body) });
 }
 
 async function resumableUpload(conversationId, file, kind, caption, options) {
@@ -69,7 +70,7 @@ async function resumableUpload(conversationId, file, kind, caption, options) {
         headers: { "Content-Type": "application/octet-stream", "X-Nexora-Client-Version": CLIENT_VERSION, "X-Chunk-SHA256": checksum, ...(csrfToken ? { "X-Nexora-CSRF": csrfToken } : {}) },
       });
       const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new ApiError(result.error || `Ошибка ${response.status}`, response.status, result.code);
+      if (!response.ok) throw new ApiError(result.message || result.error || `Ошибка ${response.status}`, response.status, result.code, result.details);
       completedBytes += chunk.size;
       options.onProgress?.(Math.min(100, Math.round(completedBytes / file.size * 100)), completedBytes, file.size);
     }
@@ -106,7 +107,7 @@ export function uploadFile(conversationId, file, kind, duration = 0, caption = "
       try { result = JSON.parse(request.responseText || "null"); } catch {}
       if (result?.csrfToken) setCsrfToken(result.csrfToken);
       if (request.status < 200 || request.status >= 300) {
-        reject(new ApiError(result?.error || `Ошибка ${request.status}`, request.status, result?.code));
+        reject(new ApiError(result?.message || result?.error || `Ошибка ${request.status}`, request.status, result?.code, result?.details));
         return;
       }
       options.onProgress?.(100, file.size, file.size);

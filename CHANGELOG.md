@@ -2,14 +2,40 @@
 
 Формат основан на Keep a Changelog. Версии следуют Semantic Versioning.
 
-## [Unreleased]
+## [3.1.0] — 2026-07-21
 
-### Documentation
+### Added
 
-- добавлены MIT License, Code of Conduct и единая политика поддержки;
-- README сокращён до актуального обзора, запуска, архитектуры и границ безопасности;
-- обновлены CONTRIBUTING и SECURITY для текущей версии 3.0.x;
-- расширены формы ошибок, предложений, документации и шаблон Pull Request.
+- отдельный Pulse Cloud с double-entry ledger, Stripe Checkout/webhooks, квитанциями, возвратами, dispute handling и room goals;
+- Cloud Identity с подтверждением email, TOTP MFA, recovery codes и OAuth 2.1 Authorization Code + PKCE;
+- Local Server schema 7, безопасная миграция с backup/rollback и нормализованный entitlement/cache/event контур;
+- подписанный Ed25519 account-link flow, Cloud event delta sync и применение entitlement revoke без перезапуска;
+- Nexora Plus, 400 Импульсов за подтверждённый период, покупка пакетов, billing portal и cancel-at-period-end;
+- новый Pulse Center, Client onboarding и Server setup wizard.
+
+### Changed
+
+- Client/Server версия поднята до 3.1.0 при сохранении API v3 и совместимости с основным messaging-контуром 3.x;
+- production Pulse больше не использует локальную активацию Plus: Local Server принимает только подписанные Cloud-решения;
+- Pulse UI переведён с sandbox-first API на `/api/v3/cloud-account/*`, `/api/v3/pulse/*` и room-scoped API;
+- release check включает syntax, production web build, полный unit/API suite и security audit.
+
+### Fixed
+
+- failed provider event теперь можно безопасно повторить только с тем же payload hash;
+- checkout idempotency key нельзя повторно использовать для другого account/product scope;
+- schema 7 не откатывается обратно к schema 6 при обычной записи или restore;
+- Stripe raw webhook body больше не перехватывается JSON parser Cloud Identity;
+- OAuth browser flow и выдача code/attestation завершаются атомарно;
+- Cloud write responses содержат подписанный authoritative server/user/room scope.
+
+### Security
+
+- Cloud passwords используют scrypt, TOTP secrets — AES-256-GCM, OAuth/session/email tokens хранятся только как hash;
+- MFA recovery code одноразовый, refresh token вращается атомарно, authorization code защищён PKCE S256;
+- Local Server проверяет session, CSRF, membership, ban, owner permission, signature, expiry и scope для каждой коммерческой операции;
+- Cloud event inbox и provider events защищены от replay и payload substitution;
+- Local Server не хранит card data, Cloud password, Cloud session, signing private key или OAuth refresh token.
 
 ## [3.0.0] — 2026-07-21
 
@@ -94,6 +120,7 @@
 
 - объединённый RC с SQLite, профилями, поиском, outbox и Violet Grid.
 
+[3.1.0]: https://github.com/Onmaynec/Nexora/releases/tag/v3.1.0
 [3.0.0]: https://github.com/Onmaynec/Nexora/releases/tag/v3.0.0
 [2.0.0]: https://github.com/Onmaynec/Nexora/releases/tag/v2.0.0
 [1.0.2]: https://github.com/Onmaynec/Nexora/releases/tag/v1.0.2
