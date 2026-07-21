@@ -70,8 +70,15 @@ function platformDeviceName() {
   return `${shell} · ${platform}`.slice(0, 80);
 }
 
-async function identityPublicKey(keyPair) {
-  return new Uint8Array(await crypto.subtle.exportKey("raw", keyPair.publicKey));
+async function hardenIdentityKeyPair(keyPair) {
+  const publicKey = new Uint8Array(await crypto.subtle.exportKey("raw", keyPair.publicKey));
+  const privateBytes = new Uint8Array(await crypto.subtle.exportKey("pkcs8", keyPair.privateKey));
+  try {
+    const privateKey = await crypto.subtle.importKey("pkcs8", privateBytes, { name: "Ed25519" }, false, ["sign"]);
+    return { publicKey, privateKey };
+  } finally {
+    privateBytes.fill(0);
+  }
 }
 
 function proofBytes(purpose, values) {
@@ -124,12 +131,14 @@ async function createLocalDevice() {
   const id = crypto.randomUUID();
   let identityPair;
   try {
-    identityPair = await crypto.subtle.generateKey({ name: "Ed25519" }, false, ["sign", "verify"]);
+    identityPair = await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]);
   } catch (error) {
     throw Object.assign(new Error("Ed25519 недоступен в этом клиенте."), { code: "TRUST_ED25519_UNAVAILABLE", cause: error });
   }
+  const hardenedIdentity = await hardenIdentityKeyPair(identityPair);
+  identityPair = { publicKey: identityPair.publicKey, privateKey: hardenedIdentity.privateKey };
   const signaturePair = await generateDeviceSignatureKeys();
-  const identityKey = toBase64(await identityPublicKey(identityPair));
+  const identityKey = toBase64(hardenedIdentity.publicKey);
   const signatureKey = toBase64(signaturePair.publicKey);
   const credential = toBase64(createCredential(userId, id).identity);
   const fingerprint = await fingerprintFor({ userId, identityKey, signatureKey, credential });
@@ -227,7 +236,7 @@ async function loadLocalGroup(conversationId) {
   const { serverId, userId } = current();
   const record = await loadGroupState(serverId, userId, conversationId);
   if (!record) return null;
-  return { ...record, state: deserializeState(record.stateBytes) };
+  return { ...record, state: deserializeState(record.stateBytes, resolveTrustedDevice) };
 }
 
 async function persistGroup(conversationId, groupRecordId, state, publicStateHash) {
@@ -259,7 +268,11 @@ async function claimWelcome(device) {
 }
 
 function participantIds(conversation) {
-  return [...new Set((conversation?.members || []).map((item) => String(item?.id || item?.userId || "")).filter(Boolean))];
+  return [...new Set([
+    current().userId,
+    conversation?.peer?.id,
+    ...(conversation?.members || []).map((item) => item?.id || item?.userId),
+  ].map((item) => String(item || "")).filter(Boolean))];
 }
 
 async function syncMissedCommits(local, remote, device) {
