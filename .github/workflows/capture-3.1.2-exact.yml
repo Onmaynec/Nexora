@@ -1,0 +1,44 @@
+name: Capture exact Nexora 3.1.2 failure
+
+on:
+  push:
+    branches:
+      - agent/nexora-3.1.2-bugfix
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    if: ${{ !contains(github.event.head_commit.message, '[exact-captured]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/nexora-3.1.2-bugfix
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - name: Reproduce exact failure
+        shell: bash
+        run: |
+          set +e
+          node scripts/apply-3.1.2.cjs >/tmp/patch.log 2>&1
+          node scripts/sync-release-metadata.cjs >>/tmp/patch.log 2>&1
+          npm ci >>/tmp/patch.log 2>&1
+          npm run test:unit >/tmp/tests.log 2>&1
+          code=$?
+          awk 'BEGIN{show=0;left=0} /^not ok /{show=1;left=45} show{print;left--} show && left<=0{exit}' /tmp/tests.log >/tmp/failure.txt
+          printf '\nexit_code=%s\n' "$code" >>/tmp/failure.txt
+          git reset --hard HEAD
+          mkdir -p .diagnostics
+          cp /tmp/failure.txt .diagnostics/exact-3.1.2-failure.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .diagnostics/exact-3.1.2-failure.txt
+          git commit -m "ci: capture exact 3.1.2 failure [exact-captured] [3.1.2-applied]"
+          git push origin HEAD:agent/nexora-3.1.2-bugfix
