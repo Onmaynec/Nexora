@@ -7,7 +7,6 @@ import {
   decode,
   encode,
   generateKeyPackageWithKey,
-  generateSignatureKeyPair,
   getCiphersuiteImpl,
   joinGroup,
   keyPackageDecoder,
@@ -108,7 +107,7 @@ export async function createMlsContext(resolveDevice) {
 }
 
 export async function generateDeviceSignatureKeys() {
-  const pair = await generateSignatureKeyPair(await getImplementation());
+  const pair = await (await getImplementation()).signature.keygen();
   return { signKey: pair.signKey, publicKey: pair.publicKey };
 }
 
