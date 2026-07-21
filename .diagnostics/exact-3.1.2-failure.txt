@@ -1,0 +1,47 @@
+not ok 2 - релиз 3.1.2 собирает проверяемые артефакты без native SQLite
+  ---
+  duration_ms: 10.33831
+  type: 'test'
+  location: '/home/runner/work/Nexora/Nexora/test/build-config.test.cjs:11:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /autoInstallOnAppQuit\s*=\s*automatic/. Input:
+    
+    '"use strict";\n' +
+      '\n' +
+      'const fs = require("node:fs/promises");\n' +
+      'const path = require("node:path");\n' +
+      'const { app } = require("electron");\n' +
+      '\n' +
+      'const DEFAULT_GITHUB_RELEASES = Object.freeze({\n' +
+      '  provider: "github",\n' +
+      '  owner: "Onmaynec",\n' +
+      '  repo: "Nexora",\n' +
+      '  private: false,\n' +
+      '  releaseType: "release",\n' +
+      '});\n' +
+      'const DEFAULT_INITIAL_DELAY_MS = 8_000;\n' +
+      'const DEFAULT_INTERVAL_MS = 6 * 60 * 60_000;\n' +
+      'let defaultUpdater = null;\n' +
+      '\n' +
+      'function loadDefaultUpdater() {\n' +
+      '  defaultUpdater ||= require("electron-updater").autoUpdater;\n' +
+      '  return defaultUpdater;\n' +
+      '}\n' +
+      '\n' +
+      'async function configuredFeed(kind, appImpl = app, fsImpl = fs) {\n' +
+      '  const environmentName = kind === "client" ? "NEXORA_CLIENT_UPDATE_URL" : "NEXORA_SERVER_UPDATE_URL";\n' +
+      '  if (process.env[environmentName]) return String(process.env[environmentName]).trim();\n' +
+      '  try {\n' +
+      '    const value = JSON.parse(await fsImpl.readFile(path.join(appImpl.getPath("userData"), "update-config.json"), "utf8"));\n' +
+      '    return String(value[`${kind}FeedUrl`] || "").trim();\n' +
+      '  } catch {\n' +
+      '    return "";\n' +
+      '  }\n' +
+      '}\n' +
+      '\n' +
+      'async function configuredProvider(kind, appImpl = app, fsImpl = fs) {\n' +
+      '  const feedUrl = await configuredFeed(kind, appImpl, fsImpl);\n' +
+      '  if (feedUrl) {\n' +
+
+exit_code=1
