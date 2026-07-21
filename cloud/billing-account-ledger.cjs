@@ -232,17 +232,39 @@ module.exports = {
   },
 
   createOrder({ serverId, localUserId, productCode, currency, region = "*", idempotencyKey }) {
-    const { account } = this.requireActiveLink(serverId, localUserId);
-    const existing = this.db.prepare("SELECT * FROM orders WHERE idempotency_key = ?").get(requireId(idempotencyKey, "idempotencyKey"));
-    if (existing) return { order: serializeRow(existing), duplicate: true };
-    const price = this.getPriceForProduct(productCode, currency, region);
+    const normalizedServerId = requireId(serverId, "serverId");
+    const normalizedUserId = requireId(localUserId, "localUserId");
+    const normalizedProductCode = requireId(productCode, "productCode");
+    const normalizedCurrency = String(currency).toUpperCase();
+    const key = requireId(idempotencyKey, "idempotencyKey");
+    const { account } = this.requireActiveLink(normalizedServerId, normalizedUserId);
+    const existing = this.db.prepare("SELECT * FROM orders WHERE idempotency_key = ?").get(key);
+    if (existing) {
+      if (
+        existing.cloud_account_id !== account.id
+        || existing.server_id !== normalizedServerId
+        || existing.local_user_id !== normalizedUserId
+        || existing.product_code !== normalizedProductCode
+        || existing.currency !== normalizedCurrency
+      ) {
+        throw new BillingError("Idempotency key уже использован для другого order.", "IDEMPOTENCY_CONFLICT", 409);
+      }
+      const existingPrice = this.db.prepare(`
+        SELECT prices.*, products.product_type, products.impulse_amount, products.entitlement_duration_days
+        FROM prices JOIN products ON products.code = prices.product_code
+        WHERE prices.id = ?
+      `).get(existing.price_id);
+      if (!existingPrice) throw new BillingError("Price для существующего order не найден.", "LEDGER_INVARIANT_FAILED", 500);
+      return { order: serializeRow(existing), price: serializeRow(existingPrice), duplicate: true };
+    }
+    const price = this.getPriceForProduct(normalizedProductCode, normalizedCurrency, region);
     if (!price) throw new BillingError("Продукт недоступен в этом регионе.", "PRODUCT_UNAVAILABLE", 409);
     const timestamp = this.clock().toISOString();
     const order = {
       id: crypto.randomUUID(),
       cloudAccountId: account.id,
-      serverId: requireId(serverId, "serverId"),
-      localUserId: requireId(localUserId, "localUserId"),
+      serverId: normalizedServerId,
+      localUserId: normalizedUserId,
       productCode: price.product_code,
       priceId: price.id,
       amountMinor: Number(price.amount_minor),
@@ -250,7 +272,7 @@ module.exports = {
       status: "created",
       createdAt: timestamp,
       updatedAt: timestamp,
-      idempotencyKey: requireId(idempotencyKey, "idempotencyKey"),
+      idempotencyKey: key,
     };
     this.db.prepare(`
       INSERT INTO orders(id, cloud_account_id, server_id, local_user_id, product_code, price_id, amount_minor, currency, status, created_at, updated_at, idempotency_key)
