@@ -1,6 +1,13 @@
 const DB_NAME = "nexora-trust-core";
-const DB_VERSION = 1;
-const STORES = Object.freeze({ meta: "meta", devices: "devices", packages: "keyPackages", groups: "groups" });
+const DB_VERSION = 2;
+const STORES = Object.freeze({
+  meta: "meta",
+  devices: "devices",
+  packages: "keyPackages",
+  groups: "groups",
+  messages: "messages",
+  drafts: "drafts",
+});
 
 function requestPromise(request) {
   return new Promise((resolve, reject) => {
@@ -28,14 +35,11 @@ export function openTrustDatabase() {
       const database = request.result;
       if (!database.objectStoreNames.contains(STORES.meta)) database.createObjectStore(STORES.meta, { keyPath: "key" });
       if (!database.objectStoreNames.contains(STORES.devices)) database.createObjectStore(STORES.devices, { keyPath: "key" });
-      if (!database.objectStoreNames.contains(STORES.packages)) {
-        const store = database.createObjectStore(STORES.packages, { keyPath: "key" });
+      for (const name of [STORES.packages, STORES.groups, STORES.messages, STORES.drafts]) {
+        if (database.objectStoreNames.contains(name)) continue;
+        const store = database.createObjectStore(name, { keyPath: "key" });
         store.createIndex("scope", "scope", { unique: false });
-        store.createIndex("expiresAt", "expiresAt", { unique: false });
-      }
-      if (!database.objectStoreNames.contains(STORES.groups)) {
-        const store = database.createObjectStore(STORES.groups, { keyPath: "key" });
-        store.createIndex("scope", "scope", { unique: false });
+        if ([STORES.packages, STORES.messages].includes(name)) store.createIndex("expiresAt", "expiresAt", { unique: false });
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -96,14 +100,24 @@ export async function loadDevice(serverId, userId) {
   const value = await requestPromise(transaction.objectStore(STORES.devices).get(scope));
   await transactionDone(transaction);
   if (!value) return null;
-  return { ...value, key: undefined };
+  const result = { ...value, key: undefined };
+  if (value.signaturePrivateKeySealed) {
+    result.signaturePrivateKey = await unseal(database, scope, value.signaturePrivateKeySealed, `${scope}:device-signature-key`);
+  }
+  delete result.signaturePrivateKeySealed;
+  return result;
 }
 
 export async function saveDevice(serverId, userId, device) {
   const database = await openTrustDatabase();
   const scope = scopeKey(serverId, userId);
+  const record = { ...structuredClone(device), key: scope, scope, updatedAt: new Date().toISOString() };
+  if (device.signaturePrivateKey) {
+    record.signaturePrivateKeySealed = await seal(database, scope, device.signaturePrivateKey, `${scope}:device-signature-key`);
+    delete record.signaturePrivateKey;
+  }
   const transaction = database.transaction(STORES.devices, "readwrite");
-  transaction.objectStore(STORES.devices).put({ ...structuredClone(device), key: scope, scope, updatedAt: new Date().toISOString() });
+  transaction.objectStore(STORES.devices).put(record);
   await transactionDone(transaction);
   return loadDevice(serverId, userId);
 }
@@ -126,8 +140,7 @@ export async function listKeyPackages(serverId, userId) {
   const database = await openTrustDatabase();
   const scope = scopeKey(serverId, userId);
   const transaction = database.transaction(STORES.packages, "readonly");
-  const index = transaction.objectStore(STORES.packages).index("scope");
-  const rows = await requestPromise(index.getAll(IDBKeyRange.only(scope)));
+  const rows = await requestPromise(transaction.objectStore(STORES.packages).index("scope").getAll(IDBKeyRange.only(scope)));
   await transactionDone(transaction);
   const now = Date.now();
   const results = [];
@@ -143,7 +156,7 @@ export async function listKeyPackages(serverId, userId) {
         privatePackage: await unseal(database, scope, row.privatePackage, `${row.key}:private`),
       });
     } catch {
-      // Corrupt encrypted state is not usable and is removed by the caller's next cleanup.
+      // Corrupt encrypted state is ignored and removed by cleanup.
     }
   }
   return results.sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
@@ -211,13 +224,66 @@ export async function deleteGroupState(serverId, userId, conversationId) {
   await transactionDone(transaction);
 }
 
+export async function saveDecryptedContent(serverId, userId, messageHash, content, expiresAt = null) {
+  const database = await openTrustDatabase();
+  const scope = scopeKey(serverId, userId);
+  const key = recordKey(scope, messageHash);
+  const sealed = await seal(database, scope, utf8(JSON.stringify(content)), `${key}:content`);
+  const transaction = database.transaction(STORES.messages, "readwrite");
+  transaction.objectStore(STORES.messages).put({
+    key, scope, messageHash: String(messageHash), sealed,
+    createdAt: new Date().toISOString(), expiresAt: expiresAt || new Date(Date.now() + 90 * 24 * 60 * 60_000).toISOString(),
+  });
+  await transactionDone(transaction);
+}
+
+export async function loadDecryptedContent(serverId, userId, messageHash) {
+  if (!messageHash) return null;
+  const database = await openTrustDatabase();
+  const scope = scopeKey(serverId, userId);
+  const key = recordKey(scope, messageHash);
+  const transaction = database.transaction(STORES.messages, "readonly");
+  const row = await requestPromise(transaction.objectStore(STORES.messages).get(key));
+  await transactionDone(transaction);
+  if (!row || Date.parse(row.expiresAt) <= Date.now()) return null;
+  try { return JSON.parse(new TextDecoder().decode(await unseal(database, scope, row.sealed, `${key}:content`))); }
+  catch { return null; }
+}
+
+export async function saveEncryptedDraft(serverId, userId, conversationId, text) {
+  const database = await openTrustDatabase();
+  const scope = scopeKey(serverId, userId);
+  const key = recordKey(scope, conversationId);
+  const transaction = database.transaction(STORES.drafts, "readwrite");
+  if (!text) {
+    transaction.objectStore(STORES.drafts).delete(key);
+  } else {
+    const sealed = await seal(database, scope, utf8(String(text)), `${key}:draft`);
+    transaction.objectStore(STORES.drafts).put({ key, scope, conversationId: String(conversationId), sealed, updatedAt: new Date().toISOString() });
+  }
+  await transactionDone(transaction);
+}
+
+export async function loadEncryptedDraft(serverId, userId, conversationId) {
+  const database = await openTrustDatabase();
+  const scope = scopeKey(serverId, userId);
+  const key = recordKey(scope, conversationId);
+  const transaction = database.transaction(STORES.drafts, "readonly");
+  const row = await requestPromise(transaction.objectStore(STORES.drafts).get(key));
+  await transactionDone(transaction);
+  if (!row) return "";
+  try { return new TextDecoder().decode(await unseal(database, scope, row.sealed, `${key}:draft`)); }
+  catch { return ""; }
+}
+
 export async function clearTrustScope(serverId, userId) {
   const database = await openTrustDatabase();
   const scope = scopeKey(serverId, userId);
-  const transaction = database.transaction([STORES.meta, STORES.devices, STORES.packages, STORES.groups], "readwrite");
+  const names = Object.values(STORES);
+  const transaction = database.transaction(names, "readwrite");
   transaction.objectStore(STORES.meta).delete(`wrapping:${scope}`);
   transaction.objectStore(STORES.devices).delete(scope);
-  for (const name of [STORES.packages, STORES.groups]) {
+  for (const name of [STORES.packages, STORES.groups, STORES.messages, STORES.drafts]) {
     const store = transaction.objectStore(name);
     const rows = await requestPromise(store.index("scope").getAllKeys(IDBKeyRange.only(scope)));
     for (const key of rows) store.delete(key);
