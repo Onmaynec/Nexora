@@ -3,7 +3,6 @@
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const { app } = require("electron");
-const { autoUpdater } = require("electron-updater");
 
 const DEFAULT_GITHUB_RELEASES = Object.freeze({
   provider: "github",
@@ -14,6 +13,12 @@ const DEFAULT_GITHUB_RELEASES = Object.freeze({
 });
 const DEFAULT_INITIAL_DELAY_MS = 8_000;
 const DEFAULT_INTERVAL_MS = 6 * 60 * 60_000;
+let defaultUpdater = null;
+
+function loadDefaultUpdater() {
+  defaultUpdater ||= require("electron-updater").autoUpdater;
+  return defaultUpdater;
+}
 
 async function configuredFeed(kind, appImpl = app, fsImpl = fs) {
   const environmentName = kind === "client" ? "NEXORA_CLIENT_UPDATE_URL" : "NEXORA_SERVER_UPDATE_URL";
@@ -68,13 +73,16 @@ async function createUpdateService({
   automatic = false,
   onEvent = () => {},
   appImpl = app,
-  updater = autoUpdater,
+  updater = null,
   fsImpl = fs,
   initialDelayMs = DEFAULT_INITIAL_DELAY_MS,
   intervalMs = DEFAULT_INTERVAL_MS,
   setTimeoutImpl = setTimeout,
   clearTimeoutImpl = clearTimeout,
 } = {}) {
+  if (!appImpl || typeof appImpl.getVersion !== "function") {
+    throw new Error("Electron app adapter is unavailable.");
+  }
   let state = {
     enabled: false,
     status: "disabled",
@@ -97,20 +105,21 @@ async function createUpdateService({
     onEvent({ ...state });
     return { ...state };
   };
-  const listen = (event, handler) => {
-    updater.on(event, handler);
-    listeners.push([event, handler]);
-  };
 
   if (!appImpl.isPackaged) return disabledService(state, "development");
 
   const provider = await configuredProvider(kind, appImpl, fsImpl);
   if (!provider) return disabledService(state, "feed_not_configured");
+  const activeUpdater = updater || loadDefaultUpdater();
+  const listen = (event, handler) => {
+    activeUpdater.on(event, handler);
+    listeners.push([event, handler]);
+  };
 
-  updater.autoDownload = Boolean(automatic);
-  updater.autoInstallOnAppQuit = Boolean(automatic);
-  updater.allowPrerelease = false;
-  updater.setFeedURL(provider);
+  activeUpdater.autoDownload = Boolean(automatic);
+  activeUpdater.autoInstallOnAppQuit = Boolean(automatic);
+  activeUpdater.allowPrerelease = false;
+  activeUpdater.setFeedURL(provider);
   emit({
     enabled: true,
     status: "idle",
@@ -158,7 +167,7 @@ async function createUpdateService({
     inFlight = (async () => {
       emit({ status: "checking", error: null, reason: null, lastCheckedAt: new Date().toISOString() });
       try {
-        await updater.checkForUpdates();
+        await activeUpdater.checkForUpdates();
       } catch (error) {
         emit({ status: "error", ...normalizedUpdateError(error) });
       } finally {
@@ -174,7 +183,7 @@ async function createUpdateService({
     check,
     download: async () => {
       try {
-        await updater.downloadUpdate();
+        await activeUpdater.downloadUpdate();
       } catch (error) {
         emit({ status: "error", ...normalizedUpdateError(error) });
       }
@@ -182,7 +191,7 @@ async function createUpdateService({
     },
     install: () => {
       if (state.status !== "downloaded") return false;
-      updater.quitAndInstall(false, true);
+      activeUpdater.quitAndInstall(false, true);
       return true;
     },
     start: () => {
@@ -194,7 +203,7 @@ async function createUpdateService({
       stopped = true;
       if (timer) clearTimeoutImpl(timer);
       timer = null;
-      for (const [event, handler] of listeners) updater.off(event, handler);
+      for (const [event, handler] of listeners) activeUpdater.off(event, handler);
       listeners.length = 0;
     },
   };
@@ -207,5 +216,6 @@ module.exports = {
   configuredFeed,
   configuredProvider,
   createUpdateService,
+  loadDefaultUpdater,
   normalizedUpdateError,
 };
