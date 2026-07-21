@@ -1,0 +1,35 @@
+name: Publish Nexora 3.1.0 tag
+
+on:
+  push:
+    branches:
+      - automation/nexora-3.1.0-tag
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 88e4b6179f49b9186f42b944483080c88443ae5b
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Validate and publish immutable tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(node -p "require('./package.json').version")" = "3.1.0"
+          node scripts/sync-release-metadata.cjs --check
+          node scripts/check-release-tag.cjs
+          if git ls-remote --exit-code --tags origin refs/tags/v3.1.0 >/dev/null 2>&1; then
+            git fetch --force origin refs/tags/v3.1.0:refs/tags/v3.1.0
+            test "$(git rev-list -n 1 v3.1.0)" = "88e4b6179f49b9186f42b944483080c88443ae5b"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a v3.1.0 88e4b6179f49b9186f42b944483080c88443ae5b -m "Nexora 3.1.0"
+          git push origin refs/tags/v3.1.0
