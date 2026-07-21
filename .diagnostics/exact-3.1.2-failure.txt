@@ -1,47 +1,47 @@
-not ok 2 - релиз 3.1.2 собирает проверяемые артефакты без native SQLite
+not ok 67 - раздаёт собранный React-клиент с защитными заголовками
   ---
-  duration_ms: 4.941726
+  duration_ms: 9.927638
   type: 'test'
-  location: '/home/runner/work/Nexora/Nexora/test/build-config.test.cjs:11:1'
+  location: '/home/runner/work/Nexora/Nexora/test/server.test.cjs:99:1'
   failureType: 'testCodeFailure'
-  error: |-
-    The input did not match the regular expression /autoInstallOnAppQuit\s*=\s*automatic/. Input:
-    
-    '"use strict";\n' +
-      '\n' +
-      'const fs = require("node:fs/promises");\n' +
-      'const path = require("node:path");\n' +
-      'const { app } = require("electron");\n' +
-      '\n' +
-      'const DEFAULT_GITHUB_RELEASES = Object.freeze({\n' +
-      '  provider: "github",\n' +
-      '  owner: "Onmaynec",\n' +
-      '  repo: "Nexora",\n' +
-      '  private: false,\n' +
-      '  releaseType: "release",\n' +
-      '});\n' +
-      'const DEFAULT_INITIAL_DELAY_MS = 8_000;\n' +
-      'const DEFAULT_INTERVAL_MS = 6 * 60 * 60_000;\n' +
-      'let defaultUpdater = null;\n' +
-      '\n' +
-      'function loadDefaultUpdater() {\n' +
-      '  defaultUpdater ||= require("electron-updater").autoUpdater;\n' +
-      '  return defaultUpdater;\n' +
-      '}\n' +
-      '\n' +
-      'async function configuredFeed(kind, appImpl = app, fsImpl = fs) {\n' +
-      '  const environmentName = kind === "client" ? "NEXORA_CLIENT_UPDATE_URL" : "NEXORA_SERVER_UPDATE_URL";\n' +
-      '  if (process.env[environmentName]) return String(process.env[environmentName]).trim();\n' +
-      '  try {\n' +
-      '    const value = JSON.parse(await fsImpl.readFile(path.join(appImpl.getPath("userData"), "update-config.json"), "utf8"));\n' +
-      '    return String(value[`${kind}FeedUrl`] || "").trim();\n' +
-      '  } catch {\n' +
-      '    return "";\n' +
-      '  }\n' +
-      '}\n' +
-      '\n' +
-      'async function configuredProvider(kind, appImpl = app, fsImpl = fs) {\n' +
-      '  const feedUrl = await configuredFeed(kind, appImpl, fsImpl);\n' +
-      '  if (feedUrl) {\n' +
+  error: 'expected 200 "OK", got 503 "Service Unavailable"'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/Nexora/Nexora/test/server.test.cjs:100:57)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+    Test._assertStatus (/home/runner/work/Nexora/Nexora/node_modules/supertest/lib/test.js:309:14)
+    /home/runner/work/Nexora/Nexora/node_modules/supertest/lib/test.js:365:13
+    Test._assertFunction (/home/runner/work/Nexora/Nexora/node_modules/supertest/lib/test.js:342:13)
+    Test.assert (/home/runner/work/Nexora/Nexora/node_modules/supertest/lib/test.js:195:23)
+    localAssert (/home/runner/work/Nexora/Nexora/node_modules/supertest/lib/test.js:138:14)
+    Server.<anonymous> (/home/runner/work/Nexora/Nexora/node_modules/supertest/lib/test.js:152:11)
+    Object.onceWrapper (node:events:632:28)
+    Server.emit (node:events:518:28)
+    emitCloseNT (node:net:2418:8)
+    process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+  ...
+# Subtest: создаёт постоянные аккаунты и назначает первого администратора
+ok 68 - создаёт постоянные аккаунты и назначает первого администратора
+  ---
+  duration_ms: 241.904782
+  type: 'test'
+  ...
+# Subtest: оба пользователя автоматически входят в общую комнату
+ok 69 - оба пользователя автоматически входят в общую комнату
+  ---
+  duration_ms: 14.934637
+  type: 'test'
+  ...
+# Subtest: заявка в контакты создаёт личный чат после принятия
+ok 70 - заявка в контакты создаёт личный чат после принятия
+  ---
+  duration_ms: 28.829602
+  type: 'test'
+  ...
+# Subtest: личные сообщения, реакции, прочтение и редактирование работают в real-time
+ok 71 - личные сообщения, реакции, прочтение и редактирование работают в real-time
 
 exit_code=1
