@@ -17,6 +17,8 @@ test("Windows-сборка 2.0.0 не запускает node-gyp для SQLite"
   const releaseWorkflow = fs.readFileSync(path.join(root, ".github", "workflows", "release.yml"), "utf8");
   assert.equal(packageJson.dependencies["better-sqlite3"], undefined);
   assert.equal(packageJson.devDependencies?.["better-sqlite3"], undefined);
+  assert.match(packageJson.scripts.test, /build:web/);
+  assert.match(packageJson.scripts["test:unit"], /node --test/);
   assert.doesNotMatch(lock, /node_modules\/better-sqlite3/);
   assert.match(packageJson.engines.node, /22\.16/);
   assert.match(client, /npmRebuild:\s*false/);
