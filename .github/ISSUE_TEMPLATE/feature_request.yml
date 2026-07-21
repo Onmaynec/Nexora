@@ -1,27 +1,95 @@
 name: Предложение
-description: Предложить улучшение продукта
+
+description: Предложить улучшение продукта или рабочего процесса
+
 title: "feat: "
-labels: [enhancement, triage]
+
+labels:
+  - enhancement
+  - triage
+
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Опишите проблему пользователя и ожидаемый результат. Крупные изменения должны учитывать серверную authority, безопасность, совместимость и миграции.
+
   - type: textarea
     id: problem
     attributes:
-      label: Какую проблему решаем
+      label: Какую проблему нужно решить
+      description: Кто сталкивается с проблемой, в каком сценарии и почему текущего поведения недостаточно?
     validations:
       required: true
+
   - type: textarea
     id: solution
     attributes:
       label: Предлагаемое поведение
+      description: Опишите пользовательский сценарий и проверяемый результат, не ограничиваясь макетом интерфейса.
     validations:
       required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Основной контур
+      options:
+        - Messaging
+        - Rooms and moderation
+        - Media and voice messages
+        - Offline sync and multi-server
+        - Windows Client / Server
+        - Browser / PWA
+        - Android
+        - Bots and integrations
+        - Plus / Pulse
+        - Security and operations
+        - Documentation
+        - Другое
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Критерии готовности
+      description: Перечислите наблюдаемые условия, по которым можно проверить реализацию.
+      placeholder: |
+        - Пользователь может ...
+        - Сервер отклоняет ...
+        - Событие обновляется без перезагрузки ...
+    validations:
+      required: true
+
   - type: textarea
     id: alternatives
     attributes:
-      label: Альтернативы и примеры
-  - type: checkboxes
-    id: scope
+      label: Альтернативы и обходные пути
+      description: Какие варианты уже рассматривались и почему они недостаточны?
+
+  - type: textarea
+    id: impact
     attributes:
-      label: Границы проекта
+      label: Влияние на архитектуру и безопасность
+      description: Укажите предполагаемые изменения schema, API, permissions, files, realtime, compatibility или Pulse trust boundary. Если влияния нет, напишите «нет».
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Дополнительный контекст
+      description: Макеты, ссылки на связанные Issues, примеры поведения других продуктов. Не прикладывайте секреты или чужие данные.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Проверки перед отправкой
       options:
-        - label: Предложение не требует звонков или E2EE.
+        - label: Я проверил существующие Issues и не нашёл аналогичного предложения.
+          required: true
+        - label: Я описал проблему и критерии готовности, а не только желаемый внешний вид.
+          required: true
+        - label: Предложение не требует ослабления серверных проверок безопасности.
+          required: true
