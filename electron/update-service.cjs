@@ -117,7 +117,7 @@ async function createUpdateService({
   };
 
   activeUpdater.autoDownload = Boolean(automatic);
-  activeUpdater.autoInstallOnAppQuit = Boolean(automatic);
+  activeUpdater.autoInstallOnAppQuit = automatic;
   activeUpdater.allowPrerelease = false;
   activeUpdater.setFeedURL(provider);
   emit({
