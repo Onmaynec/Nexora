@@ -12,6 +12,7 @@ const { PulseSandboxService } = require("./pulse-sandbox-service.cjs");
 const { upgradeStoreToSchema8 } = require("./trust-schema8.cjs");
 const { TrustCore } = require("./trust-core.cjs");
 const { mountTrustRoutes } = require("./trust-routes.cjs");
+const { mountTrustRecoveryRoutes } = require("./trust-recovery-routes.cjs");
 const { mountMlsTransport } = require("./mls-transport.cjs");
 
 function parsePublicKeys(options = {}) {
@@ -98,7 +99,8 @@ async function createNexoraServer(options = {}) {
       intervalMs: options.pulseSyncIntervalMs ?? process.env.NEXORA_PULSE_SYNC_INTERVAL_MS,
     });
     mountPulseProductRoutes({ app: instance.app, authRequired: pulseRoutes.authRequired, client, repository, syncWorker });
-    mountTrustRoutes({ app: instance.app, store: instance.store, io: instance.io, trustCore, log });
+    const trustRoutes = mountTrustRoutes({ app: instance.app, store: instance.store, io: instance.io, trustCore, log });
+    mountTrustRecoveryRoutes({ app: instance.app, trustCore, ...trustRoutes });
     mountMlsTransport({ io: instance.io, store: instance.store, trustCore, log });
 
     const baseStatus = instance.status.bind(instance);
@@ -107,6 +109,7 @@ async function createNexoraServer(options = {}) {
       schemaVersion: 8,
       pulseV3: { ...client.status(), ...(sandbox.enabled() ? { mode: "sandbox", enabled: true, productionReady: false, testMode: true } : {}), sync: syncWorker.status() },
       trust: trustCore.status(),
+      migration: pulseMigration,
       migrations: { pulse: pulseMigration, trust: trustMigration },
     });
     const baseListen = instance.listen.bind(instance);
