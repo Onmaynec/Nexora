@@ -1,6 +1,6 @@
 not ok 2 - релиз 3.1.2 собирает проверяемые артефакты без native SQLite
   ---
-  duration_ms: 10.33831
+  duration_ms: 4.941726
   type: 'test'
   location: '/home/runner/work/Nexora/Nexora/test/build-config.test.cjs:11:1'
   failureType: 'testCodeFailure'
