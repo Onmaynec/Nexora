@@ -2,6 +2,25 @@
 
 Формат основан на Keep a Changelog. Версии следуют Semantic Versioning.
 
+## [3.1.2] — 2026-07-21
+
+### Fixed
+
+- крестик глобальной voice-панели полностью очищает active audio state и удаляет source;
+- automatic Electron updater запускает initial check, использует single-flight и повторяет проверку каждые 6 часов;
+- отсутствие signed latest.yml отображается стабильной причиной вместо необработанной ошибки;
+- Pulse API v3 получил функциональную локальную sandbox-модель, управляемую Nexora Server.
+
+### Added
+
+- команды pulse sandbox, plus grant/revoke, impulses grant/revoke и pulse user;
+- тестовая Plus-подписка с разовой выдачей 400 Импульсов и локальным audit/ledger.
+
+### Security
+
+- sandbox блокируется при production Pulse Cloud, не создаёт production-подписи и не разрешает реальные покупки;
+- баланс sandbox не может стать отрицательным, все изменения выполняются сервером и журналируются.
+
 ## [3.1.1] — 2026-07-21
 
 ### Added

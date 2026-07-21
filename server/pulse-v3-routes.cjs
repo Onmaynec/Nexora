@@ -50,7 +50,7 @@ function sanitizeOverview(value) {
   return overview;
 }
 
-function mountPulseV3Routes({ app, store, io, serverId, client, repository, log = () => {} }) {
+function mountPulseV3Routes({ app, store, io, serverId, client, repository, sandbox = null, log = () => {} }) {
   if (!app || !store || !io || !serverId || !client || !repository) throw new Error("Pulse v3 routes require app, store, io, serverId, client and repository.");
 
   function requestContext(request, response, next) {
@@ -110,8 +110,8 @@ function mountPulseV3Routes({ app, store, io, serverId, client, repository, log 
       ok: true,
       requestId: request.pulseRequestId,
       schemaVersion: store.stats().schemaVersion,
-      cloud: client.status(),
-      linked: repository.getLink(request.pulseAuth.user.id)?.status === "linked",
+      cloud: sandbox?.enabled() ? { ...client.status(), mode: "sandbox", enabled: true, productionReady: false, testMode: true } : client.status(),
+      linked: Boolean(sandbox?.enabled() || repository.getLink(request.pulseAuth.user.id)?.status === "linked"),
     });
   });
 
@@ -157,6 +157,7 @@ function mountPulseV3Routes({ app, store, io, serverId, client, repository, log 
   }));
 
   app.get("/api/v3/cloud-account", authRequired, (request, response) => {
+    if (sandbox?.enabled()) return response.json({ ok: true, requestId: request.pulseRequestId, account: sandbox.overview(request.pulseAuth.user.id).account });
     const link = repository.getLink(request.pulseAuth.user.id);
     response.json({ ok: true, requestId: request.pulseRequestId, account: link?.status === "linked" ? link : null });
   });
@@ -176,6 +177,7 @@ function mountPulseV3Routes({ app, store, io, serverId, client, repository, log 
 
   app.get("/api/v3/pulse/overview", authRequired, asyncRoute(async (request, response) => {
     const userId = request.pulseAuth.user.id;
+    if (sandbox?.enabled()) return response.json({ ok: true, requestId: request.pulseRequestId, cached: false, ...sanitizeOverview(sandbox.overview(userId)) });
     repository.requireLinked(userId);
     try {
       const { overview, requestId } = await client.overview(userId, request.pulseRequestId);
@@ -198,6 +200,7 @@ function mountPulseV3Routes({ app, store, io, serverId, client, repository, log 
 
   app.get("/api/v3/pulse/wallet", authRequired, asyncRoute(async (request, response) => {
     const userId = request.pulseAuth.user.id;
+    if (sandbox?.enabled()) return response.json({ ok: true, requestId: request.pulseRequestId, cached: false, wallet: sandbox.overview(userId).wallet });
     repository.requireLinked(userId);
     try {
       const { overview, requestId } = await client.overview(userId, request.pulseRequestId);
@@ -213,8 +216,10 @@ function mountPulseV3Routes({ app, store, io, serverId, client, repository, log 
 
   app.get("/api/v3/pulse/transactions", authRequired, asyncRoute(async (request, response) => {
     const userId = request.pulseAuth.user.id;
-    repository.requireLinked(userId);
     const limit = Math.max(1, Math.min(200, Number(request.query.limit) || 50));
+    if (sandbox?.enabled()) return response.json({ ok: true, requestId: request.pulseRequestId, cached: false, transactions: sandbox.transactions(userId, limit) });
+    repository.requireLinked(userId);
+
     try {
       const result = await client.transactions(userId, { limit, before: request.query.before, requestId: request.pulseRequestId });
       repository.cacheTransactions(userId, result.transactions, result.requestId);
@@ -228,6 +233,11 @@ function mountPulseV3Routes({ app, store, io, serverId, client, repository, log 
 
   app.get("/api/v3/pulse/transactions/:id", authRequired, asyncRoute(async (request, response) => {
     const userId = request.pulseAuth.user.id;
+    if (sandbox?.enabled()) {
+      const transaction = sandbox.transactions(userId, 200).find((item) => item.id === request.params.id);
+      if (!transaction) throw new PulseRepositoryError("Операция не найдена.", "RESOURCE_NOT_FOUND", 404);
+      return response.json({ ok: true, requestId: request.pulseRequestId, cached: false, transaction });
+    }
     repository.requireLinked(userId);
     try {
       const result = await client.transaction(userId, request.params.id, request.pulseRequestId);
@@ -242,6 +252,7 @@ function mountPulseV3Routes({ app, store, io, serverId, client, repository, log 
 
   async function createCheckout(request, response, productCode) {
     const userId = request.pulseAuth.user.id;
+    if (sandbox?.enabled()) throw new PulseRepositoryError("В тестовой модели покупки отключены. Используйте команды Nexora Server.", "PULSE_SANDBOX_NO_PAYMENTS", 409);
     repository.requireLinked(userId);
     const idempotencyKey = String(request.headers["idempotency-key"] || request.body?.idempotencyKey || "");
     if (!/^[A-Za-z0-9_.:-]{12,128}$/.test(idempotencyKey)) throw new PulseRepositoryError("Idempotency-Key обязателен.", "IDEMPOTENCY_KEY_REQUIRED", 400);
@@ -280,6 +291,7 @@ function mountPulseV3Routes({ app, store, io, serverId, client, repository, log 
 
   app.get("/api/v3/pulse/subscription", authRequired, asyncRoute(async (request, response) => {
     const userId = request.pulseAuth.user.id;
+    if (sandbox?.enabled()) return response.json({ ok: true, requestId: request.pulseRequestId, cached: false, subscription: sandbox.overview(userId).subscription });
     repository.requireLinked(userId);
     try {
       const { overview, requestId } = await client.overview(userId, request.pulseRequestId);
