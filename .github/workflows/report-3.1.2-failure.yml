@@ -1,0 +1,48 @@
+name: Isolate Nexora 3.1.2 failing test
+
+on:
+  push:
+    branches:
+      - agent/nexora-3.1.2-bugfix
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  isolate-failure:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/nexora-3.1.2-bugfix
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - name: Run release gate and isolate failures
+        shell: bash
+        run: |
+          set +e
+          {
+            node scripts/apply-3.1.2.cjs
+            node scripts/sync-release-metadata.cjs
+            npm ci
+            npm run release:check
+          } > /tmp/release-check.log 2>&1
+          code=$?
+          {
+            echo '### 3.1.2 failing TAP block'
+            echo
+            echo '```text'
+            grep -n -B 18 -A 45 '^not ok ' /tmp/release-check.log || true
+            echo '```'
+            echo
+            echo "exit_code=$code"
+          } > /tmp/comment.md
+          gh pr comment 9 --repo Onmaynec/Nexora --body-file /tmp/comment.md
+          exit "$code"
