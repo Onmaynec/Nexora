@@ -5,7 +5,6 @@ import {
   createCommit,
   createGroup,
   decode,
-  defaultCredentialTypes,
   encode,
   generateKeyPackageWithKey,
   generateSignatureKeyPair,
@@ -26,6 +25,7 @@ import {
 
 export const MLS_CIPHERSUITE_NAME = "MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519";
 export const MLS_CIPHERSUITE_ID = 1;
+export const MLS_BASIC_CREDENTIAL_TYPE = 1;
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
@@ -61,7 +61,7 @@ function constantTimeEqual(first, second) {
 }
 
 function parseCredential(credential) {
-  if (!credential || credential.credentialType !== defaultCredentialTypes.basic) return null;
+  if (!credential || credential.credentialType !== MLS_BASIC_CREDENTIAL_TYPE) return null;
   try {
     const value = JSON.parse(textDecoder.decode(credential.identity));
     if (value?.version !== 1 || !value.userId || !value.deviceId) return null;
@@ -73,7 +73,7 @@ function parseCredential(credential) {
 
 export function createCredential(userId, deviceId) {
   return {
-    credentialType: defaultCredentialTypes.basic,
+    credentialType: MLS_BASIC_CREDENTIAL_TYPE,
     identity: textEncoder.encode(JSON.stringify({ version: 1, userId: String(userId), deviceId: String(deviceId) })),
   };
 }
@@ -290,12 +290,8 @@ export async function decryptApplicationMessage({ state, messageBytes, resolveDe
       ...stateMetadata(result.newState),
     };
   } finally {
-    result.consumed.forEach(zeroOutUintArray);
+    result.consumed.forEach(zeroOutUint8Array);
   }
-}
-
-function zeroOutUintArray(value) {
-  zeroOutUint8Array(value);
 }
 
 export function encodeKeyPackageMessage(publicPackage) {
