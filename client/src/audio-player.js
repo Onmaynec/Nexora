@@ -1,6 +1,6 @@
 const audio = typeof window !== "undefined" ? new Audio() : null;
 const listeners = new Set();
-let snapshot = {
+const EMPTY_SNAPSHOT = Object.freeze({
   id: null,
   url: "",
   name: "",
@@ -8,10 +8,16 @@ let snapshot = {
   currentTime: 0,
   duration: 0,
   rate: 1,
-};
+});
+let snapshot = { ...EMPTY_SNAPSHOT };
 
 function emit(patch = {}) {
   snapshot = { ...snapshot, ...patch };
+  for (const listener of listeners) listener();
+}
+
+function resetSnapshot() {
+  snapshot = { ...EMPTY_SNAPSHOT };
   for (const listener of listeners) listener();
 }
 
@@ -39,7 +45,14 @@ export async function toggleVoice(file, messageId) {
   if (snapshot.id !== messageId) {
     audio.src = file.url;
     audio.playbackRate = 1;
-    emit({ id: messageId, url: file.url, name: file.name || "Голосовое сообщение", currentTime: 0, duration: Number(file.duration || 0), rate: 1 });
+    emit({
+      id: messageId,
+      url: file.url,
+      name: file.name || "Голосовое сообщение",
+      currentTime: 0,
+      duration: Number(file.duration || 0),
+      rate: 1,
+    });
   }
   if (audio.paused) await audio.play();
   else audio.pause();
@@ -60,8 +73,11 @@ export function cycleVoiceRate() {
 }
 
 export function stopVoice() {
-  if (!audio) return;
-  audio.pause();
-  audio.currentTime = 0;
-  emit({ playing: false, currentTime: 0 });
+  if (audio) {
+    audio.pause();
+    audio.currentTime = 0;
+    audio.removeAttribute("src");
+    audio.load();
+  }
+  resetSnapshot();
 }
