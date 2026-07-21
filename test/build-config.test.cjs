@@ -8,7 +8,7 @@ const { test } = require("node:test");
 
 const root = path.resolve(__dirname, "..");
 
-test("релиз 3.0.0 собирает проверяемые артефакты без native SQLite", () => {
+test("релиз 3.1.0 собирает проверяемые артефакты без native SQLite", () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
   const lock = fs.readFileSync(path.join(root, "package-lock.json"), "utf8");
   const client = fs.readFileSync(path.join(root, "electron-builder.client.yml"), "utf8");
@@ -17,7 +17,7 @@ test("релиз 3.0.0 собирает проверяемые артефакт�
   const clientMain = fs.readFileSync(path.join(root, "electron", "client-main.cjs"), "utf8");
   const releaseWorkflow = fs.readFileSync(path.join(root, ".github", "workflows", "release.yml"), "utf8");
   const ciWorkflow = fs.readFileSync(path.join(root, ".github", "workflows", "ci.yml"), "utf8");
-  assert.equal(packageJson.version, "3.0.0");
+  assert.equal(packageJson.version, require("../package-lock.json").version);
   assert.equal(packageJson.dependencies["better-sqlite3"], undefined);
   assert.equal(packageJson.devDependencies?.["better-sqlite3"], undefined);
   assert.match(packageJson.scripts.test, /build:web/);
