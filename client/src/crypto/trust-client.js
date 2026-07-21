@@ -10,13 +10,13 @@ import {
   generateDeviceKeyPackage,
   generateDeviceSignatureKeys,
   joinFromWelcome,
-  memberDirectory,
   processCommitMessage,
   serializeState,
   sha256Hex,
   stateMetadata,
   toBase64,
 } from "./mls-engine";
+import { memberDirectory } from "./mls-members";
 import {
   cleanupKeyPackages,
   deleteGroupState,
@@ -285,7 +285,7 @@ async function addMissingDevices(conversation, local, remote, device) {
   for (const userId of participantIds(conversation)) {
     const devices = (await trustApi(`/users/${encodeURIComponent(userId)}/devices`)).devices || [];
     for (const target of devices.filter((item) => item.status === "active" && item.trustState === "verified" && !known.has(item.id))) {
-      const claimed = await trustApi(`/users/${encodeURIComponent(userId)}/key-packages/claim`, {
+      const claimed = await trustApi(`/users/${encodeURIComponent(userId)}/devices/${encodeURIComponent(target.id)}/key-packages/claim`, {
         method: "POST",
         deviceId: device.id,
         body: { targetDeviceId: target.id },
@@ -359,7 +359,7 @@ async function ensureConversationGroupInternal(conversation) {
       body: { ciphersuite: 1, groupId: toBase64(groupId), publicStateHash: initial.publicStateHash, leafIndex: 0 },
     });
     remote = created.group;
-    if (remote.protocolGroupId && remote.protocolGroupId !== initial.protocolGroupId) {
+    if (remote.groupId && remote.groupId !== initial.protocolGroupId) {
       const joined = await claimWelcome(device);
       if (!joined) throw Object.assign(new Error("MLS group создан другим устройством; ожидается Welcome."), { code: "MLS_WELCOME_PENDING" });
       local = joined;
@@ -384,9 +384,10 @@ async function ensureConversationGroupInternal(conversation) {
 function serializeConversationOperation(conversationId, operation) {
   const previous = conversationQueues.get(conversationId) || Promise.resolve();
   const next = previous.catch(() => {}).then(operation);
-  conversationQueues.set(conversationId, next.finally(() => {
-    if (conversationQueues.get(conversationId) === next) conversationQueues.delete(conversationId);
-  }));
+  const tracked = next.finally(() => {
+    if (conversationQueues.get(conversationId) === tracked) conversationQueues.delete(conversationId);
+  });
+  conversationQueues.set(conversationId, tracked);
   return next;
 }
 

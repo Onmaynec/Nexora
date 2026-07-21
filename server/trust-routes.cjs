@@ -294,6 +294,7 @@ function mountTrustRoutes({ app, store, io, trustCore, log = () => {} } = {}) {
       proofSignature: request.body?.proofSignature,
     });
     emitConversation(conversation.id, "mls.commit", {
+      conversationId: conversation.id,
       groupId: group.id,
       previousEpoch: Number(request.body?.previousEpoch),
       epoch: Number(request.body?.epoch),
