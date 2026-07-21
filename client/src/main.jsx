@@ -2,12 +2,14 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import AppErrorBoundary from "./components/AppErrorBoundary";
+import ProductOnboarding from "./components/ProductOnboarding";
 import "./styles.css";
+import "./onboarding.css";
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <AppErrorBoundary>
-      <App />
+      <ProductOnboarding><App /></ProductOnboarding>
     </AppErrorBoundary>
   </React.StrictMode>,
 );
