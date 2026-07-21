@@ -73,6 +73,61 @@ function claimKeyPackageForDevice(core, {
   }
 }
 
+function claimWelcomeForConversation(core, {
+  conversationId,
+  requesterUserId,
+  requesterDeviceId,
+}) {
+  const requester = core.requireDevice(requesterUserId, requesterDeviceId, { verified: true });
+  const now = core.timestamp();
+  const scopedConversationId = String(conversationId || "");
+  if (!scopedConversationId) throw new TrustCoreError("conversationId обязателен.", "TRUST_VALIDATION_FAILED", 400, { field: "conversationId" });
+
+  core.db.exec("BEGIN IMMEDIATE");
+  try {
+    const row = core.db.prepare(`SELECT w.*,g.conversation_id,g.group_id AS protocol_group_id,g.ciphersuite,g.public_state_hash
+      FROM mls_welcome_queue w
+      JOIN mls_groups g ON g.id=w.group_id
+      WHERE g.conversation_id=? AND w.target_user_id=? AND w.target_device_id=?
+        AND w.claimed_at IS NULL AND w.expires_at>?
+      ORDER BY w.epoch DESC,w.created_at ASC
+      LIMIT 1`).get(scopedConversationId, String(requesterUserId), requester.id, now);
+    if (!row) {
+      core.db.exec("COMMIT");
+      return null;
+    }
+    const changed = core.db.prepare("UPDATE mls_welcome_queue SET claimed_at=? WHERE id=? AND claimed_at IS NULL")
+      .run(now, row.id);
+    if (Number(changed.changes || 0) !== 1) throw new TrustCoreError("Welcome уже получен другим запросом.", "MLS_WELCOME_RACE", 409);
+    core.audit({
+      userId: String(requesterUserId),
+      actorDeviceId: requester.id,
+      action: "mls.welcome_claimed",
+      targetType: "mls_group",
+      targetId: row.group_id,
+      metadata: { conversationId: scopedConversationId, epoch: Number(row.epoch), welcomeHash: row.welcome_hash },
+    });
+    core.db.exec("COMMIT");
+    return {
+      id: row.id,
+      groupRecordId: row.group_id,
+      conversationId: row.conversation_id,
+      groupId: row.protocol_group_id,
+      ciphersuite: Number(row.ciphersuite),
+      epoch: Number(row.epoch),
+      welcome: row.welcome_data,
+      ratchetTree: row.ratchet_tree_data,
+      welcomeHash: row.welcome_hash,
+      publicStateHash: row.public_state_hash,
+      createdAt: row.created_at,
+      expiresAt: row.expires_at,
+    };
+  } catch (error) {
+    try { core.db.exec("ROLLBACK"); } catch {}
+    throw error;
+  }
+}
+
 function listCommits(core, {
   groupRecordId,
   requesterUserId,
@@ -99,6 +154,7 @@ function listCommits(core, {
     LIMIT ?`).all(groupId, after, bounded);
 
   let expected = after + 1;
+  if (after < 0 && rows.length && Number(rows[0].previous_epoch) === 0) expected = 1;
   for (const row of rows) {
     if (Number(row.epoch) !== expected) {
       throw new TrustCoreError("В журнале MLS commit обнаружен разрыв эпох.", "MLS_COMMIT_LOG_GAP", 500, { expected, actual: Number(row.epoch) });
@@ -126,4 +182,4 @@ function listCommits(core, {
   };
 }
 
-module.exports = { claimKeyPackageForDevice, listCommits };
+module.exports = { claimKeyPackageForDevice, claimWelcomeForConversation, listCommits };
