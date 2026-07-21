@@ -1,0 +1,48 @@
+name: Report Nexora 3.1.2 release check
+
+on:
+  push:
+    branches:
+      - agent/nexora-3.1.2-bugfix
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  report-release-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/nexora-3.1.2-bugfix
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - name: Run complete release gate and comment
+        shell: bash
+        run: |
+          set +e
+          {
+            node scripts/apply-3.1.2.cjs
+            node scripts/sync-release-metadata.cjs
+            npm ci
+            npm run release:check
+          } > /tmp/release-check.log 2>&1
+          code=$?
+          {
+            echo '### Full 3.1.2 release-check output'
+            echo
+            echo '```text'
+            tail -n 500 /tmp/release-check.log
+            echo '```'
+            echo
+            echo "exit_code=$code"
+          } > /tmp/comment.md
+          gh pr comment 9 --repo Onmaynec/Nexora --body-file /tmp/comment.md
+          exit "$code"
