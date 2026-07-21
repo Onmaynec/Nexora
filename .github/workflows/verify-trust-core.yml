@@ -1,0 +1,27 @@
+name: Verify Trust Core foundation
+
+on:
+  push:
+    branches:
+      - agent/nexora-3.2.0-trust-core-mls
+
+permissions:
+  contents: read
+
+jobs:
+  trust-core:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - run: npm ci
+      - run: |
+          node --check server/trust-schema8.cjs
+          node --check server/trust-core.cjs
+          node --check server/trust-routes.cjs
+          node --check server/mls-transport.cjs
+      - run: node --test test/trust-schema8.test.cjs test/trust-core.test.cjs
