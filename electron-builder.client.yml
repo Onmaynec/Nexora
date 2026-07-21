@@ -1,0 +1,34 @@
+appId: com.nexora.client
+productName: Nexora Client
+artifactName: Nexora-Client-Setup-${version}.${ext}
+asar: true
+npmRebuild: false
+directories:
+  output: release/client
+publish:
+  provider: github
+  owner: Onmaynec
+  repo: Nexora
+  releaseType: draft
+  publishAutoUpdate: true
+files:
+  - electron/client-main.cjs
+  - electron/client-connection.cjs
+  - electron/client-preload.cjs
+  - electron/client-shell/**/*
+  - electron/update-service.cjs
+  - package.json
+extraMetadata:
+  main: electron/client-main.cjs
+win:
+  icon: build/icon.ico
+  verifyUpdateCodeSignature: true
+  target:
+    - nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Nexora Client
+  uninstallDisplayName: Nexora Client

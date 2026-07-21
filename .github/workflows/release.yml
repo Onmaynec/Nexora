@@ -1,0 +1,153 @@
+name: Signed Windows release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing stable tag to build, for example v2.0.0
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-release-${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || (github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name) }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      startsWith(github.event.workflow_run.head_commit.message, 'release:'))
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || (github.event_name == 'push' && github.ref_name || '') }}
+      CSC_LINK: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+      CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || (github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref) }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - name: Resolve immutable release tag
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $version = node -p "require('./package.json').version"
+          $tag = if ($env:GITHUB_EVENT_NAME -eq "workflow_run") { "v$version" } else { $env:RELEASE_TAG }
+          $env:RELEASE_TAG = $tag
+          node scripts/check-release-tag.cjs
+          if ($LASTEXITCODE -ne 0) { throw "Release tag validation failed" }
+
+          if ($env:GITHUB_EVENT_NAME -eq "workflow_run") {
+            $remoteTag = git ls-remote --tags origin "refs/tags/$tag"
+            if ($LASTEXITCODE -ne 0) { throw "Unable to inspect remote tag $tag" }
+            $tagExists = -not [string]::IsNullOrWhiteSpace(($remoteTag -join "`n"))
+            if ($tagExists) {
+              git fetch --force origin "refs/tags/${tag}:refs/tags/${tag}"
+              if ($LASTEXITCODE -ne 0) { throw "Unable to fetch existing tag $tag" }
+              $tagHead = (git rev-list -n 1 $tag).Trim()
+              $head = (git rev-parse HEAD).Trim()
+              if ($tagHead -ne $head) { throw "Tag $tag already points to another commit" }
+            } else {
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git tag -a $tag -m "Nexora $version"
+              git push origin "refs/tags/$tag"
+              if ($LASTEXITCODE -ne 0) { throw "Unable to publish tag $tag" }
+            }
+          }
+          "RELEASE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - run: npm ci
+      - run: npm run release:check
+      - run: npm run release:tag-check
+      - run: npm run release:signing-check
+      - run: npm run build:web
+      - name: Prepare retry-safe draft
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $tag = $env:RELEASE_TAG
+          $releases = gh release list --limit 100 --json tagName,isDraft | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw "Unable to inspect existing releases" }
+          $existing = @($releases) | Where-Object { $_.tagName -eq $tag } | Select-Object -First 1
+          if ($existing -and -not $existing.isDraft) {
+            throw "Release $tag is already published and must not be modified. Create a new patch version."
+          }
+          if ($existing) {
+            gh release delete $tag --yes
+            if ($LASTEXITCODE -ne 0) { throw "Unable to remove incomplete draft $tag" }
+          }
+      - name: Build signed Client update draft
+        run: npx electron-builder --config electron-builder.client.yml --win nsis --publish always
+      - name: Build Server installer
+        run: npx electron-builder --config electron-builder.server.yml --win nsis --publish never
+      - name: Publish complete GitHub Release
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $version = node -p "require('./package.json').version"
+          $tag = $env:RELEASE_TAG
+          $assetPaths = @(
+            "release/client/Nexora-Client-Setup-$version.exe",
+            "release/client/Nexora-Client-Setup-$version.exe.blockmap",
+            "release/client/latest.yml",
+            "release/server/Nexora-Server-Setup-$version.exe"
+          )
+          foreach ($asset in $assetPaths) {
+            if (-not (Test-Path -LiteralPath $asset)) { throw "Missing release asset: $asset" }
+          }
+          Get-FileHash $assetPaths -Algorithm SHA256 |
+            Sort-Object Path |
+            ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } |
+            Set-Content -Encoding utf8 SHA256SUMS.txt
+
+          $releaseJson = gh release view $tag --json isDraft,assets
+          if ($LASTEXITCODE -ne 0) { throw "Electron Builder did not create draft release $tag" }
+          $release = ($releaseJson -join "`n") | ConvertFrom-Json
+          if (-not $release.isDraft) { throw "Release $tag became public before validation" }
+          $clientAssetNames = @(
+            "Nexora-Client-Setup-$version.exe",
+            "Nexora-Client-Setup-$version.exe.blockmap",
+            "latest.yml"
+          )
+          $publishedNames = @($release.assets | ForEach-Object { $_.name })
+          foreach ($name in $clientAssetNames) {
+            if ($publishedNames -notcontains $name) { throw "Missing Client update asset in draft: $name" }
+          }
+
+          $serverPath = (Resolve-Path -LiteralPath "release/server/Nexora-Server-Setup-$version.exe").Path
+          $checksumPath = (Resolve-Path -LiteralPath SHA256SUMS.txt).Path
+          gh release upload $tag $serverPath $checksumPath
+          if ($LASTEXITCODE -ne 0) { throw "Unable to upload Server and checksums for $tag" }
+
+          $finalJson = gh release view $tag --json assets
+          if ($LASTEXITCODE -ne 0) { throw "Unable to verify release assets for $tag" }
+          $final = ($finalJson -join "`n") | ConvertFrom-Json
+          $requiredNames = @($assetPaths | ForEach-Object { [IO.Path]::GetFileName($_) }) + "SHA256SUMS.txt"
+          $finalNames = @($final.assets | ForEach-Object { $_.name })
+          foreach ($name in $requiredNames) {
+            if ($finalNames -notcontains $name) { throw "Release asset verification failed: $name" }
+          }
+
+          $notes = "RELEASE_NOTES_$version.md"
+          if (Test-Path -LiteralPath $notes) {
+            gh release edit $tag --title "Nexora $version" --notes-file $notes --draft=false --prerelease=false --latest
+          } else {
+            gh release edit $tag --title "Nexora $version" --draft=false --prerelease=false --latest
+          }
+          if ($LASTEXITCODE -ne 0) { throw "Unable to publish release $tag" }

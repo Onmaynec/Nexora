@@ -1,0 +1,51 @@
+name: Ошибка
+description: Сообщить о воспроизводимой проблеме Nexora
+title: "bug: "
+labels: [bug, triage]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Версии Client / Server
+      placeholder: 2.0.0 / 2.0.0
+    validations:
+      required: true
+  - type: dropdown
+    id: windows
+    attributes:
+      label: Windows
+      options: [Windows 10, Windows 11]
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Интерфейс
+      options: [Nexora Client.exe, Веб-клиент, Nexora Server.exe]
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Шаги воспроизведения
+      placeholder: "1. ...\n2. ...\n3. ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Ожидаемый и фактический результат
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Диагностика
+      description: Приложите screenshot/log без паролей, cookies, keys и invite codes.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Безопасность данных
+      options:
+        - label: Я удалил пароли, session cookies, API keys и приватные коды.
+          required: true

@@ -1,0 +1,63 @@
+{
+  "name": "nexora",
+  "version": "2.0.0",
+  "engines": {
+    "node": ">=22.16.0"
+  },
+  "description": "Nexora private messenger for a local Radmin VPN network",
+  "author": "Nexora",
+  "homepage": "https://github.com/Onmaynec/Nexora#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Onmaynec/Nexora.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Onmaynec/Nexora/issues"
+  },
+  "private": true,
+  "type": "commonjs",
+  "main": "electron/client-main.cjs",
+  "scripts": {
+    "dev": "concurrently -k -n SERVER,WEB -c magenta,cyan \"npm:dev:server\" \"npm:dev:web\"",
+    "dev:server": "node scripts/dev-server.cjs",
+    "dev:web": "vite --config client/vite.config.mjs",
+    "start": "node server/cli.cjs",
+    "build:web": "vite build --config client/vite.config.mjs",
+    "preview": "vite preview --config client/vite.config.mjs",
+    "check": "node scripts/check-syntax.cjs && node scripts/check-electron-builder-config.cjs && npm run build:web",
+    "test": "node --test test/*.test.cjs",
+    "test:soak": "node scripts/soak-test.cjs",
+    "audit:security": "node scripts/security-audit.cjs",
+    "release:check": "npm run check && npm test",
+    "release:tag-check": "node scripts/check-release-tag.cjs",
+    "release:signing-check": "node scripts/check-release-signing.cjs",
+    "electron:client": "electron electron/client-main.cjs",
+    "electron:server": "electron electron/server-main.cjs",
+    "dist:client": "npm run build:web && electron-builder --config electron-builder.client.yml --win nsis",
+    "dist:server": "npm run build:web && electron-builder --config electron-builder.server.yml --win nsis",
+    "dist:windows": "npm run dist:client && npm run dist:server",
+    "release:windows": "npm run release:check && npm run release:signing-check && npm run dist:windows"
+  },
+  "dependencies": {
+    "cookie": "^1.0.2",
+    "electron-updater": "^6.6.2",
+    "express": "^5.1.0",
+    "framer-motion": "^12.23.6",
+    "lucide-react": "^0.525.0",
+    "multer": "^2.0.2",
+    "node-forge": "^1.3.1",
+    "qrcode": "^1.5.4",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.6.0",
+    "concurrently": "^9.2.0",
+    "electron": "43.1.1",
+    "electron-builder": "26.15.3",
+    "supertest": "^7.1.3",
+    "vite": "^7.0.4"
+  }
+}

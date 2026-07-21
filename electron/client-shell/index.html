@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Nexora Client — подключение</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="extras.css" />
+  </head>
+  <body>
+    <canvas id="particles"></canvas>
+    <main>
+      <section class="intro">
+        <div class="logo"><span><i></i><i></i><i></i></span>NEXORA</div>
+        <p class="kicker">WINDOWS CLIENT</p>
+        <h1>Найдите свою<br /><em>точку связи.</em></h1>
+        <p>Введите HTTPS-адрес, который показывает Nexora Server. Обычно адрес Radmin VPN начинается с <code>26.</code></p>
+      </section>
+      <div class="frame"><section class="card">
+        <span class="step">01 / SERVER LINK</span>
+        <h2>Подключить клиент</h2>
+        <form id="connect-form">
+          <label>Адрес сервера<input id="server-url" autocomplete="url" inputmode="url" spellcheck="false" placeholder="https://26.4.1.76:3443" required /></label>
+          <p id="error" role="alert"></p>
+          <button type="submit">Подключиться <b>↗</b></button>
+        </form>
+        <section id="connection-help" class="connection-help" hidden>
+          <strong>Быстрая проверка</strong>
+          <ol><li>Скопируйте полный адрес из Nexora Server.</li><li>Убедитесь, что оба ПК находятся в одной сети Radmin VPN.</li><li>Разрешите Nexora Server и TCP-порт 3443 в брандмауэре Windows.</li></ol>
+        </section>
+        <div id="fingerprint-confirm" class="fingerprint-confirm" hidden>
+          <span>ПРОВЕРКА СЕРТИФИКАТА</span>
+          <strong id="confirm-title">Новый сервер</strong>
+          <p>Сверьте этот отпечаток с окном Nexora Server:</p>
+          <code id="confirm-fingerprint"></code>
+          <small id="confirm-warning"></small>
+          <div><button id="confirm-server" type="button">Доверять и подключиться</button><button id="cancel-confirm" type="button">Отмена</button></div>
+        </div>
+        <section class="saved-block"><h3>Сохранённые серверы</h3><div id="saved-servers"></div></section>
+        <small>Desktop Client доверяет подтверждённому SHA-256 автоматически. Корневой .crt требуется только браузеру.</small>
+      </section></div>
+    </main>
+    <script src="renderer.js"></script>
+  </body>
+</html>

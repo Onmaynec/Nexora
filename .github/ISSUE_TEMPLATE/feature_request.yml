@@ -1,0 +1,27 @@
+name: Предложение
+description: Предложить улучшение продукта
+title: "feat: "
+labels: [enhancement, triage]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Какую проблему решаем
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Предлагаемое поведение
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Альтернативы и примеры
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Границы проекта
+      options:
+        - label: Предложение не требует звонков или E2EE.

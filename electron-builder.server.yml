@@ -1,0 +1,28 @@
+appId: com.nexora.server
+productName: Nexora Server
+artifactName: Nexora-Server-Setup-${version}.${ext}
+asar: true
+npmRebuild: false
+directories:
+  output: release/server
+files:
+  - electron/server-main.cjs
+  - electron/server-preload.cjs
+  - electron/server-shell/**/*
+  - electron/update-service.cjs
+  - server/**/*
+  - client/dist/**/*
+  - package.json
+extraMetadata:
+  main: electron/server-main.cjs
+win:
+  icon: build/icon.ico
+  target:
+    - nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Nexora Server
+  uninstallDisplayName: Nexora Server

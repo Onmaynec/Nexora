@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Nexora Server</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="extras.css" />
+  </head>
+  <body>
+    <div class="ambient"></div>
+    <aside>
+      <div class="logo"><span><i></i><i></i><i></i></span><div>NEXORA<small>SERVER</small></div></div>
+      <nav>
+        <button class="active" data-view="overview">Обзор</button>
+        <button data-view="users">Пользователи</button>
+        <button data-view="rooms">Комнаты</button>
+        <button data-view="storage">Хранилище</button>
+        <button data-view="security">Безопасность</button>
+        <button data-view="logs">Журнал</button>
+      </nav>
+      <div class="side-status"><i id="status-dot"></i><span id="side-status-text">Запуск…</span></div>
+    </aside>
+    <main>
+      <header><div><span>LOCAL CONTROL PLANE</span><h1 id="view-title">Сервер Nexora</h1></div><div class="header-actions"><button id="data-folder">Открыть данные</button><button id="server-toggle" class="primary">Остановить</button></div></header>
+
+      <section id="overview" class="view active">
+        <div class="metrics">
+          <article><span>Пользователи</span><strong id="metric-users">0</strong><small>зарегистрировано</small></article>
+          <article><span>Комнаты</span><strong id="metric-rooms">0</strong><small>активных пространств</small></article>
+          <article><span>Сообщения</span><strong id="metric-messages">0</strong><small>хранятся локально</small></article>
+          <article><span>Хранилище</span><strong id="metric-storage">0 МБ</strong><small id="metric-files">0 файлов</small></article>
+        </div>
+        <div class="overview-grid">
+          <article class="connection-card">
+            <span class="eyebrow">RADMIN VPN ENDPOINT</span>
+            <h2>Адрес подключения</h2>
+            <button id="copy-url" class="url-box"><code id="primary-url">Определяем адрес…</code><b>Копировать</b></button>
+            <div id="address-list" class="address-list"></div>
+            <p>Передайте адрес и корневой сертификат только участникам вашей Radmin VPN-сети.</p>
+          </article>
+          <article class="qr-card"><span class="eyebrow">QUICK CONNECT</span><div class="qr-wrap"><img id="qr" alt="QR-код адреса Nexora" /></div><p>Открыть веб-клиент на другом устройстве</p></article>
+          <article class="certificate-card">
+            <span class="eyebrow">LOCAL HTTPS</span><h2>Сертификат</h2><div class="certificate-state"><i></i><span><strong>Локальный CA активен</strong><small>Для микрофона и безопасных сессий</small></span></div>
+            <dl class="server-trust"><div><dt>Server ID</dt><dd id="server-id">—</dd></div><div><dt>SHA-256</dt><dd id="certificate-fingerprint">—</dd></div></dl>
+            <div><button id="copy-fingerprint">Копировать отпечаток</button><button id="export-cert">Экспортировать .crt</button><button id="open-cert">Установить на этом ПК</button></div>
+            <p>Nexora Client использует подтверждённый SHA-256. Установка `.crt` нужна только для Edge/Chrome.</p>
+          </article>
+          <article class="first-admin" id="first-admin"><span>FIRST ACCOUNT</span><h2>Создайте администратора</h2><p>Первый зарегистрированный через клиент аккаунт автоматически получит глобальные права сервера.</p></article>
+          <article class="pulse-control-card">
+            <span class="eyebrow">NEXORA PULSE</span>
+            <h2>Монетизация</h2>
+            <div class="pulse-state"><i id="pulse-status-dot"></i><span><strong id="pulse-status-title">Проверяем…</strong><small id="pulse-status-detail">Состояние безопасного биллинга</small></span></div>
+            <p>Платежи активируются только через подписанные ответы Nexora Billing. Локальный сервер не хранит реквизиты карт.</p>
+          </article>
+          <article class="update-control-card"><span class="eyebrow">MANAGED UPDATE</span><h2>Обновление Server</h2><p id="server-update-status">Проверка запускается только администратором.</p><div><button id="check-server-update">Проверить</button><button id="apply-server-update" class="primary" disabled>Загрузить</button></div></article>
+        </div>
+      </section>
+
+      <section id="users" class="view"><div class="table-head"><div><span>ACCESS CONTROL</span><h2>Пользователи</h2></div><button id="refresh-users">Обновить</button></div><div class="table-card"><table><thead><tr><th>Пользователь</th><th>Роль</th><th>Сессии</th><th>Статус</th><th></th></tr></thead><tbody id="users-body"></tbody></table></div></section>
+      <section id="rooms" class="view"><div class="table-head"><div><span>SPACES</span><h2>Комнаты</h2></div><button id="refresh-rooms">Обновить</button></div><div class="table-card"><table><thead><tr><th>Комната</th><th>Доступ</th><th>Участники</th><th>Сообщения</th><th></th></tr></thead><tbody id="rooms-body"></tbody></table></div></section>
+      <section id="storage" class="view">
+        <div class="table-head"><div><span>SQLITE & BACKUPS</span><h2>Надёжность данных</h2></div><div class="table-actions"><button id="open-backups">Открыть копии</button><button id="cleanup-storage">Очистить потерянные файлы</button></div></div>
+        <div class="storage-grid">
+          <article class="storage-card accent-card"><span class="eyebrow">BACKUP NOW</span><h2>Резервная копия</h2><p>SQLite и все вложения копируются вместе. Укажите пароль, чтобы зашифровать копию AES-256-GCM.</p><label>Пароль копии · необязательно<input id="backup-passphrase" type="password" minlength="10" maxlength="128" placeholder="Не менее 10 символов" /></label><div class="storage-actions"><button id="create-backup" class="primary">Создать резервную копию</button><button id="restore-backup">Восстановить из копии</button></div></article>
+          <article class="storage-card"><span class="eyebrow">DATABASE HEALTH</span><h2>SQLite</h2><div class="storage-health"><i></i><span><strong id="database-integrity">Проверяем…</strong><small id="database-details">WAL · synchronous FULL</small></span></div><dl><div><dt>База</dt><dd id="database-size">0 МБ</dd></div><div><dt>Занято файлами</dt><dd id="storage-used">0 МБ</dd></div><div><dt>Квота</dt><dd id="storage-quota">0 ГБ</dd></div></dl></article>
+          <article class="storage-card settings-storage"><span class="eyebrow">RETENTION POLICY</span><h2>Лимиты хранения</h2><label>Общий объём, ГБ<input id="storage-quota-input" type="number" min="0.25" max="1024" step="0.25" /></label><label>Хранить файлы<select id="retention-days"><option value="0">Без ограничения</option><option value="30">30 дней</option><option value="90">90 дней</option><option value="180">180 дней</option><option value="365">1 год</option></select></label><button id="save-storage">Сохранить настройки</button></article>
+        </div>
+        <div class="backup-section"><div class="table-head"><div><span>RECOVERY POINTS</span><h2>Последние копии</h2></div></div><div id="backup-list" class="backup-list"></div></div>
+      </section>
+      <section id="security" class="view">
+        <div class="table-head"><div><span>ACCESS HARDENING</span><h2>Безопасность</h2></div><button id="refresh-security">Обновить</button></div>
+        <div class="security-grid">
+          <article class="storage-card"><span class="eyebrow">PASSWORD POLICY</span><h2>Требования к паролям</h2><form id="security-form" class="security-form"><label>Минимальная длина<input id="password-min-length" type="number" min="8" max="64" /></label><label class="security-check"><input id="password-upper" type="checkbox" /> Заглавная буква</label><label class="security-check"><input id="password-lower" type="checkbox" /> Строчная буква</label><label class="security-check"><input id="password-number" type="checkbox" /> Цифра</label><label class="security-check"><input id="password-symbol" type="checkbox" /> Специальный символ</label><label>Попыток до блокировки<input id="login-max-attempts" type="number" min="3" max="20" /></label><label>Блокировка, минут<input id="login-lock-minutes" type="number" min="1" max="1440" /></label><button class="primary" type="submit">Сохранить политику</button></form></article>
+          <article class="storage-card security-summary"><span class="eyebrow">PROTECTION</span><h2>Активные меры</h2><ul><li>Origin и CSRF проверяются для каждого изменения</li><li>Ограничения запросов сохраняются в SQLite</li><li>Неверные входы фиксируются в журнале</li><li>Сброшенный пароль требуется сменить</li><li>Сертификат закрепляется в Nexora Client</li></ul></article>
+        </div>
+        <div class="table-head login-head"><div><span>LOGIN AUDIT</span><h2>Последние попытки входа</h2></div></div><div class="table-card"><table><thead><tr><th>Время</th><th>Пользователь</th><th>IP</th><th>Результат</th><th>Причина</th></tr></thead><tbody id="login-attempts-body"></tbody></table></div>
+      </section>
+      <section id="logs" class="view"><div class="table-head"><div><span>RUNTIME</span><h2>Журнал событий</h2></div><div class="table-actions"><button id="open-log-file">Открыть журнал</button><button id="clear-logs">Очистить экран</button></div></div><div id="log-list" class="log-list"></div></section>
+    </main>
+    <div id="password-modal" class="control-modal" aria-hidden="true"><form id="password-form"><span class="eyebrow">ADMIN ACTION</span><h2>Сбросить пароль</h2><p id="password-user"></p><input id="password-user-id" type="hidden" /><label>Временный пароль<input id="password-value" type="password" minlength="10" maxlength="128" autocomplete="new-password" required /></label><small>Пользователь обязан заменить его при следующем входе.</small><div><button id="password-cancel" type="button">Отмена</button><button class="primary" type="submit">Сбросить и завершить сессии</button></div></form></div>
+    <div id="toast"></div>
+    <script src="renderer.js"></script>
+  </body>
+</html>
