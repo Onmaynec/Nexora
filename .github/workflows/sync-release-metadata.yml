@@ -1,0 +1,36 @@
+name: Sync release metadata
+
+on:
+  push:
+    branches:
+      - agent/nexora-3.1.0-productization
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: ${{ !contains(github.event.head_commit.message, '[version-sync]') }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/nexora-3.1.0-productization
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - run: node scripts/sync-release-metadata.cjs
+      - name: Commit synchronized metadata
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "Release metadata already synchronized"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json android/app/build.gradle.kts test/server.test.cjs test/build-config.test.cjs
+          git commit -m "build: synchronize 3.1.0 release metadata [version-sync]"
+          git push origin HEAD:agent/nexora-3.1.0-productization
