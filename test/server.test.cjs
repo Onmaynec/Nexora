@@ -87,7 +87,7 @@ after(async () => {
 test("health-check отвечает", async () => {
   const response = await request(instance.app).get("/api/health").expect(200);
   assert.equal(response.body.ok, true);
-  assert.equal(response.body.version, "3.0.0");
+  assert.equal(response.body.version, require("../package.json").version);
   assert.equal(response.body.compatibility.apiVersion, 3);
   assert.equal(response.body.compatibility.maxClientMajor, 3);
   assert.ok(response.body.serverId);

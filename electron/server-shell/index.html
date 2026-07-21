@@ -6,6 +6,7 @@
     <title>Nexora Server</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="extras.css" />
+    <link rel="stylesheet" href="setup-wizard.css" />
   </head>
   <body>
     <div class="ambient"></div>
@@ -81,5 +82,6 @@
     <div id="password-modal" class="control-modal" aria-hidden="true"><form id="password-form"><span class="eyebrow">ADMIN ACTION</span><h2>Сбросить пароль</h2><p id="password-user"></p><input id="password-user-id" type="hidden" /><label>Временный пароль<input id="password-value" type="password" minlength="10" maxlength="128" autocomplete="new-password" required /></label><small>Пользователь обязан заменить его при следующем входе.</small><div><button id="password-cancel" type="button">Отмена</button><button class="primary" type="submit">Сбросить и завершить сессии</button></div></form></div>
     <div id="toast"></div>
     <script src="renderer.js"></script>
+    <script src="setup-wizard.js"></script>
   </body>
 </html>
