@@ -18,8 +18,7 @@ use tls_codec::{Deserialize as TlsDeserialize, Serialize as TlsSerialize};
 use wasm_bindgen::prelude::*;
 
 const SNAPSHOT_VERSION: u32 = 1;
-const CIPHERSUITE: Ciphersuite =
-    Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519;
+const CIPHERSUITE: Ciphersuite = Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519;
 
 #[derive(Debug, thiserror::Error)]
 enum TrustCoreError {
@@ -120,12 +119,7 @@ impl Provider {
             .map_err(|_| js_error("provider state lock is poisoned"))?;
         let encoded = values
             .iter()
-            .map(|(key, value)| {
-                (
-                    URL_SAFE_NO_PAD.encode(key),
-                    URL_SAFE_NO_PAD.encode(value),
-                )
-            })
+            .map(|(key, value)| (URL_SAFE_NO_PAD.encode(key), URL_SAFE_NO_PAD.encode(value)))
             .collect::<BTreeMap<_, _>>();
         let snapshot = ProviderSnapshot {
             version: SNAPSHOT_VERSION,
@@ -183,7 +177,11 @@ pub struct Identity {
 #[wasm_bindgen]
 impl Identity {
     #[wasm_bindgen(constructor)]
-    pub fn new(provider: &Provider, account_id: &str, device_id: &str) -> Result<Identity, JsError> {
+    pub fn new(
+        provider: &Provider,
+        account_id: &str,
+        device_id: &str,
+    ) -> Result<Identity, JsError> {
         if account_id.trim().is_empty() || device_id.trim().is_empty() {
             return Err(js_error("accountId and deviceId are required"));
         }
@@ -213,13 +211,12 @@ impl Identity {
         if bundle.ciphersuite != Provider::ciphersuite() {
             return Err(js_error("identity bundle ciphersuite mismatch"));
         }
-        let public_key = URL_SAFE_NO_PAD.decode(&bundle.public_key).map_err(js_error)?;
-        let signer = SignatureKeyPair::read(
-            provider.0.storage(),
-            &public_key,
-            SignatureScheme::ED25519,
-        )
-        .ok_or_else(|| js_error(TrustCoreError::MissingSigner))?;
+        let public_key = URL_SAFE_NO_PAD
+            .decode(&bundle.public_key)
+            .map_err(js_error)?;
+        let signer =
+            SignatureKeyPair::read(provider.0.storage(), &public_key, SignatureScheme::ED25519)
+                .ok_or_else(|| js_error(TrustCoreError::MissingSigner))?;
         let credential = BasicCredential::new(
             serde_json::to_vec(&DeviceCredential {
                 account_id: bundle.account_id.clone(),
@@ -400,15 +397,10 @@ impl Group {
         let mut tree_slice = ratchet_tree_bytes;
         let tree = RatchetTreeIn::tls_deserialize(&mut tree_slice).map_err(js_error)?;
         let config = MlsGroupJoinConfig::builder().build();
-        let mls_group = StagedWelcome::new_from_welcome(
-            &provider.0,
-            &config,
-            welcome,
-            Some(tree),
-        )
-        .map_err(js_error)?
-        .into_group(&provider.0)
-        .map_err(js_error)?;
+        let mls_group = StagedWelcome::new_from_welcome(&provider.0, &config, welcome, Some(tree))
+            .map_err(js_error)?
+            .into_group(&provider.0)
+            .map_err(js_error)?;
         Ok(Group { mls_group })
     }
 
@@ -422,10 +414,7 @@ impl Group {
         let mut package_slice = key_package_bytes;
         let package = KeyPackageIn::tls_deserialize(&mut package_slice)
             .map_err(js_error)?
-            .validate(
-                &RustCrypto::default(),
-                ProtocolVersion::Mls10,
-            )
+            .validate(&RustCrypto::default(), ProtocolVersion::Mls10)
             .map_err(js_error)?;
         let (proposal, _) = self
             .mls_group
@@ -540,7 +529,9 @@ impl Group {
         length: usize,
     ) -> Result<Vec<u8>, JsError> {
         if !(16..=64).contains(&length) {
-            return Err(js_error("exported secret length must be between 16 and 64 bytes"));
+            return Err(js_error(
+                "exported secret length must be between 16 and 64 bytes",
+            ));
         }
         self.mls_group
             .export_secret(provider.0.crypto(), label, context, length)
@@ -554,9 +545,9 @@ impl Group {
             .members()
             .map(|member| {
                 let credential = BasicCredential::try_from(member.credential).ok();
-                let device = credential
-                    .as_ref()
-                    .and_then(|value| serde_json::from_slice::<DeviceCredential>(value.identity()).ok());
+                let device = credential.as_ref().and_then(|value| {
+                    serde_json::from_slice::<DeviceCredential>(value.identity()).ok()
+                });
                 MemberView {
                     account_id: device.as_ref().map(|value| value.account_id.clone()),
                     device_id: device.as_ref().map(|value| value.device_id.clone()),
@@ -588,14 +579,7 @@ impl Group {
 mod tests {
     use super::*;
 
-    fn two_member_group() -> (
-        Provider,
-        Identity,
-        Group,
-        Provider,
-        Identity,
-        Group,
-    ) {
+    fn two_member_group() -> (Provider, Identity, Group, Provider, Identity, Group) {
         let mut alice_provider = Provider::new();
         let bob_provider = Provider::new();
         let alice = Identity::new(&alice_provider, "alice", "alice-desktop").unwrap();
@@ -608,7 +592,9 @@ mod tests {
                 &bob.create_key_package(&bob_provider).unwrap(),
             )
             .unwrap();
-        alice_group.merge_pending_commit(&mut alice_provider).unwrap();
+        alice_group
+            .merge_pending_commit(&mut alice_provider)
+            .unwrap();
         let bob_group = Group::join(&bob_provider, &output.welcome, &output.ratchet_tree).unwrap();
         (
             alice_provider,
@@ -645,7 +631,10 @@ mod tests {
         let restored_group = Group::load(&restored, alice_group.group_id().as_slice()).unwrap();
         assert_eq!(restored_identity.public_key(), alice.public_key());
         assert_eq!(restored_group.epoch(), alice_group.epoch());
-        assert_eq!(restored_group.members_json().unwrap(), alice_group.members_json().unwrap());
+        assert_eq!(
+            restored_group.members_json().unwrap(),
+            alice_group.members_json().unwrap()
+        );
     }
 
     #[test]
