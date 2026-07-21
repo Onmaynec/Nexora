@@ -269,6 +269,38 @@ test("Stripe webhook requires a valid HMAC and fresh timestamp", () => {
   assert.throws(() => verifyStripeWebhook(body, header, secret, { nowMs: (timestamp + 301) * 1000 }), (error) => error.code === "WEBHOOK_TIMESTAMP_INVALID");
 });
 
+test("duplicate checkout order preserves authoritative price and rejects key reuse", (t) => {
+  const { database } = createFixture(t);
+  createLinkedAccount(database, "order");
+  database.upsertPrice({
+    id: "price-pack-order",
+    productCode: "impulse_pack_500",
+    providerPriceId: "price_stripe_order",
+    currency: "EUR",
+    amountMinor: 499,
+    region: "FI",
+  });
+  const input = {
+    serverId: "server-main",
+    localUserId: "user-order",
+    productCode: "impulse_pack_500",
+    currency: "EUR",
+    region: "FI",
+    idempotencyKey: "checkout-order-001",
+  };
+  const first = database.createOrder(input);
+  const duplicate = database.createOrder(input);
+  assert.equal(first.duplicate, false);
+  assert.equal(duplicate.duplicate, true);
+  assert.equal(duplicate.order.id, first.order.id);
+  assert.equal(duplicate.price.amount_minor, 499);
+  assert.equal(duplicate.price.provider_price_id, "price_stripe_order");
+  assert.throws(
+    () => database.createOrder({ ...input, productCode: "nexora_plus" }),
+    (error) => error.code === "IDEMPOTENCY_CONFLICT",
+  );
+});
+
 test("failed provider events can retry but processed events stay idempotent", (t) => {
   const { database } = createFixture(t);
   const first = database.recordProviderEvent({ provider: "stripe", eventId: "evt-retry-1", eventType: "invoice.paid", payloadHash: "hash-a" });
