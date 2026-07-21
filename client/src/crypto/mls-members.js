@@ -1,3 +1,5 @@
+import { nodeTypes } from "ts-mls";
+
 const decoder = new TextDecoder();
 
 function parseCredential(credential) {
@@ -15,7 +17,7 @@ export function memberDirectory(state) {
   const directory = new Map();
   for (let nodeIndex = 0; nodeIndex < (state?.ratchetTree?.length || 0); nodeIndex += 2) {
     const node = state.ratchetTree[nodeIndex];
-    if (!node || node.nodeType !== "leaf") continue;
+    if (!node || node.nodeType !== nodeTypes.leaf) continue;
     const identity = parseCredential(node.leaf?.credential);
     if (!identity) continue;
     const leafIndex = nodeIndex / 2;
