@@ -1,0 +1,321 @@
+openapi: 3.1.0
+info:
+  title: Nexora Pulse Cloud API
+  version: 1.0.0-alpha.1
+  description: >-
+    Production billing boundary for Nexora 3.1.0. Checkout redirects never
+    confirm payment; only verified provider webhooks settle orders.
+servers:
+  - url: https://pulse.example.com
+security:
+  - serverBearer: []
+tags:
+  - name: Health
+  - name: Accounts
+  - name: Checkout
+  - name: Goals
+  - name: Provider
+paths:
+  /healthz:
+    get:
+      security: []
+      tags: [Health]
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service and ledger health
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, service, ledger]
+                properties:
+                  ok: { type: boolean }
+                  service: { type: string }
+                  ledger:
+                    type: object
+                    required: [ok, failures]
+                    properties:
+                      ok: { type: boolean }
+                      failures: { type: array, items: { type: object } }
+  /v1/public-keys:
+    get:
+      security: []
+      tags: [Health]
+      operationId: getPublicKeys
+      responses:
+        '200':
+          description: Ed25519 public-key registry
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, keys]
+                properties:
+                  ok: { type: boolean }
+                  keys:
+                    type: array
+                    items:
+                      type: object
+                      required: [keyId, publicKey, algorithm]
+                      properties:
+                        keyId: { type: string }
+                        publicKey: { type: string }
+                        algorithm: { const: Ed25519 }
+  /v1/admin/accounts:
+    post:
+      security: [{ adminBearer: [] }]
+      tags: [Accounts]
+      operationId: createCloudAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id: { type: string }
+                country: { type: string, minLength: 2, maxLength: 2 }
+      responses:
+        '201': { $ref: '#/components/responses/UnsignedSuccess' }
+        default: { $ref: '#/components/responses/Error' }
+  /v1/admin/links:
+    post:
+      security: [{ adminBearer: [] }]
+      tags: [Accounts]
+      operationId: linkLocalAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [accountId, serverId, localUserId]
+              properties:
+                accountId: { type: string }
+                serverId: { type: string }
+                localUserId: { type: string }
+      responses:
+        '201': { $ref: '#/components/responses/UnsignedSuccess' }
+        default: { $ref: '#/components/responses/Error' }
+  /v1/servers/{serverId}/users/{userId}/overview:
+    get:
+      tags: [Accounts]
+      operationId: getPulseOverview
+      parameters:
+        - $ref: '#/components/parameters/ServerId'
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/ServerHeader'
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200': { $ref: '#/components/responses/SignedSuccess' }
+        default: { $ref: '#/components/responses/Error' }
+  /v1/checkout/sessions:
+    post:
+      tags: [Checkout]
+      operationId: createCheckoutSession
+      parameters:
+        - $ref: '#/components/parameters/ServerHeader'
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [serverId, userId, productCode]
+              properties:
+                serverId: { type: string }
+                userId: { type: string }
+                productCode: { enum: [nexora_plus, impulse_pack_500] }
+                currency: { type: string, minLength: 3, maxLength: 3 }
+                region: { type: string }
+      responses:
+        '201': { $ref: '#/components/responses/SignedSuccess' }
+        default: { $ref: '#/components/responses/Error' }
+  /v1/checkout/{id}:
+    get:
+      tags: [Checkout]
+      operationId: getCheckoutSession
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/ServerHeader'
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200': { $ref: '#/components/responses/SignedSuccess' }
+        default: { $ref: '#/components/responses/Error' }
+  /v1/goals:
+    post:
+      tags: [Goals]
+      operationId: createRoomGoal
+      parameters:
+        - $ref: '#/components/parameters/ServerHeader'
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [serverId, roomId, userId, productCode, targetAmount, expiresAt]
+              properties:
+                serverId: { type: string }
+                roomId: { type: string }
+                userId: { type: string }
+                productCode: { const: room_reaction_pack }
+                title: { type: string, maxLength: 120 }
+                description: { type: string, maxLength: 1000 }
+                targetAmount: { type: integer, minimum: 1 }
+                expiresAt: { type: string, format: date-time }
+                entitlementDurationDays: { type: integer, minimum: 1, maximum: 3650 }
+      responses:
+        '201': { $ref: '#/components/responses/SignedSuccess' }
+        default: { $ref: '#/components/responses/Error' }
+  /v1/goals/{goalId}/contributions:
+    post:
+      tags: [Goals]
+      operationId: contributeToRoomGoal
+      parameters:
+        - $ref: '#/components/parameters/GoalId'
+        - $ref: '#/components/parameters/ServerHeader'
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [serverId, userId, amount]
+              properties:
+                serverId: { type: string }
+                userId: { type: string }
+                amount: { type: integer, minimum: 1, maximum: 100000 }
+      responses:
+        '200': { $ref: '#/components/responses/SignedSuccess' }
+        '201': { $ref: '#/components/responses/SignedSuccess' }
+        default: { $ref: '#/components/responses/Error' }
+  /v1/goals/{goalId}/cancel:
+    post:
+      tags: [Goals]
+      operationId: cancelRoomGoal
+      parameters:
+        - $ref: '#/components/parameters/GoalId'
+        - $ref: '#/components/parameters/ServerHeader'
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [serverId, userId]
+              properties:
+                serverId: { type: string }
+                userId: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/SignedSuccess' }
+        '201': { $ref: '#/components/responses/SignedSuccess' }
+        default: { $ref: '#/components/responses/Error' }
+  /v1/provider/webhooks/stripe:
+    post:
+      security: []
+      tags: [Provider]
+      operationId: receiveStripeWebhook
+      parameters:
+        - name: Stripe-Signature
+          in: header
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: Event processed or already processed
+        default: { $ref: '#/components/responses/Error' }
+components:
+  securitySchemes:
+    serverBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque-server-credential
+    adminBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque-operator-credential
+  parameters:
+    ServerId:
+      name: serverId
+      in: path
+      required: true
+      schema: { type: string }
+    GoalId:
+      name: goalId
+      in: path
+      required: true
+      schema: { type: string }
+    ServerHeader:
+      name: X-Nexora-Server-ID
+      in: header
+      required: true
+      schema: { type: string }
+    RequestId:
+      name: X-Request-ID
+      in: header
+      required: false
+      schema: { type: string, minLength: 8, maxLength: 128 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 2, maxLength: 128 }
+  schemas:
+    SignedEnvelope:
+      type: object
+      required: [payload, signature, keyId]
+      properties:
+        payload: { type: string, contentEncoding: base64url }
+        signature: { type: string, contentEncoding: base64url }
+        keyId: { type: string }
+    Error:
+      type: object
+      required: [ok, code, message, requestId, details]
+      properties:
+        ok: { const: false }
+        code: { type: string }
+        message: { type: string }
+        requestId: { type: string }
+        details: { type: object, additionalProperties: true }
+  responses:
+    SignedSuccess:
+      description: Ed25519-signed response envelope
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/SignedEnvelope' }
+    UnsignedSuccess:
+      description: Operator response
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [ok, requestId]
+            properties:
+              ok: { const: true }
+              requestId: { type: string }
+    Error:
+      description: Stable error envelope
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
