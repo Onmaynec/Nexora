@@ -1,31 +1,26 @@
-# Nexora 3.0.0
+# Nexora
 
 [![CI](https://github.com/Onmaynec/Nexora/actions/workflows/ci.yml/badge.svg)](https://github.com/Onmaynec/Nexora/actions/workflows/ci.yml)
-![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-9b5cff)
-![Web](https://img.shields.io/badge/Web-PWA-70e6b1)
-![Android](https://img.shields.io/badge/Android-SDK%2036-70e6b1)
 ![Release](https://img.shields.io/badge/release-3.0.0-c69cff)
+![Node.js](https://img.shields.io/badge/Node.js-22.16%2B-70e6b1)
+![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20PWA%20%7C%20Android-9b5cff)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Nexora — self-hosted мессенджер с общим интерфейсом для Windows, браузера/PWA и Android. Версия 3.0.0 объединяет дорожную карту 2.0.1–3.0.0 в один релиз: повседневные функции мессенджера, офлайн-синхронизацию, сообщества, безопасные медиа, Nexora Plus/Pulse, эксплуатацию сервера, ботов и три клиентские платформы.
+Nexora — self-hosted мессенджер с единым интерфейсом для Windows, браузера/PWA и Android. Сервер управляет аккаунтами, сообщениями, ролями, файлами и политиками доступа; клиенты синхронизируются по HTTPS и Socket.IO и поддерживают устойчивую офлайн-очередь.
 
-Голосовые сообщения поддерживаются. Голосовые/видеозвонки, демонстрация экрана, E2EE, криптовалюты и NFT намеренно не входят в продукт.
+> **Текущий стабильный релиз:** `3.0.0`. Nexora не использует E2EE: оператор сервера имеет технический доступ к рабочей базе и вложениям. Перед развёртыванием ознакомьтесь с [моделью безопасности](SECURITY.md).
 
-## Возможности 3.0.0
+## Основные возможности
 
-| Контур | Реализовано |
-|---|---|
-| Сообщения | личные чаты, Saved Messages, комнаты, ответы/ветки, редактирование с историей, пересылка, реакции, закладки, multi-select, silent и scheduled send, опросы, упоминания |
-| Организация | архив, pin/mute, вкладки личных/комнат/непрочитанных, черновики между устройствами, фон и компактный режим чата, глобальный FTS5-поиск с фильтрами |
-| Offline Relay | IndexedDB-кэш bootstrap и последних 500 сообщений чата, устойчивая outbox, event sequence API v3, delta/resync, повтор без дублей |
-| Несколько серверов | сохранённые Server ID/URL/fingerprint, отдельная постоянная Electron partition на сервер, безопасное переключение и публичные HTTPS-домены |
-| Сообщества | владельцы/модераторы/custom roles, разрешения, категории, несколько приглашений, заявки, временные ограничения/баны, жалобы, pre-approval, announcement/read-only/slow mode, аудит |
-| Медиа | до 25 МБ, очередь и прогресс, отмена/повтор, resumable chunks по 1 МБ с SHA-256, проверка сигнатуры MIME, галерея, PDF preview, голосовые до 5 минут |
-| Уведомления | центр активности, mentions/replies/security events, режим all/mentions/none, тихие часы, Windows notifications |
-| Безопасность | TOTP и одноразовые recovery codes, шифрование TOTP secret AES-256-GCM, CSRF/Origin, HttpOnly cookie, login lock/rate limits, TLS pinning, webhook SSRF-защита |
-| Эксплуатация | SQLite schema 6, migration backup, WAL/FULL, integrity checks, encrypted backup/restore, quota/retention, read-only emergency mode, Stable/Preview channel, metrics |
-| Автоматизация | отдельные bot accounts, hashed scoped API tokens, 60 req/min, room isolation, signed outgoing HTTPS webhooks и integration audit |
-| Plus/Pulse | sandbox без денег и production contract с HTTPS Cloud, Ed25519 entitlement, idempotency, ledger/goals/refund boundary |
-| Платформы | Electron Client/Server для Windows, устанавливаемая PWA, Android HTTPS WebView shell с deep link `nexora://connect` |
+- личные чаты, Saved Messages, комнаты, ответы, ветки, реакции, опросы, редактирование и пересылка сообщений;
+- роли владельца и модераторов, пользовательские разрешения, приглашения, заявки, баны, slow mode, read-only и аудит действий;
+- IndexedDB-кэш, delta sync, durable outbox и безопасное переключение между несколькими серверами;
+- загрузка файлов и изображений до 25 МБ, resumable upload, проверка фактического MIME-типа и голосовые сообщения;
+- TOTP, recovery codes, CSRF/Origin-проверки, rate limits, резервное копирование и контроль целостности SQLite;
+- Windows Client/Server, устанавливаемая PWA, Android WebView shell, боты, scoped API tokens и подписанные webhooks;
+- Nexora Plus/Pulse в sandbox-режиме и через отдельный production trust boundary.
+
+Полный состав релиза: [Release Notes 3.0.0](RELEASE_NOTES_3.0.0.md).
 
 ## Архитектура
 
@@ -40,105 +35,97 @@ flowchart TB
   P -->|"HTTPS + Socket.IO"| S
   A -->|"HTTPS + Socket.IO"| S
   S --> D[("SQLite schema 6")]
-  S --> F["Files + backups"]
+  S --> F["Files and backups"]
   S -. "signed entitlement" .-> C["Pulse Cloud"]
-  G["GitHub Releases"] -->|"signed stable update"| W
 ```
 
-Server является authority аккаунтов, сообщений, ролей и файлов. Клиенты хранят только scoped cache/outbox. Production Pulse Cloud остаётся отдельным денежным trust boundary; локальный флаг не создаёт реальную покупку.
+Server является единственным authority для аккаунтов, сообщений, ролей и файлов. Клиенты хранят только ограниченный кэш и очередь исходящих операций. Production Pulse Cloud разворачивается отдельно и не доверяет локальному флагу покупки.
 
-Подробнее: [архитектура](docs/ARCHITECTURE.md) и [карта проекта/API](PROJECT_INDEX.md).
+Подробности: [архитектура](docs/ARCHITECTURE.md) и [индекс проекта/API](PROJECT_INDEX.md).
 
-## Быстрый старт
+## Требования
 
-### Windows / LAN / Radmin VPN
+- Node.js `22.16+` и npm;
+- Windows 10/11 для Electron-сборок;
+- JDK 17 и Android SDK 36 для Android-клиента;
+- HTTPS для браузерных, Android- и публичных развёртываний.
 
-1. Установите и запустите `Nexora-Server-Setup-3.0.0.exe` на компьютере владельца.
-2. Скопируйте показанный HTTPS-адрес и SHA-256 сертификата.
-3. В `Nexora Client` добавьте сервер и сверьте fingerprint на компьютере владельца.
-4. Первый зарегистрированный аккаунт становится администратором.
-
-Для Electron Client устанавливать CA не требуется: сертификат закрепляется за Server ID после явного подтверждения. Для браузера и Android установите экспортированный `nexora-local-ca.crt` в доверенные сертификаты ОС. Ни один клиент не обходит TLS-ошибки.
-
-Публичный домен разрешён только по HTTPS. Для internet deployment используйте reverse proxy, ограниченный firewall, резервное копирование и явный `allowedOrigins`; не публикуйте локальный порт без защиты.
-
-### PWA
-
-Откройте HTTPS-адрес Server в Chrome/Edge и выберите «Установить приложение». Service worker не кэширует `/api` или Socket.IO; офлайн-история хранится отдельно в IndexedDB после успешной авторизации.
-
-### Android
-
-Android source находится в [`android/`](android/README.md). Требуются JDK 17, Android SDK 36 и Gradle 8.13:
-
-```bash
-gradle -p android :app:assembleRelease
-```
-
-Клиент принимает QR/deep link `nexora://connect?url=<HTTPS URL>`, ограничивает навигацию origin сервера, запрещает HTTP/mixed content/third-party cookies и всегда вызывает `cancel()` при TLS-ошибке.
-
-## Сборка и проверка
-
-Требования: Node.js 22.16+ и npm.
+## Быстрый старт для разработки
 
 ```bash
 git clone https://github.com/Onmaynec/Nexora.git
 cd Nexora
 npm ci
+npm run dev
+```
+
+Проверка перед Pull Request:
+
+```bash
 npm run check
 npm test
 npm run audit:security
 ```
 
-Windows test installers:
+Для локальной Windows-сборки:
 
-```bat
+```bash
 npm run dist:windows
 ```
 
-Результат: `Nexora-Client-Setup-3.0.0.exe` и `Nexora-Server-Setup-3.0.0.exe`. Неподписанные локальные сборки предназначены только для тестов.
+Неподписанные локальные установщики предназначены только для тестирования. Требования к стабильному релизу и подписи описаны в [GitHub Release Guide](docs/GITHUB_RELEASE.md).
 
-Текущий automated contour: 51/51 тест, Windows/Linux CI, Android source build, load 20 clients/120 messages, migration/backup/restore, crash durability, TOTP, API v3, bots, MIME/SSRF и UI regression профиля.
+## Развёртывание
 
-## GitHub Release и автообновление
+### Windows / LAN
 
-Commit `release:` в `main` после успешного CI создаёт неизменяемый аннотированный тег `v3.0.0`. Workflow сверяет SemVer и всегда формирует source ZIP, PWA ZIP, SPDX SBOM и SHA-256.
+1. Запустите Nexora Server на компьютере владельца.
+2. Скопируйте HTTPS-адрес и SHA-256 fingerprint сертификата.
+3. Добавьте сервер в Nexora Client и вручную сверьте fingerprint.
+4. Первый зарегистрированный аккаунт получает административные полномочия сервера.
 
-- Если настроены `WINDOWS_CERTIFICATE_BASE64` и `WINDOWS_CERTIFICATE_PASSWORD`, workflow собирает подписанные Client/Server, проверяет `.exe`, `.blockmap`, `latest.yml` и только затем публикует стабильный Latest-релиз.
-- Если secrets отсутствуют, workflow успешно публикует Source/PWA prerelease. Windows update metadata и неподписанные `.exe` в него не попадают.
+Для браузера и Android локальный CA должен быть установлен в доверенные сертификаты ОС. Клиенты не обходят TLS-ошибки.
 
-Так релиз больше не исчезает из-за signing gate, но updater по-прежнему никогда не получает неподписанный бинарный файл. Подробности: [GitHub Release Guide](docs/GITHUB_RELEASE.md).
+Публичный сервер размещайте только за HTTPS reverse proxy, с ограниченным firewall, явным `allowedOrigins` и регулярными резервными копиями. Не публикуйте локальный порт напрямую в интернет.
 
-## Nexora Plus / Pulse
+### PWA и Android
 
-Режимы Server:
+PWA устанавливается из Chrome/Edge по HTTPS. Service worker кэширует только оболочку приложения, а пользовательские данные сохраняются в IndexedDB после авторизации.
 
-- `disabled` — коммерческие возможности отключены;
-- `sandbox` — Plus и импульсы тестируются без денег;
-- `production` — checkout/entitlement/ledger только через отдельно развёрнутый Pulse Cloud.
+Android source находится в [`android/`](android/README.md):
 
-Production требует `NEXORA_PULSE_CLOUD_URL`, `NEXORA_PULSE_API_KEY`, `NEXORA_PULSE_PUBLIC_KEY`, провайдера платежей, webhook/refund/dispute flow и юридических документов. См. [Pulse](docs/PULSE.md).
+```bash
+gradle -p android :app:assembleRelease
+```
 
-## Границы безопасности
+## Границы продукта
 
-- сообщения не имеют E2EE и доступны администратору компьютера Server;
-- secrets, PFX/P12, базы и пользовательские вложения исключены из Git;
-- Windows stable updater требует Authenticode и `verifyUpdateCodeSignature`;
-- bot tokens показываются один раз и хранятся только как hash;
-- webhooks принимают только публичные HTTPS-адреса и используют DNS pinning/HMAC;
-- перед schema migration создаётся SQLite backup, а restore проверяет integrity.
+- сообщения и вложения не защищены E2EE от оператора сервера;
+- голосовые сообщения поддерживаются, но голосовые/видеозвонки и демонстрация экрана не входят в релиз 3.0.0;
+- криптовалюты и NFT не являются частью продукта;
+- production-покупка Plus требует отдельного Pulse Cloud, платёжного провайдера и юридической инфраструктуры.
 
 ## Документация
 
-- [Release Notes 3.0.0](RELEASE_NOTES_3.0.0.md)
-- [Отчёт верификации 3.0.0](RELEASE_VERIFICATION_3.0.0.md)
-- [Changelog](CHANGELOG.md)
-- [Руководство администратора](ADMIN_GUIDE.md)
-- [Руководство тестера](TESTER_GUIDE.md)
-- [Архитектура](docs/ARCHITECTURE.md)
-- [Nexora Plus / Pulse](docs/PULSE.md)
-- [Боты и интеграции](docs/AUTOMATIONS.md)
-- [GitHub Releases](docs/GITHUB_RELEASE.md)
-- [Release checklist](docs/RELEASE_CHECKLIST.md)
-- [Security](SECURITY.md) и [security audit](SECURITY_AUDIT.md)
+| Раздел | Документ |
+|---|---|
+| Архитектура и карта кода | [ARCHITECTURE.md](docs/ARCHITECTURE.md), [PROJECT_INDEX.md](PROJECT_INDEX.md) |
+| Администрирование | [ADMIN_GUIDE.md](ADMIN_GUIDE.md) |
+| Тестирование | [TESTER_GUIDE.md](TESTER_GUIDE.md), [RELEASE_VERIFICATION_3.0.0.md](RELEASE_VERIFICATION_3.0.0.md) |
+| Plus / Pulse | [PULSE.md](docs/PULSE.md) |
+| Боты и интеграции | [AUTOMATIONS.md](docs/AUTOMATIONS.md) |
+| Релизы | [CHANGELOG.md](CHANGELOG.md), [GITHUB_RELEASE.md](docs/GITHUB_RELEASE.md), [RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md) |
+| Безопасность | [SECURITY.md](SECURITY.md), [SECURITY_AUDIT.md](SECURITY_AUDIT.md) |
 
-Публичный репозиторий: [Onmaynec/Nexora](https://github.com/Onmaynec/Nexora).
+## Участие в проекте
+
+Перед изменениями прочитайте [CONTRIBUTING.md](CONTRIBUTING.md) и [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
+- ошибки: [Bug report](https://github.com/Onmaynec/Nexora/issues/new?template=bug_report.yml);
+- предложения: [Feature request](https://github.com/Onmaynec/Nexora/issues/new?template=feature_request.yml);
+- вопросы по установке и эксплуатации: [SUPPORT.md](SUPPORT.md);
+- уязвимости: только приватно по инструкции в [SECURITY.md](SECURITY.md).
+
+## Лицензия
+
+Код и документация распространяются по лицензии [MIT](LICENSE).
