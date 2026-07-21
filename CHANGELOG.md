@@ -2,6 +2,25 @@
 
 Формат основан на Keep a Changelog. Версии следуют Semantic Versioning.
 
+## [3.1.1] — 2026-07-21
+
+### Added
+
+- liveness, readiness и защищённые Prometheus metrics для Local Server и Pulse Cloud;
+- единый developer command registry для CLI и Windows Server Admin;
+- аудит изменяющих административных команд без сохранения секретных аргументов.
+
+### Changed
+
+- graceful shutdown переводит сервисы в drain state до остановки workers, HTTP, Socket.IO и SQLite;
+- Cloud health использует версию из package metadata вместо жёстко заданной строки.
+
+### Security
+
+- operational HTTP logs получают request ID и рекурсивно скрывают credentials, cookies, passwords, tokens, API keys и signatures;
+- metrics endpoint требует bearer token либо loopback source;
+- административная консоль не предоставляет shell или eval.
+
 ## [3.1.0] — 2026-07-21
 
 ### Added

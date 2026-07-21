@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld("nexoraServer", {
   openCertificate: () => ipcRenderer.invoke("server:open-certificate"),
   openDataFolder: () => ipcRenderer.invoke("server:open-data-folder"),
   openLogFile: () => ipcRenderer.invoke("server:open-log-file"),
+  runCommand: (command) => ipcRenderer.invoke("server:command", command),
   updateStatus: () => ipcRenderer.invoke("server:update-status"),
   checkForUpdates: () => ipcRenderer.invoke("server:check-update"),
   downloadUpdate: () => ipcRenderer.invoke("server:download-update"),

@@ -1,11 +1,28 @@
 "use strict";
 
 const path = require("node:path");
+const readline = require("node:readline");
 const { createNexoraServer } = require("./create-server-v31.cjs");
 
 function boolEnv(value, fallback) {
   if (value == null) return fallback;
   return !["0", "false", "no", "off"].includes(String(value).toLowerCase());
+}
+
+function attachCommandConsole(instance) {
+  if (!process.stdin.isTTY || !instance.commandService) return null;
+  const terminal = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: true, prompt: "nexora> " });
+  terminal.on("line", async (line) => {
+    try {
+      const result = await instance.commandService.execute(line, { actor: "cli" });
+      if (result.output) console.log(result.output);
+      if (result.data != null) console.log(JSON.stringify(result.data, null, 2));
+    } catch (error) { console.error(`Команда отклонена (${error.code || "COMMAND_FAILED"}): ${error.message}`); }
+    terminal.prompt();
+  });
+  terminal.on("SIGINT", () => terminal.close());
+  terminal.prompt();
+  return terminal;
 }
 
 async function main() {
@@ -30,11 +47,13 @@ async function main() {
   console.log(`SQLite schema: ${status.schemaVersion || status.stats?.schemaVersion}`);
   console.log(`Pulse: ${status.pulseV3?.mode || status.pulse?.mode || "disabled"}`);
   if (status.stats.firstAccountPending) console.log("\nПервый зарегистрированный аккаунт получит права администратора сервера.");
+  const commandConsole = attachCommandConsole(instance);
 
   let stopping = false;
   const stop = async () => {
     if (stopping) return;
     stopping = true;
+    commandConsole?.close();
     await instance.close();
     process.exit(0);
   };
