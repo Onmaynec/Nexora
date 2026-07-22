@@ -4,7 +4,7 @@
 
 This document covers the development branch `agent/nexora-3.2.0-trust-core-mls`. It is an implementation record and release-readiness checklist, not a security certification.
 
-Verified in the branch:
+Verified in the branch implementation and automated tests:
 
 - Local Server schema 8 migration with backup, integrity checks and downgrade protection;
 - Ed25519 device identity, verification and revocation;
@@ -13,25 +13,30 @@ Verified in the branch:
 - ciphertext-only secure-message transport and persistence;
 - encrypted local MLS state, KeyPackages, decrypted cache and drafts;
 - secure-message UI/outbox and trusted-device management UI;
+- AES-256-GCM encrypted files, images and voice with authenticated descriptor inside MLS content;
+- opaque attachment upload, exact-size/hash checks, one-time claim, cancel and cleanup;
 - server-side plaintext guards for legacy message, forward, scheduled, poll, bot and upload paths;
-- schema, Trust Core, recovery, plaintext-guard and Alice/Bob interoperability tests.
+- schema, Trust Core, recovery, plaintext-guard, media, store-queue and Alice/Bob interoperability tests.
 
-The branch remains draft because encrypted attachments, metadata policy, broader multi-device/failure testing, release documentation and independent cryptographic review are not complete.
+The branch remains draft because the complete platform/runtime matrix, metadata/traffic-analysis review, load/soak, signing-machine checks and independent cryptographic review are not complete.
 
 ## Security objective
 
 The private-message path uses MLS 1.0 so that:
 
 - message content is encrypted on the sending device;
+- attachment keys and source metadata are delivered only inside MLS application content;
 - Local Server transports and persists ciphertext only for the secure path;
 - membership changes advance a monotonic group epoch;
 - removed or revoked devices cannot receive subsequent delivery;
 - private MLS state and decrypted cache remain encrypted at rest on the client;
 - replayed or substituted protocol messages are rejected.
 
-Metadata such as account identifiers, conversation membership, delivery timing, ciphertext size and operational logs is not hidden automatically by MLS and requires separate minimization controls.
+Metadata such as account/device identifiers, conversation membership, delivery timing, IP/network context, ciphertext size, attachment ID, uploader and operational logs is not hidden automatically by MLS or attachment encryption.
 
 ## Cryptographic profile
+
+### MLS messages
 
 The implementation fixes the MLS ciphersuite to `MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519` (`0x0001`):
 
@@ -42,6 +47,20 @@ The implementation fixes the MLS ciphersuite to `MLS_128_DHKEMX25519_AES128GCM_S
 
 The npm dependency is pinned exactly to `ts-mls@1.6.2`; the adapter uses the API actually published by that package rather than convenience exports present only in unreleased source revisions.
 
+### Attachments
+
+Each file, image or voice payload is encrypted independently on the client with:
+
+- a new random 256-bit AES key;
+- a new random 96-bit IV;
+- AES-256-GCM with a 128-bit authentication tag;
+- AAD bound to `conversationId`, `attachmentId` and logical media kind;
+- SHA-256 over plaintext and ciphertext for explicit post-transfer verification.
+
+The versioned attachment descriptor contains the AES key, IV, original name, MIME, media kind, plaintext/ciphertext sizes, hashes, voice duration and waveform. The descriptor is serialized into MLS application plaintext and therefore reaches Local Server only as MLS ciphertext.
+
+This design is not a claim of streaming encryption. The current client encrypts a maximum 25 MiB attachment in memory before upload.
+
 ## Components
 
 ### Browser MLS engine
@@ -50,16 +69,23 @@ The npm dependency is pinned exactly to `ts-mls@1.6.2`; the adapter uses the API
 
 Credential authentication is not `accept-all`: the engine resolves the `(userId, deviceId)` credential through Trust Core and verifies the registered signature key and active/verified state.
 
-### Client Trust boundary
+### Client Trust and media boundary
 
-`client/src/crypto/trust-client.js`, `trust-device-management.js` and `trust-store.js` provide:
+`client/src/crypto/trust-client.js`, `trust-device-management.js`, `trust-store.js` and `e2ee-media.js` provide:
 
 - non-extractable Ed25519 device identity keys;
 - a separate MLS signing key bound to the same registered device credential;
 - signed challenge-response for registration, verification and revocation;
 - AES-GCM wrapping of private MLS state, KeyPackages, decrypted cache and drafts in IndexedDB;
 - scope separation by Server ID and local user ID;
-- complete local wipe after self-revocation.
+- complete local wipe after self-revocation;
+- attachment AES-256-GCM encryption/decryption and AAD binding;
+- XHR upload progress and abort;
+- server-envelope ID/hash/size validation;
+- post-download ciphertext and plaintext hash validation;
+- local image preview, voice playback and explicit download.
+
+The ordinary localStorage outbox stores only MLS ciphertext and opaque attachment ID. It does not store the attachment AES key, original name or MIME as separate plaintext fields. The decrypted offline message cache removes the attachment descriptor; the recoverable descriptor remains within encrypted Trust-store content.
 
 The browser runtime is still part of the trusted computing base. XSS, compromised dependencies or a compromised client binary can access plaintext while the user is using the application.
 
@@ -77,6 +103,22 @@ The browser runtime is still part of the trusted computing base. XSS, compromise
 - immediate delivery denial after device revocation.
 
 Local Server is the Delivery Service. It does not hold private MLS state and does not decrypt secure-message content.
+
+### Opaque attachment service
+
+`server/e2ee-attachments.cjs` accepts only `application/octet-stream` ciphertext for an active MLS conversation. It validates:
+
+- authenticated local session and CSRF through the Trust route boundary;
+- membership, room ban, posting restrictions and rate limits;
+- attachment UUID and caller/conversation scope;
+- plaintext size limit and exact `ciphertext = plaintext + 16-byte tag` size;
+- timing-safe SHA-256 ciphertext equality;
+- storage quota and duplicate/payload-substitution semantics;
+- room media policy.
+
+The server generates the stored filename and generic MIME. A pending attachment is unavailable for download and expires after 24 hours. `mls:message` atomically claims it in the same state mutation that creates the encrypted message. A claimed attachment cannot be rebound or deleted through the pending-delete route.
+
+When a room disables any of files, images or voice, the server blocks the complete opaque E2EE media path. This is deliberate fail-closed behavior: the server cannot reliably classify encrypted content without weakening confidentiality.
 
 ### Schema 8
 
@@ -127,6 +169,17 @@ The rollback procedure is restore-from-backup, not an in-place destructive downg
 - local search operates over the encrypted decrypted-content cache;
 - edits/replies/reactions are represented through the secure client path where supported.
 
+### Encrypted attachment
+
+1. Client reads the selected Blob and creates a random attachment ID, AES key and IV.
+2. Client encrypts bytes with conversation/attachment/kind AAD and computes both hashes.
+3. Client uploads opaque ciphertext with ID, plaintext size and ciphertext hash.
+4. Server stores it as pending and returns only opaque envelope metadata.
+5. Client places the descriptor inside an MLS application message and enqueues that MLS ciphertext with the attachment ID.
+6. `mls:message` reserves the MLS replay hash and atomically claims the pending attachment while creating the message.
+7. Recipient verifies the MLS message, descriptor-to-server envelope, downloaded ciphertext hash, GCM tag and plaintext hash before preview or download.
+8. If claim fails, the replay reservation is released and the pending attachment remains safely scoped or expires.
+
 ## Plaintext bypass prevention
 
 Once a conversation has an active MLS group, Local Server rejects plaintext creation through:
@@ -136,19 +189,18 @@ Once a conversation has an active MLS group, Local Server rejects plaintext crea
 - server drafts and scheduled messages;
 - polls;
 - bot message API;
-- chunked upload initiation/completion;
+- chunked upload initiation/chunk/completion;
 - other v3 paths that call the legacy text-message service.
 
-Attachments, images and voice are currently disabled in the secure pane rather than transmitted without encryption. This is a deliberate safe failure, not completed encrypted-media support.
+Encrypted media uses only the v4 opaque endpoint and MLS message binding. It does not fall back to legacy multipart or resumable plaintext upload.
 
 ## Remaining release blockers
 
-- encrypted attachment format, key derivation, authenticated metadata and streaming/resumable upload design;
 - metadata minimization and traffic-analysis review;
 - multi-device concurrency, simultaneous commits, removal/re-add and corrupted-state matrix;
-- browser/Electron/Android runtime integration tests beyond source build;
+- browser/Electron/Android runtime integration tests beyond source/production build;
 - load/soak and long-offline recovery testing;
-- final version metadata, release notes, administrator/tester guides and verification report;
+- final signing-machine release checks and verification report;
 - independent cryptographic and application-security review.
 
 ## Required final gates
@@ -159,7 +211,8 @@ Attachments, images and voice are currently disabled in the secure pane rather t
 - Android `assembleDebug` and release-source validation;
 - schema 7 fixture migration and backup restore exercise;
 - direct REST/Socket.IO downgrade attempts;
-- two-device and multi-device interoperability;
+- attachment upload/claim/replay/corruption/policy tests;
+- two-device and broader multi-device interoperability;
 - encrypted IndexedDB corruption/isolation tests;
 - release signing checks on the signing machine;
 - external review of protocol usage, dependency supply chain and metadata exposure.
@@ -168,9 +221,9 @@ Attachments, images and voice are currently disabled in the secure pane rather t
 
 Until the remaining blockers are closed, this branch does not establish that:
 
-- every Nexora chat or attachment is E2EE;
-- metadata is confidential;
-- existing 3.1.x history is automatically re-encrypted;
+- every Nexora chat or attachment is protected by independently reviewed E2EE;
+- metadata or traffic patterns are confidential;
+- existing 3.1.x history/files are automatically re-encrypted;
 - recovery from lost private state is seamless;
 - the implementation has been independently audited;
 - stable 3.1.2 clients interoperate with secure 3.2.0 conversations.
