@@ -1,141 +1,221 @@
-# Nexora Acceptance Test Guide
+# Руководство по приёмочному тестированию Nexora
 
-## 1. Test scope
+## 1. Область проверки
 
-This guide covers:
+Документ относится к:
 
+- текущей версии `3.2.3` Source/PWA prerelease;
 - signed production baseline `3.1.2`;
-- current `3.2.0` Source/PWA prerelease;
-- Windows Client/Server, PWA and Android source/runtime surfaces;
-- application API v3, Trust/MLS API v4 and SQLite schema 8.
+- Windows Client/Server, Browser/PWA и Android;
+- Application API v3;
+- Trust/MLS/encrypted-media API v4;
+- SQLite schema 8.
 
-The `3.2.0` prerelease is intended for controlled testing with disposable accounts and data. It is not independently audited E2EE and is not a signed stable Windows release.
+`3.2.3` предназначена для контролируемого тестирования с disposable accounts и test data. Она не является подписанным stable Windows release и не заявляется как independently audited E2EE.
 
-## 2. Test environment record
+## 2. Карточка тестовой среды
 
-Record before testing:
+До начала зафиксируйте:
 
-- Client version and platform;
-- Local Server version and schema;
-- Pulse Cloud version/mode where applicable;
-- operating system and browser;
-- deployment type: localhost, LAN, private VPN or public HTTPS;
-- Server ID and sanitized certificate fingerprint;
-- test date and responsible tester;
-- Git commit/tag or release asset identifier.
+- Client, Server и Cloud versions;
+- commit/tag или release asset ID;
+- release channel;
+- OS, browser и device model;
+- deployment profile: localhost, LAN, private VPN или public HTTPS;
+- Local Server schema;
+- Server ID и sanitized certificate fingerprint;
+- Pulse mode;
+- дату, tester и test-data scope.
 
-## 3. Connection and TLS
+## 3. Connection и TLS
 
-1. Obtain the full HTTPS URL, Server ID and SHA-256 fingerprint through a trusted channel.
-2. Connect with Windows Client, PWA or Android.
-3. Confirm that a new certificate requires explicit trust.
-4. Confirm that a changed fingerprint requires renewed approval.
-5. Verify that browser/PWA and Android reject an untrusted certificate.
-6. Verify that HTTP and mixed content are rejected where required.
+1. Получите full HTTPS URL, Server ID и SHA-256 fingerprint по доверенному каналу.
+2. Подключитесь через Windows Client, PWA и Android.
+3. Проверьте explicit confirmation нового certificate.
+4. Проверьте повторное подтверждение при изменённом fingerprint.
+5. Убедитесь, что Browser/PWA и Android отклоняют untrusted certificate.
+6. Убедитесь, что HTTP и mixed content отклоняются.
 
-Expected failures:
+Ожидаемые отказы:
 
-- incomplete IPv4/URL is rejected;
-- certificate SAN mismatch is rejected;
-- incompatible Client receives a clear compatibility error;
-- external Android links open outside the application;
-- TLS errors are never bypassed automatically.
+- incomplete или malformed URL;
+- certificate SAN mismatch;
+- incompatible Client;
+- external Android origin внутри WebView;
+- автоматический обход TLS warning.
 
-## 4. Core messaging
+## 4. Authentication bootstrap и lifecycle regressions
 
-Test:
+### 3.2.1 bootstrap-before-Trust
 
-- direct messages, Saved Messages and rooms;
-- text, reply, thread, reaction, mention and poll;
-- edit, delete, forward, pin and bookmark;
-- silent and scheduled send;
-- drafts, archive, mute, filters and search;
-- read state, notifications and unread divider;
-- offline cache, restart, durable outbox and delta sync without duplicates.
+- выполните cold login без существующей Trust identity;
+- убедитесь, что `/api/bootstrap` загружается до device enrollment и Socket.IO authentication;
+- экран не должен зависать на «Собираем ваши чаты»;
+- Server ID для Trust scope должен поступить из authoritative bootstrap;
+- temporary Cloud/Pulse outage не должен блокировать local bootstrap и messaging.
+
+### 3.2.2 Trust configuration ordering
+
+- выполните cold login с encrypted draft state;
+- убедитесь, что parent layout configuration выполняется до child passive draft effects;
+- pre-configuration draft read должен вернуть empty draft, а не `TRUST_NOT_CONFIGURED`;
+- реальные WebCrypto, IndexedDB, registration и verification failures должны оставаться видимыми;
+- draft write до configuration должен сохранять rejected-Promise error contract.
+
+### Server shutdown
+
+- выполните stop, quit и overlapping stop/quit;
+- убедитесь, что shutdown single-flight;
+- readiness становится `503` до закрытия dependencies;
+- Pulse/Trust status после SQLite close возвращает stopped-state snapshot;
+- unexpected database/repository errors не скрываются;
+- Electron main-process exception отсутствует.
+
+## 5. Core messaging
+
+Проверьте:
+
+- direct messages, Saved Messages и rooms;
+- text, reply, thread, reaction, mention и poll;
+- edit, delete, forward, pin и bookmark;
+- silent и scheduled send;
+- drafts, archive, mute, filters и search;
+- read state, notifications и unread divider;
+- offline cache, restart, durable outbox и delta sync без duplicates.
 
 UI acceptance:
 
-- no zero badges;
-- reaction picker remains interactive;
-- menus and docks stay within viewport/panel boundaries;
-- long names, filenames and 99+ counters do not break layout;
-- keyboard navigation and narrow-window behavior remain usable.
+- zero badges скрыты;
+- reaction picker остаётся interactive;
+- menus/docks не выходят за viewport и panel boundaries;
+- long names, filenames и 99+ counters не ломают layout;
+- keyboard navigation и narrow-window layout остаются usable;
+- `prefers-reduced-motion` соблюдается.
 
-## 5. Profiles, contacts and sessions
+## 6. Profiles, contacts и sessions
 
-- open the same profile card from message, header, chat list, contacts, search and room members;
-- verify null/empty relationship state does not produce a blank screen;
-- update display name, bio/status and avatar;
-- change password and terminate a specific session;
-- remove a contact without deleting history;
-- block/unblock and verify direct-message restrictions;
-- enable local TOTP and consume a recovery code once.
+- откройте одну profile card из message, header, chat list, contacts, search и room members;
+- `relationship: null` не должен вызывать blank screen;
+- измените display name, bio/status и avatar;
+- смените password и завершите отдельную session;
+- удалите contact без удаления history;
+- проверьте block/unblock;
+- включите local TOTP;
+- используйте recovery code один раз;
+- дождитесь expiry test session и проверьте startup/hourly cleanup.
 
-## 6. Rooms and moderation
+## 7. Rooms и moderation
 
-Create public and private rooms and verify:
+Создайте public/private rooms и проверьте:
 
-- direct join, join request and invitation join;
+- direct join, join request и invitation join;
 - `owner`, `moderator`, `member` permission boundaries;
 - moderator appointment/removal;
 - atomic ownership transfer;
-- removal, ban and unban;
-- read-only and slow mode;
+- removal, ban и unban;
+- read-only и slow mode;
 - file/image/voice restrictions;
-- multiple invitations, expiry, usage limit and revocation;
+- multiple invitations, expiry, usage limit и revocation;
 - custom roles/categories;
-- reports, appeals, temporary restrictions and pre-approval;
-- audit entries and system messages.
+- reports, appeals, temporary restrictions и pre-approval;
+- audit entries и system messages.
 
-After removal or ban, direct REST calls and realtime events for the room must be denied.
+### Active-ban fail-closed regression 3.2.3
 
-## 7. Legacy files and voice
+Создайте test fixture с stale membership и одновременным active ban. Проверьте:
 
-- upload multiple files;
-- cancel and retry an upload;
-- interrupt a resumable upload and continue it;
-- verify size, SHA-256 and actual MIME behavior;
-- verify fake image extension is rejected or handled as binary;
-- open image, PDF/text preview and media archive;
-- record, pause, resume, preview and send voice;
-- verify waveform, playback speeds and listened state;
-- close the global voice dock and confirm complete audio-state reset.
+- REST conversation access отклонён;
+- Socket.IO room events не доставляются;
+- media/recovery routes недоступны;
+- membership record не имеет приоритета над ban;
+- стабильная ошибка не раскрывает внутренние database details.
 
-## 8. Trust devices — 3.2.0
+## 8. Legacy files и voice
+
+- загрузите несколько files;
+- отмените и повторите upload;
+- прервите resumable upload и продолжите;
+- проверьте size, SHA-256 и actual MIME;
+- fake image extension отклоняется или обрабатывается как binary;
+- откройте image, PDF/text preview и media archive;
+- запишите, приостановите, продолжите, preview и отправьте voice;
+- проверьте waveform, playback speeds и listened state;
+- закройте global voice dock и подтвердите полный audio-state reset.
+
+## 9. Trust device enrollment и limits
 
 ### Enrollment
 
-- create the first device and verify bootstrap state;
-- enroll a second device;
-- compare fingerprints through a trusted channel;
-- approve the second device from an active verified device;
-- confirm unverified device cannot perform secure operations.
+- создайте first device и подтвердите bootstrap verification;
+- зарегистрируйте second device;
+- сравните fingerprints по доверенному каналу;
+- подтвердите device с active verified device;
+- unverified device не выполняет secure operations;
+- BasicCredential другого user/device scope отклоняется;
+- повторное использование одного Ed25519 key для identity и MLS signature отклоняется.
+
+### Device ceiling 3.2.3
+
+- зарегистрируйте до 16 active devices;
+- 17-й active device должен быть отклонён атомарно;
+- duplicate registration существующего device остаётся idempotent;
+- после revocation одного device появляется одна свободная capacity;
+- concurrent final-capacity registrations не должны создавать более 16 active records.
 
 ### Revocation
 
-- revoke a second device;
-- confirm targeted Socket.IO disconnect is immediate;
-- confirm other devices remain connected;
-- confirm revoked Client wipes device identity, private MLS state, KeyPackages, cache and drafts;
-- confirm revoked device cannot receive new KeyPackage, Welcome, commit or ciphertext events;
-- verify reenrollment requires a new device lifecycle.
+- отзовите device;
+- подтвердите immediate targeted Socket.IO disconnect;
+- другие devices остаются connected;
+- revoked Client удаляет identity, private MLS state, KeyPackages, cache и drafts;
+- revoked device не получает KeyPackage, Welcome, commit или ciphertext;
+- reenrollment запускает новый device lifecycle.
 
-## 9. MLS secure messaging — 3.2.0
+## 10. KeyPackage governance 3.2.3
 
-- create a secure conversation between verified devices;
-- verify one-time KeyPackage claim;
-- verify Welcome scope is bound to user, device and conversation;
-- send messages in both directions;
-- restart one Client and recover a contiguous commit chain;
-- verify replayed ciphertext is rejected;
-- verify stale/skipped epoch is rejected;
-- verify explicit failure after unrecoverable private-state loss;
-- verify local decrypted search/cache behavior;
-- verify server serialization exposes no plaintext message text.
+Проверьте:
 
-### Downgrade tests
+- upload 25 KeyPackages — success;
+- upload 26 KeyPackages — rejection без partial persist;
+- максимум 32 unclaimed packages на device;
+- максимум 256 unclaimed packages на user;
+- overflowing batch полностью rollback;
+- expired package rows очищаются maintenance process;
+- claim остаётся one-time и scope-bound;
+- повторный claim/reuse отклоняется;
+- concurrent upload/claim не обходит ceilings.
 
-After MLS activation, attempt direct legacy operations:
+## 11. Route rate limiting 3.2.3
+
+Для Trust directory, enrollment, KeyPackage, recovery и E2EE upload routes:
+
+- выполните requests до допустимого threshold;
+- превысьте threshold;
+- подтвердите HTTP `429`;
+- подтвердите stable code `RATE_LIMITED`;
+- подтвердите корректный `Retry-After`;
+- после окна request снова выполняется;
+- разные operation buckets не смешиваются ошибочно;
+- bucket storage остаётся bounded;
+- stale persisted buckets удаляются startup/hourly maintenance;
+- rate limiter не позволяет обойти authentication/authorization.
+
+## 12. MLS secure messaging
+
+- создайте secure conversation verified devices;
+- проверьте one-time KeyPackage claim;
+- Welcome bound к user/device/conversation;
+- отправьте messages в обе стороны;
+- перезапустите Client и восстановите missed commits;
+- replayed ciphertext отклоняется;
+- stale/skipped/duplicate epoch отклоняется;
+- unrecoverable private-state loss возвращает explicit failure;
+- local decrypted cache/search работает в документированной boundary;
+- server serialization не содержит plaintext message text.
+
+### Plaintext downgrade
+
+После MLS activation выполните direct attempts:
 
 - send;
 - forward;
@@ -145,47 +225,90 @@ After MLS activation, attempt direct legacy operations:
 - poll;
 - bot message;
 - multipart upload;
-- resumable upload.
+- resumable upload;
+- legacy или mismatched-device Socket.IO session.
 
-Every plaintext path must fail closed. No secure operation may silently fall back to legacy plaintext.
+Каждый plaintext path должен завершаться fail-closed без silent fallback.
 
-## 10. Secure files, images and voice — 3.2.0
+## 13. Strict missed-commit recovery 3.2.3
 
-- upload encrypted file, image and voice payloads;
-- verify progress and cancel behavior;
-- verify pending ciphertext cannot be downloaded before message claim;
-- atomically claim attachment through an MLS message;
-- verify authorized local decrypt and integrity;
-- verify image preview and voice playback;
-- repeat upload with same ID/scope/hash and confirm idempotency;
-- change hash, size, scope or descriptor and confirm rejection;
-- attempt attachment reuse in another message and confirm rejection;
-- cancel pending upload and confirm cleanup;
-- verify failed outbox retains only opaque attachment ID and MLS ciphertext;
-- verify ordinary cache does not retain decrypted attachment descriptor.
+Положительный сценарий:
 
-Room policy:
+- exact group/conversation scope;
+- contiguous epoch sequence;
+- valid SHA-256 payload hashes;
+- matching intermediate/final public-state hashes;
+- persistence только после complete validation.
 
-- disable files, images or voice;
-- confirm the complete opaque secure-media path is blocked;
-- confirm no plaintext fallback is offered.
+Отрицательные сценарии:
 
-## 11. Cloud Identity and Pulse
+- wrong group ID;
+- wrong conversation scope;
+- start/end epoch mismatch;
+- skipped или reordered epoch;
+- duplicate commit hash;
+- altered commit payload;
+- invalid intermediate state hash;
+- invalid final state hash;
+- replay уже применённого commit.
+
+Во всех случаях invalid state не сохраняется.
+
+## 14. Secure files, images и voice
+
+- загрузите encrypted file/image/voice;
+- проверьте progress и cancel;
+- oversized raw ciphertext отклоняется до полного parsing;
+- `ciphertextSize == plaintextSize + GCM tag` проверяется;
+- SHA-256 ciphertext проверяется;
+- quota списывается по actual stored ciphertext bytes;
+- pending object недоступен до MLS claim;
+- matching ID/scope/hash retry idempotent;
+- changed hash/size/scope/descriptor отклоняется;
+- attachment reuse отклоняется;
+- cancel/expiry очищает pending data;
+- Client проверяет ciphertext, GCM tag и plaintext hash до preview/download;
+- ordinary outbox/cache не хранит attachment key, filename или MIME plaintext;
+- запрет любого `files/images/voice` блокирует complete opaque path.
+
+## 15. Trust audit metadata
+
+Для каждого Trust action:
+
+- разрешённые primitive fields сохраняются;
+- arbitrary nested object отклоняется или исключается;
+- secret-like nested values не попадают в audit;
+- private keys, signatures, tokens и message content не сохраняются;
+- audit entry сохраняет initiator, action, target, scope и timestamp;
+- schema остаётся stable и readable.
+
+## 16. Maintenance и retention
+
+Проверьте startup и hourly run:
+
+- expired sessions удалены;
+- login history старше 90 дней удалена;
+- fresh login history сохранена;
+- stale persisted rate-limit buckets удалены;
+- active buckets не удалены преждевременно;
+- expired Trust/KeyPackage state очищен;
+- maintenance failure виден в diagnostics и не скрыт empty catch;
+- после cleanup SQLite integrity остаётся `ok`.
+
+## 17. Cloud Identity и Pulse
 
 ### Cloud Identity
 
-- register and verify email;
-- enable Cloud MFA;
-- exercise OAuth 2.1 Authorization Code + PKCE S256;
-- verify exact redirect URI matching;
-- link Local Account using one-time signed flow;
-- reject replayed link/nonce;
-- unlink after current-password reauthentication;
-- confirm local messaging remains available during Cloud outage.
+- registration и email verification;
+- Cloud MFA;
+- OAuth 2.1 Authorization Code + PKCE S256;
+- exact redirect URI;
+- one-time signed Local Account link;
+- replayed link/nonce rejection;
+- unlink с current-password reauthentication;
+- local messaging во время Cloud outage.
 
 ### Local sandbox
-
-Execute:
 
 ```text
 pulse sandbox on
@@ -196,81 +319,89 @@ impulses revoke <user> 10 qa
 plus revoke <user>
 ```
 
-Verify:
+Проверьте:
 
-- initial test Plus activation grants 400 Impulses once;
-- repeated active grant does not duplicate the grant;
-- balance never becomes negative;
-- checkout is disabled;
-- all mutations appear in audit/ledger;
-- production Pulse configuration disables local sandbox authority.
+- 400 Impulses выдаются один раз для новой activation;
+- repeated active grant не дублирует credit;
+- balance не отрицательный;
+- checkout отключён;
+- mutations отражаются в audit/ledger;
+- production Pulse config отключает sandbox authority.
 
-### Production provider sandbox
+### Provider sandbox
 
-- checkout and verified webhook;
-- receipt and billing portal;
+- checkout и verified webhook;
+- receipt и billing portal;
 - cancel-at-period-end;
 - entitlement revoke propagation;
 - duplicate provider event/idempotency no-op;
-- payload or scope substitution rejection;
-- Cloud outage fallback to last verified cache without blocking messaging.
+- payload/scope substitution rejection;
+- Cloud outage fallback к unexpired verified cache.
 
-## 12. Operational runtime
+## 18. Operational runtime
 
-- `GET /healthz/live` returns success;
-- `GET /healthz/ready` reports database/schema/runtime state;
-- readiness becomes `503` during drain;
-- `/metrics` requires Bearer token when configured;
-- without token, metrics are loopback-only;
-- logs contain request ID and no credentials;
-- allowlisted developer commands execute;
-- shell/eval and unknown commands are rejected;
-- emergency read-only permits reads and blocks mutations;
-- graceful shutdown completes without SQLite corruption.
+- live/ready endpoints работают;
+- readiness `503` во время drain;
+- metrics Bearer-protected или loopback-only;
+- logs содержат request ID и не содержат credentials;
+- allowlisted developer commands работают;
+- shell/eval/unknown commands отклоняются;
+- emergency read-only разрешает reads и блокирует mutations;
+- graceful shutdown не повреждает SQLite;
+- backup/restore выполняет integrity/schema checks.
 
-## 13. Migration and recovery
+## 19. Migration и upgrade
 
-From a verified schema 7 backup:
+### 3.1.x → 3.2.3
 
-1. start the 3.2.0 Local Server;
-2. confirm source integrity and free-space checks;
-3. confirm pre-migration backup creation;
-4. confirm schema 8 and post-migration integrity;
-5. confirm existing 3.1.x data remains readable;
-6. confirm old binary/downgrade path is blocked;
-7. restore the verified backup according to the documented rollback procedure.
+- source schema 7 integrity;
+- free-space check;
+- verified pre-migration backup;
+- schema 8 migration;
+- destination integrity;
+- data readability;
+- downgrade protection;
+- restore-from-backup rollback drill.
 
-Do not use production data as the first migration test.
+### 3.2.0–3.2.2 → 3.2.3
 
-## 14. Platform matrix
+- database migration отсутствует;
+- schema остаётся 8;
+- login/bootstrap regressions исправлены;
+- Trust/resource/recovery limits активны после restart;
+- existing secure conversations остаются compatible.
+
+## 20. Platform matrix
 
 ### Windows
 
-- clean Client/Server installation;
-- update from previous signed stable version;
+- clean Client/Server install;
+- update from previous signed baseline;
 - certificate/session persistence;
-- updater initial check and six-hour schedule;
-- single-flight checks;
-- `no_installable_update` diagnostic;
-- Authenticode and updater assets for stable release only.
+- updater initial check и six-hour schedule;
+- single-flight update requests;
+- `no_installable_update` для prerelease без signed assets;
+- packaged Trust/MLS runtime E2E для stable promotion.
 
 ### PWA
 
 - install/update application shell;
-- offline shell and authorized local cache;
-- no API/Socket.IO Service Worker caching;
-- secure-state persistence across restart.
+- offline shell и authorized local cache;
+- Service Worker не кэширует API/Socket.IO;
+- Trust state и encrypted drafts переживают restart;
+- logout/revoke очищает нужный local scope.
 
 ### Android
 
-- source build with JDK 17 / SDK 36 / Gradle 8.13;
+- JDK 17 / SDK 36 / Gradle 8.13 source build;
 - HTTPS-only deep link;
 - TLS error cancellation;
-- external navigation handling;
-- microphone and file permission flow;
-- physical-device runtime matrix for stable promotion.
+- external navigation;
+- microphone/file permissions;
+- Trust/MLS/encrypted-media runtime;
+- physical-device matrix для stable promotion.
 
-## 15. Automated gates
+## 21. Automated gates
 
 ```bash
 npm ci
@@ -283,20 +414,21 @@ npm run test:soak
 gradle -p android :app:assembleDebug --no-daemon
 ```
 
-The authoritative automated evidence for 3.2.0 is [RELEASE_VERIFICATION_3.2.0.md](RELEASE_VERIFICATION_3.2.0.md).
+Авторитетное evidence: [RELEASE_VERIFICATION_3.2.3.md](RELEASE_VERIFICATION_3.2.3.md).
 
-## 16. Defect report
+## 22. Defect report
 
-Include:
+Укажите:
 
-- Client/Server/Cloud versions;
-- platform and OS;
-- deployment type;
-- exact reproduction steps;
-- expected and actual result;
-- timestamp and request ID;
+- versions и release channel;
+- platform/OS;
+- deployment profile;
+- exact reproduction;
+- expected/actual result;
+- HTTP status, stable code и `Retry-After`, если применимо;
+- timestamp/request ID;
 - sanitized screenshot/log;
-- whether the issue is a regression;
-- migration/Trust/MLS state where relevant, without secrets.
+- regression version;
+- schema, role/policy, Trust device, group/epoch или Pulse mode без secrets.
 
-Never publish passwords, cookies, OAuth tokens, TOTP/recovery codes, invite codes, bot/Pulse credentials, private CA keys, device private keys, MLS private state, user data or backup passphrase.
+Не публикуйте passwords, cookies, OAuth tokens, TOTP/recovery codes, invite codes, bot/Pulse credentials, private CA/device keys, complete MLS state, message plaintext, user data или backup passphrase.

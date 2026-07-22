@@ -1,172 +1,238 @@
 # Nexora Security Verification Summary
 
-**Document date:** 22 July 2026  
-**Current repository version:** `3.2.0`  
-**Distribution classification:** Source/PWA prerelease  
+**Дата документа:** 22 июля 2026  
+**Текущая версия:** `3.2.3`  
+**Канал:** Source/PWA prerelease  
 **Signed production baseline:** `3.1.2`
 
-## 1. Scope
+## 1. Область
 
-This document summarizes automated security and architecture verification for the current repository state. It does not constitute an independent penetration test, cryptographic certification, supply-chain audit or production approval.
+Документ суммирует автоматизированную security- и architecture-verification текущего `main`. Он не является независимым penetration test, cryptographic certification, supply-chain audit или production approval.
 
-The authoritative release evidence for `3.2.0` is [RELEASE_VERIFICATION_3.2.0.md](RELEASE_VERIFICATION_3.2.0.md).
+Авторитетные материалы:
+
+- [Security Review 3.2.3](SECURITY_REVIEW_3.2.3.md);
+- [Release Verification 3.2.3](RELEASE_VERIFICATION_3.2.3.md);
+- [Security Model](docs/SECURITY_MODEL.md).
 
 ## 2. Threat model
 
-Nexora does not trust a participant solely because they have LAN/VPN access. Local Server validates authentication, Origin/CSRF, membership, role, ban/restriction, room policy, resource scope and rate limits.
+Nexora не доверяет участнику только на основании LAN/VPN access. Local Server проверяет authentication, Origin/CSRF, membership, role, active ban/restriction, room policy, resource scope, route rate limit и resource ceilings.
 
 Trust boundaries:
 
-- Client controls user interaction, device private keys, MLS private state and local decryption;
-- Local Server controls local identity, room authorization, delivery order, public Trust state, ciphertext storage and operations;
-- Pulse Cloud controls Cloud Identity, billing, ledger and production entitlements;
-- payment provider controls payment-card processing and provider events;
-- operating system, browser/Electron runtime and installed Client are part of the trusted computing base.
+- Client управляет UI, device private keys, MLS private state и local decryption;
+- Local Server управляет local identity, authorization, delivery order, public Trust state, limits, ciphertext storage и operations;
+- Pulse Cloud управляет Cloud Identity, billing, ledger и production entitlements;
+- payment provider управляет card/payment processing и provider events;
+- OS, browser/Electron runtime и installed Client входят в trusted computing base.
 
-## 3. Automated gate evidence
+## 3. Release evidence 3.2.3
 
-Implementation CI run `#250` (`29921551883`) passed on commit `9af91d129273d702cea2bf736354d25bac05d1e3`.
+Regression-first CI run `#290` (`29934225971`) ожидаемо выявил отсутствующие в `3.2.2` controls до изменения production code.
 
-Verified stages:
+Verified implementation head: `a3586fe7d399dc03a990c939c31a3ceabcbad000`.  
+Implementation CI: run `#308`, ID `29937445396`.
 
-| Gate | Result |
+Final release documentation head: `5369263a3220e165d420615b53d770f7732a54b3`.  
+Final CI: run `#309`, ID `29937694136`.
+
+Оба полных candidates прошли:
+
+| Gate | Результат |
 |---|---|
-| Windows production check | PASS |
-| Windows unit/API/integration suite | PASS |
-| Windows isolated performance smoke | PASS |
-| Windows security audit | PASS |
-| Linux full `npm test` | PASS |
+| Windows `npm run check` | PASS |
+| Windows `npm run test:unit` | PASS |
+| Windows `npm run test:performance` | PASS |
+| Windows `npm run audit:security` | PASS |
+| Linux `npm test` | PASS |
 | Dedicated `npm run release:check` | PASS |
 | Schema 8 soak | PASS |
 | Android `assembleDebug` | PASS |
 
-## 4. Application security results
+## 4. Application security
 
-| Area | Result |
+| Область | Результат |
 |---|---|
-| Secure HttpOnly/SameSite session, Origin and CSRF | PASS |
-| Persistent login rate limit and temporary lock | PASS |
-| Local TOTP and one-time recovery codes | PASS |
-| Password/token timing-safe verification | PASS |
-| Certificate pinning, Server ID and Electron session isolation | PASS |
-| Electron context isolation/sandbox/Node integration boundary | PASS |
+| Secure HttpOnly/SameSite sessions | PASS |
+| Origin и CSRF validation | PASS |
+| Socket.IO allowed-origin policy | PASS |
+| Persistent login limiting и temporary lock | PASS |
+| Local TOTP и one-time recovery codes | PASS |
+| Certificate pinning, Server ID и Electron session isolation | PASS |
+| Electron sandbox/context isolation/Node integration boundary | PASS |
 | Android cleartext/mixed-content/TLS-error policy | PASS |
-| SQLite WAL/FULL, integrity and transactional mutation | PASS |
-| Schema 7 → 8 verified migration and downgrade protection | PASS |
+| SQLite WAL/FULL, integrity и transactional mutation | PASS |
+| Schema 7 → 8 verified migration и downgrade protection | PASS |
+| Active-ban fail-closed conversation access | PASS |
 | Legacy upload size/hash/MIME validation | PASS |
-| Bot token hashing, scopes, expiry and room authorization | PASS |
-| Webhook HTTPS, destination validation, SSRF controls and HMAC | PASS |
-| Operational metrics protection and credential redaction | PASS |
-| Audited developer command allowlist without shell/eval | PASS |
+| Bot token hash/scope/expiry/room authorization | PASS |
+| Webhook HTTPS, SSRF/DNS validation и HMAC | PASS |
+| Metrics protection, request IDs и credential redaction | PASS |
+| Audited command allowlist без shell/eval | PASS |
 | Windows updater signature/install policy | PASS |
-| Unsigned release asset exclusion | PASS |
+| Unsigned updater asset exclusion | PASS |
 
-## 5. Trust and MLS results
+## 5. Trust device security
 
-| Area | Result |
+| Область | Результат |
 |---|---|
 | One-time expiring Trust challenges | PASS |
-| Ed25519 proof-of-possession device registration | PASS |
-| Signed device verification/revocation | PASS |
+| Ed25519 proof-of-possession registration | PASS |
+| BasicCredential exact `{ userId, deviceId }` binding | PASS |
+| Distinct identity и MLS signature keys | PASS |
+| Signed verification/revocation | PASS |
 | Active/verified device enforcement | PASS |
-| Non-extractable Client identity key | PASS |
-| Encrypted local Trust/MLS/cache/draft state | PASS |
+| 16-active-device account ceiling | PASS |
+| Duplicate registration idempotency | PASS |
+| Capacity release после revocation | PASS |
+| Immediate targeted Socket.IO disconnect | PASS |
+| Client Trust/MLS state wipe | PASS |
+| Action-specific primitive audit allowlists | PASS |
+
+## 6. KeyPackage и route governance
+
+| Область | Результат |
+|---|---|
+| Maximum 25 KeyPackages/request | PASS |
+| Maximum 32 unclaimed/device | PASS |
+| Maximum 256 unclaimed/user | PASS |
+| Atomic batch rollback при overflow | PASS |
+| Expired-row cleanup | PASS |
+| Bounded shared sliding-window limiter | PASS |
+| Stable HTTP `429 RATE_LIMITED` | PASS |
+| `Retry-After` contract | PASS |
+| Memory-bounded limiter buckets | PASS |
+| Startup/hourly stale bucket cleanup | PASS |
+
+## 7. MLS secure messaging и recovery
+
+| Область | Результат |
+|---|---|
 | Fixed MLS ciphersuite | PASS |
-| One-time KeyPackage and scoped Welcome | PASS |
-| Monotonic epoch and commit continuity | PASS |
-| Replay rejection | PASS |
-| Device-scoped Socket.IO authentication and delivery | PASS |
-| Immediate targeted revoke disconnect | PASS |
-| Client Trust/MLS state wipe after revocation | PASS |
-| Ciphertext-only serialization, persistence and outbox | PASS |
+| One-time KeyPackage и scoped Welcome | PASS |
+| Monotonic epoch и commit continuity | PASS |
+| Unique commit/group epoch constraints | PASS |
+| Ciphertext/message replay rejection | PASS |
+| Device-scoped verified-member delivery | PASS |
+| Ciphertext-only serialization/persistence/outbox | PASS |
 | Direct legacy plaintext downgrade guards | PASS |
-| Alice/Bob interoperability coverage | PASS |
-| Missed-commit recovery and explicit lost-state failure | PASS |
+| Alice/Bob interoperability | PASS |
+| Complete recovery group-envelope validation | PASS |
+| Exact contiguous epoch sequence | PASS |
+| SHA-256 commit payload validation | PASS |
+| Duplicate commit-hash rejection | PASS |
+| Intermediate/final public-state hash validation | PASS |
+| Explicit lost-state failure | PASS |
 
 Fixed profile: `MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519`.
 
-## 6. Encrypted media results
+## 8. Encrypted media
 
-| Area | Result |
+| Область | Результат |
 |---|---|
 | AES-256-GCM Client encryption | PASS |
-| AAD binding to conversation/attachment/media kind | PASS |
-| Plaintext and ciphertext SHA-256 verification | PASS |
-| Exact GCM ciphertext-size validation | PASS |
+| AAD binding к conversation/attachment/media kind | PASS |
+| Plaintext и ciphertext SHA-256 | PASS |
+| Raw ciphertext byte cap | PASS |
+| Exact `plaintextSize + GCM tag` validation | PASS |
+| Quota по actual stored ciphertext bytes | PASS |
 | Opaque server metadata | PASS |
-| Pending download denial before message claim | PASS |
-| Pending expiry and cancel cleanup | PASS |
-| One-time atomic attachment claim | PASS |
-| Retry idempotency for matching scope/hash | PASS |
+| Pending download denial до message claim | PASS |
+| Expiry и cancel cleanup | PASS |
+| One-time atomic claim | PASS |
+| Matching retry idempotency | PASS |
 | Scope/hash/size substitution rejection | PASS |
 | Attachment reuse rejection | PASS |
 | Local verified decrypt/preview/playback/download | PASS |
 | Outbox/cache descriptor isolation | PASS |
 | Fail-closed room media restrictions | PASS |
 
-Attachment key, IV, original filename, actual MIME, caption, voice duration and waveform are carried inside MLS content and are not stored as Local Server plaintext metadata.
+Attachment key, IV, original filename, actual MIME, caption, voice duration и waveform находятся внутри MLS content и не хранятся Local Server как plaintext metadata.
 
-## 7. Pulse and Cloud Identity results
+## 9. Lifecycle regressions 3.2.1–3.2.2
 
-| Area | Result |
+Проверены:
+
+- `/api/bootstrap` до Trust enrollment после authentication;
+- отсутствие login bootstrap cycle;
+- parent layout Trust configuration до child draft effects;
+- safe empty read в pre-configuration draft window;
+- сохранение видимости реальных Trust/IndexedDB errors;
+- single-flight Server stop/quit;
+- stopped-state Pulse/Trust status после SQLite close;
+- propagation неожиданных repository/database errors.
+
+## 10. Pulse и Cloud Identity
+
+| Область | Результат |
 |---|---|
 | Cloud password scrypt storage | PASS |
 | Cloud TOTP AES-256-GCM protection | PASS |
 | Hashed email/session/OAuth tokens | PASS |
 | OAuth 2.1 Authorization Code + PKCE S256 | PASS |
 | Exact redirect URI validation | PASS |
-| Atomic code consumption and refresh rotation | PASS |
+| Atomic code consumption и refresh rotation | PASS |
 | One-time signed Local Account linking | PASS |
-| HTTPS and scoped service authentication | PASS |
-| Ed25519 envelope/entitlement signature and scope | PASS |
-| Provider event replay/payload substitution controls | PASS |
+| HTTPS и scoped service authentication | PASS |
+| Ed25519 envelope/entitlement signature и scope | PASS |
+| Provider-event replay/payload substitution controls | PASS |
 | Checkout idempotency scope binding | PASS |
-| Double-entry ledger and non-negative wallet invariant | PASS |
+| Double-entry ledger и non-negative balance | PASS |
 | Local sandbox production-authority isolation | PASS |
 
-## 8. Server-visible metadata
+## 11. Maintenance и security-state retention
 
-The secure-message implementation does not provide metadata confidentiality. Local Server can observe or infer:
+Автоматизированно проверены:
 
-- account and device identifiers;
+- expired session deletion;
+- login history cleanup после 90 дней;
+- stale persisted rate-limit bucket cleanup;
+- hourly/startup maintenance wiring;
+- отсутствие скрытия maintenance failure пустым handler;
+- compatibility с существующими schema 8 operations.
+
+## 12. Server-visible metadata
+
+Secure-message path не предоставляет metadata confidentiality. Local Server видит или может вывести:
+
+- account/device identifiers;
 - room/conversation membership;
 - sender/uploader identity;
-- group/epoch and delivery order;
-- attachment ID and ciphertext size;
-- timestamps and IP/network/session context;
+- group/epoch и delivery order;
+- attachment ID и ciphertext size;
+- timestamps, IP/network/session context;
 - ciphertext/replay hashes;
-- operational errors and traffic patterns.
+- operational errors и traffic patterns.
 
-Nexora `3.2.0` does not claim traffic-analysis resistance.
+Nexora `3.2.3` не заявляет traffic-analysis resistance.
 
-## 9. Trusted computing base and residual risks
+## 13. Residual risks
 
-Residual risks include:
+- same-origin XSS, malware, dependency compromise или malicious Client могут получить plaintext во время authorized use;
+- total loss private device state может быть невосстановим;
+- existing 3.1.x content не шифруется ретроактивно;
+- public deployment зависит от reverse proxy, firewall, DDoS controls и monitoring;
+- Local CA и local data требуют protected OS account, disk encryption и secure backups;
+- production Pulse зависит от provider, Cloud deployment, key rotation, reconciliation и legal controls;
+- stable Windows release зависит от Authenticode credentials и protected signing environment;
+- stable Android release зависит от signed APK/AAB и physical-device matrix;
+- automated verification не заменяет independent cryptographic/application-security review.
 
-- XSS, malware, dependency compromise or malicious Client binary can access plaintext during authorized use;
-- complete loss of private device state may be unrecoverable;
-- existing 3.1.x content is not retroactively encrypted;
-- public deployment depends on external reverse proxy, firewall, DDoS controls and monitoring;
-- Local CA and local data require protected OS accounts, disk encryption and secure backups;
-- production Pulse depends on external provider, Cloud deployment, key rotation, reconciliation and legal controls;
-- Windows stable release depends on external Authenticode credentials and signing environment;
-- Android stable release depends on signed APK/AAB and physical-device validation;
-- automated verification does not replace independent cryptographic/application-security review.
+## 14. Stable-promotion blockers
 
-## 10. Stable-promotion blockers
+До stable signed promotion `3.2.3` требуются:
 
-Before `3.2.0` stable signed production promotion:
+1. packaged Windows Electron Client/Server runtime E2E;
+2. installed PWA и physical Android runtime matrix;
+3. extended multi-device simultaneous-commit/revoke/re-add/corrupted-state scenarios;
+4. longer load/soak и long-offline evidence;
+5. metadata minimization/traffic-analysis review;
+6. Authenticode signing-machine и complete updater verification;
+7. independent cryptographic/application-security review;
+8. отсутствие unresolved high/critical findings.
 
-1. complete packaged Windows Electron Client/Server runtime E2E;
-2. complete installed PWA and physical Android runtime matrix;
-3. extend simultaneous-commit, revoke/re-add and corrupted-state scenarios;
-4. complete longer load/soak and long-offline evidence;
-5. complete metadata minimization and traffic-analysis review;
-6. verify Authenticode signing machine and updater artifacts;
-7. complete independent cryptographic and application-security review;
-8. resolve all high/critical findings.
-
-## 11. Reproduction
+## 15. Воспроизведение gate
 
 ```bash
 npm ci
@@ -179,4 +245,4 @@ npm run test:soak
 gradle -p android :app:assembleDebug --no-daemon
 ```
 
-Run these commands on the exact release commit/tag. A result from another commit is not release evidence.
+Команды должны выполняться на exact release commit/tag. Результат другого commit не является release evidence.
