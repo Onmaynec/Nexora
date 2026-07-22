@@ -62,7 +62,10 @@ test("unsigned test binaries are downloadable but excluded from updater metadata
   assert.match(workflow, /Nexora-Server-Setup-\$version-UNSIGNED-TEST\.exe/);
   assert.match(workflow, /Nexora-Android-\$version-UNSIGNED-TEST\.apk/);
   assert.match(workflow, /Unsigned release must not expose updater metadata/);
-  assert.match(site, /unsigned\|test-build\|test\\\.exe/i);
+  assert.match(site, /function signatureState/);
+  assert.match(site, /unsigned/);
+  assert.match(site, /test-build/);
+  assert.match(site, /test\\\.exe/);
   assert.match(site, /data-signature/);
 });
 
