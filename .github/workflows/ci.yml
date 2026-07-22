@@ -7,52 +7,29 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  apply-security-patch:
+  patch-diagnostic:
     if: github.event_name == 'pull_request' && github.head_ref == 'agent/nexora-3.2.3-security-hardening' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: agent/nexora-3.2.3-security-hardening
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22.16.0
-          cache: npm
-      - run: npm ci
-      - name: Apply, verify and commit patch or failure log
+      - name: Run patch applicator diagnostically
         shell: bash
         run: |
-          set -uo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          rm -f APPLY_3_2_3_FAILURE.log
-          {
-            node scripts/apply-3.2.3-security-hardening.cjs &&
-            npm run release:sync-version &&
-            npm ci &&
-            npm run release:check
-          } >apply-output.log 2>&1
-          status=$?
-          if [ "$status" -ne 0 ]; then
-            output="$(cat apply-output.log)"
-            git reset --hard HEAD
-            printf '%s\n' "$output" > APPLY_3_2_3_FAILURE.log
-            git add APPLY_3_2_3_FAILURE.log
-            git commit -m "ci: capture 3.2.3 patch failure"
-            git push origin HEAD:agent/nexora-3.2.3-security-hardening
-            exit 0
-          fi
-          rm -f apply-output.log
-          git add -A
-          git diff --cached --check
-          git diff --cached --quiet && { echo "No patch changes were produced"; exit 1; }
-          git commit -m "fix: harden Trust resource and recovery boundaries"
-          git push origin HEAD:agent/nexora-3.2.3-security-hardening
+          set +e
+          node scripts/apply-3.2.3-security-hardening.cjs > APPLY_3_2_3.log 2>&1
+          echo "$?" > APPLY_3_2_3.status
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apply-3.2.3-diagnostics
+          path: |
+            APPLY_3_2_3.log
+            APPLY_3_2_3.status
+          if-no-files-found: error
 
   verify:
     runs-on: windows-latest
