@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api, clearCsrfToken, CLIENT_VERSION, post } from "./api";
 import AuthScreen from "./components/AuthScreen";
 import ForcedPasswordChange from "./components/ForcedPasswordChange";
@@ -136,11 +136,17 @@ export default function App() {
     return undefined;
   }, [authState, bootstrap, me?.id, me?.mustChangePassword, refresh]);
 
+  useLayoutEffect(() => {
+    const serverId = bootstrap?.server?.id;
+    if (!me?.id || !serverId || me.mustChangePassword) return undefined;
+    configureTrust({ serverId, user: me });
+    return undefined;
+  }, [bootstrap?.server?.id, me?.id, me?.mustChangePassword]);
+
   useEffect(() => {
     const serverId = bootstrap?.server?.id;
     if (!me?.id || !serverId || me.mustChangePassword) return undefined;
     let cancelled = false;
-    configureTrust({ serverId, user: me });
     setTrustState((current) => ({ ...current, status: "initializing", error: null }));
     ensureTrustDevice()
       .then((device) => {

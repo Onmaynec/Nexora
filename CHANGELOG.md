@@ -2,6 +2,25 @@
 
 Формат основан на Keep a Changelog. Версии следуют Semantic Versioning.
 
+## [3.2.2] — 2026-07-22
+
+### Fixed
+
+- устранён renderer crash `TRUST_NOT_CONFIGURED` при холодном входе в Web/PWA и Electron Client;
+- Trust scope теперь конфигурируется до запуска дочерних passive effects, читающих локальные E2EE-черновики;
+- чтение encrypted draft в коротком pre-configuration окне возвращает пустое состояние вместо синхронного исключения;
+- реальные ошибки Trust platform, регистрации устройства и IndexedDB по-прежнему отображаются явно.
+
+### Changed
+
+- версия Client, Server, Android metadata, package и lockfile синхронизирована как `3.2.2`;
+- schema 8, API v3 и Trust/MLS API v4 сохранены без миграции и breaking changes.
+
+### Tests
+
+- добавлена регрессия порядка parent layout effect / child passive effect при первичной Trust-настройке;
+- добавлен контракт безопасного чтения E2EE-черновиков до завершения Trust configuration.
+
 ## [3.2.1] — 2026-07-22
 
 ### Fixed
