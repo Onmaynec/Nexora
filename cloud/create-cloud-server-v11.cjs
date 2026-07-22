@@ -32,6 +32,7 @@ function createCloudAppV11(options = {}) {
       next();
     });
   });
+  app.use(express.json({ limit: "256kb", strict: true }));
 
   function sendError(response, error) {
     const status = error instanceof BillingError ? error.status : 500;
@@ -192,6 +193,34 @@ function createCloudAppV11(options = {}) {
           createdAt: row.created_at,
         }));
       signed(response, { serverId: request.params.serverId, userId: request.params.userId, receipts });
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
+  app.get("/v1/servers/:serverId/users/:userId/catalog", serverAuth, (request, response) => {
+    try {
+      if (request.params.serverId !== request.nexoraServerId) throw new BillingError("Server ID в маршруте не соответствует credential.", "PULSE_SCOPE_MISMATCH", 403);
+      const roomId = String(request.query.roomId || "").trim() || null;
+      const catalog = database.catalog({ serverId: request.params.serverId, localUserId: request.params.userId, roomId });
+      signed(response, { serverId: request.params.serverId, userId: request.params.userId, roomId, catalog });
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
+  app.post("/v1/servers/:serverId/users/:userId/purchases", serverAuth, (request, response) => {
+    try {
+      if (request.params.serverId !== request.nexoraServerId) throw new BillingError("Server ID в маршруте не соответствует credential.", "PULSE_SCOPE_MISMATCH", 403);
+      const idempotencyKey = String(request.headers["idempotency-key"] || request.body?.idempotencyKey || "");
+      const result = database.purchaseCatalogProduct({
+        serverId: request.params.serverId,
+        localUserId: request.params.userId,
+        productCode: request.body?.productCode,
+        roomId: request.body?.roomId || null,
+        idempotencyKey,
+      });
+      signed(response, { serverId: request.params.serverId, userId: request.params.userId, roomId: request.body?.roomId || null, ...result }, result.duplicate ? 200 : 201);
     } catch (error) {
       sendError(response, error);
     }
