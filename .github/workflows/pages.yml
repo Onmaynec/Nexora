@@ -85,10 +85,9 @@ jobs:
             echo "Live verification was already recorded."
             exit 0
           fi
-          body="${marker}
-
-Live GitHub Pages verification passed for \`redesign-20260722-2\`.
-
-Published URL: ${PAGE_URL}
-Source commit: \`${GITHUB_SHA}\`"
+          printf -v body '%s\n\nLive GitHub Pages verification passed for `%s`.\n\nPublished URL: %s\nSource commit: `%s`' \
+            "$marker" \
+            'redesign-20260722-2' \
+            "$PAGE_URL" \
+            "$GITHUB_SHA"
           gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/28/comments" -f body="$body"
