@@ -1,19 +1,30 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowRight, BadgeCheck, Banknote, Check, CircleDollarSign, Cloud, CloudOff, Coins,
-  Crown, ExternalLink, Gauge, History, KeyRound, Link2, LoaderCircle, LogOut,
-  PackagePlus, ReceiptText, RefreshCcw, ShieldCheck, Target, Unlink, WalletCards,
+  Crown, ExternalLink, Gauge, Gift, History, KeyRound, Link2, LoaderCircle, LogOut,
+  PackagePlus, Palette, ReceiptText, RefreshCcw, ShieldCheck, ShoppingBag, Sparkles,
+  Target, Unlink, WalletCards,
 } from "lucide-react";
 import { api } from "../api";
+import ConfirmDialog from "./ConfirmDialog";
 import "../pulse-v31.css";
+import "../pulse-v33.css";
 
 const TABS = [
   ["overview", "Обзор", Gauge],
+  ["catalog", "Каталог", ShoppingBag],
   ["wallet", "Кошелёк", WalletCards],
   ["transactions", "Операции", History],
   ["rooms", "Комнаты", Target],
   ["security", "Связь", ShieldCheck],
 ];
+
+const CATEGORY_LABELS = {
+  profile: "Профиль",
+  messages: "Сообщения",
+  reactions: "Реакции",
+  room: "Комната",
+};
 
 function call(path, method = "GET", body, idempotencyKey) {
   return api(path, {
@@ -48,11 +59,14 @@ function operationLabel(type) {
   return ({
     plus_monthly_grant: "Ежемесячный грант Plus",
     impulse_pack_purchase: "Покупка Импульсов",
+    impulse_product_purchase: "Покупка в каталоге",
     room_goal_contribution: "Вклад в цель комнаты",
     room_goal_refund: "Возврат из цели",
     payment_refund: "Возврат платежа",
     chargeback: "Оспаривание платежа",
     promotional_grant: "Промо-грант",
+    operator_grant: "Тестовое начисление",
+    operator_revoke: "Тестовое списание",
   })[type] || String(type || "Операция").replaceAll("_", " ");
 }
 
@@ -67,6 +81,13 @@ function Empty({ icon: Icon, title, detail }) {
   return <div className="pulse31-empty"><Icon size={28} /><strong>{title}</strong><span>{detail}</span></div>;
 }
 
+function ProductIcon({ category }) {
+  if (category === "room") return <Target size={22} />;
+  if (category === "profile") return <Palette size={22} />;
+  if (category === "reactions") return <Sparkles size={22} />;
+  return <Gift size={22} />;
+}
+
 export default function PulsePageV31({ initialOverview = null, rooms = [], me, onRefresh, showToast = () => {} }) {
   const [tab, setTab] = useState("overview");
   const [status, setStatus] = useState(null);
@@ -76,6 +97,8 @@ export default function PulsePageV31({ initialOverview = null, rooms = [], me, o
   const [receipts, setReceipts] = useState([]);
   const [selectedRoomId, setSelectedRoomId] = useState(() => rooms.find((room) => room.joined)?.id || "");
   const [goals, setGoals] = useState([]);
+  const [catalog, setCatalog] = useState([]);
+  const [purchaseTarget, setPurchaseTarget] = useState(null);
   const [busy, setBusy] = useState(false);
   const [sectionBusy, setSectionBusy] = useState(false);
   const [callbackHandled, setCallbackHandled] = useState(false);
@@ -87,6 +110,7 @@ export default function PulsePageV31({ initialOverview = null, rooms = [], me, o
   const plusActive = Boolean(subscription && ["active", "trialing"].includes(subscription.status));
   const sandboxMode = status?.cloud?.mode === "sandbox";
   const cloudOnline = sandboxMode || (status?.cloud?.mode === "production" && !overview?.cached);
+  const ownedCodes = useMemo(() => new Set((overview?.entitlements || []).filter((item) => item.status === "active").map((item) => item.productCode)), [overview]);
 
   const loadStatus = useCallback(async () => {
     const [pulseStatus, linkStatus] = await Promise.all([
@@ -114,15 +138,14 @@ export default function PulsePageV31({ initialOverview = null, rooms = [], me, o
     if (!linked) return;
     setSectionBusy(true);
     try {
-      const [history, receiptHistory] = await Promise.all([
-        api("/api/v3/pulse/transactions?limit=100"),
-        api("/api/v3/pulse/receipts?limit=50").catch(() => ({ receipts: [] })),
-      ]);
+      const historyPromise = api("/api/v3/pulse/transactions?limit=100");
+      const receiptPromise = sandboxMode ? Promise.resolve({ receipts: [] }) : api("/api/v3/pulse/receipts?limit=50").catch(() => ({ receipts: [] }));
+      const [history, receiptHistory] = await Promise.all([historyPromise, receiptPromise]);
       setTransactions(history.transactions || []);
       setReceipts(receiptHistory.receipts || []);
     } catch (error) { showToast(error.message, "error"); }
     finally { setSectionBusy(false); }
-  }, [linked, showToast]);
+  }, [linked, sandboxMode, showToast]);
 
   const loadGoals = useCallback(async (roomId) => {
     if (!linked || !roomId) { setGoals([]); return; }
@@ -132,9 +155,20 @@ export default function PulsePageV31({ initialOverview = null, rooms = [], me, o
     finally { setSectionBusy(false); }
   }, [linked, showToast]);
 
+  const loadCatalog = useCallback(async () => {
+    if (!linked) { setCatalog([]); return; }
+    setSectionBusy(true);
+    try {
+      const roomQuery = selectedRoom?.viewerRole === "owner" ? `?roomId=${encodeURIComponent(selectedRoom.id)}` : "";
+      setCatalog((await api(`/api/v3/pulse/catalog${roomQuery}`)).catalog || []);
+    } catch (error) { showToast(error.message, "error"); }
+    finally { setSectionBusy(false); }
+  }, [linked, selectedRoom, showToast]);
+
   useEffect(() => { refreshPulse(); }, [refreshPulse]);
   useEffect(() => { if (tab === "transactions") loadTransactions(); }, [loadTransactions, tab]);
   useEffect(() => { if (tab === "rooms") loadGoals(selectedRoomId); }, [loadGoals, selectedRoomId, tab]);
+  useEffect(() => { if (tab === "catalog") loadCatalog(); }, [loadCatalog, tab]);
 
   useEffect(() => {
     if (callbackHandled) return;
@@ -184,6 +218,7 @@ export default function PulsePageV31({ initialOverview = null, rooms = [], me, o
       setTransactions([]);
       setReceipts([]);
       setGoals([]);
+      setCatalog([]);
       await onRefresh?.();
       showToast("Cloud Account отвязан");
     } catch (error) { showToast(error.message, "error"); }
@@ -195,9 +230,7 @@ export default function PulsePageV31({ initialOverview = null, rooms = [], me, o
     setBusy(true);
     try {
       const path = kind === "plus" ? "/api/v3/pulse/checkout/subscription" : "/api/v3/pulse/checkout/impulses";
-      const body = kind === "plus"
-        ? { currency: "EUR", region: "FI" }
-        : { productCode: "impulse_pack_500", currency: "EUR", region: "FI" };
+      const body = kind === "plus" ? { currency: "EUR", region: "FI" } : { productCode: "impulse_pack_500", currency: "EUR", region: "FI" };
       const result = await call(path, "POST", body, requestKey(`checkout:${kind}`, me.id));
       if (!/^https:\/\//i.test(String(result.checkout?.url || ""))) throw new Error("Cloud не вернул безопасную checkout-ссылку.");
       window.open(result.checkout.url, "_blank", "noopener,noreferrer");
@@ -227,16 +260,30 @@ export default function PulsePageV31({ initialOverview = null, rooms = [], me, o
     finally { setBusy(false); }
   }
 
+  async function purchaseProduct() {
+    const product = purchaseTarget;
+    if (!product) return;
+    setBusy(true);
+    try {
+      const roomId = product.scope === "room" ? selectedRoomId : null;
+      await call("/api/v3/pulse/purchases", "POST", { productCode: product.code, roomId }, requestKey(`catalog:${product.code}:${roomId || "user"}`, me.id));
+      setPurchaseTarget(null);
+      await Promise.all([loadOverview(), loadCatalog(), onRefresh?.()]);
+      showToast(`«${product.displayName}» активирован`);
+    } catch (error) { showToast(error.message, "error"); }
+    finally { setBusy(false); }
+  }
+
   async function createGoal() {
     if (selectedRoom?.viewerRole !== "owner") return;
-    const title = window.prompt("Название цели", "Новый набор реакций");
+    const title = window.prompt("Название цели", "Новые реакции комнаты");
     if (!title) return;
-    const targetAmount = Number(window.prompt("Сколько Импульсов собрать?", "500"));
-    if (!Number.isSafeInteger(targetAmount) || targetAmount < 10 || targetAmount > 1_000_000) {
-      showToast("Введите целое число от 10 до 1 000 000.", "error");
+    const targetAmount = Number(window.prompt("Сколько Импульсов собрать?", "400"));
+    if (!Number.isSafeInteger(targetAmount) || targetAmount < 400 || targetAmount > 1_000_000) {
+      showToast("Введите целое число от 400 до 1 000 000.", "error");
       return;
     }
-    const description = window.prompt("Описание цели", "Откроет новую возможность для всей комнаты") || "";
+    const description = window.prompt("Описание цели", "Откроет расширенные реакции для всей комнаты на 30 дней") || "";
     setBusy(true);
     try {
       await call(`/api/v3/rooms/${encodeURIComponent(selectedRoom.id)}/pulse/goals`, "POST", {
@@ -281,14 +328,14 @@ export default function PulsePageV31({ initialOverview = null, rooms = [], me, o
   return <div className="section-page pulse31-page">
     <header className="pulse31-hero">
       <div>
-        <span>NEXORA PULSE · 3.1</span>
+        <span>NEXORA PULSE · 3.3</span>
         <h1>Plus, Импульсы и цели.<br /><em>Без платного общения.</em></h1>
         <p>Cloud Account отвечает только за покупки и переносимые права. Сообщения, файлы и комнаты остаются на Local Server.</p>
       </div>
       <div className={`pulse31-cloud-state${cloudOnline ? " online" : ""}`}>
         {cloudOnline ? <Cloud size={20} /> : <CloudOff size={20} />}
         <span><strong>{sandboxMode ? "Pulse Sandbox active" : cloudOnline ? "Pulse Cloud online" : status?.cloud?.mode === "production" ? "Проверенный кэш" : "Cloud отключён"}</strong><small>{sandboxMode ? "Тестовая модель управляется Nexora Server" : linked ? "Cloud Account связан" : "Требуется связь аккаунта"}</small></span>
-        <button type="button" onClick={refreshPulse} disabled={sectionBusy}><RefreshCcw className={sectionBusy ? "spin" : ""} size={16} /></button>
+        <button type="button" onClick={refreshPulse} disabled={sectionBusy} aria-label="Обновить Pulse"><RefreshCcw className={sectionBusy ? "spin" : ""} size={16} /></button>
       </div>
     </header>
 
@@ -307,7 +354,7 @@ export default function PulsePageV31({ initialOverview = null, rooms = [], me, o
       <div className="pulse31-stats">
         <StatCard icon={Coins} label="Баланс" value={`${wallet.balance ?? 0} ◈`} detail={sandboxMode ? "Локальный тестовый баланс" : overview?.cached ? `Кэш от ${formatDate(overview.cachedAt)}` : "Подтверждено Pulse Cloud"} accent />
         <StatCard icon={Crown} label="Nexora Plus" value={plusActive ? "Активен" : "Не подключён"} detail={field(subscription, "currentPeriodEnd", "current_period_end") ? `До ${formatDate(field(subscription, "currentPeriodEnd", "current_period_end"))}` : "Базовые функции бесплатны"} />
-        <StatCard icon={BadgeCheck} label="Cloud Account" value={linked ? "Связан" : "Не связан"} detail={account?.cloudAccountId ? `ID ${account.cloudAccountId.slice(0, 12)}…` : "Отдельная Cloud Identity"} />
+        <StatCard icon={BadgeCheck} label="Активные права" value={String(ownedCodes.size)} detail="Оформление профиля, сообщений и комнат" />
       </div>
       <section className={`pulse31-plus-card${plusActive ? " active" : ""}`}>
         <div className="pulse31-plus-symbol"><Crown size={30} /></div>
@@ -316,17 +363,32 @@ export default function PulsePageV31({ initialOverview = null, rooms = [], me, o
       </section>
       <section className="pulse31-principles">
         <article><ShieldCheck /><h3>Без paywall</h3><p>Общение, комнаты, файлы и история не требуют Plus.</p></article>
-        <article><Banknote /><h3>Цена только с сервера</h3><p>Клиент не определяет стоимость и сумму списания.</p></article>
-        <article><KeyRound /><h3>Подписанные права</h3><p>Возможности применяются после проверки Ed25519.</p></article>
+        <article><ShoppingBag /><h3>Импульсы работают</h3><p>Тратьте баланс на оформление профиля, сообщения, реакции и возможности комнат.</p></article>
+        <article><KeyRound /><h3>Подписанные права</h3><p>Production-возможности применяются после проверки Ed25519.</p></article>
       </section>
+    </main>}
+
+    {tab === "catalog" && <main className="pulse31-content">
+      <header className="pulse31-section-head pulse33-catalog-head"><div><span>IMPULSE MARKET</span><h2>Каталог возможностей</h2><p>Покупки не влияют на доступ к общению и безопасности.</p></div><label className="pulse31-room-select"><span>Для комнаты</span><select value={selectedRoomId} onChange={(event) => setSelectedRoomId(event.target.value)}><option value="">Не выбрана</option>{rooms.filter((room) => room.joined && room.viewerRole === "owner").map((room) => <option key={room.id} value={room.id}>{room.name}</option>)}</select></label></header>
+      {sectionBusy ? <div className="pulse31-loader"><LoaderCircle className="spin" /> Загружаем каталог</div> : catalog.length ? <div className="pulse33-catalog-grid">{catalog.map((product) => {
+        const owned = product.owned || ownedCodes.has(product.code);
+        const roomUnavailable = product.scope === "room" && selectedRoom?.viewerRole !== "owner";
+        const enough = Number(wallet.balance || 0) >= Number(product.priceImpulses || 0);
+        return <article key={product.code} className={`pulse33-product${owned ? " owned" : ""}`}>
+          <header><span><ProductIcon category={product.category} /></span><small>{CATEGORY_LABELS[product.category] || product.category}</small></header>
+          <h3>{product.displayName}</h3><p>{product.description}</p>
+          <div className="pulse33-product-meta"><strong>{product.priceImpulses} ◈</strong><span>{product.durationDays >= 3650 ? "Без срока" : `${product.durationDays} дней`}</span></div>
+          <button type="button" disabled={busy || owned || roomUnavailable || !enough} onClick={() => setPurchaseTarget(product)}>{owned ? <><Check size={16} /> Активно</> : roomUnavailable ? "Выберите свою комнату" : !enough ? "Недостаточно Импульсов" : <><ShoppingBag size={16} /> Активировать</>}</button>
+        </article>;
+      })}</div> : <Empty icon={ShoppingBag} title="Каталог недоступен" detail="Подключите Cloud Account или включите Pulse Sandbox." />}
     </main>}
 
     {tab === "wallet" && <main className="pulse31-content">
       <section className="pulse31-wallet-panel">
         <div className="pulse31-wallet-visual"><CircleDollarSign size={34} /><small>Текущий баланс</small><strong>{wallet.balance ?? 0}</strong><span>Импульсов</span></div>
-        <div><h2>Кошелёк Импульсов</h2><p>Импульсы используются для коллективных целей. Их нельзя вывести, обменять на деньги или передать напрямую.</p><div className="pulse31-wallet-actions"><button type="button" onClick={() => checkout("impulses")} disabled={!linked || busy || sandboxMode}><PackagePlus size={16} /> {sandboxMode ? "Покупки отключены" : "Купить 500"}</button><button type="button" className="secondary" onClick={() => setTab("transactions")}><History size={16} /> История</button></div></div>
+        <div><h2>Кошелёк Импульсов</h2><p>Импульсы используются в каталоге и коллективных целях. Их нельзя вывести, обменять на деньги или передать напрямую.</p><div className="pulse31-wallet-actions"><button type="button" onClick={() => setTab("catalog")} disabled={!linked || busy}><ShoppingBag size={16} /> Открыть каталог</button><button type="button" onClick={() => checkout("impulses")} disabled={!linked || busy || sandboxMode}><PackagePlus size={16} /> {sandboxMode ? "Денежные покупки отключены" : "Купить 500"}</button><button type="button" className="secondary" onClick={() => setTab("transactions")}><History size={16} /> История</button></div></div>
       </section>
-      <section className="pulse31-info-grid"><article><strong>Double-entry</strong><p>Каждое изменение баланса имеет равную дебетовую и кредитовую запись.</p></article><article><strong>Без отрицательного баланса</strong><p>Возвраты и chargeback оформляются компенсациями.</p></article><article><strong>Идемпотентность</strong><p>Повтор запроса не создаёт повторное списание.</p></article></section>
+      <section className="pulse31-info-grid"><article><strong>Double-entry</strong><p>Каждое изменение баланса имеет равную дебетовую и кредитовую запись.</p></article><article><strong>Без отрицательного баланса</strong><p>Сервер отклоняет покупку до атомарного списания.</p></article><article><strong>Идемпотентность</strong><p>Повтор запроса не создаёт повторное списание или право.</p></article></section>
     </main>}
 
     {tab === "transactions" && <main className="pulse31-content">
@@ -349,14 +411,24 @@ export default function PulsePageV31({ initialOverview = null, rooms = [], me, o
         const current = Number(field(goal, "currentAmount", "current_amount", 0));
         const target = Number(field(goal, "targetAmount", "target_amount", 1));
         const progress = Math.min(100, Math.round(current / target * 100));
-        return <article key={goal.id}><header><span><Target size={17} /> {goal.status === "funded" ? "ЦЕЛЬ ДОСТИГНУТА" : goal.status === "cancelled" ? "ОТМЕНЕНА" : `${progress}%`}</span><b>{goal.status}</b></header><h3>{goal.title}</h3><p>{goal.description}</p><div className="pulse31-progress" role="progressbar" aria-valuemin="0" aria-valuemax={target} aria-valuenow={current}><i style={{ width: `${progress}%` }} /></div><div className="pulse31-goal-numbers"><strong>{current} / {target} ◈</strong><span>{field(goal, "contributionCount", "contribution_count", 0)} вкладов</span></div>{goal.status === "active" && <footer>{[10, 50, 100].map((amount) => <button type="button" key={amount} disabled={busy || Number(wallet.balance || 0) < Math.min(amount, target - current)} onClick={() => contribute(goal, amount)}>+{amount}</button>)}{selectedRoom?.viewerRole === "owner" && <button type="button" className="danger" onClick={() => cancelGoal(goal)}>Отменить</button>}</footer>}</article>;
+        return <article key={goal.id}><header><span><Target size={17} /> {goal.status === "funded" ? "ЦЕЛЬ ДОСТИГНУТА" : goal.status === "refunded" ? "ВОЗВРАЩЕНА" : `${progress}%`}</span><b>{goal.status}</b></header><h3>{goal.title}</h3><p>{goal.description}</p><div className="pulse31-progress" role="progressbar" aria-valuemin="0" aria-valuemax={target} aria-valuenow={current}><i style={{ width: `${progress}%` }} /></div><div className="pulse31-goal-numbers"><strong>{current} / {target} ◈</strong><span>{field(goal, "contributionCount", "contribution_count", 0)} вкладов</span></div>{goal.status === "active" && <footer>{[10, 50, 100].map((amount) => <button type="button" key={amount} disabled={busy || Number(wallet.balance || 0) < Math.min(amount, target - current)} onClick={() => contribute(goal, amount)}>+{amount}</button>)}{selectedRoom?.viewerRole === "owner" && <button type="button" className="danger" onClick={() => cancelGoal(goal)}>Отменить</button>}</footer>}</article>;
       })}</div> : <Empty icon={Target} title={selectedRoomId ? "Активных целей нет" : "Выберите комнату"} detail={selectedRoomId ? "Владелец может создать коллективную цель." : "Доступны комнаты, в которых вы состоите."} />}
     </main>}
 
     {tab === "security" && <main className="pulse31-content">
       <header className="pulse31-section-head"><div><span>CLOUD IDENTITY</span><h2>Связь аккаунтов</h2><p>Local Account автономен. Cloud Account используется только для покупок и переносимых прав.</p></div></header>
-      <section className={`pulse31-link-card${linked ? " linked" : ""}`}><span>{linked ? <BadgeCheck size={30} /> : <Link2 size={30} />}</span><div><small>{linked ? "ACCOUNT LINKED" : "NOT LINKED"}</small><h3>{linked ? "Cloud Account подключён" : "Подключите Cloud Account"}</h3><p>{linked ? `Связь подтверждена ${formatDate(account.linkedAt)}. Cloud Account: ${account.cloudAccountId}` : "Local Server не получает Cloud-пароль, MFA-secret, refresh token и платёжные реквизиты."}</p></div>{sandboxMode ? <span>LOCAL TEST MODE</span> : linked ? <button type="button" className="danger" onClick={unlinkAccount} disabled={busy}><Unlink size={16} /> Отвязать</button> : <button type="button" onClick={connectAccount} disabled={busy}><Link2 size={16} /> Подключить</button>}</section>
+      <section className={`pulse31-link-card${linked ? " linked" : ""}`}><span>{linked ? <BadgeCheck size={30} /> : <Link2 size={30} />}</span><div><small>{linked ? "ACCOUNT LINKED" : "NOT LINKED"}</small><h3>{linked ? "Cloud Account подключён" : "Подключите Cloud Account"}</h3><p>{linked ? `Связь подтверждена ${formatDate(account.linkedAt)}. Cloud Account: ${account.cloudAccountId || account.id || "локальный Sandbox"}` : "Local Server не получает Cloud-пароль, MFA-secret, refresh token и платёжные реквизиты."}</p></div>{sandboxMode ? <b className="pulse33-test-badge">LOCAL<br />TEST<br />MODE</b> : linked ? <button type="button" className="danger" onClick={unlinkAccount} disabled={busy}><Unlink size={16} /> Отвязать</button> : <button type="button" onClick={connectAccount} disabled={busy}><Link2 size={16} /> Подключить</button>}</section>
       <div className="pulse31-security-list"><article><ShieldCheck size={19} /><div><strong>OAuth 2.1 + PKCE</strong><p>Одноразовый authorization code и S256 challenge.</p></div></article><article><KeyRound size={19} /><div><strong>Ed25519</strong><p>Проверяются Server ID, Local User ID, link ID и nonce.</p></div></article><article><LogOut size={19} /><div><strong>Отзыв связи</strong><p>Отвязывание требует текущий пароль Local Account.</p></div></article></div>
     </main>}
+
+    <ConfirmDialog
+      open={Boolean(purchaseTarget)}
+      title={`Активировать «${purchaseTarget?.displayName || ""}»?`}
+      description={`${purchaseTarget?.priceImpulses || 0} Импульсов будут списаны атомарно. Базовые функции общения останутся бесплатными.`}
+      confirmLabel={`Списать ${purchaseTarget?.priceImpulses || 0} ◈`}
+      busy={busy}
+      onCancel={() => !busy && setPurchaseTarget(null)}
+      onConfirm={purchaseProduct}
+    />
   </div>;
 }
