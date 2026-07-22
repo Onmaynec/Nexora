@@ -26,10 +26,12 @@ export async function replayMissedCommits({
   }
   if (localEpoch === remoteEpoch) return { state: local.state, publicStateHash: local.publicStateHash, epoch: localEpoch };
 
-  const responseGroup = result?.group || {};
-  if (String(responseGroup.id || remote.id) !== String(remote.id)
-    || String(responseGroup.conversationId || remote.conversationId) !== String(remote.conversationId)
-    || integer(responseGroup.epoch ?? remoteEpoch) !== remoteEpoch) {
+  const responseGroup = result?.group;
+  if (!responseGroup
+    || String(responseGroup.id || "") !== String(remote.id)
+    || String(responseGroup.conversationId || "") !== String(remote.conversationId)
+    || integer(responseGroup.epoch) !== remoteEpoch
+    || (remote.publicStateHash && String(responseGroup.publicStateHash || "") !== String(remote.publicStateHash))) {
     throw recoveryError("Журнал MLS commit не соответствует запрошенной группе.", "MLS_COMMIT_SCOPE_INVALID");
   }
 
@@ -54,7 +56,7 @@ export async function replayMissedCommits({
         epoch,
       });
     }
-    if (!declaredHash) throw recoveryError("MLS commit не содержит hash.", "MLS_COMMIT_HASH_INVALID");
+    if (!/^[a-f0-9]{64}$/.test(declaredHash)) throw recoveryError("MLS commit не содержит корректный SHA-256 hash.", "MLS_COMMIT_HASH_INVALID");
     if (seenHashes.has(declaredHash)) throw recoveryError("MLS commit повторён в ответе сервера.", "MLS_COMMIT_REPLAY", { commitHash: declaredHash });
     seenHashes.add(declaredHash);
 
@@ -70,7 +72,7 @@ export async function replayMissedCommits({
     if (integer(processed?.epoch) !== epoch) {
       throw recoveryError("Обработанный MLS commit вернул другую epoch.", "MLS_EPOCH_CONFLICT", { expected: epoch, actual: processed?.epoch });
     }
-    if (item.publicStateHash && String(processed.publicStateHash) !== String(item.publicStateHash)) {
+    if (!item.publicStateHash || String(processed.publicStateHash) !== String(item.publicStateHash)) {
       throw recoveryError("Public state hash MLS commit не совпадает.", "MLS_PUBLIC_STATE_HASH_MISMATCH", { epoch });
     }
     state = processed.state;
