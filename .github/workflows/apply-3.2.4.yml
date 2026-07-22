@@ -41,14 +41,23 @@ jobs:
           cat /tmp/nexora-3.2.4-patch.log
           if [ "$code" -ne 0 ]; then
             git reset --hard HEAD
-            cp /tmp/nexora-3.2.4-patch.log PATCH_APPLY_FAILURE.log
             echo "success=false" >> "$GITHUB_OUTPUT"
           else
             echo "success=true" >> "$GITHUB_OUTPUT"
           fi
           exit 0
 
-      - name: Commit patch or diagnostic
+      - name: Upload patch log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexora-3.2.4-patch-log
+          path: /tmp/nexora-3.2.4-patch.log
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Commit applied patch
+        if: steps.patch.outputs.success == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -59,10 +68,5 @@ jobs:
             echo "No changes"
             exit 0
           fi
-          if [ "${{ steps.patch.outputs.success }}" = "true" ]; then
-            message="feat: implement Nexora 3.2.4 update and MLS recovery"
-          else
-            message="test: preserve Nexora 3.2.4 patch failure"
-          fi
-          git commit -m "$message"
+          git commit -m "feat: implement Nexora 3.2.4 update and MLS recovery"
           git push origin HEAD:agent/nexora-3.2.4-updater-mls-recovery
