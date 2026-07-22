@@ -39,9 +39,10 @@ Never attach:
 
 - private device key;
 - private MLS group state;
+- attachment AES key/IV or complete descriptor;
 - wrapping key;
 - complete recovery code/token/cookie;
-- real message plaintext;
+- real message/file plaintext;
 - production account data.
 
 ## 3. Migration tests
@@ -78,6 +79,8 @@ Expected: `DATABASE_CORRUPT` or `MIGRATION_BACKUP_FAILED`, no partial schema 8 s
 - restore pre-schema-8 backup offline and start matching 3.1.2;
 - confirm Trust/MLS records created after migration are absent;
 - upgrade restored schema 7 backup again and verify idempotent success.
+
+Detailed procedure: [docs/MIGRATION_3.2.0.md](docs/MIGRATION_3.2.0.md).
 
 ## 4. Device identity tests
 
@@ -215,22 +218,92 @@ After the conversation has an active MLS group, attempt direct calls to:
 - scheduled message create;
 - poll create;
 - bot message API;
-- legacy upload;
+- legacy multipart upload;
 - chunked upload initiate/chunk/complete;
 - old client send path.
 
-Expected: server rejects with E2EE-specific stable code. Hidden UI is not sufficient; verify direct requests.
+Expected: server rejects with E2EE-specific stable code. Hidden UI is not sufficient; verify direct requests and confirm rejected temporary data is removed.
 
-## 9. Media fail-closed behavior
+## 9. Encrypted files, images and voice
 
-In Secure Message Pane:
+### 9.1 Successful file/image flow
 
-- attachment/image/voice buttons must be absent or disabled;
-- drag/drop/paste/upload direct attempts must not create legacy plaintext file message;
-- API bypass must be rejected after MLS activation;
-- no temporary file remains after rejected upload.
+1. In an active secure conversation select a disposable file below 25 MiB.
+2. Record UI phases: read → encrypt → upload → verify → seal descriptor → send MLS envelope.
+3. Confirm progress reaches 100% and no legacy upload route is used.
+4. On recipient device open the message and choose local decrypt.
+5. For an image, verify preview; for a generic file, verify explicit download.
+6. Compare downloaded plaintext hash with the source fixture.
 
-This validates safe failure only. It does not validate encrypted media, which remains a release blocker.
+Expected:
+
+- server file metadata uses generic name/MIME and kind `encrypted`;
+- ciphertext size equals plaintext size + 16-byte GCM tag;
+- server ciphertext SHA-256 matches upload;
+- message server-visible text is empty;
+- original name/MIME/key/IV/caption are present only after MLS decrypt;
+- descriptor ID/hash/size matches server envelope;
+- ciphertext hash, GCM tag and plaintext hash all validate before preview/download.
+
+### 9.2 Voice recording
+
+Test:
+
+- microphone permission granted;
+- permission denied;
+- unsupported `MediaRecorder`;
+- start, stop, cancel and automatic five-minute stop;
+- duration/waveform and playback after recipient decrypt.
+
+Expected: denied/unsupported recording is a clear UI error; cancel creates no upload/message; server never receives duration, waveform or actual audio MIME.
+
+### 9.3 Upload cancellation and retry
+
+- cancel during encryption/upload;
+- disconnect after opaque upload but before MLS enqueue;
+- disconnect after enqueue but before Socket.IO acknowledgement;
+- retry the same outbox entry;
+- discard a failed outbox entry.
+
+Expected:
+
+- cancellation before enqueue removes pending ciphertext;
+- after enqueue only opaque attachment ID and MLS ciphertext remain in ordinary outbox;
+- retry is idempotent and does not create a second file/message;
+- discard attempts pending delete and safely tolerates already-claimed/expired state.
+
+### 9.4 Pending/claim lifecycle
+
+Directly verify:
+
+- pending attachment cannot be downloaded;
+- same ID/scope/hash upload is idempotent;
+- same ID with another payload is rejected;
+- wrong ciphertext hash is rejected without a file record;
+- `mls:message` atomically claims the attachment;
+- claimed attachment becomes downloadable only to conversation participants;
+- second message cannot reuse the same attachment;
+- failed claim releases MLS replay reservation;
+- expired pending attachment is removed by cleanup.
+
+### 9.5 Descriptor/ciphertext corruption
+
+Modify separately:
+
+- attachment ID in MLS descriptor;
+- ciphertext size/hash in server envelope fixture;
+- AES key/IV;
+- AAD conversation ID or media kind;
+- downloaded ciphertext byte;
+- plaintext hash.
+
+Expected: explicit descriptor/ciphertext/key/plaintext error, no preview/download and no plaintext fallback.
+
+### 9.6 Room media policy
+
+For an MLS-enabled room, disable each of `allowFiles`, `allowImages` and `allowVoice` separately.
+
+Expected: complete opaque media API returns `E2EE_MEDIA_POLICY_RESTRICTED` in every case. The server must not trust client-supplied kind/MIME to bypass the restriction.
 
 ## 10. Storage isolation and corruption
 
@@ -249,13 +322,15 @@ Modify IV/ciphertext/AAD-linked record in IndexedDB.
 
 Expected: decrypt fails; record is ignored/removed according to component policy; no plaintext fallback.
 
-### 10.3 Draft/cache retention
+### 10.3 Draft/cache/outbox retention
 
 Verify:
 
 - secure drafts never reach server draft API;
 - decrypted cache expires/removes as designed;
-- self-revoke clears both;
+- decrypted attachment descriptor/key is not copied into ordinary offline cache;
+- ordinary outbox has opaque attachment ID and MLS ciphertext only;
+- self-revoke clears Trust stores;
 - logout without revoke preserves expected device state only for the same profile.
 
 ## 11. Room and authorization tests
@@ -267,7 +342,8 @@ For an MLS-enabled room:
 - ownership transfer and role changes do not bypass device verification;
 - removed member leaves realtime room and MLS delivery membership;
 - revoked device of an otherwise active user is denied;
-- room read-only/slow-mode remains enforced before ciphertext acceptance.
+- room read-only/slow-mode remains enforced before ciphertext acceptance;
+- opaque media follows fail-closed room settings.
 
 ## 12. Metadata review
 
@@ -277,12 +353,13 @@ Record which data remains visible to Local Server:
 - conversation/group membership;
 - epoch and delivery order;
 - sender device ID;
+- uploader and attachment ID;
 - timestamps/IP/session information;
-- ciphertext size;
-- message/replay hashes;
+- message and attachment ciphertext sizes;
+- message/replay/ciphertext hashes;
 - operational errors.
 
-Report unnecessary fields. Do not claim metadata confidentiality.
+Confirm Local Server does not receive attachment key, IV, filename, actual MIME, caption, voice duration, waveform or plaintext bytes. Report unnecessary visible fields. Do not claim metadata confidentiality.
 
 ## 13. Automated commands
 
@@ -295,6 +372,15 @@ npm test
 npm run release:check
 gradle -p android :app:assembleDebug --no-daemon
 ```
+
+Relevant automated files:
+
+- `test/e2ee-runtime-guards.test.cjs`;
+- `test/e2ee-attachments.test.cjs`;
+- `test/e2ee-attachment-transport.test.cjs`;
+- `test/store-queue.test.cjs`;
+- `test/e2ee-plaintext-guards.test.cjs`;
+- `test/mls-interoperability.test.cjs`.
 
 Optional controlled soak:
 
@@ -311,7 +397,7 @@ A candidate may move out of draft only when:
 - all automated gates pass on Windows/Linux/Android;
 - migration/rollback exercise passes with retained evidence;
 - multi-device/runtime E2E passes;
-- encrypted media is implemented and tested;
+- encrypted media implementation and corruption/policy tests pass;
 - metadata review is accepted;
 - signing-machine artifacts pass verification;
 - independent cryptographic/application-security review has no unresolved critical/high findings;
