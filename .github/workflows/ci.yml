@@ -36,6 +36,36 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  e2ee-attachment-diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - run: npm ci
+      - name: Capture focused TAP
+        shell: bash
+        run: |
+          set +e
+          node --test test/e2ee-attachments.test.cjs > e2ee-attachments.tap 2>&1
+          code=$?
+          cat e2ee-attachments.tap
+          echo "$code" > e2ee-attachments.exit
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: e2ee-attachments-tap
+          path: |
+            e2ee-attachments.tap
+            e2ee-attachments.exit
+          retention-days: 1
+      - name: Enforce focused TAP
+        shell: bash
+        run: test "$(cat e2ee-attachments.exit)" = "0"
+
   release-gate:
     runs-on: ubuntu-latest
     timeout-minutes: 30
