@@ -20,6 +20,7 @@ const mlsEngine = read("client/src/crypto/mls-engine.js");
 const android = read("android/app/src/main/java/com/nexora/mobile/MainActivity.kt");
 const androidManifest = read("android/app/src/main/AndroidManifest.xml");
 const releaseWorkflow = read(".github/workflows/release.yml");
+const attachmentGuardCount = (v3.match(/E2EE_ATTACHMENT_REQUIRED/g) || []).length;
 const checks = [
   ["CSRF token verification", /CSRF_INVALID/, server],
   ["Origin verification", /ORIGIN_REJECTED/, server],
@@ -47,9 +48,9 @@ const checks = [
   ["Private MLS state uses local AES-GCM wrapping", containsAll(trustStore, ["AES-GCM", "additionalData", "tagLength: 128"]), "boolean"],
   ["Self-revoke clears all Trust stores", trustDevices.includes("clearTrustScope") && containsAll(trustStore, ["STORES.devices", "STORES.groups", "STORES.messages", "STORES.drafts"]), "boolean"],
   ["MLS mandatory ciphersuite is fixed to 1", /MLS_CIPHERSUITE_ID\s*=\s*1/, mlsEngine],
-  ["MLS transport rejects ciphertext replay", /MLS_CIPHERTEXT_REPLAYED/, mlsTransport],
+  ["MLS transport rejects ciphertext replay", trustCore.includes("MLS_CIPHERTEXT_REPLAYED") && mlsTransport.includes("trustCore.reserveMessage"), "boolean"],
   ["Secure serialization never exposes MLS plaintext", containsAll(model, ["message.mlsEnvelope", "text: deleted ? \"\"", "message.type === \"encrypted\" ? \"\""]), "boolean"],
-  ["Legacy plaintext routes are guarded after MLS activation", containsAll(server + v3, ["E2EE_PLAINTEXT_FORBIDDEN", "conversationUsesMls"]), "boolean"],
+  ["Legacy plaintext routes are guarded after MLS activation", containsAll(server, ["conversationUsesMls", "E2EE_REQUIRED", "E2EE_FORWARD_REQUIRED", "E2EE_ATTACHMENT_REQUIRED"]) && containsAll(v3, ["conversationUsesMls", "E2EE_DRAFT_LOCAL_ONLY", "E2EE_SCHEDULE_UNSUPPORTED", "E2EE_POLL_UNSUPPORTED", "E2EE_BOT_UNSUPPORTED"]) && attachmentGuardCount >= 3, "boolean"],
   ["Android cleartext disabled", /usesCleartextTraffic="false"/, androidManifest],
   ["Android TLS errors are cancelled", /onReceivedSslError[\s\S]*handler\.cancel\(\)/, android],
   ["Android never bypasses TLS errors", !/handler\.proceed\(\)/.test(android), "boolean"],
