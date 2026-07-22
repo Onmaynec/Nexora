@@ -1,4 +1,4 @@
-name: Diagnose direct store queue patch
+name: Apply scoped store queue patch
 
 on:
   pull_request:
@@ -8,7 +8,7 @@ permissions:
   contents: write
 
 jobs:
-  diagnose-store-queue:
+  patch-store-queue:
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 12
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -17,47 +17,43 @@ jobs:
         with:
           ref: agent/nexora-3.2.0-trust-core-mls
           fetch-depth: 0
-      - name: Capture direct patch attempt
+      - name: Patch SqliteStore.mutate queue only
         shell: bash
         run: |
-          set +e
-          {
-            set -x
-            python - <<'PY'
+          set -euo pipefail
+          python - <<'PY'
           from pathlib import Path
           path = Path("server/store.cjs")
           source = path.read_text(encoding="utf-8")
-          before = "    this.queue = operation;\n    return operation;"
-          after = "    this.queue = operation.catch(() => {});\n    return operation;"
-          print("before_count", source.count(before))
-          print("after_count", source.count(after))
+          before = '''  mutate(mutator) {
+              const operation = this.queue
+                .catch(() => {})
+                .then(async () => {
+                  const draft = structuredClone(this.state);
+                  const result = await mutator(draft);
+                  this.persistState(draft);
+                  this.emit("changed");
+                  return result == null ? result : structuredClone(result);
+                });
+              this.queue = operation;
+              return operation;
+            }'''.replace("            ", "")
+          after = before.replace("this.queue = operation;", "this.queue = operation.catch(() => {});")
           if source.count(before) != 1:
-              raise SystemExit(f"expected one queue assignment, found {source.count(before)}")
+              raise SystemExit(f"expected one mutate block, found {source.count(before)}")
           updated = source.replace(before, after, 1)
-          if before in updated or updated.count(after) != 1:
-              raise SystemExit("queue patch postcondition failed")
+          if updated.count(after) != 1 or before in updated:
+              raise SystemExit("mutate patch postcondition failed")
           path.write_text(updated, encoding="utf-8")
           PY
-            grep -F 'this.queue = operation.catch(() => {});' server/store.cjs
-            git diff --stat -- server/store.cjs
-            git diff --check -- server/store.cjs
-            git status --short
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add server/store.cjs
-            git commit -m "fix(store): keep mutation queue healthy after rejection"
-            git push origin HEAD:agent/nexora-3.2.0-trust-core-mls
-          } > direct-store-patch.log 2>&1
-          echo "$?" > direct-store-patch.exit
-          cat direct-store-patch.log
-          exit 0
-      - uses: actions/upload-artifact@v4
-        with:
-          name: direct-store-patch-log
-          path: |
-            direct-store-patch.log
-            direct-store-patch.exit
-          retention-days: 1
-      - name: Enforce patch
-        shell: bash
-        run: test "$(cat direct-store-patch.exit)" = "0"
+          grep -A13 -F '  mutate(mutator) {' server/store.cjs | grep -F 'this.queue = operation.catch(() => {});'
+          if git diff --quiet -- server/store.cjs; then
+            echo "server/store.cjs did not change" >&2
+            exit 1
+          fi
+          git diff --check -- server/store.cjs
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add server/store.cjs
+          git commit -m "fix(store): keep mutation queue healthy after rejection"
+          git push origin HEAD:agent/nexora-3.2.0-trust-core-mls
