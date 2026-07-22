@@ -10,6 +10,61 @@ permissions:
   contents: read
 
 jobs:
+  patch-3-2-5:
+    if: github.event_name == 'pull_request' && github.head_ref == 'agent/nexora-3.2.5-ui-console-performance' && github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: write
+    runs-on: windows-latest
+    timeout-minutes: 90
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - run: npm ci
+      - name: Create failing regressions
+        run: node scripts/patch-3.2.5.cjs prepare
+      - name: Confirm regressions fail before fix
+        shell: pwsh
+        run: |
+          node --test test/release-3.2.5-regressions.test.cjs
+          if ($LASTEXITCODE -eq 0) { throw "Regression suite was expected to fail before production changes." }
+          exit 0
+      - name: Apply 3.2.5 implementation
+        run: node scripts/patch-3.2.5.cjs apply
+      - run: npm run release:sync-version
+      - run: node --test test/release-3.2.5-regressions.test.cjs
+      - run: npm run check
+      - run: npm run test:unit
+      - run: npm run test:performance
+      - run: npm run audit:security
+      - run: npm run release:windows
+      - name: Remove one-shot patcher and generated installers
+        shell: pwsh
+        run: |
+          git fetch origin main:refs/remotes/origin/main --depth=1
+          git checkout origin/main -- .github/workflows/ci.yml
+          Remove-Item scripts/.patch-3.2.5 -Recurse -Force
+          Remove-Item scripts/patch-3.2.5.cjs -Force
+          Remove-Item .github/workflows/patch-3.2.5.yml -Force
+          Remove-Item release -Recurse -Force -ErrorAction SilentlyContinue
+      - name: Commit verified 3.2.5
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) { throw "No 3.2.5 changes were produced." }
+          git commit -m "release: Nexora 3.2.5 UI, Pulse and messaging recovery"
+          git push origin HEAD:${{ github.head_ref }}
+
   verify:
     runs-on: windows-latest
     timeout-minutes: 25
