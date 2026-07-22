@@ -22,28 +22,7 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run test:unit
-      - name: Capture security audit
-        shell: pwsh
-        run: |
-          npm run audit:security *> security-audit.log
-          $code = $LASTEXITCODE
-          Get-Content security-audit.log
-          Set-Content -Path security-audit.exit -Value $code
-          exit 0
-      - name: Upload security audit diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: trust-security-audit
-          path: |
-            security-audit.log
-            security-audit.exit
-          retention-days: 1
-      - name: Enforce security audit
-        shell: pwsh
-        run: |
-          $code = [int](Get-Content security-audit.exit)
-          exit $code
+      - run: npm run audit:security
 
   linux-tests:
     runs-on: ubuntu-latest
@@ -56,6 +35,18 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+
+  release-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - run: npm ci
+      - run: npm run release:check
 
   android-source:
     runs-on: ubuntu-latest
