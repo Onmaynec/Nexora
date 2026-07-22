@@ -6,6 +6,7 @@ on:
     paths:
       - package.json
       - scripts/sync-release-metadata.cjs
+      - scripts/apply-3.3-source-patches.cjs
       - .github/workflows/sync-release-metadata-pr.yml
 
 permissions:
@@ -32,16 +33,26 @@ jobs:
           node-version: 22.16.0
           cache: npm
       - run: node scripts/sync-release-metadata.cjs
-      - name: Commit synchronized metadata
+      - run: node scripts/apply-3.3-source-patches.cjs
+      - name: Commit synchronized sources
         shell: bash
         run: |
           set -euo pipefail
-          if git diff --quiet -- package-lock.json android/app/build.gradle.kts client/src/api.js test/server.test.cjs test/build-config.test.cjs; then
-            echo "Release metadata is already synchronized."
+          paths=(
+            package-lock.json
+            android/app/build.gradle.kts
+            client/src/api.js
+            client/src/components/MessagePane.jsx
+            cloud/create-cloud-server-v11.cjs
+            test/server.test.cjs
+            test/build-config.test.cjs
+          )
+          if git diff --quiet -- "${paths[@]}"; then
+            echo "Release metadata and deterministic source patches are already synchronized."
             exit 0
           fi
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json android/app/build.gradle.kts client/src/api.js test/server.test.cjs test/build-config.test.cjs
-          git commit -m "chore(release): synchronize Nexora 3.3.0 metadata"
+          git config user.email "4189822+github-actions[bot]@users.noreply.github.com"
+          git add "${paths[@]}"
+          git commit -m "chore(release): synchronize Nexora 3.3.0 sources"
           git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
