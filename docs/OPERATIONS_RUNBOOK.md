@@ -1,261 +1,332 @@
 # Nexora Operations Runbook
 
-## 1. Область применения
+## 1. Область
 
-Runbook относится к Nexora `3.2.3`:
+Runbook относится к Nexora `3.2.4`:
 
 - Local Server schema 8;
 - Application API v3;
 - Trust/MLS/encrypted-media API v4;
-- Source/PWA prerelease distribution;
+- Source/PWA prerelease;
 - signed production baseline `3.1.2`.
 
-Цель документа — дать оператору повторяемые процедуры startup, monitoring, maintenance, backup, restore, upgrade и incident response.
+Цель — repeatable startup, monitoring, maintenance, backup, restore, upgrade и incident procedures.
 
-## 2. Preflight перед запуском
+## 2. Preflight
 
 Проверьте:
 
-- поддерживаемую версию Node.js `22.16+`;
-- доступность рабочей директории и прав записи;
-- свободное место для SQLite, WAL, attachments и backup;
+- Node.js `22.16+`;
+- writable data directory;
+- free space for SQLite/WAL/attachments/backups;
 - HTTPS certificate, SAN, Server ID и fingerprint;
-- точный `allowedOrigins`;
-- firewall и network interface;
-- отсутствие production secrets в repository и logs;
-- действующий backup и известную процедуру restore;
-- корректную Pulse mode configuration.
+- exact `allowedOrigins`;
+- firewall/interface;
+- no production secrets in repository/logs;
+- verified backup и known restore procedure;
+- Pulse mode;
+- release classification и Client compatibility.
 
-## 3. Запуск
-
-Source deployment:
+## 3. Startup
 
 ```bash
 npm ci
 npm start
 ```
 
-После запуска проверьте:
+Verify:
 
 ```text
 GET /healthz/live
 GET /healthz/ready
 ```
 
-Ready state должен подтверждать:
+Confirm:
 
-- доступность SQLite;
-- поддерживаемую schema 8;
-- завершённую migration/maintenance initialization;
-- отсутствие drain state;
-- готовность operational dependencies.
+- schema 8;
+- `PRAGMA integrity_check = ok` through supported tooling;
+- no unexpected migration;
+- storage available;
+- Socket.IO/realtime ready;
+- maintenance scheduler active;
+- expected Pulse status.
 
-## 4. Monitoring
+## 4. Normal monitoring
 
-### Endpoints
+Observe:
 
-- `GET /healthz/live` — process liveness;
-- `GET /healthz/ready` — readiness для traffic;
-- `GET /metrics` — Prometheus metrics.
+- process liveness/readiness;
+- HTTP/Socket.IO error rate;
+- `RATE_LIMITED` volume;
+- SQLite storage/WAL/integrity;
+- backup age/success;
+- session and login-history cleanup;
+- Trust device count and KeyPackage inventory;
+- pending Welcome/commit/recovery state;
+- pending/orphan attachment state;
+- Pulse workers/provider reconciliation;
+- certificate expiry;
+- release/update failures.
 
-Remote metrics требуют Bearer token. Без token endpoint должен оставаться loopback-only.
+Remote metrics require Bearer token; otherwise endpoint remains loopback-only.
 
-### Минимальные alert conditions
+## 5. Scheduled maintenance
 
-- readiness `503` вне планового shutdown;
-- повторные SQLite integrity/database errors;
-- storage quota exhaustion;
-- backup failure;
-- необычный рост `RATE_LIMITED`;
-- repeated authentication lockouts;
-- Pulse worker/reconciliation failure;
-- Trust recovery/hash mismatch;
-- рост rejected attachment claims или replay attempts;
-- graceful shutdown timeout.
-
-## 5. Логи и диагностика
-
-Operational logs должны содержать request ID и не должны содержать:
-
-- passwords;
-- cookies и session tokens;
-- OAuth/API/bot/Pulse credentials;
-- TOTP secrets или recovery codes;
-- signing/private keys;
-- invite codes;
-- MLS private state;
-- secure-message plaintext;
-- backup passphrase.
-
-Перед передачей logs выполните ручную redaction и минимизацию данных.
-
-## 6. Scheduled maintenance
-
-При startup и каждый час Local Server удаляет:
+Startup and hourly maintenance remove:
 
 - expired sessions;
-- login history старше 90 дней;
-- stale persistent rate-limit buckets;
-- expired Trust resources, включая неактуальный KeyPackage state;
-- orphan/pending data в рамках существующей retention policy.
+- login history older than 90 days;
+- stale persisted rate-limit buckets;
+- expired Trust challenges;
+- expired/unclaimed KeyPackages according to TTL;
+- expired pending encrypted attachments;
+- orphaned storage according to retention policy.
 
-Maintenance не заменяет quota, monitoring и backup. Ошибка maintenance должна быть видна оператору и не должна скрываться пустым catch.
+Maintenance failure must be observable. Do not suppress unexpected SQLite errors.
 
-## 7. Resource governance
+## 6. Resource governance
 
-### Trust devices
+Limits:
 
-- максимум 16 active devices на user;
-- duplicate registration с теми же данными остаётся idempotent;
-- revocation освобождает capacity.
+| Resource | Limit |
+|---|---|
+| Active Trust devices | 16/user |
+| KeyPackages upload | 25/request |
+| Unclaimed KeyPackages | 32/device |
+| Unclaimed KeyPackages | 256/user |
 
-### KeyPackages
+Route throttling returns HTTP `429`, code `RATE_LIMITED` и `Retry-After`.
 
-- максимум 25 в одном request;
-- максимум 32 unclaimed на device;
-- максимум 256 unclaimed на user;
-- превышение должно откатывать весь overflowing batch.
+Operator response:
 
-### Routes
+1. identify scope/request ID;
+2. stop client retry storm;
+3. wait `Retry-After`;
+4. inspect abuse/automation;
+5. do not raise limit without capacity/security review.
 
-Trust, recovery и E2EE upload routes имеют bounded sliding-window limits. При превышении Client получает:
+## 7. Backup
 
-- HTTP `429`;
-- stable code `RATE_LIMITED`;
-- `Retry-After`.
+Before release-sensitive change:
 
-Не увеличивайте limits без load/security review.
+1. enter planned maintenance/read-only if required;
+2. confirm integrity;
+3. checkpoint WAL through supported backup path;
+4. create encrypted verified backup;
+5. verify backup metadata/readability;
+6. copy at least one instance off-host;
+7. record version/schema/time/operator;
+8. protect passphrase separately.
 
-## 8. Backup
+Never manually copy active SQLite database as a backup procedure.
 
-Перед upgrade, migration, restore test или значимым изменением:
+## 8. Restore
 
-1. переведите service в контролируемое состояние;
-2. выполните WAL checkpoint;
-3. создайте application-level verified backup;
-4. сохраните backup вне server computer;
-5. проверьте возможность чтения/verification;
-6. сохраните passphrase отдельно;
-7. зафиксируйте version, schema, timestamp и checksum.
+1. stop traffic/process;
+2. preserve failed-state evidence;
+3. select verified backup;
+4. restore via supported path;
+5. start isolated/controlled;
+6. verify integrity/schema;
+7. verify users/rooms/messages/files/audit;
+8. verify Trust/Pulse state appropriate to backup version;
+9. verify live/ready;
+10. reopen traffic.
 
-Не копируйте активный `nexora.sqlite` вручную как единственную резервную копию.
+Schema 8 rollback is restore-based. Do not run schema 7 binary against schema 8 database.
 
-## 9. Restore
+## 9. Upgrade to 3.2.4
 
-1. Остановите входящий traffic.
-2. Зафиксируйте текущую версию, schema и причину restore.
-3. Создайте `pre-restore` copy текущих данных, если они доступны.
-4. Проверьте backup metadata и passphrase.
-5. Выполните application-level restore.
-6. Проверьте SQLite integrity и schema.
-7. Запустите Local Server.
-8. Проверьте live/ready, login, rooms, messages, files и realtime.
-9. Для Trust/MLS проверьте device directory и отсутствие неожиданных recovery gaps.
+### From 3.1.x/schema 7
 
-Schema 8 не откатывается in-place к schema 7. Rollback выполняется восстановлением совместимого verified backup и соответствующего binary.
+- verified backup required;
+- migration performs integrity/free-space/WAL/transactional checks;
+- confirm schema 8 and old data readability;
+- old history is not retroactively encrypted;
+- downgrade blocked.
 
-## 10. Upgrade 3.2.x → 3.2.3
+### From 3.2.0–3.2.3
 
-Database migration не требуется: schema остаётся 8.
+- no database migration;
+- schema remains 8;
+- API v3/v4 compatible;
+- verify updater, Server console и Welcome recovery behavior;
+- retain existing Trust/media/Pulse state.
 
-Процедура:
+## 10. Graceful shutdown
 
-1. создайте verified backup;
-2. остановите Server graceful shutdown;
-3. обновите source/package;
-4. подтвердите version metadata `3.2.3`;
-5. запустите Server;
-6. проверьте live/ready и SQLite integrity;
-7. проверьте login/bootstrap и закрытие Server без main-process exception;
-8. проверьте Trust device enrollment/revocation;
-9. проверьте route rate-limit contract и отсутствие ложного lockout;
-10. проверьте recovery и encrypted attachment flow.
+Expected order:
 
-## 11. Graceful shutdown
+1. set readiness `503`;
+2. stop new work;
+3. drain workers;
+4. close Socket.IO/HTTP;
+5. flush storage queue;
+6. close SQLite;
+7. publish stopped snapshot without reopening closed store.
 
-Нормальный shutdown:
+Concurrent stop/quit is serialized. Unexpected shutdown error is recorded, not hidden.
 
-1. переводит readiness в `503`;
-2. блокирует новый traffic;
-3. останавливает workers;
-4. завершает HTTP/Socket.IO;
-5. flushes serialized database queue;
-6. закрывает SQLite;
-7. формирует stopped-state status без обращения к закрытому repository.
+## 11. Emergency read-only
 
-Параллельные stop/quit paths должны сериализоваться. Forced process termination используйте только при зависании и после сохранения diagnostics.
+Use for investigation when reads must remain available and writes must stop.
 
-## 12. Emergency read-only
+Confirm:
 
-Emergency read-only применяется для расследования или защиты данных:
+- mutations rejected with stable error;
+- reads remain authorized;
+- no background monetary/moderation/storage write bypass;
+- incident/audit record created.
 
-- reads остаются доступны, где это безопасно;
-- mutations отклоняются стабильной ошибкой;
-- режим фиксируется в audit;
-- после устранения причины режим отключается явно.
+Read-only does not replace backup/restore.
 
-Read-only не исправляет corruption и не заменяет backup/restore.
+## 12. Database incident
 
-## 13. Incident response
+Indicators:
 
-### Сбор evidence
+- integrity failure;
+- schema mismatch/downgrade block;
+- repeated SQLite I/O error;
+- missing/invalid backup;
+- failed mutation queue/flush.
 
-Сохраните:
+Procedure:
 
-- Client/Server/Cloud versions;
-- commit/tag или asset identifier;
+1. stop writes;
+2. preserve sanitized logs/request IDs;
+3. stop service if integrity uncertain;
+4. do not run manual schema edits;
+5. select latest verified backup;
+6. restore in controlled environment;
+7. verify integrity and application invariants;
+8. document root cause and data window.
+
+## 13. Trust/MLS incident
+
+Collect without private keys/content:
+
+- version/commit;
 - Server ID;
-- request IDs;
-- timestamps и sequence действий;
-- deployment profile;
-- live/ready/metrics snapshot;
-- schema и integrity result;
-- storage/quota state;
-- sanitized logs;
-- affected room/device/epoch identifiers без private content.
+- user/device IDs as sanitized identifiers;
+- conversation/group ID;
+- epoch;
+- verification/revocation state;
+- KeyPackage inventory;
+- stable error/request ID;
+- event sequence/timing.
 
-### При database error
+Possible responses:
 
-1. включите read-only или остановите Server;
-2. не запускайте repair scripts без verified copy;
-3. сохраните logs и database copy согласно privacy policy;
-4. выполните integrity check;
-5. восстановите последний verified backup при подтверждённой corruption;
-6. повторно проверьте schema/readiness.
+- revoke compromised device;
+- confirm targeted disconnect;
+- require new enrollment;
+- preserve audit;
+- block sending on unrecoverable state;
+- do not downgrade to plaintext.
 
-### При Trust/MLS incident
+## 14. MLS Welcome recovery incident
 
-1. остановите рискованную операцию;
-2. зафиксируйте user/device/conversation/group/epoch scope;
-3. отзовите compromised device;
-4. подтвердите targeted Socket.IO disconnect;
-5. проверьте local Trust wipe;
-6. сохраните только sanitized protocol sequence;
-7. не собирайте private keys, full MLS state или message plaintext без отдельной законной необходимости.
+Symptoms: verified device remains `MLS_WELCOME_PENDING`.
 
-### При подозрении на credential leak
+Check:
 
-- немедленно rotate/revoke credential;
-- завершите affected sessions;
-- проверьте audit и request IDs;
-- смените signing/service keys по runbook соответствующего компонента;
-- не публикуйте leaked value в Issue.
+1. Client/Server both 3.2.4-compatible;
+2. pending device active/verified;
+3. conversation access and no active ban;
+4. at least one active verified group device online;
+5. no `RATE_LIMITED` before retry;
+6. scoped `mls.welcome_requested` reaches eligible device;
+7. active device creates commit/Welcome;
+8. pending device retries one-time claim.
 
-## 14. Pulse incident
+If no active member is available, preserve fail-closed state. Do not enable legacy send.
 
-Cloud outage не должна блокировать local messaging.
+## 15. Encrypted attachment incident
 
-Во время outage:
+Check:
 
-- запретите новые monetary writes;
-- используйте только unexpired verified cache для отображения;
-- не продлевайте entitlement локально;
-- контролируйте worker retry/lease state;
-- после восстановления выполните reconciliation и event delta sync.
+- ciphertext actual size;
+- expected `plaintextSize + GCM tag` relationship;
+- SHA-256;
+- conversation/uploader/attachment scope;
+- pending/claimed/cancelled/expired state;
+- room media policy;
+- quota by actual stored bytes;
+- no attachment reuse.
 
-## 15. Release verification для оператора
+Server must not decrypt payload to inspect plaintext.
 
-Перед production-sensitive rollout:
+## 16. Updater incident
+
+Record:
+
+- installed Client version;
+- packaged/unpackaged state;
+- provider/feed URL class without secret;
+- updater state/error code;
+- release tag/assets;
+- Authenticode/signature result;
+- availability of installer/blockmap/`latest.yml`.
+
+Verify:
+
+- official GitHub Releases provider or explicit HTTPS feed;
+- no downgrade/prerelease;
+- code-signature verification;
+- complete signed asset set;
+- no duplicate concurrent checks;
+- UI terminal state and retry.
+
+Unpackaged development mode not performing automatic update is expected.
+
+## 17. Windows test mode incident
+
+`--test-mode` should only tail local Client log.
+
+Check:
+
+- started intentionally;
+- PowerShell process exits with Client;
+- no DevTools/remote debugging/Node integration;
+- log has no secrets/user content before sharing;
+- renderer records length-limited/flattened.
+
+## 18. Server console incident
+
+- capture command name, stable code/message и request context;
+- do not paste secrets;
+- verify command exists in allowlist;
+- copied `<...>`/`[...]` placeholders may be normalized;
+- confirm no shell/eval path;
+- confirm mutation audit without argument values.
+
+## 19. Pulse outage
+
+Expected:
+
+- local messaging remains available;
+- cached entitlements are used only if previously verified and valid;
+- no new unauthorized monetary success;
+- workers retry boundedly;
+- provider events remain idempotent;
+- sandbox never becomes production authority.
+
+## 20. Credential leak
+
+1. revoke/rotate affected credential;
+2. terminate relevant sessions;
+3. disable compromised integration/device;
+4. inspect audit/request IDs;
+5. remove public material where possible;
+6. assess data/operation scope;
+7. use private Security Advisory;
+8. issue patch/new release if code or artifact affected.
+
+Never commit replacement secret.
+
+## 21. Release verification
+
+Before deployment:
 
 ```bash
 npm ci
@@ -264,15 +335,19 @@ npm run test:soak
 gradle -p android :app:assembleDebug --no-daemon
 ```
 
-Для stable Windows release дополнительно требуются:
+Stable Windows requires signed installers, installed runtime/update acceptance и complete asset set.
 
-- packaged runtime E2E;
-- Authenticode verification;
-- complete signed updater asset set;
-- n-1 → n update test;
-- manual approval;
-- отсутствие unresolved high/critical findings.
+## 22. Incident report template
 
-## 16. Escalation
-
-Обычные ошибки оформляются через Bug Report. Уязвимости, plaintext downgrade, private-key exposure, authorization bypass и entitlement forgery сообщаются приватно по [Security Policy](../SECURITY.md).
+- severity and impact;
+- detection time;
+- affected versions/platforms;
+- deployment profile;
+- stable codes/request IDs;
+- sanitized timeline;
+- containment;
+- data/security impact;
+- root cause;
+- correction/tests;
+- migration/rollback;
+- remaining risk.

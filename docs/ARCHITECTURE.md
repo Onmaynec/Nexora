@@ -1,8 +1,8 @@
 # Архитектура Nexora
 
-## 1. Область и статус
+## 1. Область
 
-Документ описывает `main` версии `3.2.3`:
+Документ описывает `main` версии `3.2.4`:
 
 - Application API: v3;
 - Trust/MLS/encrypted-media API: v4;
@@ -11,7 +11,7 @@
 - signed production baseline: `3.1.2`;
 - independent cryptographic/application-security review: не завершён.
 
-## 2. Компоненты системы
+## 2. System view
 
 ```mermaid
 flowchart TB
@@ -19,48 +19,50 @@ flowchart TB
     WIN[Windows Electron Client]
     PWA[Browser / PWA]
     AND[Android WebView shell]
-    UI[React / Vite application]
+    UI[React / Vite UI]
     TRUST[Device Trust + MLS engine]
-    RECOVERY[Strict MLS recovery validator]
-    EDB[Encrypted IndexedDB state]
+    RECOVERY[Commit and Welcome recovery]
+    EDB[Encrypted IndexedDB]
+    UPDATE[Signed updater lifecycle]
     WIN --> UI
     PWA --> UI
     AND --> UI
     UI --> TRUST
     TRUST --> RECOVERY
     TRUST --> EDB
+    WIN --> UPDATE
   end
 
   subgraph Local Server
     CLI[CLI / Windows Server Admin]
-    API[Express REST API v3 / v4]
-    SOCKET[Socket.IO]
-    AUTH[Sessions, CSRF, roles, bans and policies]
+    API[Express API v3 / v4]
+    AUTH[Sessions, CSRF, roles, bans, policies]
     LIMITS[Rate and resource governance]
+    SOCKET[Socket.IO]
     DELIVERY[MLS Delivery Service]
     STORE[(SQLite schema 8)]
-    MEDIA[Legacy and opaque media storage]
+    MEDIA[Legacy + opaque media]
     MAINT[Startup / hourly maintenance]
-    OPS[Health, metrics, audit and drain]
+    OPS[Health, metrics, audit, drain]
     CERT[Local CA and certificates]
     CLI --> API
     API --> AUTH
     API --> LIMITS
     API --> DELIVERY
     API --> STORE
-    SOCKET --> DELIVERY
-    DELIVERY --> STORE
     API --> MEDIA
     API --> MAINT
     API --> OPS
     API --> CERT
+    SOCKET --> DELIVERY
+    DELIVERY --> STORE
   end
 
   subgraph Pulse Cloud
     CLOUD[Cloud REST]
-    ID[Cloud Identity / OAuth 2.1 PKCE]
+    ID[Cloud Identity / OAuth PKCE]
     LEDGER[Double-entry Impulse ledger]
-    WORKERS[Email, events and reconciliation]
+    WORKERS[Email, events, reconciliation]
     SIGN[Ed25519 signing boundary]
     PROVIDER[Payment provider]
     CLOUD --> ID
@@ -71,319 +73,231 @@ flowchart TB
   end
 
   UI -->|HTTPS| API
-  TRUST <-->|device-scoped Socket.IO ciphertext| SOCKET
-  API <-->|scoped requests and signed envelopes| CLOUD
+  TRUST <-->|device-scoped ciphertext| SOCKET
+  RECOVERY <-->|Welcome request / opaque artifacts| API
+  API <-->|signed scoped envelopes| CLOUD
+  UPDATE -->|HTTPS GitHub Releases or explicit feed| RELEASES[Release assets]
 ```
 
 ## 3. Authority boundaries
 
 ### Client
 
-Client отвечает за:
-
-- UI и локальное interaction state;
-- certificate confirmation в поддерживаемых shells;
+- UI, input и local interaction state;
+- certificate/fingerprint confirmation в supported shell;
 - offline cache и durable outbox;
-- device identity private key;
-- private MLS state и private KeyPackages;
-- secure-message encryption/decryption;
-- secure-attachment encryption/decryption;
-- strict validation recovery envelope до persist;
-- local preview/playback после integrity verification;
-- Trust state wipe после revocation.
+- private device identity и MLS state;
+- secure-message/media encryption/decryption;
+- strict recovery validation;
+- active-member Welcome creation;
+- local preview/playback/download;
+- Windows update UI и post-update state.
 
 ### Local Server
 
-Local Server является authority для:
-
-- local authentication и sessions;
-- room membership, roles, bans и restrictions;
-- room policies и moderation actions;
-- Trust public directory и device status;
-- MLS group membership, epoch, replay и delivery order;
-- ciphertext persistence;
-- storage quota, retention, backups и audit;
-- resource ceilings и route-specific rate limits;
-- scheduled security-state cleanup.
+- local identity и sessions;
+- room membership, roles, bans, restrictions и policies;
+- message ordering и realtime authorization;
+- public Trust directory/device status;
+- resource ceilings и route rate limits;
+- MLS group membership, epochs, commit/replay log;
+- scoped Welcome request routing;
+- ciphertext persistence/delivery;
+- storage quota, retention, backup и audit.
 
 ### Pulse Cloud
 
-Pulse Cloud является authority для:
-
-- Cloud Identity;
-- email verification и Cloud MFA;
+- Cloud Identity и MFA;
 - OAuth 2.1 Authorization Code + PKCE;
-- subscriptions, receipts и billing state;
+- billing, receipts и subscriptions;
 - Impulse ledger;
-- provider webhook reconciliation;
+- provider reconciliation;
 - signed production entitlements.
 
-Local Server не создаёт authoritative production entitlements.
+### Release infrastructure
 
-## 4. Client bootstrap и connection flow
+- immutable tag;
+- source revision;
+- Authenticode signing;
+- installer/blockmap/`latest.yml` integrity;
+- Source/PWA/SBOM/checksum artifacts.
 
-1. Client нормализует URL и требует HTTPS вне local development.
-2. Health probe получает Server ID, API compatibility, certificate и SHA-256 fingerprint.
-3. Пользователь сверяет fingerprint по доверенному каналу.
-4. Electron создаёт persistent session partition для Server ID.
-5. Certificate verifier принимает только ожидаемые host, Server ID и fingerprint.
-6. Local Server создаёт secure HttpOnly session и выдаёт CSRF token.
-7. После authentication Client получает `/api/bootstrap` до Trust enrollment.
-8. Parent layout lifecycle конфигурирует Trust scope `(Server ID, local user ID)` до дочерних passive effects.
-9. Encrypted draft read в коротком pre-configuration window возвращает пустое состояние, не скрывая реальные platform/registration failures.
-10. Realtime authentication включает active Trust `deviceId`.
-11. Потеря membership, active ban, restriction или device trust немедленно влияет на REST и realtime access.
+## 4. Client connection flow
 
-Такой порядок устраняет циклическую зависимость bootstrap ↔ Trust enrollment ↔ Socket.IO и renderer crash `TRUST_NOT_CONFIGURED`.
+1. Client normalizes URL and requires HTTPS outside development.
+2. Health probe obtains Server ID, compatibility и certificate fingerprint.
+3. User verifies fingerprint through trusted channel.
+4. Electron creates persistent session partition per Server ID.
+5. Certificate verifier accepts expected host, Server ID и fingerprint only.
+6. Local Server creates secure HttpOnly session and CSRF token.
+7. Authenticated Client loads bootstrap before Trust enrollment.
+8. Client configures Trust scope `(Server ID, local user ID)` before child draft effects.
+9. Realtime authentication includes active Trust `deviceId`.
+10. Membership, ban/restriction или Trust loss immediately affects REST/realtime.
 
 ## 5. Data model
 
-### Schema 7 baseline
+Schema 7 contains local accounts, rooms, messages, media, audit, automations и Pulse integration state.
 
-Schema 7 содержит:
-
-- users, sessions, contacts и profiles;
-- rooms, membership, roles, bans и invitations;
-- messages, reactions, polls, drafts и scheduled operations;
-- events, notifications, reports, appeals и audit;
-- files, uploads, quota и retention metadata;
-- bots, tokens, webhooks и integrations;
-- Cloud account links, Pulse keys, entitlement cache и event state;
-- checkout/transaction cache и room product state.
-
-### Schema 8 additions
-
-Schema 8 добавляет:
+Schema 8 adds:
 
 - Trust challenges;
-- device records и verification/revocation history;
-- MLS KeyPackages;
-- groups и group members;
-- Welcome queue;
+- device records;
+- KeyPackages;
+- MLS groups/members;
+- Welcome queue и requests;
 - commit log;
 - replay cache;
 - Trust audit;
-- secure-message и opaque-attachment delivery state;
-- persisted security/rate-limit state used by maintenance.
+- secure-message/opaque-attachment state;
+- persistent rate-limit state.
 
-Migration `7 → 8` выполняется до network listen: source integrity, free-space check, WAL checkpoint, verified backup, transactional/idempotent migration, destination integrity и downgrade protection.
+Migration `7 → 8` executes before network listen with source integrity, free-space check, WAL checkpoint, verified backup, transactional/idempotent migration, destination integrity и downgrade protection.
 
-Patch updates `3.2.0–3.2.2 → 3.2.3` schema не меняют.
+No migration is required between 3.2.0–3.2.4.
 
-## 6. Authorization model
+## 6. Authorization pipeline
 
-Mutating browser requests требуют:
+Mutating operation requires:
 
-- authenticated session;
-- допустимый Origin;
-- valid CSRF token;
-- существующий resource;
-- membership, где требуется;
-- role/permission;
-- ban/restriction check;
-- room-policy check;
-- input/scope validation;
-- route rate limit;
-- resource ceiling.
+1. session;
+2. Origin;
+3. CSRF;
+4. resource existence;
+5. membership;
+6. role/permission;
+7. active-ban/restriction check;
+8. room policy;
+9. input scope/validation;
+10. rate/resource limit.
 
-Active ban имеет приоритет над stale membership. Conversation access завершается fail-closed при inconsistent state.
+Trust mutation additionally requires `X-Nexora-Device-ID`, active/verified device и scoped challenge/signature where applicable.
 
-Trust mutations дополнительно требуют `X-Nexora-Device-ID`, active verified device и, где применимо, scoped one-time challenge и valid signature.
+Active ban overrides stale membership. Realtime rooms are removed when access changes.
 
-## 7. Rate limiting и resource governance
+## 7. Trust device lifecycle
 
-`server/rate-limit.cjs` предоставляет shared memory-bounded sliding-window limiter для Trust, recovery и E2EE attachment routes.
+- Client creates non-extractable Ed25519 identity/signature keys;
+- identity и MLS signature roles use distinct keys;
+- registration proves possession and binds BasicCredential to `{ userId, deviceId }`;
+- first device receives bootstrap verification;
+- later device requires signed approval;
+- maximum 16 active devices/user;
+- verification и revocation use separate one-time challenges;
+- revocation disconnects target socket and triggers local scope wipe.
 
-Контракт:
+## 8. KeyPackage lifecycle
 
-- operation-specific windows и limits;
-- bounded bucket count;
-- HTTP `429`;
-- stable code `RATE_LIMITED`;
-- `Retry-After`;
-- stale bucket cleanup при startup/hourly maintenance.
+- upload maximum 25/request;
+- inventory maximum 32/device and 256/user;
+- limits enforced atomically;
+- package one-time, expiring и scope-bound;
+- Welcome scoped to user/device/conversation;
+- expired inventory cleaned by maintenance.
 
-Resource ceilings:
-
-- 16 active Trust devices на user;
-- 25 KeyPackages в одном request;
-- 32 unclaimed KeyPackages на device;
-- 256 unclaimed KeyPackages на user.
-
-Limits применяются атомарно в SQLite. Duplicate idempotent registration не расходует capacity повторно; revocation освобождает device capacity.
-
-## 8. Device Trust lifecycle
-
-1. Client создаёт non-extractable Ed25519 identity key.
-2. Registration доказывает possession private key.
-3. MLS BasicCredential парсится и связывается с authenticated `{ userId, deviceId }`.
-4. Identity proof и MLS signature используют разные Ed25519 keys.
-5. Первый device получает bootstrap verification.
-6. Последующие devices требуют signed approval active verified device.
-7. Verification и revocation используют отдельные operation-scoped one-time challenges.
-8. Revocation немедленно отключает целевой secure socket.
-9. Revoked Client удаляет identity, private MLS state, KeyPackages, cache и drafts до reenrollment.
-
-Local Server хранит public keys, credential, fingerprint, verification state и primitive audit metadata. Private identity key не хранится.
-
-## 9. KeyPackage lifecycle
-
-- verified device публикует one-time KeyPackages;
-- upload batch и inventory ограничены resource ceilings;
-- target package claim атомарный;
-- package scope включает user/device/conversation context;
-- expired packages очищаются maintenance process;
-- reuse и scope substitution отклоняются.
-
-## 10. MLS secure-message lifecycle
+## 9. MLS message lifecycle
 
 Fixed profile: `MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519`.
 
-1. Verified devices публикуют KeyPackages.
-2. Group creator атомарно claims target package.
-3. Add commit увеличивает epoch ровно на один.
-4. Welcome scope-bound к user, device и conversation.
-5. Recipient joins и удаляет использованный private package.
-6. Composer создаёт MLS application ciphertext до durable outbox enqueue.
-7. Server валидирует session, device, membership, ban, group, epoch и replay.
-8. Ciphertext сохраняется и доставляется только active verified member devices.
-9. Recipient проверяет authenticated data и decrypts локально.
-10. Offline recovery требует непрерывную и криптографически проверенную commit chain.
+1. Verified devices publish KeyPackages.
+2. Creator claims target package atomically.
+3. Add commit advances epoch exactly once.
+4. Welcome delivered to exact target device.
+5. Composer encrypts before durable outbox enqueue.
+6. Server validates account/device/access/group/epoch/replay.
+7. Server persists ciphertext and emits only active verified group devices.
+8. Recipient validates authenticated data and decrypts locally.
 
-Credential authentication не использует accept-all policy.
+## 10. Welcome recovery 3.2.4
 
-## 11. Strict missed-commit recovery
+When verified pending device has no group state:
 
-`client/src/crypto/mls-recovery.mjs` проверяет до persist:
+1. it calls `POST /api/v4/trust/conversations/:conversationId/welcome/request`;
+2. Server applies session, Origin/CSRF, access, active-ban, verified-device и bounded-rate checks;
+3. Server emits scoped `mls.welcome_requested` only to active verified group devices;
+4. active Client creates commit/Welcome;
+5. pending Client retries one-time claim for bounded period;
+6. absence of active member remains explicit fail-closed state.
 
-- complete group envelope;
-- conversation/group scope;
-- exact start/end epoch;
-- непрерывную последовательность epoch;
-- SHA-256 каждого commit payload;
-- отсутствие duplicate commit hashes;
-- intermediate public-state hashes;
-- final public-state hash.
+Server receives no private keys, exporter secrets or plaintext.
 
-Mismatch, duplicate или gap является hard failure. Server log continuity дополняет, но не заменяет независимую Client verification.
+## 11. Missed-commit recovery
+
+Client validates before persistence:
+
+- group/conversation scope;
+- contiguous epochs;
+- SHA-256 commit payload hashes;
+- duplicate hashes;
+- every intermediate/final public-state hash.
+
+Server enforces unique group epoch/commit hash and replay controls. Total private-state loss may be unrecoverable.
 
 ## 12. Encrypted client storage
 
-Trust/MLS state хранится в IndexedDB scope `(Server ID, local user ID)`:
+Trust state is scoped by `(Server ID, local user ID)`:
 
-- wrapping key: non-extractable AES-256-GCM CryptoKey;
-- identity private key: non-extractable Ed25519 CryptoKey;
-- MLS private records: AES-GCM sealed data;
-- decrypted cache и drafts: AES-GCM sealed data;
-- AAD связывает scope, record key и purpose.
+- non-extractable AES-256-GCM wrapping key;
+- non-extractable Ed25519 keys;
+- sealed MLS state, KeyPackages, decrypted cache и drafts;
+- AAD binds scope, record key и purpose.
 
-Renderer остаётся частью trusted computing base. Same-origin XSS, malware, dependency compromise или malicious binary могут получить plaintext во время authorized use.
+Renderer remains part of TCB.
 
 ## 13. Ciphertext-only enforcement
 
-После MLS activation Local Server отклоняет plaintext creation через:
-
-- legacy Socket.IO send/forward;
-- legacy edit;
-- server drafts;
-- scheduled messages;
-- polls;
-- bot message API;
-- multipart/resumable upload;
-- другие legacy message creation routes.
-
-Encrypted serializer возвращает MLS envelope и neutral preview без plaintext.
+Active MLS conversation rejects plaintext through legacy send, forward, edit, draft, scheduled, poll, bot, multipart/resumable upload and incompatible Socket.IO paths. Serializer exposes an MLS envelope and neutral preview only.
 
 ## 14. Encrypted media
 
-Secure conversations используют opaque attachment path:
+- random AES-256-GCM key/IV;
+- AAD binds conversation, attachment ID и kind;
+- plaintext/ciphertext hashes;
+- private descriptor inside MLS content;
+- generic ciphertext storage;
+- exact size/hash checks;
+- pending expiry/cancel;
+- idempotent retry;
+- one-time atomic claim;
+- local verified decrypt/preview/playback/download.
 
-- random AES-256-GCM key и 96-bit IV;
-- AAD binding к conversation, attachment ID и media kind;
-- plaintext/ciphertext SHA-256;
-- filename, MIME, caption, duration и waveform внутри MLS content;
-- generic `application/octet-stream` storage;
-- raw ciphertext byte cap до parsing;
-- exact `plaintextSize + 16` validation;
-- quota по actual stored ciphertext bytes;
-- pending object недоступен до atomic message claim;
-- 24-hour pending expiry и explicit cancel;
-- idempotent retry для matching scope/hash;
-- one-time claim и reuse rejection;
-- verified local decrypt, preview, playback и download.
+Any disabled room media class blocks complete opaque path fail-closed.
 
-При запрете любого room class `files/images/voice` весь opaque media path блокируется fail-closed.
+## 15. Rate limits и maintenance
 
-## 15. Realtime и offline
+Shared memory-bounded sliding-window limiter protects Trust, recovery и E2EE routes and returns `429 RATE_LIMITED` with `Retry-After`.
 
-REST используется для bootstrap, history, settings, search, Trust directory, KeyPackage/Welcome, recovery, media и commercial management.
+Startup/hourly maintenance removes expired sessions, login history older than 90 days, stale rate-limit buckets, expired Trust state и orphan/pending upload data according to policy.
 
-Socket.IO используется для presence, typing, read state, legacy events и secure ciphertext delivery.
+## 16. Windows updater architecture
 
-- API v3 сохраняет monotonic event sequence и delta/resync;
-- API v4 добавляет Trust/MLS/recovery/media operations;
-- secure outbox idempotent по client ID;
-- replay cache блокирует duplicate ciphertext;
-- Service Worker кэширует application shell, но не API/Socket.IO;
-- targeted revoke disconnect не затрагивает остальные devices account.
+- service initializes before renderer update IPC access;
+- packaged Client defaults to GitHub Releases provider;
+- custom generic feed requires explicit HTTPS config;
+- initial and scheduled checks use single-flight;
+- UI receives checking/progress/current/available/downloaded/error states;
+- no downgrade/prerelease;
+- code-signature verification remains enabled;
+- unsigned asset set is not updater-eligible;
+- post-update summary links exact official tag;
+- `--test-mode` tails existing local log only.
 
-## 16. Pulse boundary
+## 17. Server operator console
 
-Local Server валидирует:
+CLI and Electron Server Admin use one allowlisted command registry. IPC returns stable `{ code, message }`; placeholders are inert values. Shell, eval и arbitrary filesystem execution are absent. Mutating actions are audited without secret arguments.
 
-- HTTPS Cloud origin;
-- scoped service credential;
-- request ID, timestamp, nonce и idempotency;
-- Ed25519 envelope/entitlement signatures;
-- server, user, room, product и expiry scope;
-- replay state.
+## 18. Pulse boundary
 
-Pulse Cloud не получает local messages, room history, local files, local password/session cookie, Trust private keys или Local CA private key.
+Local Server verifies Cloud HTTPS origin, service credential, request ID/timestamp/nonce/idempotency, Ed25519 envelope/entitlement, scope/expiry и replay state.
 
-Local Server не получает card data, Cloud password/MFA secret, signing private key или OAuth refresh token.
+Pulse Cloud does not receive local messages/files/private Trust state. Local Server does not receive card data, Cloud password/MFA secret, signing key or OAuth refresh token.
 
-## 17. Operational runtime и maintenance
+## 19. Operations
 
-Local Server и Pulse Cloud предоставляют:
+Local Server и Pulse Cloud expose liveness, readiness, protected metrics, request IDs, credential redaction и graceful drain. SQLite uses verified backup/restore and integrity checks.
 
-- liveness/readiness;
-- protected Prometheus metrics;
-- request IDs;
-- recursive credential redaction;
-- graceful drain/shutdown;
-- audited allowlisted commands без shell/eval.
+## 20. Security limitations
 
-Local Server startup/hourly maintenance удаляет:
+Local Server still observes account/device IDs, membership, timing, IP/network context, ciphertext size, attachment ID, delivery order, Welcome request timing и traffic patterns.
 
-- expired sessions;
-- login history старше 90 дней;
-- stale persisted rate-limit buckets;
-- expired Trust/KeyPackage state;
-- существующие orphan/pending resources по retention policy.
-
-Server shutdown сериализует concurrent stop/quit, отсоединяет active instance до close и формирует stopped-state Pulse/Trust snapshots без чтения закрытого SQLite handle.
-
-## 18. Security и privacy limitations
-
-Nexora `3.2.3` не скрывает:
-
-- membership;
-- account/device identifiers;
-- timing и network context;
-- ciphertext size;
-- uploader identity;
-- attachment ID;
-- delivery order и traffic pattern.
-
-Не заявляются independent audit, traffic-analysis resistance или seamless recovery после total private-state loss.
-
-## 19. Compatibility
-
-- current repository version: `3.2.3`;
-- signed production baseline: `3.1.2`;
-- Application API: v3;
-- Trust/MLS/encrypted-media API: v4;
-- Local Server database: schema 8;
-- database migration с 3.2.0–3.2.2 не требуется;
-- 3.1.x clients не поддерживают active secure 3.2.x conversations;
-- existing 3.1.x content не шифруется ретроактивно.
+No independent audit, traffic-analysis resistance, stable signed 3.2.4 Windows approval или seamless total-state-loss recovery is claimed.

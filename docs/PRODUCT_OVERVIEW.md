@@ -2,210 +2,205 @@
 
 ## 1. Назначение
 
-Nexora — self-hosted платформа обмена сообщениями для частных серверов, небольших команд, сообществ и контролируемых корпоративных установок. Основной коммуникационный контур работает на Local Server и не требует передачи локальных комнат, сообщений и файлов в централизованный Cloud.
+Nexora — self-hosted платформа обмена сообщениями для частных серверов, команд, сообществ и контролируемых организационных установок. Основной коммуникационный контур работает на Local Server и не требует передачи локальных комнат, сообщений и файлов в централизованный Cloud.
 
 Состав продукта:
 
-- **Nexora Client** — единый React-интерфейс для Windows, браузера/PWA и Android;
-- **Nexora Local Server** — authority локальных аккаунтов, комнат, ролей, сообщений, файлов, realtime и политик доступа;
-- **Nexora Pulse Cloud** — отдельный optional-контур Cloud Identity, billing, ledger и production entitlements;
+- **Nexora Client** — общий React-интерфейс для Windows, Browser/PWA и Android;
+- **Nexora Local Server** — authority локальных аккаунтов, комнат, ролей, сообщений, файлов, realtime и room policies;
 - **Trust Core / MLS** — device-scoped secure messaging и encrypted media;
-- **Operations layer** — health, metrics, backup/restore, maintenance, audit и release tooling.
+- **Nexora Pulse Cloud** — optional authority Cloud Identity, billing, ledger и production entitlements;
+- **Operations layer** — health, metrics, audit, backup/restore, maintenance и release tooling;
+- **Project website** — статическая презентация продукта и точка входа в repository documentation.
 
-## 2. Текущая версия
+## 2. Текущая продуктовая линия
 
 | Параметр | Значение |
 |---|---|
-| Current repository version | `3.2.3` |
+| Current repository version | `3.2.4` |
 | Distribution | Source/PWA prerelease |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
 | Trust/MLS/encrypted-media API | v4 |
 | Local Server database | SQLite schema 8 |
-| Migration с 3.2.0–3.2.2 | не требуется |
+| Migration from 3.2.0–3.2.3 | не требуется |
+| Independent E2EE/security approval | не завершён |
 
-Линия `3.2.x` включает:
+Patch lineage:
 
-- `3.2.0` — Trust Core, MLS secure messaging и encrypted media;
-- `3.2.1` — исправление login bootstrap и безопасного Server shutdown;
-- `3.2.2` — исправление Trust configuration race при чтении encrypted drafts;
-- `3.2.3` — resource governance, strict recovery validation, rate limiting и security-state cleanup.
+- `3.2.0` — Trust Core, MLS secure messaging, encrypted media и schema 8;
+- `3.2.1` — authentication bootstrap ordering и serialized Server shutdown;
+- `3.2.2` — Trust configuration lifecycle race и safe encrypted-draft reads;
+- `3.2.3` — resource governance, route limiting, strict recovery validation и security-state cleanup;
+- `3.2.4` — Windows updater lifecycle, audited Server console, automatic MLS Welcome recovery, post-update UX и test-mode diagnostics.
 
 ## 3. Модель развёртывания
 
-Поддерживаемые сценарии:
+Поддерживаемые profiles:
 
-- localhost и локальная разработка;
-- LAN и private VPN, включая Radmin VPN;
-- публичный HTTPS-домен за reverse proxy;
+- localhost и development;
+- private LAN;
+- private VPN, включая Radmin VPN;
+- public HTTPS domain за reverse proxy;
 - Windows Client/Server shells;
-- устанавливаемая PWA;
-- Android WebView shell с системным TLS trust store;
-- отдельный Pulse Cloud deployment при использовании production commercial features.
+- installed PWA;
+- Android WebView shell с system TLS trust store;
+- separate Pulse Cloud deployment для production commercial features.
 
-Публичная установка требует HTTPS, firewall, точного `allowedOrigins`, мониторинга и резервного копирования. Прямой port forwarding Local Server не считается поддерживаемой production-конфигурацией.
+Public installation требует HTTPS, firewall, exact `allowedOrigins`, monitoring и verified backups. Direct port forwarding Local Server не считается поддерживаемой production topology.
 
-## 4. Основные продуктовые контуры
-
-### 4.1 Messaging
+## 4. Messaging и collaboration
 
 - direct messages, Saved Messages и rooms;
 - replies, threads, reactions, mentions и polls;
-- edit/delete/forward, bookmarks и edit history;
+- edit/delete/forward, pins, bookmarks и edit history;
 - silent/scheduled send и server drafts;
-- full-text search, notifications и read state;
+- global search, notifications, archive и filters;
 - offline cache, delta sync и durable outbox.
 
-### 4.2 Rooms and moderation
+## 5. Rooms и moderation
 
-- `owner`, `moderator`, `member` и custom roles;
-- ownership transfer и moderator management;
-- member removal, ban/unban и room ban list;
-- join requests и multiple invitations;
-- invite expiry, revocation и usage limits;
+- roles `owner`, `moderator`, `member` и custom roles;
+- exactly one owner;
+- atomic ownership transfer;
+- moderator appointment/removal;
+- member removal, ban/unban и ban list;
+- join requests;
+- multiple invites с expiry, usage limit и revocation;
 - read-only, slow mode, announcement и pre-approval;
 - file/image/voice restrictions;
-- reports, appeals и temporary restrictions;
-- audit log и system messages.
+- audit log и system messages;
+- server-side authorization для REST и realtime.
 
-### 4.3 Legacy media
+## 6. Media
 
-Обычные диалоги используют server-validated uploads:
+### Legacy conversations
 
-- size limits;
+- size и quota checks;
 - safe names;
-- SHA-256 verification;
+- SHA-256 validation;
 - actual MIME detection;
 - resumable chunks;
-- previews и voice playback;
-- storage quota и retention.
+- image/PDF/text preview;
+- voice recording/playback.
 
-### 4.4 Secure media
+### Secure conversations
 
-Secure conversations используют client-side encryption:
-
-- AES-256-GCM;
-- AAD binding к conversation, attachment и media kind;
-- opaque server metadata;
-- exact ciphertext size и SHA-256 validation;
+- Client-side AES-256-GCM;
+- opaque server storage;
+- AAD scope binding;
+- exact ciphertext size и SHA-256 checks;
 - pending expiry/cancel;
-- one-time atomic message claim;
 - idempotent retry;
-- verified local decrypt/download;
-- fail-closed room media policy;
-- quota по фактически сохранённым ciphertext bytes.
+- one-time atomic message claim;
+- local verified decrypt/preview/playback/download;
+- fail-closed room media policy.
 
-### 4.5 Identity and access
+## 7. Trust Core и MLS
 
-Local identity:
-
-- password sessions;
-- secure HttpOnly/SameSite cookies;
-- Origin/CSRF checks;
-- persistent rate limits и login lock;
-- TOTP и one-time recovery codes;
-- session management и scheduled expiry cleanup.
-
-Cloud Identity:
-
-- email verification;
-- Cloud MFA;
-- OAuth 2.1 Authorization Code + PKCE;
-- signed Local Account linking;
-- отдельная Cloud session boundary.
-
-### 4.6 Trust Core and MLS
-
-Secure conversation включает:
-
-- Ed25519 device identity;
-- proof-of-possession registration;
-- strict BasicCredential binding к `{ userId, deviceId }`;
-- distinct identity и MLS signature keys;
-- device verification/revocation;
-- one-time KeyPackages и scoped Welcome;
-- MLS group epochs и signed commits;
-- replay protection;
+- Ed25519 device identity и proof-of-possession;
+- distinct identity/MLS signature keys;
+- exact BasicCredential `{ userId, deviceId }` binding;
+- fingerprint comparison, signed verification и revocation;
+- maximum 16 active Trust devices per user;
+- one-time KeyPackages с limits 25/request, 32/device, 256/user;
+- device/conversation-scoped Welcome;
+- monotonic epochs, signed commits и replay rejection;
 - device-scoped Socket.IO delivery;
-- ciphertext-only Local Server persistence;
-- encrypted client-side private state/cache/drafts;
-- strict missed-commit recovery validation;
-- downgrade protection для legacy paths.
+- ciphertext-only persistence и durable outbox;
+- encrypted IndexedDB private state/cache/drafts;
+- strict missed-commit recovery;
+- server-side plaintext downgrade guards.
 
-Local Server не получает secure-message plaintext, private MLS state или secure-attachment key. Он видит service metadata и traffic patterns. Независимый cryptographic/application-security audit не завершён.
+Fixed profile: `MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519`.
 
-### 4.7 Resource governance 3.2.3
+## 8. MLS Welcome recovery 3.2.4
 
-- до 16 active Trust devices на user;
-- до 25 KeyPackages в одном upload;
-- до 32 unclaimed KeyPackages на device;
-- до 256 unclaimed KeyPackages на user;
-- atomic SQLite enforcement;
-- bounded sliding-window route limits;
-- stable `RATE_LIMITED` + `Retry-After` contract;
-- action-specific primitive audit allowlists;
-- startup/hourly cleanup stale security state.
+Verified device без local group state может запросить Welcome:
 
-### 4.8 Nexora Plus and Pulse
+1. Local Server проверяет session, Origin/CSRF, conversation access, active ban, verified device и bounded rate limit;
+2. scoped notification отправляется active verified devices внутри MLS group;
+3. active Client создаёт RFC 9420 commit и Welcome;
+4. pending Client повторяет one-time claim;
+5. отсутствие active member сохраняет fail-closed pending state.
+
+Server не получает private MLS state или plaintext.
+
+## 9. Nexora Plus и Pulse
 
 Pulse Cloud является authority для:
 
-- Cloud Identity;
-- subscription state;
+- Cloud Identity и email verification;
+- Cloud MFA;
+- OAuth 2.1 Authorization Code + PKCE;
+- subscriptions и receipts;
 - Impulse double-entry ledger;
-- receipts;
-- provider webhooks;
-- refund/dispute/cancellation handling;
+- provider webhooks/reconciliation;
 - signed production entitlements.
 
-Local Server не создаёт production entitlement самостоятельно и не хранит payment-card data, Cloud password, Cloud MFA secret или Cloud signing private key.
+Local Server не хранит card data, Cloud password, Cloud MFA secret, Cloud signing private key или OAuth refresh token. Local Pulse sandbox предназначен только для QA/demo и не создаёт production authority.
 
-Local sandbox предназначен только для QA/demo и не выполняет реальные платежи.
+## 10. Updates и Windows experience
 
-## 5. Платформы
+3.2.4 включает:
 
-| Платформа | Технология | Статус 3.2.3 |
+- default official GitHub Releases provider для packaged Client;
+- automatic startup/scheduled checks;
+- observable manual state, progress, terminal result и retry;
+- no-downgrade/prerelease и code-signature gates;
+- post-update summary с official release link;
+- opt-in `--test-mode` для live tail local Client log;
+- branded Russian Client/Server NSIS configuration;
+- audited Server console с stable errors и inert help placeholders.
+
+Unsigned updater assets не публикуются и не становятся installable fallback.
+
+## 11. Platforms
+
+| Platform | Technology | 3.2.4 status |
 |---|---|---|
-| Windows Client | Electron + React | source/build verified; stable signed promotion требует Authenticode и packaged runtime gates |
-| Windows Server | Electron shell + Node.js | source/build verified; stable signed promotion требует Authenticode и packaged runtime gates |
-| Browser / PWA | React/Vite + Service Worker | Source/PWA prerelease permitted |
-| Android | WebView shell | source build verified; physical-device runtime/signing остаются manual gate |
+| Windows Client | Electron + React | source/build verified; installed signed updater acceptance pending |
+| Windows Server | Electron shell + Node.js | source/build verified; signed installer runtime acceptance pending |
+| Browser/PWA | React/Vite + Service Worker | Source/PWA prerelease distribution permitted |
+| Android | WebView shell | source build verified; physical-device/signing gates pending |
 | Local Server CLI | Node.js | automated release gate passed |
-| Pulse Cloud | Node.js service | production-oriented integration; external deployment/provider controls required |
+| Pulse Cloud | Node.js service | code/integration available; production deployment external |
 
-## 6. Совместимость
+## 12. Operational capabilities
 
-- schema 8 сохраняется во всей линии `3.2.0–3.2.3`;
-- Application API v3 не изменён;
-- Trust/MLS/encrypted-media API v4 не изменён;
-- update `3.2.0–3.2.2 → 3.2.3` не требует database migration;
-- schema 7 → 8 migration применяется при переходе с 3.1.x;
-- 3.1.x Client не поддерживает active secure conversation 3.2.x;
-- существующая история 3.1.x не шифруется ретроактивно.
+- `/healthz/live` и `/healthz/ready`;
+- protected Prometheus metrics;
+- request IDs и recursive credential redaction;
+- graceful drain/shutdown;
+- SQLite integrity, backups, restore и downgrade protection;
+- startup/hourly security-state cleanup;
+- audited developer-command registry без shell/eval;
+- release workflow с Source/PWA/SBOM/checksums и conditional signed Windows assets.
 
-## 7. Security и privacy boundary
+## 13. Product boundaries
 
-Nexora `3.2.3` не заявляет:
+Nexora 3.2.4 не заявляет:
 
-- независимую cryptographic/application-security certification;
+- independent cryptographic/application-security certification;
 - traffic-analysis resistance;
-- сокрытие membership, timing, IP, ciphertext size и delivery metadata;
+- сокрытие membership, timing, IP и ciphertext-size metadata;
 - seamless recovery после полной потери private device state;
-- защиту plaintext от compromised authorized Client;
-- stable signed Windows distribution без закрытия signing/runtime gates;
-- криптовалюты, NFT или user-to-user transfer Impulses;
-- voice/video calls или screen sharing как часть текущего релиза.
+- retroactive encryption 3.1.x history/files;
+- stable signed Windows status без signed assets и installed-runtime acceptance;
+- voice/video calls или screen sharing как текущую функцию;
+- suitability prerelease для high-risk communications.
 
-## 8. Stable promotion gates
+## 14. Stable promotion gates
 
-До stable signed promotion требуются:
+Требуются:
 
-1. packaged Windows Electron Client/Server runtime E2E;
+1. installed Windows Client/Server и signed updater E2E;
 2. installed PWA и physical Android runtime matrix;
-3. расширенная multi-device simultaneous-commit/revoke/re-add/corruption matrix;
-4. более длительные load/soak и long-offline scenarios;
-5. metadata minimization и traffic-analysis review;
-6. Authenticode signing-machine verification и complete updater assets;
-7. независимый cryptographic/application-security review без unresolved high/critical findings.
+3. extended multi-device Welcome/commit/revoke/re-add/corrupted-state coverage;
+4. longer load/soak и long-offline evidence;
+5. metadata minimization/traffic-analysis review;
+6. Authenticode signing-machine verification;
+7. independent cryptographic/application-security review;
+8. отсутствие unresolved high/critical findings.
 
-Текущее evidence: [Release Verification 3.2.3](../RELEASE_VERIFICATION_3.2.3.md).
+Текущий release evidence: [Release Verification 3.2.4](../RELEASE_VERIFICATION_3.2.4.md).

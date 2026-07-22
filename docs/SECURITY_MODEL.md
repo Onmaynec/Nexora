@@ -1,270 +1,299 @@
-# Модель безопасности Nexora 3.2.3
+# Модель безопасности Nexora 3.2.4
 
 ## 1. Область документа
 
-Этот документ описывает текущую модель безопасности `main`:
+Документ описывает security model текущего `main`:
 
-- версия: `3.2.3`;
-- Application API: v3;
-- Trust/MLS/encrypted-media API: v4;
-- Local Server database: SQLite schema 8;
-- распространение: Source/PWA prerelease;
-- signed production baseline: `3.1.2`.
+| Параметр | Значение |
+|---|---|
+| Version | `3.2.4` |
+| Distribution | Source/PWA prerelease |
+| Signed production baseline | `3.1.2` |
+| Application API | v3 |
+| Trust/MLS/encrypted-media API | v4 |
+| Local Server database | SQLite schema 8 |
 
-Документ не является независимым аудитом, сертификацией криптографии или гарантией безопасности конкретного deployment.
+Документ не является независимым аудитом, криптографической сертификацией или гарантией конкретного deployment.
 
 ## 2. Защищаемые активы
 
-Nexora защищает:
-
-- локальные аккаунты и sessions;
-- membership, roles, bans и room policies;
-- сообщения и файлы обычных диалогов;
-- private device identity и MLS state;
+- local accounts, sessions и TOTP state;
+- membership, roles, bans, restrictions и room policies;
+- обычные messages/files;
+- device identity и private MLS state;
 - secure-message plaintext и attachment keys;
-- backups и SQLite integrity;
+- SQLite integrity, backups и audit;
 - Cloud Identity и OAuth sessions;
 - Pulse ledger, receipts и production entitlements;
-- signing, bot, webhook и provider credentials;
-- audit и operational evidence.
+- CA, signing, bot, webhook, provider и service credentials;
+- release/update integrity.
 
-## 3. Основные противники и риски
+## 3. Противники и риски
 
 Модель учитывает:
 
-- неавторизованного сетевого клиента;
-- участника комнаты, пытающегося повысить права;
-- удалённого или заблокированного пользователя;
-- compromised/revoked device;
-- злоупотребление Trust, KeyPackage, recovery или upload routes;
+- unauthenticated network client;
+- room member, пытающегося повысить права;
+- removed/banned user;
+- compromised или revoked device;
 - replay, scope substitution и race conditions;
+- Trust/KeyPackage/recovery/upload resource abuse;
 - malicious attachment metadata и MIME spoofing;
+- update-feed/installer substitution;
 - XSS, compromised dependency или malicious Client binary;
-- администратора или процесс с filesystem/database access;
+- operator/process с filesystem/database access;
 - ошибочную Cloud/provider integration;
-- утечку secrets через logs, audit или diagnostics;
-- повреждение database, migration или backup.
+- secret leakage через logs, audit или diagnostics.
 
-## 4. Границы доверия
+Не предполагается, что LAN/VPN participant автоматически trusted.
+
+## 4. Trust boundaries
 
 ### Client
 
 Client отвечает за:
 
-- пользовательский интерфейс;
-- private device identity key;
-- private MLS group state и private KeyPackages;
-- шифрование и расшифровку secure messages;
-- шифрование и расшифровку secure attachments;
-- encrypted local cache и drafts;
-- проверку recovery envelope до локального persist;
-- локальную очистку Trust state после revocation.
+- UI и local interaction state;
+- device private keys;
+- MLS encryption/decryption;
+- secure-attachment encryption/decryption;
+- encrypted IndexedDB state;
+- fingerprint verification UI;
+- active-device Welcome creation;
+- local preview/playback/download verification.
 
-Browser/Electron renderer входит в trusted computing base. Storage encryption не защищает plaintext от same-origin XSS, malware или compromised Client во время использования.
+Client renderer и installed binary входят в trusted computing base.
 
 ### Local Server
 
 Local Server является authority для:
 
 - local authentication и sessions;
-- membership, roles, bans и restrictions;
-- room policies и moderation;
-- Trust public directory и verified/revoked state;
-- MLS group membership, epochs и replay records;
-- ciphertext persistence и delivery order;
-- storage quota, retention, backup и audit;
-- server-side rate/resource limits.
+- room membership, roles, bans и policies;
+- public Trust directory и device status;
+- resource ceilings и route rate limits;
+- MLS group membership, epochs, commit/replay log;
+- scoped Welcome requests и opaque protocol delivery;
+- ciphertext persistence;
+- storage quotas, backup, retention и audit.
 
-Local Server не должен получать private MLS state, secure-message plaintext или secure-attachment keys.
+Local Server не получает private MLS state или secure-message plaintext.
 
 ### Pulse Cloud
 
 Pulse Cloud является authority для:
 
-- Cloud Identity;
-- email verification и MFA;
+- Cloud Identity и MFA;
 - OAuth 2.1 Authorization Code + PKCE;
-- billing, receipts и provider-event state;
-- double-entry Impulse ledger;
+- subscriptions, billing, receipts и provider reconciliation;
+- Impulse ledger;
 - signed production entitlements.
 
-Local Server не создаёт authoritative production entitlement самостоятельно.
+Local Server не создаёт authoritative production entitlement.
 
-## 5. Authentication и session security
+### Release/signing environment
 
-- passwords обрабатываются server-side;
-- sessions используют secure HttpOnly/SameSite cookies;
-- mutating browser requests требуют допустимый Origin и CSRF token;
-- login attempts защищены persistent rate limits и temporary lock;
-- local и Cloud TOTP поддерживают one-time recovery codes;
-- expired sessions удаляются при startup и hourly maintenance;
-- login history старше 90 дней удаляется по retention policy;
-- operational logs не должны содержать cookies, passwords, tokens или signatures.
+Release environment отвечает за:
 
-## 6. Authorization и room access
+- immutable SemVer tag;
+- verified source revision;
+- Authenticode credentials;
+- signed Client/Server assets;
+- updater metadata;
+- SBOM и checksums.
 
-Каждая критичная операция проверяет:
+## 5. Authentication и authorization
 
-1. authentication;
-2. существование ресурса;
-3. membership;
-4. роль и permission;
-5. ban/restriction;
-6. room policy;
-7. scope входных данных;
-8. rate limit и resource limit.
+Mutating browser operation требует:
 
-Активный бан имеет приоритет над stale membership. Доступ должен завершаться fail-closed, а удалённый или заблокированный пользователь теряет REST- и realtime-доступ.
+1. authenticated session;
+2. matching Origin;
+3. valid CSRF token;
+4. resource existence;
+5. membership;
+6. role/permission;
+7. active-ban/restriction check;
+8. room policy;
+9. input validation;
+10. rate/resource limit.
 
-## 7. Device Trust
+Trust mutation дополнительно требует device scope, active/verified status и, где применимо, one-time challenge/signature.
+
+Active ban имеет приоритет над stale membership. Потеря доступа приводит к отказу REST и удалению realtime subscriptions.
+
+## 6. Device Trust
 
 ### Registration
 
-- Client создаёт non-extractable Ed25519 identity key;
-- registration доказывает possession private key;
-- MLS BasicCredential должен быть точным versioned credential для `{ userId, deviceId }`;
-- identity proof key и MLS signature key обязаны различаться;
-- duplicate registration с теми же параметрами остаётся idempotent;
-- максимум — 16 active Trust devices на локальную учётную запись.
+- Ed25519 proof-of-possession обязателен;
+- MLS BasicCredential точно связан с `{ userId, deviceId }`;
+- identity proof key и MLS signature key должны различаться;
+- first-device bootstrap и subsequent verification имеют разные lifecycle rules;
+- maximum 16 active Trust devices на user;
+- duplicate registration остаётся idempotent;
+- revocation освобождает capacity.
 
 ### Verification и revocation
 
-- первый device использует bootstrap verification;
-- последующие devices требуют signed approval активного verified device;
-- verify и revoke используют отдельные one-time operation-scoped challenges;
-- revoked device теряет Trust/MLS API access;
-- целевой secure Socket.IO connection отключается немедленно;
-- Client удаляет identity, private MLS state, KeyPackages, decrypted cache и drafts.
+- separate one-time scoped challenges;
+- valid signature active verified device;
+- immediate targeted Socket.IO disconnect;
+- revoked Client удаляет device identity, MLS state, KeyPackages, decrypted cache и drafts;
+- reenrollment создаёт новый lifecycle.
 
-## 8. KeyPackage governance
+## 7. KeyPackage и Welcome governance
 
-- KeyPackages являются one-time и scope-bound;
-- максимум 25 packages в одном upload request;
-- максимум 32 unclaimed packages на device;
-- максимум 256 unclaimed packages на user;
-- limits применяются атомарно в SQLite;
-- expired rows очищаются maintenance process;
-- claim/reuse/scope substitution должны отклоняться.
+- maximum 25 KeyPackages в одном upload request;
+- maximum 32 unclaimed KeyPackages per device;
+- maximum 256 unclaimed KeyPackages per user;
+- limits enforced atomically в SQLite;
+- expired packages очищаются;
+- KeyPackage claim one-time и scope-bound;
+- Welcome bound к user, device и conversation.
 
-Эти ограничения предотвращают неограниченное накопление Trust resources и не изменяют MLS protocol compatibility.
+В 3.2.4 pending verified device может запросить создание Welcome:
 
-## 9. MLS secure messaging
+1. request проходит session, Origin/CSRF, access, ban, verified-device и rate-limit checks;
+2. Server отправляет `mls.welcome_requested` только active verified devices, уже состоящим в group;
+3. active Client создаёт и подписывает RFC 9420 commit/Welcome;
+4. pending Client повторяет bounded one-time claim;
+5. при отсутствии active member операция остаётся fail-closed.
 
-Фиксированный profile:
+Request не содержит private key, exporter secret или plaintext.
 
-`MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519`.
+## 8. MLS message и recovery validation
+
+Фиксированный profile: `MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519`.
 
 Server проверяет:
 
-- authenticated session и active verified device;
-- membership и ban state;
-- group/conversation scope;
-- expected epoch;
-- unique commit/message hashes;
-- ciphertext replay state;
-- допустимый delivery target.
+- authenticated account/device;
+- active verified membership;
+- conversation/group scope;
+- monotonic epoch;
+- commit hash uniqueness;
+- ciphertext replay;
+- client/message identity;
+- room access.
 
-После MLS activation plaintext creation через legacy send, forward, edit, draft, scheduled, poll, bot и upload paths отклоняется server-side.
+Client recovery до persistence проверяет:
 
-## 10. Missed-commit recovery
+- exact group/conversation scope;
+- contiguous epoch sequence;
+- SHA-256 payload/commit hashes;
+- duplicate hashes;
+- intermediate и final public-state hashes.
 
-Client не доверяет recovery envelope только потому, что он получен от Local Server. До persist проверяются:
+Unrecoverable private-state loss завершается explicit error, а не downgrade.
 
-- group ID и conversation scope;
-- expected start/end epoch;
-- точная непрерывная последовательность epochs;
-- SHA-256 каждого commit payload;
-- отсутствие duplicate commit hashes;
-- intermediate public-state hashes;
-- final public-state hash.
+## 9. Ciphertext-only boundary
 
-Разрыв или mismatch является hard failure. Непроверенное состояние не сохраняется.
+После MLS activation Server отклоняет plaintext через:
 
-## 11. Encrypted media
+- legacy send/forward/edit;
+- drafts и scheduled messages;
+- polls;
+- bot path;
+- multipart/resumable uploads;
+- incompatible Socket.IO device session;
+- другие legacy message-creation routes.
 
-- Client использует random AES-256-GCM key и IV для payload;
-- AAD связывает conversation, attachment ID и media kind;
-- original filename, actual MIME, caption, duration и waveform находятся внутри MLS content;
-- Server хранит `application/octet-stream` и opaque service metadata;
-- actual ciphertext bytes ограничены до parsing;
-- expected size соответствует `plaintextSize + GCM tag`;
-- ciphertext SHA-256 проверяется перед persist;
-- quota учитывает фактически сохранённые ciphertext bytes;
-- pending object недоступен до atomic message claim;
-- cancel, expiry, idempotent retry и one-time claim обязательны;
-- Client повторно проверяет ciphertext, GCM tag и plaintext hash до preview/download.
+Secure serializer не возвращает plaintext.
 
-Server не расшифровывает opaque attachment для проверки plaintext: это нарушило бы заявленную security boundary.
+## 10. Encrypted media
 
-## 12. Route rate limiting
+Secure files/images/voice используют:
 
-Trust directory, enrollment, KeyPackage, recovery и E2EE upload routes используют shared memory-bounded sliding-window limiter.
+- random AES-256-GCM key и IV;
+- AAD, связывающий conversation, attachment ID и media kind;
+- plaintext/ciphertext SHA-256 verification;
+- exact ciphertext-size check;
+- generic `application/octet-stream` storage;
+- pending expiry и cancel;
+- one-time atomic message claim;
+- idempotent matching retry;
+- local verified decrypt/preview/playback/download.
 
-Требования:
+Filename, real MIME, caption, duration и waveform находятся внутри MLS content. Если запрещён любой class `files/images/voice`, opaque media path блокируется fail-closed.
 
-- bounded number of buckets;
-- operation-specific limits;
-- stable error code `RATE_LIMITED`;
-- `Retry-After` response header;
-- stale persisted buckets очищаются startup/hourly maintenance;
-- limiter не заменяет authentication, authorization или resource ceilings.
+## 11. Rate и resource governance
 
-## 13. Audit и logging
+Shared bounded sliding-window limiter применяется к Trust, recovery и E2EE upload routes.
 
-- Trust audit metadata принимает только action-specific primitive allowlists;
-- произвольные nested objects не сохраняются;
-- secrets и private key material запрещены;
-- operational logs используют request IDs и recursive redaction;
-- mutating developer commands записываются в `integrationAudit` без secret arguments;
-- audit не должен превращаться в канал хранения user content.
+Contract:
 
-## 14. Database, migration и maintenance
+- HTTP `429`;
+- stable code `RATE_LIMITED`;
+- `Retry-After`;
+- bounded memory/persistent state;
+- expired buckets очищаются maintenance.
 
-- SQLite использует WAL и `synchronous=FULL`;
-- связанные изменения выполняются транзакционно;
-- schema 7 → 8 migration создаёт verified backup и проверяет integrity;
-- downgrade к несовместимой schema блокируется;
-- startup/hourly maintenance удаляет expired sessions, old login history, stale rate-limit buckets и expired Trust resources;
-- backup/restore проверяет integrity до возврата service в ready state.
+Resource ceilings проверяются до или внутри atomic transaction. Client-side hidden action не считается защитой.
 
-## 15. Verified controls и evidence
+## 12. Audit и retention
 
-Для `3.2.3` автоматизированно проверены:
+Trust audit принимает только action-specific primitive allowlist. Arbitrary nested metadata и secret-like values не сохраняются.
 
-- credential/device scope;
-- distinct Ed25519 key roles;
-- device и KeyPackage ceilings;
-- Trust audit allowlists;
-- active-ban fail-closed access;
-- bounded rate limiter и HTTP `429` contract;
-- strict missed-commit recovery;
-- expired security-state cleanup;
-- существующие CSRF/Origin, Socket.IO Origin, IndexedDB sealing, attachment bounds и replay protections.
+Startup и hourly maintenance удаляют:
 
-Evidence: [Security Review 3.2.3](../SECURITY_REVIEW_3.2.3.md) и [Release Verification 3.2.3](../RELEASE_VERIFICATION_3.2.3.md).
+- expired sessions;
+- login history старше 90 дней;
+- stale persisted rate-limit buckets;
+- expired Trust challenges/KeyPackages и pending upload state по соответствующим TTL.
 
-## 16. Metadata и residual risks
+## 13. Updater и Windows test mode
 
-Local Server видит или может вывести:
+Packaged Client:
+
+- использует official GitHub Releases provider по умолчанию;
+- принимает custom feed только при explicit HTTPS configuration;
+- не разрешает downgrade или prerelease update;
+- сохраняет code-signature verification;
+- не принимает unsigned updater assets как fallback;
+- нормализует errors без stack/internal path disclosure.
+
+`--test-mode` только tails local Client log. Он не включает DevTools, renderer Node integration, remote debugging или privileged IPC.
+
+## 14. Server developer console
+
+Console исполняет только allowlisted `DeveloperCommandService` commands:
+
+- no shell;
+- no eval;
+- no arbitrary filesystem command;
+- placeholders `<user>`/`[days]` обрабатываются как inert data;
+- IPC возвращает stable `{ code, message }`;
+- mutations audit without argument values.
+
+## 15. Metadata limitations
+
+Local Server видит или выводит:
 
 - account/device identifiers;
-- membership;
-- room/conversation scope;
+- membership и conversation scope;
 - sender/uploader;
 - group/epoch и delivery order;
-- attachment ID и ciphertext size;
+- attachment ID/ciphertext size;
 - timestamps, IP/network/session context;
+- Welcome request timing;
 - replay hashes и traffic patterns.
 
-Не заявляются:
+Traffic-analysis resistance не заявляется.
 
-- traffic-analysis resistance;
-- retroactive encryption истории 3.1.x;
-- seamless recovery после полной потери private device state;
+## 16. Residual risks и non-guarantees
+
+Не гарантируются:
+
 - защита plaintext от compromised authorized Client;
-- независимая cryptographic/application-security certification;
-- stable signed Windows status для `3.2.3`.
+- восстановление после полной потери private device state;
+- retroactive encryption 3.1.x history/files;
+- metadata confidentiality;
+- independent security certification;
+- stable signed Windows distribution без completed signing/runtime gates;
+- suitability prerelease для high-risk communications.
 
-## 17. Ответственное раскрытие
+## 17. Verification и reporting
 
-Уязвимости сообщаются приватно по [Security Policy](../SECURITY.md). Не публикуйте exploit, tokens, private keys, complete MLS state, реальные сообщения или персональные данные в публичном Issue.
+См. [Security Policy](../SECURITY.md), [Security Verification Summary](../SECURITY_AUDIT.md), [Security Review 3.2.4](../SECURITY_REVIEW_3.2.4.md) и [Release Verification 3.2.4](../RELEASE_VERIFICATION_3.2.4.md).
+
+Branch-local security claims регулируются [Branch Documentation Policy](BRANCH_DOCUMENTATION_POLICY.md).

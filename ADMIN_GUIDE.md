@@ -2,16 +2,16 @@
 
 ## 1. Область
 
-Документ относится к текущей линии:
+| Параметр | Значение |
+|---|---|
+| Repository version | `3.2.4` |
+| Distribution | Source/PWA prerelease |
+| Signed production baseline | `3.1.2` |
+| Application API | v3 |
+| Trust/MLS/encrypted-media API | v4 |
+| Local Server database | SQLite schema 8 |
 
-- repository version: `3.2.3`;
-- distribution: Source/PWA prerelease;
-- signed production baseline: `3.1.2`;
-- Application API: v3;
-- Trust/MLS/encrypted-media API: v4;
-- Local Server database: SQLite schema 8.
-
-`3.2.3` предназначена для контролируемого prerelease testing. Для signed production deployment подтверждённой baseline остаётся `3.1.2`.
+`3.2.4` предназначена для controlled prerelease testing. Signed production deployment должен использовать подтверждённую release classification и complete signed assets.
 
 ## 2. Deployment requirements
 
@@ -19,230 +19,189 @@ Local Server поддерживает localhost, LAN, private VPN и public HTTP
 
 Для public deployment:
 
-- используйте trusted HTTPS reverse proxy;
-- ограничьте firewall exposure;
-- задайте точный `allowedOrigins`;
-- включите monitoring и backups;
-- не публикуйте Local Server прямым port forwarding;
-- храните production credentials вне repository;
-- используйте protected OS account и disk encryption.
+- trusted HTTPS reverse proxy;
+- restricted firewall exposure;
+- exact `allowedOrigins`;
+- monitoring и backups;
+- protected OS account и disk encryption;
+- production secrets вне repository/logs;
+- no direct Local Server port forwarding.
 
-Доступ к сети не является доверием. Каждая операция проверяет authentication, membership, role, active ban/restriction, room policy, input scope, rate limit и resource ceiling.
+Network access не является trust. Каждая операция проверяет session, Origin/CSRF, membership, role, active ban/restriction, room policy, input scope, rate limit и resource ceiling.
 
 ## 3. Installation и startup
 
-### Source
+Source:
 
 ```bash
 npm ci
 npm start
 ```
 
-### Windows package
-
-Только complete signed stable release пригоден для automatic production distribution. Unsigned installers и Source/PWA prereleases предназначены для development/controlled testing.
-
 После запуска проверьте:
 
-- process status;
-- full HTTPS address;
+- process state;
+- full HTTPS URL;
 - Server ID;
 - SHA-256 certificate fingerprint;
 - `/healthz/live`;
 - `/healthz/ready`;
-- SQLite integrity;
-- schema 8;
-- storage capacity;
-- отсутствие unexpected maintenance errors.
+- SQLite integrity и schema 8;
+- available storage;
+- configured Pulse mode.
 
-Первый зарегистрированный local account получает server-administrator privileges.
+First local account получает server-administrator privileges.
 
-## 4. Client connection и certificate trust
+## 4. Client trust
 
-Передайте пользователю по доверенному каналу:
+Передайте пользователю по trusted channel:
 
-1. полный HTTPS URL;
+1. HTTPS URL;
 2. Server ID;
 3. SHA-256 certificate fingerprint.
 
-Windows Electron Client закрепляет fingerprint за Server ID. Изменённый certificate требует explicit confirmation.
-
-Browser/PWA и Android используют OS trust store. Для Local CA установите root `.crt` до подключения. Не рекомендуйте обходить TLS warnings.
+Electron Client pins fingerprint к Server ID. Browser/PWA/Android используют OS trust store. TLS warning не обходится.
 
 ## 5. Health, metrics и logs
 
-Endpoints:
-
 - `GET /healthz/live` — process liveness;
 - `GET /healthz/ready` — database/schema/runtime readiness;
-- `GET /metrics` — Prometheus text format.
+- `GET /metrics` — Prometheus format.
 
-Для remote metrics задайте `NEXORA_METRICS_TOKEN`. Без token endpoint должен оставаться loopback-only.
+Remote metrics требует `NEXORA_METRICS_TOKEN`; без token endpoint должен оставаться loopback-only.
 
-Operational logs используют request IDs и recursive redaction. Перед передачей logs убедитесь, что отсутствуют cookies, passwords, tokens, API keys, signatures, private keys, user content и backup passphrase.
+Operational logs используют request IDs и credential redaction. Перед передачей удалите cookies, passwords, tokens, keys, message content и personal data.
 
-Graceful shutdown сначала переводит readiness в `503`, затем останавливает workers, HTTP/Socket.IO и SQLite.
+Graceful shutdown переводит readiness в `503` до остановки workers, HTTP, Socket.IO и SQLite.
 
-## 6. Users, sessions и retention
+## 6. Users и sessions
 
 Администратор может:
 
 - disable local account;
-- выдать temporary password;
+- issue temporary password;
 - terminate sessions;
-- просматривать безопасную login/audit информацию.
+- inspect safe login/audit information.
 
-Пользователь управляет profile, password, local TOTP/recovery codes, notifications и active sessions.
+Users управляют profile, password, local TOTP/recovery codes, preferences и active sessions.
 
-Maintenance `3.2.3`:
-
-- удаляет expired sessions при startup и каждый час;
-- удаляет login history старше 90 дней;
-- очищает stale persisted rate-limit buckets;
-- не скрывает неожиданные repository/database errors.
-
-Cloud Identity отделена от local account. Local Server не должен получать Cloud password, Cloud MFA secret, OAuth refresh token или Cloud session cookie.
+Startup/hourly maintenance удаляет expired sessions, login history older than 90 days и stale rate-limit buckets.
 
 ## 7. Rooms и moderation
 
-Роли:
+Roles:
 
-- `owner` — ровно один владелец;
-- `moderator` — делегированная moderation;
-- `member` — стандартный участник.
+- `owner` — exactly one;
+- `moderator` — delegated moderation;
+- `member` — standard participant.
 
-Поддерживаются:
+Operations:
 
 - moderator appointment/removal;
 - atomic ownership transfer;
-- member removal, ban и unban;
+- removal, ban и unban;
 - join requests;
-- invitation create/update/expiry/limit/revoke;
+- invitations с expiry, usage limit и revocation;
 - read-only, slow mode, announcement и pre-approval;
 - file/image/voice restrictions;
-- custom roles и categories;
+- custom roles/categories;
 - reports, appeals и temporary restrictions;
-- room audit и system messages.
+- audit log и system messages.
 
-Active ban имеет приоритет над stale membership. Removed/banned user должен немедленно потерять REST и realtime access.
+Removed/banned user немедленно теряет REST и realtime access. Active ban имеет приоритет над stale membership.
 
 ## 8. Database, migration и backup
 
-Local Server `3.2.3` использует SQLite schema 8, WAL и `synchronous=FULL`.
+Current database — SQLite schema 8 с WAL и `synchronous=FULL`.
 
-### Upgrade с 3.1.x
+Upgrade 7 → 8 выполняет:
 
-Migration `7 → 8` включает:
-
-- source integrity check;
+- source integrity;
 - free-space calculation;
 - WAL checkpoint;
 - verified pre-migration backup;
 - transactional/idempotent migration;
-- destination integrity check;
+- destination integrity;
 - downgrade protection.
 
-### Upgrade с 3.2.0–3.2.2
+Upgrade 3.2.0–3.2.3 → 3.2.4 не требует migration.
 
-Database migration не требуется. До update всё равно создайте verified backup и после restart проверьте integrity/readiness.
+Rollback schema 8 — restore verified backup. In-place downgrade не поддерживается.
 
-### Backup rules
+Backup rules:
 
-- создавайте backup перед каждым upgrade;
-- храните минимум одну копию вне server computer;
-- не копируйте активный SQLite вручную как единственный backup;
-- храните passphrase отдельно;
-- проверяйте integrity/schema/readiness после restore.
-
-Rollback schema 8 выполняется restore-from-backup. In-place downgrade не поддерживается.
+- verified backup перед upgrade;
+- минимум одна off-host copy;
+- не копировать active SQLite file вручную;
+- хранить passphrase отдельно;
+- после restore проверять integrity/schema/readiness.
 
 ## 9. Trust devices
 
 ### Enrollment
 
-- first device получает bootstrap verification;
-- later devices требуют signed approval active verified device;
-- fingerprint сверяется по доверенному каналу;
-- verify/revoke используют operation-scoped one-time challenges;
-- MLS BasicCredential должен соответствовать authenticated `{ userId, deviceId }`;
-- identity и MLS signature keys должны различаться.
+- first device bootstrap verification;
+- later device signed approval active verified device;
+- exact BasicCredential `{ userId, deviceId }`;
+- distinct identity и MLS signature keys;
+- fingerprint comparison.
 
-### Device limit
+### Limits
 
-- максимум 16 active Trust devices на user;
-- duplicate registration тех же данных idempotent;
-- revocation освобождает capacity;
-- при превышении Client получает стабильную validation/conflict error без частичного создания device.
+- maximum 16 active devices/user;
+- 25 KeyPackages/request;
+- 32 unclaimed/device;
+- 256 unclaimed/user.
+
+Limit responses используют stable code; route throttling возвращает `429 RATE_LIMITED` и `Retry-After`.
 
 ### Revocation
 
-Revocation немедленно disconnects target secure socket. Client удаляет device identity, private MLS state, KeyPackages, decrypted cache и drafts до reenrollment.
+Target socket disconnects immediately. Client wipes identity, MLS state, KeyPackages, decrypted cache и drafts before reenrollment.
 
-## 10. KeyPackage administration
+## 10. MLS Welcome recovery 3.2.4
 
-Limits `3.2.3`:
+Verified device в `MLS_WELCOME_PENDING` может request recovery. Server:
 
-| Ресурс | Лимит |
-|---|---|
-| Upload batch | 25 |
-| Unclaimed KeyPackages на device | 32 |
-| Unclaimed KeyPackages на user | 256 |
+- validates session, Origin/CSRF, conversation access, ban, verified device и rate limit;
+- notifies active verified group devices only;
+- routes identifiers/opaque artifacts only.
 
-Limits применяются атомарно в SQLite. Overflowing batch не должен частично сохраняться. Expired packages удаляются maintenance process.
+Active Client creates RFC 9420 commit/Welcome. If no active member exists, send remains blocked; plaintext fallback запрещён.
 
-Не увеличивайте limits без security/load review.
+Operator should verify:
 
-## 11. Secure conversations и recovery
+- at least one active verified group device online;
+- same conversation/group scope;
+- compatible 3.2.4 Client;
+- no `RATE_LIMITED` retry before `Retry-After`;
+- no repeated concurrent manual recovery attempts.
 
-Local Server не получает secure-message plaintext или secure-attachment keys. Он видит membership, account/device identifiers, timing, network context, ciphertext size, attachment ID и delivery metadata.
+## 11. Files, images и voice
 
-Missed-commit recovery на Client проверяет:
+Legacy path uses size/hash/MIME/quota validation.
 
-- group/conversation scope;
-- exact contiguous epochs;
-- SHA-256 commit payloads;
-- duplicate commit hashes;
-- intermediate/final public-state hashes.
+Secure path:
 
-Recovery mismatch должен приводить к explicit failure, а не к silent persist или plaintext fallback.
+- Client AES-256-GCM encryption;
+- opaque Server storage;
+- exact ciphertext size/SHA-256;
+- pending inaccessible before message claim;
+- idempotent retry, expiry/cancel;
+- one-time claim/reuse rejection;
+- local verified decrypt.
 
-## 12. Files, images и voice
+Any disabled room class `files/images/voice` blocks complete secure-media path fail-closed.
 
-Legacy conversations используют server-validated uploads: size, SHA-256, actual MIME и quota.
+## 12. Nexora Plus и Pulse
 
-Secure conversations используют opaque encrypted attachments:
+Modes:
 
-- Client encrypts AES-256-GCM;
-- Server принимает только bounded ciphertext;
-- expected size соответствует plaintext size + GCM tag;
-- ciphertext SHA-256 проверяется;
-- quota считается по actual stored ciphertext bytes;
-- pending data недоступен до message claim;
-- matching retry idempotent;
-- reuse/scope/hash substitution отклоняется;
-- download decrypts/verifies локально.
-
-При запрете любого `files/images/voice` весь secure-media path блокируется fail-closed.
-
-## 13. Route rate limiting
-
-Trust directory, enrollment, KeyPackage, recovery и E2EE upload routes используют bounded sliding-window limiter.
-
-При превышении:
-
-- HTTP status: `429`;
-- stable code: `RATE_LIMITED`;
-- header: `Retry-After`.
-
-Limiter дополняет, но не заменяет authentication, authorization, resource ceilings и quota.
-
-## 14. Nexora Plus и Pulse
-
-| Mode | Назначение | Real payments |
+| Mode | Purpose | Real payments |
 |---|---|---|
-| `disabled` | local messaging без commercial capabilities | нет |
-| `sandbox` | QA/demo Plus и Impulses | нет |
-| `production` | signed Pulse Cloud/provider integration | только Cloud |
+| `disabled` | messaging without commercial features | no |
+| `sandbox` | QA/demo Plus/Impulses | no |
+| `production` | separate Pulse Cloud/provider | Cloud only |
 
 Sandbox commands:
 
@@ -255,74 +214,75 @@ impulses grant <user> <amount> [reason]
 impulses revoke <user> <amount> [reason]
 ```
 
-Sandbox:
+Help brackets are placeholders. Both `plus grant netrox 1` and copied `plus grant <netrox> [1]` are normalized as inert data.
 
-- недоступен при production Pulse configuration;
-- не выполняет checkout;
-- не создаёт production signatures/entitlements;
-- выдаёт 400 Impulses один раз для новой test Plus activation;
-- не допускает negative balance;
-- журналирует mutations.
+Sandbox cannot create production signatures, checkout or negative balance.
 
-Production требует отдельный Cloud deployment, provider integration, verified webhooks, reconciliation, refunds/disputes, transactional email, secret management и legal/privacy/tax documentation.
+## 13. Audited Server console
 
-## 15. Audited developer commands
+Console executes only registered commands. It does not provide shell, eval, arbitrary filesystem access or Node execution.
 
-```text
-help
-status
-health
-users list
-rooms list
-backup create [passphrase]
-storage cleanup
-read-only on|off
-audit tail [count]
-pulse sandbox on|off
-pulse user <user>
-plus grant <user> [days]
-plus revoke <user>
-impulses grant <user> <amount> [reason]
-impulses revoke <user> <amount> [reason]
-```
+Errors return stable `{ code, message }`. Mutating commands are audited without secret argument values.
 
-Arbitrary shell и JavaScript evaluation не поддерживаются. Mutating commands фиксируются в `integrationAudit` без secret argument values.
+## 14. Windows updater
 
-## 16. Updates и release channels
+Packaged Client:
 
-Electron updater принимает только complete signed stable Windows release с installer, blockmap и `latest.yml`.
+- uses official GitHub Releases provider by default;
+- starts update service before renderer IPC;
+- performs startup and scheduled checks;
+- prevents duplicate checks;
+- displays checking/progress/current/available/downloaded/error/retry states;
+- allows custom generic feed only via explicit HTTPS config;
+- disallows downgrade/prerelease;
+- requires signed installable asset set.
 
-Source/PWA prerelease и unsigned assets не updater-eligible. Отсутствие complete signed metadata должно возвращать `no_installable_update`.
+Unpackaged development mode intentionally does not perform real automatic updates.
 
-Перед update:
+Post-update summary opens exact official release tag. `--test-mode` tails local Client log only and does not enable DevTools or remote debugging.
 
-1. создайте verified backup;
-2. проверьте release classification;
-3. изучите migration/rollback notes;
-4. подтвердите Client compatibility;
-5. выполните graceful shutdown;
-6. после restart проверьте live/ready/integrity;
-7. проверьте login/bootstrap, Trust enrollment и encrypted media.
+## 15. Update procedure
 
-## 17. Incident response
+Before update:
 
-Соберите:
+1. verified backup;
+2. current version/schema record;
+3. release classification check;
+4. Client compatibility review;
+5. free-space check;
+6. planned maintenance/drain.
+
+After update:
+
+- live/ready;
+- SQLite integrity/schema;
+- Client login/bootstrap;
+- Trust device state;
+- legacy и secure messaging;
+- Welcome recovery;
+- backup/storage access;
+- updater state on packaged Client.
+
+## 16. Incident response
+
+Collect:
 
 - Client/Server/Cloud versions;
-- commit/tag или asset ID;
-- Server ID и request IDs;
-- timestamps и последние действия;
-- deployment profile;
-- live/ready/metrics state;
-- schema/integrity status;
-- sanitized logs;
-- affected user/device/conversation/group/epoch IDs без private content.
+- release channel/tag/commit;
+- Server ID/request ID;
+- timestamps;
+- network/deployment profile;
+- live/ready results;
+- schema/integrity;
+- Trust device/KeyPackage/epoch scope;
+- updater state;
+- sanitized logs.
 
-Не передавайте passwords, cookies, OAuth tokens, TOTP/recovery codes, invite codes, bot/Pulse credentials, private CA keys, Trust private state или backup passphrase.
+Never share secrets, cookies, OAuth tokens, TOTP/recovery codes, invite codes, CA/device/signing keys, complete MLS state, production database или backup passphrase.
 
-При integrity failure остановите mutations и восстановите latest verified backup. Emergency read-only не заменяет backup.
+Detailed procedures: [Operations Runbook](docs/OPERATIONS_RUNBOOK.md).
 
-## 18. Release verification
+## 17. Verification
 
 ```bash
 npm ci
@@ -331,6 +291,4 @@ npm run test:soak
 gradle -p android :app:assembleDebug --no-daemon
 ```
 
-Stable Windows promotion дополнительно требует Authenticode verification, packaged runtime E2E, clean install/upgrade и updater validation.
-
-Связанные документы: [Deployment Guide](docs/DEPLOYMENT.md), [Operations Runbook](docs/OPERATIONS_RUNBOOK.md), [Release Policy](docs/RELEASE_POLICY.md).
+Stable Windows promotion additionally requires installed signed Client/Server, updater n-1 → n, installer UX, test-mode shortcut и packaged MLS Welcome recovery acceptance.
