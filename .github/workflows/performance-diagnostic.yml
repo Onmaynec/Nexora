@@ -1,4 +1,4 @@
-name: Performance diagnostic
+name: Unit runner diagnostic
 
 on:
   push:
@@ -9,10 +9,10 @@ permissions:
   contents: write
 
 jobs:
-  performance-diagnostic:
+  unit-runner-diagnostic:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -23,23 +23,23 @@ jobs:
           node-version: 22.16.0
           cache: npm
       - run: npm ci
-      - name: Capture isolated performance result
+      - name: Capture isolated unit runner result
         shell: bash
         run: |
           set +e
-          npm run test:performance > performance.log 2>&1
+          npm run test:unit > unit.log 2>&1
           code=$?
           {
             echo "exit_code=$code"
             echo
-            cat performance.log
-          } > PERFORMANCE_DIAGNOSTIC.txt
+            cat unit.log
+          } > UNIT_DIAGNOSTIC.txt
           exit 0
       - name: Commit diagnostic
         run: |
           set -euxo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add PERFORMANCE_DIAGNOSTIC.txt
-          git commit -m "diagnostic: capture isolated performance result"
+          git add UNIT_DIAGNOSTIC.txt
+          git commit -m "diagnostic: capture isolated unit runner result"
           git push origin HEAD:agent/nexora-3.2.0-trust-core-mls
