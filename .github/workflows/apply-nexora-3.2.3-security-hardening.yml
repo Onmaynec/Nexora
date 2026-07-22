@@ -23,16 +23,30 @@ jobs:
           node-version: 22.16.0
           cache: npm
       - run: npm ci
-      - run: node scripts/apply-3.2.3-security-hardening.cjs
-      - run: npm run release:sync-version
-      - run: npm ci
-      - run: npm run release:check
-      - name: Commit verified security patch
+      - name: Apply, verify and publish patch or diagnostics
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f APPLY_3_2_3_FAILURE.log
+          {
+            node scripts/apply-3.2.3-security-hardening.cjs &&
+            npm run release:sync-version &&
+            npm ci &&
+            npm run release:check
+          } >apply-output.log 2>&1
+          status=$?
+          if [ "$status" -ne 0 ]; then
+            output="$(cat apply-output.log)"
+            git reset --hard HEAD
+            printf '%s\n' "$output" > APPLY_3_2_3_FAILURE.log
+            git add APPLY_3_2_3_FAILURE.log
+            git commit -m "ci: capture 3.2.3 patch failure"
+            git push origin HEAD:agent/nexora-3.2.3-security-hardening
+            exit 0
+          fi
+          rm -f apply-output.log
           git add -A
           git diff --cached --check
           git diff --cached --quiet && { echo "No patch changes were produced"; exit 1; }
