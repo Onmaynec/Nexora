@@ -7,9 +7,11 @@ const path = require("node:path");
 const { test } = require("node:test");
 const request = require("supertest");
 const { io: createSocket } = require("socket.io-client");
-const { createNexoraServer } = require("../server/create-server.cjs");
+const { createNexoraServer } = require("../server/create-server-v31.cjs");
 const { SESSION_COOKIE, SESSION_DURATION_MS, createCsrfToken, createSessionToken, hashToken } = require("../server/security.cjs");
 const crypto = require("node:crypto");
+
+const PERFORMANCE_BUDGET_MS = 20_000;
 
 function once(socket, event) {
   return new Promise((resolve, reject) => {
@@ -22,7 +24,7 @@ function emitAck(socket, event, payload) {
   return new Promise((resolve) => socket.emit(event, payload, resolve));
 }
 
-test("нагрузка общей комнаты: 20 клиентов одновременно отправляют 120 сообщений", { timeout: 90_000 }, async () => {
+test("нагрузка schema 8 общей комнаты: 20 клиентов одновременно отправляют 120 сообщений", { timeout: 90_000 }, async () => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "nexora-load-"));
   const instance = await createNexoraServer({ dataDir: directory, tls: false, redirect: false, port: 0, host: "127.0.0.1", quiet: true, clientDir: path.join(__dirname, "..", "client", "dist") });
   const status = await instance.listen();
@@ -30,6 +32,7 @@ test("нагрузка общей комнаты: 20 клиентов однов
   const cookies = [];
   const sockets = [];
   try {
+    assert.equal(instance.status().schemaVersion, 8);
     const first = await request(instance.app).post("/api/auth/register").send({ displayName: "Load 0", username: "load-0", password: "LoadStrongPass0!" }).expect(201);
     cookies.push(first.headers["set-cookie"][0].split(";")[0]);
     const generalRoomId = instance.store.read((state) => state.rooms.find((room) => room.slug === "general").id);
@@ -52,7 +55,7 @@ test("нагрузка общей комнаты: 20 клиентов однов
       const socket = createSocket(baseUrl, {
         transports: ["websocket"],
         extraHeaders: { Cookie: cookie },
-        auth: { clientVersion: "3.0.0" },
+        auth: { clientVersion: "3.2.0" },
         autoConnect: false,
       });
       sockets.push(socket);
@@ -68,10 +71,11 @@ test("нагрузка общей комнаты: 20 клиентов однов
       text: `load ${socketIndex}/${messageIndex}`,
       clientId: `load-${socketIndex}-${messageIndex}`,
     }))));
+    const elapsedMs = Date.now() - started;
     assert.equal(acknowledgements.filter((item) => item?.ok).length, 120);
     assert.equal(instance.store.read((state) => state.messages.filter((message) => message.conversationId === conversationId && message.type === "text").length), 120);
     assert.equal(instance.store.integrityCheck().ok, true);
-    assert.ok(Date.now() - started < 20_000, "120 сообщений должны обработаться менее чем за 20 секунд на тестовом стенде");
+    assert.ok(elapsedMs < PERFORMANCE_BUDGET_MS, `120 сообщений должны обработаться менее чем за ${PERFORMANCE_BUDGET_MS} мс в изолированном schema 8 smoke; получено ${elapsedMs} мс`);
   } finally {
     for (const socket of sockets) socket.disconnect();
     await instance.close();

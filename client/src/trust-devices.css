@@ -1,0 +1,142 @@
+.trust-devices-card {
+  grid-column: 1 / -1;
+}
+
+.trust-devices-card .settings-card-title {
+  align-items: center;
+}
+
+.trust-refresh {
+  margin-left: auto;
+  width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.11));
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+}
+
+.trust-device-warning {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px;
+  margin: 14px 0;
+  border: 1px solid rgba(247, 190, 68, 0.35);
+  border-radius: 12px;
+  background: rgba(247, 190, 68, 0.08);
+}
+
+.trust-device-warning.error {
+  border-color: rgba(255, 92, 120, 0.36);
+  background: rgba(255, 92, 120, 0.08);
+}
+
+.trust-device-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.trust-device-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(220px, 0.9fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.1));
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.trust-device-row.unverified {
+  border-color: rgba(247, 190, 68, 0.3);
+}
+
+.trust-device-row.revoked {
+  opacity: 0.62;
+}
+
+.trust-device-main {
+  display: flex;
+  gap: 11px;
+  min-width: 0;
+  align-items: center;
+}
+
+.trust-device-main > span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.trust-device-main strong,
+.trust-device-main small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trust-device-main small,
+.trust-device-note {
+  color: var(--muted, #9993aa);
+}
+
+.trust-device-icon {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: rgba(157, 107, 255, 0.13);
+  color: var(--accent, #a678ff);
+}
+
+.trust-device-fingerprint {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  align-items: center;
+  color: var(--muted, #9993aa);
+}
+
+.trust-device-fingerprint code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.trust-device-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.trust-device-actions button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+}
+
+.trust-device-note {
+  margin: 13px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 980px) {
+  .trust-device-row {
+    grid-template-columns: 1fr;
+  }
+
+  .trust-device-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}

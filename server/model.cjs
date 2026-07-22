@@ -86,14 +86,16 @@ function conversationSetting(state, conversationId, userId) {
 
 function fileView(file) {
   if (!file || file.deletedAt) return null;
+  const encrypted = file.kind === "encrypted";
   return {
     id: file.id,
-    name: file.originalName,
-    mimeType: file.mimeType,
+    name: encrypted ? "Защищённое вложение" : file.originalName,
+    mimeType: encrypted ? "application/octet-stream" : file.mimeType,
     size: file.size,
     kind: file.kind,
-    duration: file.duration ?? null,
-    waveform: Array.isArray(file.waveform) ? file.waveform.slice(0, 96) : [],
+    ciphertextSha256: encrypted ? file.ciphertextSha256 : null,
+    duration: encrypted ? null : file.duration ?? null,
+    waveform: encrypted ? [] : Array.isArray(file.waveform) ? file.waveform.slice(0, 96) : [],
     url: `/api/files/${file.id}`,
     thumbnailUrl: file.kind === "image" ? `/api/files/${file.id}?thumbnail=1` : null,
     createdAt: file.createdAt,
@@ -108,7 +110,7 @@ function messagePreview(state, message) {
     conversationId: message.conversationId,
     senderId: message.senderId,
     senderName: sender?.displayName ?? "Удалённый пользователь",
-    text: message.deletedAt ? "Сообщение удалено" : message.text,
+    text: message.deletedAt ? "Сообщение удалено" : message.type === "encrypted" ? "Защищённое сообщение" : message.text,
     type: message.type,
     deletedAt: message.deletedAt ?? null,
   };
@@ -162,7 +164,17 @@ function serializeMessage(state, message, viewerId) {
     conversationId: message.conversationId,
     sender: sender ? publicUser(sender) : { id: message.senderId, username: "deleted", displayName: "Удалённый пользователь" },
     type: deleted ? "deleted" : attachmentExpired ? "expired" : message.type,
-    text: deleted ? "" : attachmentExpired ? "Срок хранения вложения истёк" : message.text,
+    text: deleted ? "" : attachmentExpired ? "Срок хранения вложения истёк" : message.type === "encrypted" ? "" : message.text,
+    encryption: !deleted && message.type === "encrypted" && message.mlsEnvelope ? {
+      groupRecordId: message.mlsEnvelope.groupRecordId,
+      protocolGroupId: message.mlsEnvelope.protocolGroupId,
+      epoch: Number(message.mlsEnvelope.epoch),
+      senderDeviceId: message.mlsEnvelope.senderDeviceId,
+      ciphertext: message.mlsEnvelope.ciphertext,
+      messageHash: message.mlsEnvelope.messageHash,
+      authenticatedDataHash: message.mlsEnvelope.authenticatedDataHash ?? null,
+      generation: message.mlsEnvelope.generation ?? null,
+    } : null,
     file: deleted || attachmentExpired ? null : fileView(file),
     reply,
     forwarded: message.forwardedSnapshot ?? null,
@@ -183,7 +195,7 @@ function serializeMessage(state, message, viewerId) {
     listenedByMe: listened.some((item) => item.userId === viewerId),
     listenedCount: listened.length,
     isOwn: message.senderId === viewerId,
-    canEdit: message.senderId === viewerId && !deleted && !attachmentExpired && message.type === "text" && !message.pendingApproval,
+    canEdit: message.senderId === viewerId && !deleted && !attachmentExpired && ["text", "encrypted"].includes(message.type) && !message.fileId && !message.pendingApproval,
     canDelete: (message.senderId === viewerId || (conversation?.type === "room" && roomPermission(state, conversation.roomId, viewerId, "room.delete_messages"))) && !deleted,
     canPin: conversation?.type === "room" && roomPermission(state, conversation.roomId, viewerId, "room.pin_messages") && !deleted,
   };

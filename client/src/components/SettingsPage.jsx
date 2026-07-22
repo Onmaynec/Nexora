@@ -5,6 +5,7 @@ import {
   Volume2, X,
 } from "lucide-react";
 import { api, patch, post, remove, uploadAvatar } from "../api";
+import TrustDevicesCard from "./TrustDevicesCard";
 import { Avatar } from "./ui";
 
 function deviceLabel(userAgent) {
@@ -205,6 +206,8 @@ export default function SettingsPage({ me, blocked, version, server, preferences
           <div className="settings-card-title"><KeyRound size={20} /><div><h3>Изменить пароль</h3><span>Остальные устройства будут отключены</span></div></div>
           <form className="password-form" onSubmit={changePassword}><input name="currentPassword" type="password" placeholder="Текущий пароль" autoComplete="current-password" required /><input name="newPassword" type="password" placeholder={`Новый пароль · минимум ${passwordPolicy?.minLength ?? 10} символов`} minLength={passwordPolicy?.minLength ?? 10} maxLength={128} autoComplete="new-password" required /><input name="confirmPassword" type="password" placeholder="Повторите новый пароль" minLength={passwordPolicy?.minLength ?? 10} maxLength={128} autoComplete="new-password" required /><button type="submit" disabled={saving}>Изменить пароль</button></form>
         </section>
+
+        <TrustDevicesCard serverId={server?.id} userId={me.id} onLogout={onLogout} showToast={showToast} />
 
         <section className="settings-card sessions-card">
           <div className="settings-card-title"><MonitorSmartphone size={20} /><div><h3>Активные сессии</h3><span>{sessions.length} устройств</span></div></div>

@@ -366,6 +366,14 @@ async function createNexoraServer(options = {}) {
 
   let v3Features = null;
 
+  function conversationUsesMls(conversationId) {
+    try {
+      return Boolean(store.db?.prepare("SELECT 1 FROM mls_groups WHERE conversation_id=? AND status='active'").get(String(conversationId)));
+    } catch {
+      return false;
+    }
+  }
+
   function notificationAllowed(state, recipientId, conversationId, mentioned) {
     const recipient = findUser(state, recipientId);
     const setting = state.conversationSettings.find((item) => item.userId === recipientId && item.conversationId === conversationId);
@@ -374,12 +382,16 @@ async function createNexoraServer(options = {}) {
   }
 
   async function createTextMessage({ senderId, conversationId, text: rawText, replyToId = null, clientId = null, silent = false, threadRootId = null }) {
+    const normalizedConversationId = cleanLine(conversationId, 64);
+    if (conversationUsesMls(normalizedConversationId)) {
+      throw Object.assign(new Error("Диалог защищён MLS. Используйте E2EE transport."), { code: "E2EE_REQUIRED", status: 409 });
+    }
     const text = cleanText(rawText);
     if (!text) throw Object.assign(new Error("Сообщение пустое."), { code: "MESSAGE_EMPTY" });
     const safeClientId = /^[a-zA-Z0-9_-]{8,80}$/.test(String(clientId ?? "")) ? String(clientId) : null;
     const result = await store.mutate((state) => {
       const sender = findUser(state, senderId);
-      const conversation = findConversation(state, cleanLine(conversationId, 64));
+      const conversation = findConversation(state, normalizedConversationId);
       if (!sender || !canAccessConversation(state, conversation, senderId)) throw Object.assign(new Error("Чат недоступен."), { code: "FORBIDDEN" });
       const posting = roomPostingError(state, conversation, senderId, "text");
       if (posting) throw Object.assign(new Error(posting.message), { code: posting.code, retryAfter: posting.retryAfter });
@@ -1867,6 +1879,9 @@ async function createNexoraServer(options = {}) {
     const conversation = findConversation(state, request.params.id);
     if (!canAccessConversation(state, conversation, viewerId)) return apiError(response, 403, "Чат недоступен.");
     const kind = request.query.kind === "voice" ? "voice" : "file";
+    if (conversationUsesMls(conversation.id)) {
+      return response.status(409).json({ ok: false, allowed: false, code: "E2EE_ATTACHMENT_REQUIRED", message: "Вложения в MLS-диалоге должны быть зашифрованы на клиенте." });
+    }
     const posting = roomPostingError(state, conversation, viewerId, kind);
     if (posting) return apiError(response, 403, posting.message, posting.code);
     const requestedBytes = Math.max(0, Number(request.query.bytes) || 0);
@@ -1906,6 +1921,10 @@ async function createNexoraServer(options = {}) {
     if (!canAccessConversation(state, conversation, viewerId)) {
       await fs.unlink(request.file.path).catch(() => {});
       return apiError(response, 403, "Чат недоступен.");
+    }
+    if (conversationUsesMls(conversation.id)) {
+      await fs.unlink(request.file.path).catch(() => {});
+      return apiError(response, 409, "Вложения в MLS-диалоге должны быть зашифрованы на клиенте.", "E2EE_ATTACHMENT_REQUIRED");
     }
     if (conversation.type === "dm" && isBlockedEither(state, viewerId, dmPeer(state, conversation, viewerId)?.id)) {
       await fs.unlink(request.file.path).catch(() => {});
@@ -2046,6 +2065,7 @@ async function createNexoraServer(options = {}) {
     emitMessage,
     roomPostingError,
     maintenance,
+    conversationUsesMls,
     uploadsDir,
     incomingDir,
     maxFileBytes: LIMITS.fileBytes,
@@ -2113,6 +2133,9 @@ async function createNexoraServer(options = {}) {
       const targetConversation = findConversation(state, targetConversationId);
       if (!source || !canAccessConversation(state, sourceConversation, user.id) || !canAccessConversation(state, targetConversation, user.id)) {
         return acknowledge({ ok: false, error: "Пересылка недоступна." });
+      }
+      if (conversationUsesMls(targetConversation.id)) {
+        return acknowledge({ ok: false, code: "E2EE_FORWARD_REQUIRED", error: "Пересылка в MLS-диалог должна быть зашифрована на клиенте." });
       }
       const postingKind = source.type === "voice" ? "voice" : source.fileId ? "file" : "text";
       const posting = roomPostingError(state, targetConversation, user.id, postingKind);

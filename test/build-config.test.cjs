@@ -8,7 +8,7 @@ const { test } = require("node:test");
 
 const root = path.resolve(__dirname, "..");
 
-test("релиз 3.1.2 собирает проверяемые артефакты без native SQLite", () => {
+test("релиз 3.2.0 собирает проверяемые артефакты без native SQLite", () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
   const lock = fs.readFileSync(path.join(root, "package-lock.json"), "utf8");
   const client = fs.readFileSync(path.join(root, "electron-builder.client.yml"), "utf8");
@@ -17,11 +17,18 @@ test("релиз 3.1.2 собирает проверяемые артефакт�
   const clientMain = fs.readFileSync(path.join(root, "electron", "client-main.cjs"), "utf8");
   const releaseWorkflow = fs.readFileSync(path.join(root, ".github", "workflows", "release.yml"), "utf8");
   const ciWorkflow = fs.readFileSync(path.join(root, ".github", "workflows", "ci.yml"), "utf8");
+  const unitRunner = fs.readFileSync(path.join(root, "scripts", "run-unit-tests.cjs"), "utf8");
   assert.equal(packageJson.version, require("../package-lock.json").version);
   assert.equal(packageJson.dependencies["better-sqlite3"], undefined);
   assert.equal(packageJson.devDependencies?.["better-sqlite3"], undefined);
   assert.match(packageJson.scripts.test, /build:web/);
-  assert.match(packageJson.scripts["test:unit"], /node --test/);
+  assert.match(packageJson.scripts["test:unit"], /run-unit-tests\.cjs/);
+  assert.match(unitRunner, /spawnSync\(process\.execPath/);
+  assert.match(unitRunner, /"--test"/);
+  assert.match(unitRunner, /name !== "performance\.test\.cjs"/);
+  assert.match(packageJson.scripts["test:performance"], /node --test --test-concurrency=1 test\/performance\.test\.cjs/);
+  assert.match(packageJson.scripts["release:check"], /test:unit[\s\S]*test:performance[\s\S]*audit:security/);
+  assert.match(ciWorkflow, /verify:[\s\S]*test:unit[\s\S]*test:performance[\s\S]*audit:security/);
   assert.doesNotMatch(lock, /node_modules\/better-sqlite3/);
   assert.match(packageJson.engines.node, /22\.16/);
   assert.match(client, /npmRebuild:\s*false/);

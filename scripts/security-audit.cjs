@@ -6,15 +6,33 @@ const { spawnSync } = require("node:child_process");
 
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+const containsAll = (source, values) => values.every((value) => source.includes(value));
+const server = read("server/create-server.cjs");
+const serverV31 = read("server/create-server-v31.cjs");
 const v3 = read("server/v3-features.cjs");
+const model = read("server/model.cjs");
+const trustCore = read("server/trust-core.cjs");
+const trustRoutes = read("server/trust-routes.cjs");
+const trustSocket = read("server/trust-socket.cjs");
+const mlsTransport = read("server/mls-transport.cjs");
+const e2eeAttachments = read("server/e2ee-attachments.cjs");
+const appClient = read("client/src/App.jsx");
+const trustClient = read("client/src/crypto/trust-client.js");
+const trustDevices = read("client/src/crypto/trust-device-management.js");
+const trustStore = read("client/src/crypto/trust-store.js");
+const mlsEngine = read("client/src/crypto/mls-engine.js");
+const e2eeMedia = read("client/src/crypto/e2ee-media.js");
+const securePane = read("client/src/components/SecureMessagePane.jsx");
+const outbox = read("client/src/outbox.js");
 const android = read("android/app/src/main/java/com/nexora/mobile/MainActivity.kt");
 const androidManifest = read("android/app/src/main/AndroidManifest.xml");
 const releaseWorkflow = read(".github/workflows/release.yml");
+const attachmentGuardCount = (v3.match(/E2EE_ATTACHMENT_REQUIRED/g) || []).length;
 const checks = [
-  ["CSRF token verification", /CSRF_INVALID/, read("server/create-server.cjs")],
-  ["Origin verification", /ORIGIN_REJECTED/, read("server/create-server.cjs")],
+  ["CSRF token verification", /CSRF_INVALID/, server],
+  ["Origin verification", /ORIGIN_REJECTED/, server],
   ["Persistent login rate limits", /rateLimits/, read("server/store.cjs")],
-  ["Temporary password lock", /LOGIN_LOCKED/, read("server/create-server.cjs")],
+  ["Temporary password lock", /LOGIN_LOCKED/, server],
   ["Encrypted backups", /aes-256-gcm/, read("server/maintenance.cjs")],
   ["Encrypted TOTP secrets", /aes-256-gcm/, read("server/totp.cjs")],
   ["Timing-safe TOTP verification", /timingSafeEqual/, read("server/totp.cjs")],
@@ -29,6 +47,30 @@ const checks = [
   ["Hashed scoped bot tokens", /tokenHash:\s*hashToken\(raw\)/, v3],
   ["Webhook HTTPS and private-address rejection", /WEBHOOK_HTTPS_REQUIRED[\s\S]*WEBHOOK_PRIVATE_TARGET/, v3],
   ["Webhook DNS pinning and HMAC", /lookup:[\s\S]*target\.address[\s\S]*createHmac\("sha256"/, v3],
+  ["Trust challenges are one-time and expiring", containsAll(trustCore, ["consumed_at IS NULL", "expires_at", "UPDATE trust_challenges SET consumed_at="]), "boolean"],
+  ["Trust device proofs use Ed25519 verification", containsAll(trustCore, ["verifyProof", "crypto.verify(null"]), "boolean"],
+  ["Trust mutations require CSRF and a device identifier", server.includes("CSRF_INVALID") && trustRoutes.includes("TRUST_DEVICE_REQUIRED"), "boolean"],
+  ["Client signs verify and revoke challenges", containsAll(trustDevices, ["verify_device", "revoke_device", "crypto.subtle.sign"]), "boolean"],
+  ["Device identity private keys are non-extractable", containsAll(trustClient, ["importKey", "Ed25519", "false", "identityPrivateKey"]), "boolean"],
+  ["Private MLS state uses local AES-GCM wrapping", containsAll(trustStore, ["AES-GCM", "additionalData", "tagLength: 128"]), "boolean"],
+  ["Self-revoke clears all Trust stores", trustDevices.includes("clearTrustScope") && containsAll(trustStore, ["STORES.devices", "STORES.groups", "STORES.messages", "STORES.drafts"]), "boolean"],
+  ["Socket authorization binds supplied Trust devices", containsAll(serverV31, ["mountTrustSocketAuthorization", "trustCore"]) && containsAll(trustSocket, ["requestedDeviceId", "trustCore.requireDevice", "trustDeviceRoom", "socket.join"]), "boolean"],
+  ["MLS ciphertext delivery uses verified device rooms only", containsAll(trustSocket, ["d.status='active'", "d.trust_state='verified'", "emitToVerifiedGroupDevices"]) && containsAll(mlsTransport, ["emitToVerifiedGroupDevices", "trustDeviceRoom", "TRUST_SOCKET_DEVICE_MISMATCH"]), "boolean"],
+  ["Trust revocation immediately disconnects the target device", trustRoutes.includes("disconnectTrustDevice(io, device.id") && containsAll(trustSocket, ["trust.device_revoked", "socket.disconnect(true)"]), "boolean"],
+  ["Remote revocation wipes local Trust state and stops realtime", containsAll(appClient, ["handleTrustDeviceRevoked", "trust.device_revoked", "socket.disconnect()", "deviceId, clientVersion: CLIENT_VERSION"]) && containsAll(trustClient, ["handleTrustDeviceRevoked", "clearTrustScope", "conversationQueues.clear()"]), "boolean"],
+  ["MLS mandatory ciphersuite is fixed to 1", /MLS_CIPHERSUITE_ID\s*=\s*1/, mlsEngine],
+  ["MLS transport rejects ciphertext replay", trustCore.includes("MLS_MESSAGE_REPLAY") && trustCore.includes("mls_replay_cache") && mlsTransport.includes("trustCore.reserveMessage"), "boolean"],
+  ["Secure serialization never exposes MLS plaintext", containsAll(model, ["message.mlsEnvelope", "text: deleted ? \"\"", "message.type === \"encrypted\" ? \"\""]), "boolean"],
+  ["Legacy plaintext routes are guarded after MLS activation", containsAll(server, ["conversationUsesMls", "E2EE_REQUIRED", "E2EE_FORWARD_REQUIRED", "E2EE_ATTACHMENT_REQUIRED"]) && containsAll(v3, ["conversationUsesMls", "E2EE_DRAFT_LOCAL_ONLY", "E2EE_SCHEDULE_UNSUPPORTED", "E2EE_POLL_UNSUPPORTED", "E2EE_BOT_UNSUPPORTED"]) && attachmentGuardCount >= 3, "boolean"],
+  ["Encrypted attachment upload validates exact GCM size and ciphertext hash", containsAll(e2eeAttachments, ["plaintextSize + AES_GCM_TAG_BYTES", "safeHashEqual", "timingSafeEqual", "E2EE_ATTACHMENT_HASH_MISMATCH"]), "boolean"],
+  ["Encrypted attachment server metadata is opaque", containsAll(e2eeAttachments, ["application/octet-stream", "pendingE2ee: true", "ciphertextSha256", "e2ee-${attachmentId}.bin"]) && !e2eeAttachments.includes("request.headers[\"x-nexora-file-name\"]"), "boolean"],
+  ["Encrypted attachment claim is one-time and scope-bound", containsAll(e2eeAttachments, ["requirePendingAttachment", "file.pendingE2ee = false", "file.messageId = String(messageId)"]) && containsAll(mlsTransport, ["claimE2eeAttachment", "attachmentId", "fileId: file?.id || null"]), "boolean"],
+  ["Encrypted room media policy is fail-closed", containsAll(e2eeAttachments, ["room.allowFiles !== false", "room.allowImages !== false", "room.allowVoice !== false", "E2EE_MEDIA_POLICY_RESTRICTED"]), "boolean"],
+  ["Client attachment encryption binds AES-GCM AAD", containsAll(e2eeMedia, ["AES-GCM", "length: 256", "additionalData: aad", "tagLength: 128", "NEXORA-E2EE-ATTACHMENT-V1"]), "boolean"],
+  ["Client verifies ciphertext and plaintext after download", containsAll(e2eeMedia, ["E2EE_ATTACHMENT_CIPHERTEXT_INVALID", "E2EE_ATTACHMENT_PLAINTEXT_INVALID", "ciphertextSha256", "plaintextSha256"]), "boolean"],
+  ["Encrypted media upload supports progress and cancellation", containsAll(e2eeMedia, ["XMLHttpRequest", "xhr.upload.onprogress", "AbortSignal", "E2EE_ATTACHMENT_UPLOAD_CANCELLED"]) || containsAll(e2eeMedia, ["XMLHttpRequest", "xhr.upload.onprogress", "signal?.addEventListener", "E2EE_ATTACHMENT_UPLOAD_CANCELLED"]), "boolean"],
+  ["Attachment secrets stay inside MLS content and out of regular outbox fields", containsAll(e2eeMedia, ["encodeAttachmentContent", "ATTACHMENT_CONTENT_PREFIX"]) && containsAll(outbox, ["attachmentId", "message: String(prepared.payload.message)"]) && !containsAll(outbox, ["plaintextSha256", "mimeType", "rawKey"]), "boolean"],
+  ["Offline cache removes decrypted attachment descriptor", containsAll(securePane, ["offlineSafe", "attachment: _attachment", "redactDecryptedForCache"]), "boolean"],
   ["Android cleartext disabled", /usesCleartextTraffic="false"/, androidManifest],
   ["Android TLS errors are cancelled", /onReceivedSslError[\s\S]*handler\.cancel\(\)/, android],
   ["Android never bypasses TLS errors", !/handler\.proceed\(\)/.test(android), "boolean"],

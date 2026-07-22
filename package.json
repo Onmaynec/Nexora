@@ -1,6 +1,6 @@
 {
   "name": "nexora",
-  "version": "3.1.2",
+  "version": "3.2.0",
   "engines": {
     "node": ">=22.16.0"
   },
@@ -26,14 +26,15 @@
     "build:web": "vite build --config client/vite.config.mjs",
     "preview": "vite preview --config client/vite.config.mjs",
     "check": "node scripts/check-syntax.cjs && node scripts/check-electron-builder-config.cjs && npm run build:web",
-    "test": "npm run build:web && npm run test:unit",
-    "test:unit": "node --test test/*.test.cjs",
+    "test": "npm run build:web && npm run test:unit && npm run test:performance",
+    "test:unit": "node scripts/run-unit-tests.cjs",
+    "test:performance": "node --test --test-concurrency=1 test/performance.test.cjs",
     "test:cloud": "node --test test/pulse-cloud.test.cjs test/cloud-identity.test.cjs test/cloud-workers.test.cjs test/pulse-cloud-management.test.cjs",
     "test:pulse-local": "node --test test/pulse-schema7.test.cjs test/pulse-local-repository.test.cjs test/pulse-cloud-client.test.cjs test/pulse-local-integration.test.cjs test/pulse-sync-worker.test.cjs",
     "test:soak": "node scripts/soak-test.cjs",
     "audit:security": "node scripts/security-audit.cjs",
     "release:sync-version": "node scripts/sync-release-metadata.cjs",
-    "release:check": "node scripts/sync-release-metadata.cjs --check && npm run check && npm run test:unit && npm run audit:security",
+    "release:check": "node scripts/sync-release-metadata.cjs --check && npm run check && npm run test:unit && npm run test:performance && npm run audit:security",
     "release:tag-check": "node scripts/check-release-tag.cjs",
     "release:signing-check": "node scripts/check-release-signing.cjs",
     "electron:client": "electron electron/client-main.cjs",
@@ -55,7 +56,8 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1"
+    "socket.io-client": "^4.8.1",
+    "ts-mls": "1.6.2"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.6.0",

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, clearCsrfToken, post } from "./api";
+import { api, clearCsrfToken, CLIENT_VERSION, post } from "./api";
 import AuthScreen from "./components/AuthScreen";
 import ForcedPasswordChange from "./components/ForcedPasswordChange";
 import GlobalVoiceDock from "./components/GlobalVoiceDock";
@@ -8,6 +8,7 @@ import { LoadingScreen } from "./components/ui";
 import { getSocket } from "./socket";
 import { flushOutbox } from "./outbox";
 import { cacheBootstrap, readLastBootstrap, syncSequenceKey } from "./offline-store";
+import { configureTrust, ensureTrustDevice, handleTrustDeviceRevoked, processCommitEvent } from "./crypto/trust-client";
 
 function playNotificationSound(name) {
   if (!name || name === "none") return;
@@ -52,6 +53,7 @@ export default function App() {
   const [serverInfo, setServerInfo] = useState(null);
   const [offlineMode, setOfflineMode] = useState(false);
   const [onlineUserIds, setOnlineUserIds] = useState(new Set());
+  const [trustState, setTrustState] = useState({ status: "idle", device: null, error: null });
   const [toast, setToast] = useState(null);
   const refreshTimer = useRef(null);
   const toastTimer = useRef(null);
@@ -129,7 +131,26 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!me || me.mustChangePassword) return undefined;
+    const serverId = bootstrap?.server?.id;
+    if (!me?.id || !serverId || me.mustChangePassword) return undefined;
+    let cancelled = false;
+    configureTrust({ serverId, user: me });
+    setTrustState((current) => ({ ...current, status: "initializing", error: null }));
+    ensureTrustDevice()
+      .then((device) => {
+        if (!cancelled) setTrustState({ status: device.trustState === "verified" ? "ready" : "verification_required", device, error: null });
+      })
+      .catch((error) => {
+        if (!cancelled) setTrustState({ status: "error", device: null, error: error.code || error.message });
+      });
+    return () => { cancelled = true; };
+  }, [bootstrap?.server?.id, me?.id, me?.mustChangePassword]);
+
+  useEffect(() => {
+    const deviceId = trustState.device?.id;
+    if (!me || me.mustChangePassword || !deviceId) return undefined;
+    if (socket.connected && socket.auth?.deviceId !== deviceId) socket.disconnect();
+    socket.auth = { ...(socket.auth || {}), deviceId, clientVersion: CLIENT_VERSION };
     refresh();
     socket.connect();
 
@@ -151,10 +172,15 @@ export default function App() {
       if (message.silent || mode === "none" || (mode === "mentions" && !direct) || quietHoursActive(preferences)) return;
       const sound = preferences.notificationSound ?? "subtle";
       if ("Notification" in window && Notification.permission === "granted") {
-        const body = message.type === "text" ? message.text : message.type === "voice" ? "Голосовое сообщение" : "Новое вложение";
+        const body = message.type === "encrypted" ? "Новое защищённое сообщение" : message.type === "text" ? message.text : message.type === "voice" ? "Голосовое сообщение" : "Новое вложение";
         new Notification(message.sender.displayName, { body, tag: `nexora-${message.conversationId}`, silent: true });
         playNotificationSound(sound);
       }
+    };
+    const onMlsCommit = (event) => {
+      processCommitEvent(event)
+        .then((changed) => { if (changed) scheduleRefresh(); })
+        .catch((error) => showToast(error.message || "Не удалось применить MLS commit", "error"));
     };
     const onConnect = async () => {
       setServerOnline(true);
@@ -176,30 +202,51 @@ export default function App() {
       scheduleRefresh();
     };
     const onDisconnect = () => { setServerOnline(false); setOfflineMode(true); };
-    const onConnectError = (error) => {
-      if (error.message === "UNAUTHORIZED") {
+    const onConnectError = async (error) => {
+      setServerOnline(false);
+      const code = error.data?.code || error.message;
+      if (["TRUST_DEVICE_REVOKED", "TRUST_DEVICE_NOT_FOUND", "TRUST_SOCKET_AUTH_FAILED"].includes(code)) {
+        await handleTrustDeviceRevoked(deviceId).catch(() => {});
+        setTrustState({ status: "error", device: null, error: "Доверие этого устройства отозвано. Выполните повторный вход и регистрацию устройства." });
+        socket.disconnect();
+        showToast("Доверие устройства отозвано; локальные ключи удалены.", "error");
+        return;
+      }
+      if (code === "UNAUTHORIZED") {
         setMe(null);
         setBootstrap(null);
+        bootstrapRef.current = null;
         setAuthState("anonymous");
       }
+    };
+    const onTrustDeviceRevoked = async (event) => {
+      if (String(event?.deviceId || "") !== String(deviceId)) return;
+      await handleTrustDeviceRevoked(deviceId).catch(() => {});
+      setTrustState({ status: "error", device: null, error: "Доверие этого устройства отозвано. Локальные ключи и MLS state удалены." });
+      socket.disconnect();
+      showToast("Доверие устройства отозвано; защищённая доставка остановлена.", "error");
     };
 
     socket.on("data:refresh", scheduleRefresh);
     socket.on("message:new", onMessage);
+    socket.on("mls.commit", onMlsCommit);
     socket.on("presence:update", onPresence);
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
     socket.on("connect_error", onConnectError);
+    socket.on("trust.device_revoked", onTrustDeviceRevoked);
     return () => {
       clearTimeout(refreshTimer.current);
       socket.off("data:refresh", scheduleRefresh);
       socket.off("message:new", onMessage);
+      socket.off("mls.commit", onMlsCommit);
       socket.off("presence:update", onPresence);
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
       socket.off("connect_error", onConnectError);
+      socket.off("trust.device_revoked", onTrustDeviceRevoked);
     };
-  }, [me?.id, me?.mustChangePassword, refresh, socket]);
+  }, [me?.id, me?.mustChangePassword, refresh, socket, showToast, trustState.device?.id]);
 
   async function authenticated(result) {
     setMe(result.user);
@@ -213,6 +260,7 @@ export default function App() {
     setMe(null);
     setBootstrap(null);
     bootstrapRef.current = null;
+    setTrustState({ status: "idle", device: null, error: null });
     setAuthState("anonymous");
     clearCsrfToken();
   }
@@ -229,6 +277,7 @@ export default function App() {
         bootstrap={bootstrap}
         socket={socket}
         onlineUserIds={onlineUserIds}
+        trustState={trustState}
         onRefresh={refresh}
         onMeChanged={(user) => { setMe(user); setBootstrap((current) => current ? { ...current, me: user } : current); }}
         onLogout={logout}

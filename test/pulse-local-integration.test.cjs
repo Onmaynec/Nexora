@@ -118,12 +118,12 @@ after(async () => {
   await fs.rm(directory, { recursive: true, force: true });
 });
 
-test("schema 7 is active and Pulse API requires authentication", async () => {
-  assert.equal(instance.store.stats().schemaVersion, 7);
-  assert.equal(instance.store.db.prepare("SELECT value FROM meta WHERE key='schema_version'").get().value, "7");
+test("schema 8 is active and Pulse API requires authentication", async () => {
+  assert.equal(instance.store.stats().schemaVersion, 8);
+  assert.equal(instance.store.db.prepare("SELECT value FROM meta WHERE key='schema_version'").get().value, "8");
   await request(instance.app).get("/api/v3/pulse/status").expect(401).expect((response) => assert.equal(response.body.code, "AUTH_REQUIRED"));
   const status = await agent.get("/api/v3/pulse/status").expect(200);
-  assert.equal(status.body.schemaVersion, 7);
+  assert.equal(status.body.schemaVersion, 8);
   assert.equal(status.body.cloud.productionReady, true);
 });
 
@@ -147,7 +147,7 @@ test("Cloud Account link attestation is scoped and one-time", async () => {
     .expect((response) => assert.equal(response.body.code, "LINK_ATTESTATION_REPLAYED"));
 });
 
-test("overview, wallet and transactions sync into schema 7 cache", async () => {
+test("overview, wallet and transactions sync into schema 8 cache", async () => {
   const overview = await agent.get("/api/v3/pulse/overview").expect(200);
   assert.equal(overview.body.cached, false);
   assert.equal(overview.body.wallet.balance, 400);

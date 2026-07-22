@@ -13,7 +13,7 @@
 
 ## Сообщение об уязвимости
 
-Не публикуйте рабочий exploit, session cookie, OAuth token, TOTP/recovery code, приватный ключ CA, Pulse API key/signing key, invite code или пользовательские данные в публичном Issue, Discussion либо Pull Request.
+Не публикуйте рабочий exploit, session cookie, OAuth token, TOTP/recovery code, приватный ключ CA, Pulse API key/signing key, invite code, MLS private state, device identity private key или пользовательские данные в публичном Issue, Discussion либо Pull Request.
 
 Используйте приватный GitHub Security Advisory:
 
@@ -49,7 +49,52 @@
 - metrics exposure, credential leakage в логах или обход audited developer commands;
 - bot/webhook scope bypass и утечка секретов.
 
-Для экспериментальных 3.2.0 веток также важны plaintext bypass, MLS epoch/replay errors, device impersonation, KeyPackage/Welcome reuse, encrypted-state rollback и key-disclosure defects.
+### Дополнительный Trust/MLS scope 3.2.0
+
+Для ветки 3.2.0 приоритетными считаются:
+
+- plaintext downgrade после активации MLS group через REST, Socket.IO, outbox, draft, scheduled, poll, bot, webhook, forward, edit или upload path;
+- получение Local Server расшифрованного content/private group state;
+- подмена `(userId, deviceId)` credential или signature key;
+- регистрация устройства без proof of possession;
+- подтверждение/отзыв устройства без действующего одноразового challenge;
+- повторное использование, подмена области или race при KeyPackage/Welcome claim;
+- skipped/stale/duplicate epoch, commit substitution и ciphertext replay;
+- доставка revoked/removed device после изменения membership;
+- восстановление пропущенных commits с разрывом журнала;
+- rollback/cross-profile disclosure зашифрованного IndexedDB state;
+- сохранение локальных private keys/state после self-revoke;
+- расхождение authenticated data и conversation/client/device scope;
+- supply-chain подмена `ts-mls` или использование другого ciphersuite без явного migration/review.
+
+Отчёт о Trust/MLS проблеме должен указывать Server ID, conversation/group record ID, epoch, роли устройств и очищенный порядок protocol events. Не прикладывайте private key, полный MLS state или реальное содержимое переписки.
+
+## Trust Core security boundary 3.2.0
+
+На текущей ветке:
+
+- Local Server хранит public device keys, credentials, delivery records, commits, ciphertext hashes/data и audit metadata;
+- private device identity key и private MLS state остаются на клиенте;
+- private state, KeyPackages, decrypted cache и drafts шифруются локальным AES-GCM wrapping key;
+- identity private key создаётся non-extractable;
+- credential authentication разрешает только active/verified device с совпадающим registered signature key;
+- server-side route guards запрещают legacy plaintext fallback после MLS activation;
+- attachment/image/voice UI отключён, потому что encrypted-media protocol ещё не реализован.
+
+Это не устраняет XSS/client compromise: вредоносный renderer, dependency или подписанный клиентский бинарник может получить plaintext в момент использования приложения. Browser runtime входит в trusted computing base.
+
+## Задокументированные ограничения 3.2.0
+
+Следующее не считается уже реализованной гарантией:
+
+- encrypted attachments, images и voice;
+- сокрытие membership, timing, IP, ciphertext size и иных traffic metadata;
+- ретроактивное шифрование истории 3.1.x;
+- seamless recovery после полной потери локального private state;
+- совместимость secure conversation со stable 3.1.2 client;
+- независимый cryptographic/application-security audit.
+
+Сообщение о том, что фактическое поведение выходит за эти ограничения небезопасным способом — например, attachment молча отправляется plaintext — является security issue.
 
 ## Безопасное исследование
 
