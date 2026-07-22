@@ -1,6 +1,7 @@
 "use strict";
 
 const { createNexoraServer: createBaseNexoraServer, LIMITS, REACTIONS } = require("./create-server.cjs");
+const { mountE2eeAttachmentRoutes } = require("./e2ee-attachments.cjs");
 const { PulseCloudClient } = require("./pulse-cloud-client.cjs");
 const { PulseLocalRepository } = require("./pulse-local-repository.cjs");
 const { upgradeStoreToSchema7 } = require("./pulse-schema7.cjs");
@@ -101,14 +102,23 @@ async function createNexoraServer(options = {}) {
     mountPulseProductRoutes({ app: instance.app, authRequired: pulseRoutes.authRequired, client, repository, syncWorker });
     const trustRoutes = mountTrustRoutes({ app: instance.app, store: instance.store, io: instance.io, trustCore, log });
     mountTrustRecoveryRoutes({ app: instance.app, trustCore, ...trustRoutes });
-    mountMlsTransport({ io: instance.io, store: instance.store, trustCore, log });
+    const mlsTransport = mountMlsTransport({ io: instance.io, store: instance.store, trustCore, log });
+    const e2eeAttachments = mountE2eeAttachmentRoutes({
+      app: instance.app,
+      store: instance.store,
+      authRequired: trustRoutes.authRequired,
+      dataDir: instance.dataDir,
+      maxPlaintextBytes: LIMITS.fileBytes,
+      postingError: mlsTransport.postingError,
+      log,
+    });
 
     const baseStatus = instance.status.bind(instance);
     instance.status = () => ({
       ...baseStatus(),
       schemaVersion: 8,
       pulseV3: { ...client.status(), ...(sandbox.enabled() ? { mode: "sandbox", enabled: true, productionReady: false, testMode: true } : {}), sync: syncWorker.status() },
-      trust: trustCore.status(),
+      trust: { ...trustCore.status(), encryptedAttachments: true },
       migration: pulseMigration,
       migrations: { pulse: pulseMigration, trust: trustMigration },
     });
@@ -117,8 +127,10 @@ async function createNexoraServer(options = {}) {
       await baseListen();
       syncWorker.start();
       trustCore.cleanup();
+      await e2eeAttachments.cleanupExpired();
       trustCleanupTimer = setInterval(() => {
         try { trustCore.cleanup(); } catch (error) { log(`Trust cleanup failed: ${error.message}`, "warn"); }
+        e2eeAttachments.cleanupExpired().catch((error) => log(`E2EE attachment cleanup failed: ${error.message}`, "warn"));
       }, 60 * 60_000);
       trustCleanupTimer.unref?.();
       return instance.status();
@@ -137,6 +149,7 @@ async function createNexoraServer(options = {}) {
     instance.pulseSandbox = sandbox;
     instance.trustCore = trustCore;
     instance.trustMigration = trustMigration;
+    instance.e2eeAttachments = e2eeAttachments;
     instance.commandService = new DeveloperCommandService({ instance, store: instance.store, pulseSandbox: sandbox, log, clock: options.clock });
     return instance;
   } catch (error) {
