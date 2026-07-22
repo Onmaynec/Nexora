@@ -10,6 +10,7 @@ const {
 const { isRoomBanned, roomRole } = require("./model.cjs");
 const { PulseCloudClientError, safeRequestId } = require("./pulse-cloud-client.cjs");
 const { PulseRepositoryError } = require("./pulse-local-repository.cjs");
+const { PulseSandboxError } = require("./pulse-sandbox-service.cjs");
 
 function userSocketRoom(userId) {
   return `user:${userId}`;
@@ -20,7 +21,7 @@ function stableError(response, status, code, message, requestId, details = {}) {
 }
 
 function errorResponse(response, error, requestId) {
-  const known = error instanceof PulseCloudClientError || error instanceof PulseRepositoryError;
+  const known = error instanceof PulseCloudClientError || error instanceof PulseRepositoryError || error instanceof PulseSandboxError;
   return stableError(
     response,
     known ? error.status : Number(error?.status || 500),
@@ -43,8 +44,11 @@ function sanitizeOverview(value) {
       status: item.status || payload.status,
       startsAt: item.startsAt || payload.notBefore || payload.issuedAt,
       expiresAt: item.expiresAt || payload.expiresAt,
-      roomId: payload.roomId || null,
+      roomId: item.roomId || (item.scopeType === "room" ? item.scopeId : null) || payload.roomId || null,
+      scopeType: item.scopeType || (payload.roomId ? "room" : "user"),
+      scopeId: item.scopeId || payload.roomId || payload.cloudAccountId || null,
       keyId: item.keyId || item.envelope?.keyId || payload.keyId || null,
+      sandbox: Boolean(item.sandbox),
     };
   });
   return overview;
@@ -124,33 +128,15 @@ function mountPulseV3Routes({ app, store, io, serverId, client, repository, sand
       localUserId: session.localUserId,
       redirectUri: request.body?.redirectUri || "nexora://cloud-account/complete",
     });
-    response.status(201).json({
-      ok: true,
-      requestId: request.pulseRequestId,
-      linkId: session.id,
-      authorizationUrl,
-      expiresAt: session.expiresAt,
-    });
+    response.status(201).json({ ok: true, requestId: request.pulseRequestId, linkId: session.id, authorizationUrl, expiresAt: session.expiresAt });
   }));
 
   app.post("/api/v3/cloud-account/link/complete", authRequired, asyncRoute(async (request, response) => {
     const linkId = String(request.body?.linkId || "");
     const session = repository.getLinkSession(linkId);
-    if (!session || session.localUserId !== request.pulseAuth.user.id) {
-      throw new PulseRepositoryError("Link session не найдена.", "LINK_ATTESTATION_INVALID", 400);
-    }
-    const attestation = client.verifyLinkAttestation(request.body?.attestation, {
-      linkId: session.id,
-      nonce: session.nonce,
-      localUserId: session.localUserId,
-    });
-    const link = repository.completeLinkSession({
-      linkId: session.id,
-      localUserId: session.localUserId,
-      nonce: attestation.nonce,
-      cloudAccountId: attestation.cloudAccountId,
-      cloudSubject: attestation.subject,
-    });
+    if (!session || session.localUserId !== request.pulseAuth.user.id) throw new PulseRepositoryError("Link session не найдена.", "LINK_ATTESTATION_INVALID", 400);
+    const attestation = client.verifyLinkAttestation(request.body?.attestation, { linkId: session.id, nonce: session.nonce, localUserId: session.localUserId });
+    const link = repository.completeLinkSession({ linkId: session.id, localUserId: session.localUserId, nonce: attestation.nonce, cloudAccountId: attestation.cloudAccountId, cloudSubject: attestation.subject });
     repository.enqueueLocalEvent("billing.account_linked", { cloudAccountId: link.cloudAccountId }, { localUserId: link.localUserId });
     emitUser(link.localUserId, "billing.account_linked", { cloudAccountId: link.cloudAccountId, linkedAt: link.linkedAt });
     response.status(201).json({ ok: true, requestId: request.pulseRequestId, account: link });
@@ -165,9 +151,7 @@ function mountPulseV3Routes({ app, store, io, serverId, client, repository, sand
   app.delete("/api/v3/cloud-account/link", authRequired, asyncRoute(async (request, response) => {
     const password = String(request.body?.currentPassword || "");
     const user = store.read((state) => state.users.find((item) => item.id === request.pulseAuth.user.id));
-    if (!password || !user || !(await verifyPassword(password, user.passwordSalt, user.passwordHash))) {
-      throw new PulseRepositoryError("Для отвязывания подтвердите текущий пароль.", "CLOUD_ACCOUNT_REAUTH_REQUIRED", 403);
-    }
+    if (!password || !user || !(await verifyPassword(password, user.passwordSalt, user.passwordHash))) throw new PulseRepositoryError("Для отвязывания подтвердите текущий пароль.", "CLOUD_ACCOUNT_REAUTH_REQUIRED", 403);
     const previous = repository.getLink(user.id);
     repository.unlink(user.id);
     repository.enqueueLocalEvent("billing.account_unlinked", { cloudAccountId: previous?.cloudAccountId || null }, { localUserId: user.id });
@@ -187,14 +171,7 @@ function mountPulseV3Routes({ app, store, io, serverId, client, repository, sand
       repository.recordSyncFailure(userId, error.code);
       const cached = repository.getCachedOverview(userId);
       if (!cached?.overview) throw error;
-      response.json({
-        ok: true,
-        requestId: request.pulseRequestId,
-        cached: true,
-        cachedAt: cached.cachedAt,
-        warning: { code: error.code, message: error.message },
-        ...sanitizeOverview(cached.overview),
-      });
+      response.json({ ok: true, requestId: request.pulseRequestId, cached: true, cachedAt: cached.cachedAt, warning: { code: error.code, message: error.message }, ...sanitizeOverview(cached.overview) });
     }
   }));
 
@@ -219,7 +196,6 @@ function mountPulseV3Routes({ app, store, io, serverId, client, repository, sand
     const limit = Math.max(1, Math.min(200, Number(request.query.limit) || 50));
     if (sandbox?.enabled()) return response.json({ ok: true, requestId: request.pulseRequestId, cached: false, transactions: sandbox.transactions(userId, limit) });
     repository.requireLinked(userId);
-
     try {
       const result = await client.transactions(userId, { limit, before: request.query.before, requestId: request.pulseRequestId });
       repository.cacheTransactions(userId, result.transactions, result.requestId);
@@ -252,16 +228,11 @@ function mountPulseV3Routes({ app, store, io, serverId, client, repository, sand
 
   async function createCheckout(request, response, productCode) {
     const userId = request.pulseAuth.user.id;
-    if (sandbox?.enabled()) throw new PulseRepositoryError("В тестовой модели покупки отключены. Используйте команды Nexora Server.", "PULSE_SANDBOX_NO_PAYMENTS", 409);
+    if (sandbox?.enabled()) throw new PulseRepositoryError("В тестовой модели денежные покупки отключены. Импульсы можно тратить во встроенном каталоге.", "PULSE_SANDBOX_NO_PAYMENTS", 409);
     repository.requireLinked(userId);
     const idempotencyKey = String(request.headers["idempotency-key"] || request.body?.idempotencyKey || "");
     if (!/^[A-Za-z0-9_.:-]{12,128}$/.test(idempotencyKey)) throw new PulseRepositoryError("Idempotency-Key обязателен.", "IDEMPOTENCY_KEY_REQUIRED", 400);
-    const result = await client.checkout(userId, productCode, {
-      currency: request.body?.currency || "EUR",
-      region: request.body?.region || "*",
-      idempotencyKey,
-      requestId: request.pulseRequestId,
-    });
+    const result = await client.checkout(userId, productCode, { currency: request.body?.currency || "EUR", region: request.body?.region || "*", idempotencyKey, requestId: request.pulseRequestId });
     const checkout = repository.cacheCheckout(userId, productCode, result.checkout, result.requestId);
     emitUser(userId, "billing.checkout_updated", checkout);
     response.status(201).json({ ok: true, requestId: result.requestId, checkout });
@@ -306,6 +277,7 @@ function mountPulseV3Routes({ app, store, io, serverId, client, repository, sand
 
   app.get("/api/v3/rooms/:roomId/pulse/goals", authRequired, asyncRoute(async (request, response) => {
     requireRoomMember(request.params.roomId, request.pulseAuth.user.id);
+    if (sandbox?.enabled()) return response.json({ ok: true, requestId: request.pulseRequestId, cached: false, goals: sandbox.goals(request.pulseAuth.user.id, request.params.roomId) });
     try {
       const result = await client.goals(request.params.roomId, request.pulseRequestId);
       await store.mutate((state) => {
@@ -316,11 +288,7 @@ function mountPulseV3Routes({ app, store, io, serverId, client, repository, sand
       response.json({ ok: true, requestId: result.requestId, cached: false, goals: result.goals });
     } catch (error) {
       const state = store.read();
-      const goals = state.pulseGoals.filter((item) => item.roomId === request.params.roomId)
-        .map((goal) => ({
-          ...goal,
-          contributionCount: state.pulseContributions.filter((item) => item.goalId === goal.id).length,
-        }));
+      const goals = state.pulseGoals.filter((item) => item.roomId === request.params.roomId).map((goal) => ({ ...goal, contributionCount: state.pulseContributions.filter((item) => item.goalId === goal.id).length }));
       if (!goals.length) throw error;
       response.json({ ok: true, requestId: request.pulseRequestId, cached: true, goals, warning: { code: error.code, message: error.message } });
     }
@@ -329,6 +297,20 @@ function mountPulseV3Routes({ app, store, io, serverId, client, repository, sand
   app.post("/api/v3/rooms/:roomId/pulse/goals", authRequired, asyncRoute(async (request, response) => {
     const membership = requireRoomMember(request.params.roomId, request.pulseAuth.user.id);
     if (membership.room.ownerId !== request.pulseAuth.user.id) throw Object.assign(new Error("Только владелец комнаты может создать коммерческую цель."), { code: "PERMISSION_DENIED", status: 403 });
+    if (sandbox?.enabled()) {
+      const result = await sandbox.createGoal(request.pulseAuth.user.id, request.params.roomId, {
+        productCode: request.body?.productCode,
+        title: request.body?.title,
+        description: request.body?.description,
+        targetAmount: request.body?.targetAmount,
+        expiresAt: request.body?.expiresAt,
+        entitlementDurationDays: request.body?.entitlementDurationDays,
+        idempotencyKey: request.headers["idempotency-key"] || request.body?.idempotencyKey,
+      });
+      const conversationId = membership.state.conversations.find((item) => item.roomId === request.params.roomId)?.id;
+      if (conversationId) io.to(`conversation:${conversationId}`).emit("billing.goal_created", result.goal);
+      return response.status(result.duplicate ? 200 : 201).json({ ok: true, requestId: request.pulseRequestId, ...result });
+    }
     const result = await client.createGoal(request.pulseAuth.user.id, request.params.roomId, {
       productCode: request.body?.productCode,
       title: request.body?.title,
@@ -338,9 +320,7 @@ function mountPulseV3Routes({ app, store, io, serverId, client, repository, sand
       entitlementDurationDays: request.body?.entitlementDurationDays,
       idempotencyKey: request.headers["idempotency-key"] || request.body?.idempotencyKey,
     }, request.pulseRequestId);
-    await store.mutate((state) => {
-      if (!state.pulseGoals.some((item) => item.id === result.goal.id)) state.pulseGoals.push({ ...result.goal, source: "pulse_cloud" });
-    });
+    await store.mutate((state) => { if (!state.pulseGoals.some((item) => item.id === result.goal.id)) state.pulseGoals.push({ ...result.goal, source: "pulse_cloud" }); });
     repository.enqueueLocalEvent("billing.goal_created", { goalId: result.goal.id, roomId: request.params.roomId }, { roomId: request.params.roomId });
     io.to(`conversation:${membership.state.conversations.find((item) => item.roomId === request.params.roomId)?.id}`).emit("billing.goal_created", result.goal);
     response.status(201).json({ ok: true, requestId: result.requestId, goal: result.goal });
@@ -350,6 +330,13 @@ function mountPulseV3Routes({ app, store, io, serverId, client, repository, sand
     const membership = requireRoomMember(request.params.roomId, request.pulseAuth.user.id);
     const idempotencyKey = String(request.headers["idempotency-key"] || request.body?.idempotencyKey || "");
     if (!/^[A-Za-z0-9_.:-]{12,128}$/.test(idempotencyKey)) throw new PulseRepositoryError("Idempotency-Key обязателен.", "IDEMPOTENCY_KEY_REQUIRED", 400);
+    if (sandbox?.enabled()) {
+      const result = await sandbox.contribute(request.pulseAuth.user.id, request.params.roomId, request.params.goalId, request.body?.amount, idempotencyKey);
+      emitUser(request.pulseAuth.user.id, "billing.wallet_updated", { balance: result.balance });
+      const conversationId = membership.state.conversations.find((item) => item.roomId === request.params.roomId)?.id;
+      if (conversationId) io.to(`conversation:${conversationId}`).emit("billing.goal_updated", result.goal);
+      return response.status(result.duplicate ? 200 : 201).json({ ok: true, requestId: request.pulseRequestId, ...result });
+    }
     const result = await client.contribute(request.pulseAuth.user.id, request.params.roomId, request.params.goalId, request.body?.amount, idempotencyKey, request.pulseRequestId);
     await store.mutate((state) => {
       const goal = state.pulseGoals.find((item) => item.id === request.params.goalId && item.roomId === request.params.roomId);
@@ -368,6 +355,12 @@ function mountPulseV3Routes({ app, store, io, serverId, client, repository, sand
     if (membership.room.ownerId !== request.pulseAuth.user.id) throw Object.assign(new Error("Только владелец комнаты может отменить цель."), { code: "PERMISSION_DENIED", status: 403 });
     const idempotencyKey = String(request.headers["idempotency-key"] || request.body?.idempotencyKey || "");
     if (!/^[A-Za-z0-9_.:-]{12,128}$/.test(idempotencyKey)) throw new PulseRepositoryError("Idempotency-Key обязателен.", "IDEMPOTENCY_KEY_REQUIRED", 400);
+    if (sandbox?.enabled()) {
+      const result = await sandbox.cancelGoal(request.pulseAuth.user.id, request.params.roomId, request.params.goalId, idempotencyKey);
+      const conversationId = membership.state.conversations.find((item) => item.roomId === request.params.roomId)?.id;
+      if (conversationId) io.to(`conversation:${conversationId}`).emit("billing.goal_cancelled", result);
+      return response.status(result.duplicate ? 200 : 201).json({ ok: true, requestId: request.pulseRequestId, ...result });
+    }
     const result = await client.cancelGoal(request.pulseAuth.user.id, request.params.roomId, request.params.goalId, idempotencyKey, request.pulseRequestId);
     await store.mutate((state) => {
       const goal = state.pulseGoals.find((item) => item.id === request.params.goalId && item.roomId === request.params.roomId);
@@ -383,8 +376,4 @@ function mountPulseV3Routes({ app, store, io, serverId, client, repository, sand
   return { authRequired };
 }
 
-module.exports = {
-  mountPulseV3Routes,
-  sanitizeOverview,
-  stableError,
-};
+module.exports = { mountPulseV3Routes, sanitizeOverview, stableError };
