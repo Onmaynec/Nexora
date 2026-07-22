@@ -29,14 +29,14 @@ jobs:
           $ErrorActionPreference = "Continue"
           npm run test:unit *> windows-unit.log
           $code = $LASTEXITCODE
-          @("exit_code=$code", "", "--- TAP tail ---") + (Get-Content windows-unit.log -Tail 300) | Set-Content WINDOWS_UNIT_DIAGNOSTIC.txt
+          @("exit_code=$code", "", "--- COMPLETE TAP ---") + (Get-Content windows-unit.log) | Set-Content WINDOWS_UNIT_DIAGNOSTIC.txt
           exit 0
-      - name: Commit diagnostic tail
+      - name: Commit complete diagnostic
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add WINDOWS_UNIT_DIAGNOSTIC.txt
-          git commit -m "diagnostic: capture Windows unit TAP"
+          git commit -m "diagnostic: capture complete Windows unit TAP"
           git push origin HEAD:agent/nexora-3.2.0-trust-core-mls
