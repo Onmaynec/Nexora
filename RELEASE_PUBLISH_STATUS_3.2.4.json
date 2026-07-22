@@ -1,0 +1,35 @@
+{
+  "verifiedAt": "2026-07-22T18:01:14Z",
+  "tagName": "v3.2.4",
+  "name": "Nexora 3.2.4 — Source/PWA",
+  "isDraft": false,
+  "isPrerelease": true,
+  "publishedAt": "2026-07-22T18:01:07Z",
+  "url": "https://github.com/Onmaynec/Nexora/releases/tag/v3.2.4",
+  "assets": [
+    {
+      "name": "Nexora-3.2.4-source.zip",
+      "size": 1735899,
+      "downloadCount": 0,
+      "updatedAt": "2026-07-22T18:01:06Z"
+    },
+    {
+      "name": "Nexora-3.2.4.spdx.json",
+      "size": 138095,
+      "downloadCount": 0,
+      "updatedAt": "2026-07-22T18:01:06Z"
+    },
+    {
+      "name": "Nexora-PWA-3.2.4.zip",
+      "size": 1240342,
+      "downloadCount": 0,
+      "updatedAt": "2026-07-22T18:01:06Z"
+    },
+    {
+      "name": "SHA256SUMS.txt",
+      "size": 269,
+      "downloadCount": 0,
+      "updatedAt": "2026-07-22T18:01:06Z"
+    }
+  ]
+}
