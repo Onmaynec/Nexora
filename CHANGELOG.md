@@ -2,6 +2,26 @@
 
 Формат основан на Keep a Changelog. Версии следуют Semantic Versioning.
 
+## [3.2.1] — 2026-07-22
+
+### Fixed
+
+- после успешной аутентификации Client больше не зависает на экране «Собираем ваши чаты»: `/api/bootstrap` загружается до Trust enrollment и подключения device-scoped Socket.IO;
+- закрытие Nexora Server больше не вызывает Electron main-process dialog `PulseRepositoryError: SQLite store закрыт`;
+- Pulse и Trust status корректно формируют stopped-state snapshot после закрытия SQLite, не скрывая неожиданные ошибки базы;
+- параллельные stop/quit вызовы Nexora Server сериализованы в один shutdown и не используют закрывающийся instance.
+
+### Changed
+
+- версия Client, Server, Android metadata, package и lockfile синхронизирована как `3.2.1`;
+- schema 8, API v3 и Trust/MLS API v4 сохранены без миграции и breaking changes.
+
+### Tests
+
+- добавлена регрессия bootstrap-before-Trust;
+- добавлены проверки Pulse status после закрытия repository и обязательного проброса неожиданных SQLite errors;
+- добавлена интеграционная проверка schema 8 status после `instance.close()`.
+
 ## [3.2.0] — 2026-07-22 (Source/PWA prerelease)
 
 ### Added
@@ -211,7 +231,8 @@ Source/PWA prerelease не содержит unsigned updater assets и не за
 
 - объединённый RC с SQLite, профилями, поиском, outbox и Violet Grid.
 
-[3.2.0]: https://github.com/Onmaynec/Nexora/compare/v3.1.2...agent/nexora-3.2.0-trust-core-mls
+[3.2.1]: https://github.com/Onmaynec/Nexora/compare/v3.2.0...v3.2.1
+[3.2.0]: https://github.com/Onmaynec/Nexora/releases/tag/v3.2.0
 [3.1.2]: https://github.com/Onmaynec/Nexora/releases/tag/v3.1.2
 [3.1.1]: https://github.com/Onmaynec/Nexora/releases/tag/v3.1.1
 [3.1.0]: https://github.com/Onmaynec/Nexora/releases/tag/v3.1.0
