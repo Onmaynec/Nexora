@@ -59,27 +59,30 @@ test("opaque E2EE attachment API validates, stores and deletes ciphertext withou
   const agent = browserAgent(request.agent(instance.app), () => csrf);
   const registered = await agent.post("/api/auth/register").send({ displayName: "Attachment Guard", username: `attachment_${crypto.randomBytes(4).toString("hex")}`, password: "AttachmentGuard123!" }).expect(201);
   csrf = registered.body.csrfToken;
+  const userId = registered.body.user.id;
   const bootstrap = await agent.get("/api/bootstrap").expect(200);
   const general = bootstrap.body.rooms.find((room) => room.slug === "general");
   assert.ok(general?.conversationId);
   activateMlsGroup(instance, general.conversationId);
 
+  async function uploadAttachment(attachmentId, fixture) {
+    return agent.post(`/api/v4/e2ee/conversations/${general.conversationId}/attachments`)
+      .set("Content-Type", "application/octet-stream")
+      .set("X-Nexora-Attachment-ID", attachmentId)
+      .set("X-Nexora-Ciphertext-SHA256", fixture.sha256)
+      .set("X-Nexora-Plaintext-Size", String(fixture.plaintext.length))
+      .send(fixture.ciphertext);
+  }
+
   const attachmentId = crypto.randomUUID();
   const fixture = await encryptedFixture();
-  const upload = () => agent.post(`/api/v4/e2ee/conversations/${general.conversationId}/attachments`)
-    .set("Content-Type", "application/octet-stream")
-    .set("X-Nexora-Attachment-ID", attachmentId)
-    .set("X-Nexora-Ciphertext-SHA256", fixture.sha256)
-    .set("X-Nexora-Plaintext-Size", String(fixture.plaintext.length))
-    .send(fixture.ciphertext);
-
-  const created = await upload().expect(201);
+  const created = await uploadAttachment(attachmentId, fixture).expect(201);
   assert.equal(created.body.attachment.id, attachmentId);
   assert.equal(created.body.attachment.size, fixture.ciphertext.length);
   assert.equal(created.body.attachment.plaintextSize, fixture.plaintext.length);
   assert.equal(created.body.attachment.ciphertextSha256, fixture.sha256);
 
-  const duplicate = await upload().expect(200);
+  const duplicate = await uploadAttachment(attachmentId, fixture).expect(200);
   assert.equal(duplicate.body.duplicate, true);
 
   const file = instance.store.read((state) => state.files.find((item) => item.id === attachmentId));
@@ -90,9 +93,39 @@ test("opaque E2EE attachment API validates, stores and deletes ciphertext withou
   assert.equal(JSON.stringify(file).includes("secret attachment bytes"), false);
   assert.equal(JSON.stringify(file).includes("AttachmentGuard123"), false);
 
+  await agent.get(`/api/files/${attachmentId}`).expect(404);
+  const messageId = crypto.randomUUID();
+  await instance.store.mutate((state) => {
+    claimE2eeAttachment(state, { attachmentId, conversationId: general.conversationId, uploaderId: userId, messageId });
+    state.messages.push({
+      id: messageId,
+      conversationId: general.conversationId,
+      senderId: userId,
+      clientId: crypto.randomUUID(),
+      type: "encrypted",
+      encryptedContentType: "attachment",
+      text: "",
+      fileId: attachmentId,
+      replyToId: null,
+      threadRootId: null,
+      forwardedFromId: null,
+      forwardedSnapshot: null,
+      silent: false,
+      mentions: [],
+      pendingApproval: false,
+      mlsEnvelope: { ciphertext: Buffer.alloc(32).toString("base64"), messageHash: crypto.randomBytes(32).toString("hex") },
+      createdAt: new Date().toISOString(),
+      updatedAt: null,
+      deletedAt: null,
+      pinnedAt: null,
+      pinnedBy: null,
+    });
+  });
+
   const downloaded = await agent.get(`/api/files/${attachmentId}`).expect(200);
   assert.deepEqual(downloaded.body, fixture.ciphertext);
   assert.notDeepEqual(downloaded.body, fixture.plaintext);
+  await agent.delete(`/api/v4/e2ee/attachments/${attachmentId}`).expect(409);
 
   const badId = crypto.randomUUID();
   const badHash = await agent.post(`/api/v4/e2ee/conversations/${general.conversationId}/attachments`)
@@ -105,9 +138,12 @@ test("opaque E2EE attachment API validates, stores and deletes ciphertext withou
   assert.equal(badHash.body.code, "E2EE_ATTACHMENT_HASH_MISMATCH");
   assert.equal(instance.store.read((state) => state.files.some((item) => item.id === badId)), false);
 
-  await agent.delete(`/api/v4/e2ee/attachments/${attachmentId}`).expect(200);
-  assert.equal(instance.store.read((state) => state.files.some((item) => item.id === attachmentId)), false);
-  await agent.get(`/api/files/${attachmentId}`).expect(404);
+  const pendingId = crypto.randomUUID();
+  const pendingFixture = await encryptedFixture(Buffer.from("pending ciphertext"));
+  await uploadAttachment(pendingId, pendingFixture).expect(201);
+  await agent.delete(`/api/v4/e2ee/attachments/${pendingId}`).expect(200);
+  assert.equal(instance.store.read((state) => state.files.some((item) => item.id === pendingId)), false);
+  await agent.get(`/api/files/${pendingId}`).expect(404);
 });
 
 test("claimE2eeAttachment is one-time and scope-bound", () => {
