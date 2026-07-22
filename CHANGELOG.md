@@ -2,6 +2,41 @@
 
 Формат основан на Keep a Changelog. Версии следуют Semantic Versioning.
 
+## [3.2.0] — Unreleased
+
+### Added
+
+- Local Server schema 8 с Trust device directory, одноразовыми challenge, KeyPackage, Welcome, MLS group/commit/replay state и Trust audit;
+- Ed25519 device identity, proof-of-possession registration, подтверждение и отзыв устройств;
+- Trusted Devices UI с fingerprint, verify/revoke, self-revoke и полной очисткой локального Trust scope;
+- browser MLS engine для `MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519`;
+- ciphertext-only Secure Message Pane, encrypted local drafts/cache/state и durable MLS outbox;
+- missed-commit recovery, conversation-scoped Welcome и Alice/Bob interoperability coverage;
+- migration/rollback guide и Trust Core readiness documentation.
+
+### Changed
+
+- development version синхронизирована как 3.2.0 для package, lockfile, Android и Client handshake;
+- Local Server schema 7 автоматически мигрирует к schema 8 до network listen с backup и integrity checks;
+- conversation с активной MLS group больше не использует legacy plaintext message path;
+- release security audit проверяет Trust challenge-response, non-extractable device keys, AES-GCM local wrapping, replay protection и plaintext guards.
+
+### Security
+
+- Local Server не получает private MLS state и не расшифровывает secure-message content;
+- устройство должно быть active и verified для KeyPackage/Welcome/commit/ciphertext delivery;
+- signed verify/revoke challenge одноразовый, expiring и operation-scoped;
+- duplicate/stale/skipped epochs, replayed ciphertext и повторное использование KeyPackage/Welcome отклоняются;
+- legacy send/forward/edit/draft/scheduled/poll/bot/upload paths блокируются сервером после MLS activation;
+- attachments/images/voice в secure pane намеренно отключены до появления encrypted-media protocol вместо небезопасного fallback.
+
+### Unreleased blockers
+
+- encrypted attachments/images/voice и authenticated metadata format;
+- metadata minimization/traffic-analysis review;
+- расширенная multi-device concurrency/corruption matrix и runtime E2E;
+- load/soak, signing-machine checks и независимый cryptographic/application-security review.
+
 ## [3.1.2] — 2026-07-21
 
 ### Fixed
@@ -158,6 +193,7 @@
 
 - объединённый RC с SQLite, профилями, поиском, outbox и Violet Grid.
 
+[3.2.0]: https://github.com/Onmaynec/Nexora/compare/v3.1.2...agent/nexora-3.2.0-trust-core-mls
 [3.1.2]: https://github.com/Onmaynec/Nexora/releases/tag/v3.1.2
 [3.1.1]: https://github.com/Onmaynec/Nexora/releases/tag/v3.1.1
 [3.1.0]: https://github.com/Onmaynec/Nexora/releases/tag/v3.1.0
