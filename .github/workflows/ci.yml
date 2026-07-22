@@ -1,93 +1,50 @@
-name: Synchronize 3.2.0 branch
+name: Resolve 3.2.0 documentation sync
 
 on:
-  push:
-    branches:
-      - agent/nexora-3.2.0-trust-core-mls
+  pull_request_target:
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
 
 jobs:
-  merge-main:
+  resolve-sync:
+    if: github.event.pull_request.number == 15 && github.event.pull_request.head.ref == 'agent/nexora-3.2.0-main-sync'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: agent/nexora-3.2.0-trust-core-mls
+          ref: agent/nexora-3.2.0-main-sync
           fetch-depth: 0
-      - name: Merge current main and preserve intentional 3.2.0 conflicts
+      - name: Preserve intentional 3.2.0 documentation while retaining main history
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin main
-          if ! git merge --no-ff --no-commit origin/main; then
-            mapfile -t conflicts < <(git diff --name-only --diff-filter=U)
-            if [ "${#conflicts[@]}" -eq 0 ]; then
-              echo "Merge failed without resolvable file conflicts" >&2
-              exit 1
-            fi
-            printf 'Preserving feature versions for conflicts:\n%s\n' "${conflicts[*]}"
-            git checkout --ours -- "${conflicts[@]}"
-            git add -- "${conflicts[@]}"
-          fi
-          cat > .github/workflows/ci.yml <<'YAML'
-          name: CI
-
-          on:
-            push:
-              branches: [main]
-            pull_request:
-            workflow_dispatch:
-
-          permissions:
-            contents: read
-
-          jobs:
-            verify:
-              runs-on: windows-latest
-              timeout-minutes: 25
-              steps:
-                - uses: actions/checkout@v4
-                - uses: actions/setup-node@v4
-                  with:
-                    node-version: 22.16.0
-                    cache: npm
-                - run: npm ci
-                - run: npm run check
-                - run: npm run test:unit
-                - run: npm run audit:security
-
-            linux-tests:
-              runs-on: ubuntu-latest
-              timeout-minutes: 20
-              steps:
-                - uses: actions/checkout@v4
-                - uses: actions/setup-node@v4
-                  with:
-                    node-version: 22.16.0
-                    cache: npm
-                - run: npm ci
-                - run: npm test
-
-            android-source:
-              runs-on: ubuntu-latest
-              timeout-minutes: 25
-              steps:
-                - uses: actions/checkout@v4
-                - uses: actions/setup-java@v4
-                  with:
-                    distribution: temurin
-                    java-version: "17"
-                - uses: gradle/actions/setup-gradle@v4
-                  with:
-                    gradle-version: "8.13"
-                - run: gradle -p android :app:assembleDebug --no-daemon
-          YAML
+          git fetch origin agent/nexora-3.2.0-trust-core-mls
+          paths=(
+            .github/ISSUE_TEMPLATE/bug_report.yml
+            ADMIN_GUIDE.md
+            CHANGELOG.md
+            PROJECT_INDEX.md
+            README.md
+            RELEASE_NOTES_3.1.2.md
+            RELEASE_VERIFICATION_3.1.2.md
+            SECURITY.md
+            SECURITY_AUDIT.md
+            TESTER_GUIDE.md
+            android/README.md
+            docs/ARCHITECTURE.md
+            docs/BUGFIX_3.1.2.md
+            docs/GITHUB_RELEASE.md
+            docs/PULSE.md
+            docs/RELEASE_CHECKLIST.md
+          )
+          git checkout origin/agent/nexora-3.2.0-trust-core-mls -- "${paths[@]}"
+          rm -f docs/.main-sync-marker
           git add -A
           git diff --cached --check
-          git commit -m "merge: synchronize main documentation into 3.2.0"
-          git push origin HEAD:agent/nexora-3.2.0-trust-core-mls
+          git commit -m "chore: resolve main sync against 3.2.0 documentation"
+          git push origin HEAD:agent/nexora-3.2.0-main-sync
