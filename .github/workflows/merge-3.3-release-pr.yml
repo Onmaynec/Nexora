@@ -1,0 +1,121 @@
+name: Merge verified Nexora 3.3
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+concurrency:
+  group: merge-verified-nexora-3.3
+  cancel-in-progress: true
+
+jobs:
+  merge:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.number == 38 &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.pull_request.head.ref == 'agent/nexora-3.3.0-full-release')
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      PR_NUMBER: '38'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/nexora-3.3.0-full-release
+          fetch-depth: 0
+
+      - name: Wait for finalizer cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 40); do
+            git fetch origin agent/nexora-3.3.0-full-release
+            git reset --hard origin/agent/nexora-3.3.0-full-release
+            if [ ! -f scripts/apply-3.3-source-patches.cjs ] && [ ! -f .github/workflows/finalize-3.3-release-pr.yml ]; then
+              echo 'Release candidate cleanup is present.'
+              exit 0
+            fi
+            echo "Waiting for finalizer ($attempt/40)..."
+            sleep 30
+          done
+          echo 'Finalizer did not complete; refusing merge.' >&2
+          exit 1
+
+      - name: Remove one-time merge and diagnostic workflows
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f \
+            .github/workflows/merge-3.3-release-pr.yml \
+            .github/workflows/unit-test-matrix.yml \
+            .github/workflows/unit-test-diagnostic.yml \
+            .github/workflows/unit-status-diagnostic.yml
+          if git diff --quiet; then
+            echo 'No one-time files remain.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'chore(release): remove one-time PR automation'
+          git push origin HEAD:agent/nexora-3.3.0-full-release
+
+      - name: Wait for required head checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 50); do
+            head_sha=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefOid --jq .headRefOid)
+            runs=$(gh api "repos/$REPO/actions/runs?head_sha=$head_sha&per_page=100")
+            ci=$(jq -r '[.workflow_runs[] | select(.name=="CI")] | sort_by(.created_at) | last | (.status + ":" + (.conclusion // ""))' <<<"$runs")
+            focused=$(jq -r '[.workflow_runs[] | select(.name=="Nexora 3.3 regressions")] | sort_by(.created_at) | last | (.status + ":" + (.conclusion // ""))' <<<"$runs")
+            echo "head=$head_sha CI=$ci focused=$focused"
+            if [ "$ci" = 'completed:success' ] && [ "$focused" = 'completed:success' ]; then
+              echo "VERIFIED_HEAD=$head_sha" >> "$GITHUB_ENV"
+              exit 0
+            fi
+            if [[ "$ci" == completed:* && "$ci" != 'completed:success' ]]; then
+              echo "CI failed for $head_sha; refusing merge." >&2
+              exit 1
+            fi
+            if [[ "$focused" == completed:* && "$focused" != 'completed:success' ]]; then
+              echo "Focused regressions failed for $head_sha; refusing merge." >&2
+              exit 1
+            fi
+            sleep 30
+          done
+          echo 'Required checks did not complete in time.' >&2
+          exit 1
+
+      - name: Mark PR ready
+        shell: bash
+        run: |
+          set -euo pipefail
+          node_id=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json id --jq .id)
+          is_draft=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json isDraft --jq .isDraft)
+          if [ "$is_draft" = 'true' ]; then
+            gh api graphql -f query='mutation($id:ID!){markPullRequestReadyForReview(input:{pullRequestId:$id}){pullRequest{isDraft}}}' -f id="$node_id"
+          fi
+
+      - name: Merge verified release PR
+        shell: bash
+        run: |
+          set -euo pipefail
+          current=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefOid --jq .headRefOid)
+          if [ "$current" != "$VERIFIED_HEAD" ]; then
+            echo "PR head moved after verification: $current != $VERIFIED_HEAD" >&2
+            exit 1
+          fi
+          gh pr merge "$PR_NUMBER" --repo "$REPO" --merge \
+            --subject 'release: Nexora 3.3.0 — Trust recovery, Pulse economy and distribution' \
+            --body 'Verified by full CI, focused Nexora 3.3 regressions, schema soak, Android build, website validation and release-candidate finalizer.'
