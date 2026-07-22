@@ -1,10 +1,43 @@
 (() => {
+  const officialIcon = "assets/nexora-icon.png";
   const header = document.querySelector("[data-header]");
   const menu = document.querySelector("[data-menu]");
   const menuButton = document.querySelector("[data-menu-button]");
   const toast = document.querySelector("[data-toast]");
   const navLinks = [...document.querySelectorAll(".site-nav a")];
   const sections = navLinks.map((link) => document.querySelector(link.getAttribute("href"))).filter(Boolean);
+
+  const applyOfficialBrand = () => {
+    const favicon = document.querySelector('link[rel="icon"]');
+    if (favicon) {
+      favicon.href = officialIcon;
+      favicon.type = "image/png";
+    }
+
+    const socialImage = document.querySelector('meta[property="og:image"]');
+    if (socialImage) socialImage.content = officialIcon;
+
+    document.querySelectorAll(".brand-mark").forEach((mark) => {
+      mark.replaceChildren();
+      mark.style.display = "block";
+      mark.style.width = "30px";
+      mark.style.height = "30px";
+      mark.style.borderRadius = "9px";
+      mark.style.background = `url("${officialIcon}") center / contain no-repeat`;
+      mark.style.filter = "drop-shadow(0 0 12px rgba(155, 92, 255, .4))";
+    });
+
+    document.querySelectorAll(".mini-mark").forEach((mark) => {
+      mark.style.width = "18px";
+      mark.style.height = "18px";
+      mark.style.borderRadius = "5px";
+      mark.style.clipPath = "none";
+      mark.style.background = `url("${officialIcon}") center / contain no-repeat`;
+      mark.style.boxShadow = "0 0 12px rgba(155, 92, 255, .32)";
+    });
+  };
+
+  applyOfficialBrand();
 
   const closeMenu = () => {
     menu?.classList.remove("open");
