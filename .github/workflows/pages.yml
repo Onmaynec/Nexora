@@ -37,7 +37,7 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: validate
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -52,3 +52,22 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Verify published redesign
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="${{ steps.deployment.outputs.page_url }}build.json?cache=redesign-20260722-2"
+          for attempt in $(seq 1 30); do
+            payload="$(curl --fail --silent --show-error --location \
+              --header 'Cache-Control: no-cache' \
+              --header 'Pragma: no-cache' \
+              "$url" || true)"
+            if grep -Fq '"siteBuild": "redesign-20260722-2"' <<<"$payload"; then
+              echo "Published redesign verified at $url"
+              exit 0
+            fi
+            echo "Attempt $attempt: CDN still serves an older build; retrying in 10 seconds."
+            sleep 10
+          done
+          echo "GitHub Pages did not expose redesign-20260722-2 within the verification window." >&2
+          exit 1
