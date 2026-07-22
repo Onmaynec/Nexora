@@ -1,111 +1,135 @@
 # Документация Nexora
 
-Этот каталог является официальной точкой входа в продуктовую, техническую, эксплуатационную, security- и release-документацию Nexora.
+Официальная точка входа в product, architecture, security, operations, testing и release documentation.
 
-## Текущий статус
+## 1. Current status
 
 | Параметр | Значение |
 |---|---|
-| Текущая версия репозитория | `3.2.4` |
-| Канал распространения | Source/PWA prerelease для контролируемого тестирования |
-| Последняя signed production baseline | `3.1.2` |
+| Current repository version | `3.2.4` |
+| Distribution | Source/PWA prerelease |
+| Signed production baseline | `3.1.2` |
 | Application API | v3 |
 | Trust/MLS/encrypted-media API | v4 |
 | Local Server database | SQLite schema 8 |
-| Database migration с 3.2.0–3.2.2 | не требуется |
-| Независимый E2EE/security audit | не завершён |
+| Migration from 3.2.0–3.2.3 | не требуется |
+| Independent E2EE/security audit | не завершён |
 
-`3.2.4` включает Trust/MLS и encrypted-media foundation `3.2.0`, lifecycle fixes `3.2.1–3.2.2`, security hardening `3.2.3` и recovery patch `3.2.4` для updater, Server console, MLS Welcome и Client diagnostics. Документация различает реализованное поведение, автоматические доказательства, ручные release-gates и независимую проверку.
+3.2.4 объединяет Trust/MLS foundation 3.2.0, lifecycle corrections 3.2.1–3.2.2, security hardening 3.2.3 и patch updater/Server console/Welcome recovery 3.2.4.
 
-## Быстрый выбор документа
+## 2. Быстрый выбор
 
 | Задача | Документ |
 |---|---|
-| Понять назначение и состав продукта | [Обзор продукта](PRODUCT_OVERVIEW.md) |
-| Запустить проект для разработки | [README](../README.md#быстрый-старт-для-разработки) |
-| Развернуть Local Server | [Руководство по развёртыванию](DEPLOYMENT.md) |
-| Администрировать установку | [Руководство администратора](../ADMIN_GUIDE.md) |
-| Выполнять backup, maintenance и incident response | [Operations Runbook](OPERATIONS_RUNBOOK.md) |
-| Провести приёмочное тестирование | [Acceptance Test Guide](../TESTER_GUIDE.md) |
-| Сообщить об ошибке или получить поддержку | [Support Policy](../SUPPORT.md) |
+| Понять продукт | [Product Overview](PRODUCT_OVERVIEW.md) |
+| Запустить development environment | [Repository README](../README.md#быстрый-старт-для-разработки) |
+| Развернуть Local Server | [Deployment Guide](DEPLOYMENT.md) |
+| Администрировать | [Administrator Guide](../ADMIN_GUIDE.md) |
+| Выполнять maintenance/backup/incidents | [Operations Runbook](OPERATIONS_RUNBOOK.md) |
+| Провести acceptance | [Tester Guide](../TESTER_GUIDE.md) |
+| Проверить security boundary | [Security Model](SECURITY_MODEL.md) |
+| Выпустить версию | [Release Policy](RELEASE_POLICY.md) и [Checklist](RELEASE_CHECKLIST.md) |
+| Понять статус ветки | [Branch Index](../BRANCHES.md) и [Branch Documentation Policy](BRANCH_DOCUMENTATION_POLICY.md) |
+| Получить поддержку | [Support Policy](../SUPPORT.md) |
 
-## Продукт и архитектура
+## 3. Product и architecture
 
-| Документ | Назначение | Статус |
+| Документ | Scope | Status |
 |---|---|---|
-| [Product Overview](PRODUCT_OVERVIEW.md) | назначение, платформы, функции, версии и ограничения | Current through 3.2.4 |
-| [Architecture](ARCHITECTURE.md) | компоненты, data flow, storage, authorization и trust boundaries | Current through 3.2.4 |
-| [Project Index](../PROJECT_INDEX.md) | карта entrypoints, модулей, API и тестов | Current 3.2.4 |
-| [Security Model](SECURITY_MODEL.md) | threat model, Trust/MLS, resource governance и residual risks | Current through 3.2.4 |
-| [Pulse Cloud Boundary ADR](ADR_0001_PULSE_CLOUD_BOUNDARY.md) | разделение Local Server и Cloud authority | Current architecture decision |
+| [Product Overview](PRODUCT_OVERVIEW.md) | purpose, platforms, capabilities, boundaries | Current 3.2.4 |
+| [Architecture](ARCHITECTURE.md) | components, data flow, storage, updater, Trust/MLS | Current 3.2.4 |
+| [Project Index](../PROJECT_INDEX.md) | entrypoints, modules, API, tests | Current 3.2.4 |
+| [Security Model](SECURITY_MODEL.md) | threat model, controls, metadata, residual risk | Current 3.2.4 |
+| [Pulse Cloud Boundary ADR](ADR_0001_PULSE_CLOUD_BOUNDARY.md) | Local Server / Cloud authority separation | Current decision |
 
-## Безопасность
+## 4. Security
 
-| Документ | Назначение | Статус |
+| Документ | Назначение | Status |
 |---|---|---|
-| [Security Policy](../SECURITY.md) | поддерживаемые версии и приватное раскрытие уязвимостей | Current |
-| [Security Verification Summary](../SECURITY_AUDIT.md) | автоматические проверки и остаточные риски | Current 3.2.3 |
-| [Security Review 3.2.4](../SECURITY_REVIEW_3.2.4.md) | updater, console, Welcome recovery и test-mode security boundary | Current release-specific |
-| [Release Verification 3.2.4](../RELEASE_VERIFICATION_3.2.4.md) | CI evidence и compatibility boundary | Current release-specific |
-| [Security Review 3.2.3](../SECURITY_REVIEW_3.2.3.md) | resource-governance findings и security patch decisions | Historical release-specific |
-| [Release Verification 3.2.3](../RELEASE_VERIFICATION_3.2.3.md) | 3.2.3 CI evidence и compatibility boundary | Historical release-specific |
-| [Trust Core 3.2.0](TRUST_CORE_3.2.0.md) | исходная Trust/MLS foundation и protocol design | Historical foundation |
-| [Schema 8 Migration](MIGRATION_3.2.0.md) | migration, backup, downgrade protection и rollback | Current schema history |
+| [Security Policy](../SECURITY.md) | supported versions and private disclosure | Current 3.2.4 |
+| [Security Verification Summary](../SECURITY_AUDIT.md) | automated verification and residual risk | Current 3.2.4 |
+| [Security Review 3.2.4](../SECURITY_REVIEW_3.2.4.md) | updater, console, Welcome recovery, test mode | Release-specific current |
+| [Release Verification 3.2.4](../RELEASE_VERIFICATION_3.2.4.md) | CI and compatibility evidence | Release-specific current |
+| [Security Review 3.2.3](../SECURITY_REVIEW_3.2.3.md) | resource governance hardening | Historical release-specific |
+| [Trust Core 3.2.0](TRUST_CORE_3.2.0.md) | original Trust/MLS foundation | Historical foundation |
+| [Schema 8 Migration](MIGRATION_3.2.0.md) | schema 7 → 8 and rollback | Current schema history |
 
-## Развёртывание и эксплуатация
-
-| Документ | Назначение |
-|---|---|
-| [Deployment Guide](DEPLOYMENT.md) | поддерживаемые topology, TLS, database и release channels |
-| [Administrator Guide](../ADMIN_GUIDE.md) | пользователи, комнаты, Trust devices, Pulse и updates |
-| [Operations Runbook](OPERATIONS_RUNBOOK.md) | startup, monitoring, maintenance, backup, restore и incidents |
-| [GitHub Release Guide](GITHUB_RELEASE.md) | tags, signing, assets и updater policy |
-| [Release Checklist](RELEASE_CHECKLIST.md) | автоматический и ручной release gate |
-
-## Nexora Plus и Pulse
+## 5. Deployment и operations
 
 | Документ | Назначение |
 |---|---|
-| [Pulse Product Boundary](PULSE.md) | продуктовая модель, modes и Local/Cloud contract |
-| [Pulse Cloud](PULSE_CLOUD.md) | Cloud Identity, billing, ledger и provider integration |
-| [Cloud Identity](CLOUD_IDENTITY.md) | registration, email verification, MFA и OAuth 2.1 PKCE |
-| [Local Pulse Integration](LOCAL_PULSE_INTEGRATION.md) | signed Local Server integration и verified cache |
+| [Deployment Guide](DEPLOYMENT.md) | topology, TLS, database, release channels |
+| [Administrator Guide](../ADMIN_GUIDE.md) | users, rooms, Trust, Pulse, updates |
+| [Operations Runbook](OPERATIONS_RUNBOOK.md) | startup, monitoring, backup, restore, incidents |
+| [GitHub Release Guide](GITHUB_RELEASE.md) | tags, signing, assets, updater |
+| [Release Checklist](RELEASE_CHECKLIST.md) | automated/manual gates |
 
-## Релизы
+## 6. Testing
 
-| Документ | Назначение |
-|---|---|
-| [Release Policy](RELEASE_POLICY.md) | Semantic Versioning, classifications и promotion gates |
-| [Changelog](../CHANGELOG.md) | хронология пользовательских и технических изменений |
-| [Release Notes 3.2.4](../RELEASE_NOTES_3.2.4.md) | текущий updater/console/Welcome recovery patch |
-| [Security Review 3.2.4](../SECURITY_REVIEW_3.2.4.md) | security boundaries текущего patch release |
-| [Release Verification 3.2.4](../RELEASE_VERIFICATION_3.2.4.md) | авторитетное автоматическое evidence текущей версии |
-| [Release Notes 3.2.3](../RELEASE_NOTES_3.2.3.md) | исторический security hardening patch |
-| [Branch Index](../BRANCHES.md) | назначение активных и исторических веток |
-| [Current Release Status](../BRANCH_STATUS.md) | текущая release classification и blockers |
+- [Acceptance Test Guide](../TESTER_GUIDE.md);
+- [Release Verification 3.2.4](../RELEASE_VERIFICATION_3.2.4.md);
+- [Security Verification Summary](../SECURITY_AUDIT.md);
+- `npm run release:check`;
+- `npm run test:soak`;
+- Android `assembleDebug`.
 
-## Интеграции и платформы
+## 7. Pulse и Cloud Identity
 
 | Документ | Назначение |
 |---|---|
-| [Automations](AUTOMATIONS.md) | bots, scoped tokens и webhooks |
-| [Android](../android/README.md) | Android WebView shell, build, TLS и runtime gates |
+| [Pulse Product Boundary](PULSE.md) | product modes and authority |
+| [Pulse Cloud](PULSE_CLOUD.md) | Cloud service, billing, ledger, provider |
+| [Cloud Identity](CLOUD_IDENTITY.md) | email, MFA, OAuth PKCE |
+| [Local Pulse Integration](LOCAL_PULSE_INTEGRATION.md) | signed Local/Cloud contract and cache |
 
-## Статусы документов
+## 8. Releases
 
-- **Current** — соответствует `main` и текущей версии репозитория.
-- **Release-specific** — фиксирует состав и evidence конкретного релиза; не переписывается задним числом.
-- **Stable baseline** — относится к последней подтверждённой signed production line.
-- **Prerelease** — реализовано и автоматически проверено, но не прошло полный manual/signing/external-review gate.
-- **Historical foundation** — сохраняется для architecture, migration и release provenance.
-- **Draft** — план или незавершённая разработка, не являющаяся гарантией продукта.
+| Документ | Назначение |
+|---|---|
+| [Release Notes 3.2.4](../RELEASE_NOTES_3.2.4.md) | current patch scope |
+| [Security Review 3.2.4](../SECURITY_REVIEW_3.2.4.md) | release security boundary |
+| [Release Verification 3.2.4](../RELEASE_VERIFICATION_3.2.4.md) | authoritative evidence |
+| [Changelog](../CHANGELOG.md) | release history |
+| [Release Policy](RELEASE_POLICY.md) | SemVer/classifications/gates |
+| [GitHub Release Guide](GITHUB_RELEASE.md) | tags/assets/updater |
+| [Current Release Status](../BRANCH_STATUS.md) | current classification/blockers |
 
-## Стандарт документации
+## 9. Platforms и integrations
 
-1. Указывать версию, release classification и область применимости.
-2. Разделять реализованное поведение, automated evidence, manual evidence и planned work.
-3. Не использовать термины «stable», «production-ready», «audited» или «E2EE» без конкретной границы и доказательств.
-4. Не переписывать исторические release-документы так, чтобы изменять provenance.
-5. Не включать secrets, private keys, реальные пользовательские данные, полные базы или необработанные production logs.
-6. При изменении поведения обновлять guide, changelog, release notes и verification material.
-7. Использовать относительные ссылки и проверять их из default branch.
+- [Android](../android/README.md);
+- [Automations](AUTOMATIONS.md);
+- [Project website](../website/README.md).
+
+## 10. Branch documentation
+
+`main` — единственный current product source of truth.
+
+Каждая сохраняемая non-main branch должна иметь `BRANCH_STATUS.md` и одну из classifications:
+
+- Active development;
+- Merged provenance;
+- Superseded;
+- Obsolete automation.
+
+Historical branch documentation describes that branch only. It is not updated to claim current 3.2.4 behavior. Complete rules: [Branch Documentation Policy](BRANCH_DOCUMENTATION_POLICY.md). Central lifecycle index: [BRANCHES.md](../BRANCHES.md).
+
+## 11. Document status vocabulary
+
+- **Current** — matches current `main`.
+- **Release-specific** — fixed evidence for one release; not rewritten.
+- **Stable baseline** — last confirmed signed production line.
+- **Prerelease** — implementation/automated gates complete, full signing/manual/external review incomplete.
+- **Historical foundation** — architecture/migration/provenance record.
+- **Superseded** — replaced by later branch/release.
+- **Draft** — incomplete development, not product guarantee.
+
+## 12. Documentation standard
+
+1. State version, branch and classification.
+2. Separate implementation, automated evidence, manual evidence and planned work.
+3. Scope security claims precisely.
+4. Preserve release/branch provenance.
+5. Use relative links.
+6. Never include secrets, private keys, databases, backups or real user data.
+7. Update guides, policy, notes, verification and changelog when behavior changes.
+8. Documentation-only work must not modify runtime code, dependencies, migrations or workflows.
