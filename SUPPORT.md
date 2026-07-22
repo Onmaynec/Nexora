@@ -1,130 +1,144 @@
-# Nexora Support Policy
+# Политика поддержки Nexora
 
-Nexora is an open-source project maintained through the public repository. Support is provided on a best-effort basis and does not include a guaranteed response or resolution SLA.
+Nexora — open-source project, поддерживаемый через публичный repository. Поддержка предоставляется best-effort и не включает гарантированный SLA.
 
-## Supported product lines
+## Поддерживаемые линии
 
-| Version | Support status |
+| Версия | Статус поддержки |
 |---|---|
-| `3.2.0` Source/PWA prerelease | Controlled testing, defect reports and security fixes accepted |
-| `3.1.x` signed production baseline | Supported |
-| `3.0.x` and earlier | Unsupported except migration/security context |
+| `3.2.3` Source/PWA prerelease | Текущая prerelease-линия: defect reports и security fixes принимаются |
+| `3.2.0–3.2.2` | Superseded; обновитесь до `3.2.3` перед обычной диагностикой |
+| `3.1.x` signed production baseline | Поддерживается |
+| `3.0.x` и старше | Не поддерживаются, кроме migration/security context |
 
-When reporting an issue, identify the exact Client, Server and Cloud versions. Do not describe `3.2.0` as a signed stable or independently audited release.
+При обращении укажите точные Client, Server и Cloud versions, release channel и commit/tag. `3.2.3` нельзя описывать как signed stable или independently audited release.
 
 ## Product defects
 
-Use the [Bug report](https://github.com/Onmaynec/Nexora/issues/new?template=bug_report.yml) for a reproducible problem in:
+Используйте [Bug Report](https://github.com/Onmaynec/Nexora/issues/new?template=bug_report.yml) для воспроизводимой проблемы в:
 
-- Windows Client or Server;
+- Windows Client/Server;
 - Browser/PWA;
 - Android;
 - Local Server API/Socket.IO;
-- Trust/MLS or encrypted media;
+- Trust devices/MLS/recovery;
+- encrypted files/images/voice;
+- route rate limiting или resource ceilings;
+- security-state maintenance;
 - Pulse Cloud/Cloud Identity;
-- installer or updater;
+- installer/updater;
+- migration/backup/restore;
 - documentation.
 
-Before submitting:
+Перед отправкой:
 
-- reproduce on a supported version;
-- verify Client/Server compatibility;
-- search existing Issues;
-- provide minimum steps and expected/actual result;
-- include platform, deployment type, time and request ID;
-- attach only sanitized logs/screenshots.
+- обновитесь до supported version, если возможно;
+- проверьте Client/Server compatibility;
+- найдите existing Issues;
+- предоставьте minimum reproduction;
+- укажите expected/actual result;
+- приложите HTTP status, stable code и `Retry-After`, если применимо;
+- укажите timestamp/request ID;
+- используйте только sanitized logs/screenshots.
 
 ## Product proposals
 
-Use the [Feature request](https://github.com/Onmaynec/Nexora/issues/new?template=feature_request.yml).
+Используйте [Feature Request](https://github.com/Onmaynec/Nexora/issues/new?template=feature_request.yml).
 
-Describe:
+Опишите:
 
 - user problem;
-- target users and scenario;
+- target scenario;
 - expected outcome;
-- Server, Client, storage and realtime impact;
-- security/privacy implications;
-- compatibility and migration implications;
+- Server/Client/storage/realtime impact;
+- security/privacy impact;
+- compatibility/migration impact;
 - acceptance criteria.
 
-A preferred visual design alone is not sufficient when the request changes authorization, data or business rules.
+Визуальное пожелание без описания data, authorization и business-rule impact недостаточно для функции, затрагивающей серверный контур.
 
-## Documentation
+## Документация
 
-Use the Documentation issue template for:
+Documentation issue подходит для:
 
-- stale version or release status;
-- incorrect installation/migration instruction;
+- stale version или release status;
+- неверной installation/migration instruction;
 - broken link;
-- contradiction between documents;
-- unsupported product or security claim.
+- contradiction между docs;
+- unsupported product/security claim;
+- несоответствия current behavior и guide/checklist.
 
-Small unambiguous corrections may be submitted directly as a Pull Request.
+Небольшие однозначные corrections можно отправлять Pull Request.
 
-## Installation and operations
+## Installation и operations
 
-Review first:
+Сначала изучите:
 
 - [README](README.md);
 - [Documentation Portal](docs/README.md);
 - [Deployment Guide](docs/DEPLOYMENT.md);
 - [Administrator Guide](ADMIN_GUIDE.md);
-- [Tester Guide](TESTER_GUIDE.md);
+- [Operations Runbook](docs/OPERATIONS_RUNBOOK.md);
+- [Acceptance Test Guide](TESTER_GUIDE.md);
 - [Release Policy](docs/RELEASE_POLICY.md);
 - [Security Policy](SECURITY.md).
 
-For installation questions provide:
+В installation request укажите:
 
-- platform and OS;
+- platform/OS;
 - Nexora version;
 - source/package/PWA channel;
 - Local Server schema;
 - deployment profile;
-- sanitized HTTPS address format;
+- sanitized HTTPS URL format;
 - exact error code/message;
-- live/ready status where available.
+- live/ready status;
+- whether upgrade occurred from 3.1.x or 3.2.x.
 
-Maintainers do not guarantee individual configuration of third-party reverse proxies, firewalls, DNS, payment providers, mail providers or identity infrastructure.
+Maintainers не гарантируют индивидуальную настройку third-party reverse proxy, firewall, DNS, payment provider, mail provider или identity infrastructure.
 
 ## Security vulnerabilities
 
-Do not create a public Issue. Follow [SECURITY.md](SECURITY.md) and use a private GitHub Security Advisory.
+Не создавайте public Issue. Следуйте [SECURITY.md](SECURITY.md) и используйте private GitHub Security Advisory.
 
-Examples requiring private reporting:
+Private reporting требуется для:
 
-- authorization or IDOR bypass;
-- plaintext downgrade in a secure conversation;
-- Trust device or MLS replay/scope bypass;
-- private-key, token or user-data disclosure;
+- authorization/IDOR bypass;
+- plaintext downgrade;
+- Trust credential/device scope bypass;
+- обход device/KeyPackage limits;
+- route-limit bypass или unbounded resource growth;
+- MLS replay/recovery validation bypass;
+- private-key/token/user-data disclosure;
 - updater signature bypass;
-- payment/ledger duplication or entitlement forgery.
+- payment/ledger duplication или entitlement forgery.
 
-## Information that must not be published
+## Запрещённые данные
 
-Do not include:
+Не публикуйте:
 
-- passwords or backup passphrases;
+- passwords или backup passphrases;
 - cookies, OAuth/API/bot/Pulse tokens;
-- TOTP seeds or recovery codes;
+- TOTP seeds/recovery codes;
 - invite codes;
-- CA, signing or device private keys;
+- CA, signing или device private keys;
 - complete MLS private state;
-- production databases or user attachments;
-- real payment/customer data;
-- unredacted private IP/network inventory;
-- personal data not required for reproduction.
+- secure-message plaintext;
+- production databases/backups/attachments;
+- payment/customer data;
+- unredacted private network inventory;
+- лишние personal data.
 
 ## Channel boundaries
 
-- Pull Requests are for repository changes, not general support questions.
-- Security Advisories are for vulnerabilities, not ordinary UI defects.
-- Public Issues are not a secure file-transfer channel.
-- Discussions do not replace a reproducible bug report.
-- A prerelease limitation documented in release verification is not automatically a defect, but unsafe behavior outside that boundary may be one.
+- Pull Requests предназначены для repository changes, не general support.
+- Security Advisories — для vulnerabilities, не ordinary UI defects.
+- Public Issues — не secure file-transfer channel.
+- Discussions не заменяют reproducible bug report.
+- Documented prerelease limitation не является defect автоматически; небезопасное поведение за пределами boundary может быть defect/security issue.
 
 ## Response expectations
 
-Maintainers may request additional reproduction evidence, close unsupported-version reports, redirect a request to another template or defer proposals outside the current roadmap.
+Maintainers могут запросить дополнительное evidence, закрыть unsupported-version report, перенаправить обращение или отложить proposal вне текущего roadmap.
 
-Security response targets are documented separately in [SECURITY.md](SECURITY.md).
+Security response targets указаны в [SECURITY.md](SECURITY.md).
