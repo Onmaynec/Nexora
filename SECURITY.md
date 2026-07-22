@@ -1,120 +1,152 @@
-# Security Policy
+# Nexora Security Policy
 
-## Поддерживаемые версии
+## Supported versions
 
-| Версия | Статус security updates |
-|---|---|
-| `3.1.x` | Поддерживается |
-| `3.0.x` | Не поддерживается; обновитесь до 3.1.2 |
-| `2.x` и старше | Не поддерживается |
-| `3.2.0` development branches | Экспериментальная разработка, не stable release |
+| Version | Distribution status | Security status |
+|---|---|---|
+| `3.2.0` | Source/PWA prerelease | Security fixes accepted; stable signed production approval not granted |
+| `3.1.x` | Signed production baseline | Supported |
+| `3.0.x` | Historical | Unsupported; upgrade to a supported line |
+| `2.x` and earlier | Historical | Unsupported |
 
-Исправления безопасности сначала проходят воспроизведение, regression test и проверку в актуальной ветке разработки. После верификации они выпускаются новым patch-релизом поддерживаемой линии.
+Security fixes are reproduced, covered by regression tests and verified in the applicable release line. Public release and disclosure follow the severity, exploitability and deployment impact of the issue.
 
-## Сообщение об уязвимости
+## Reporting a vulnerability
 
-Не публикуйте рабочий exploit, session cookie, OAuth token, TOTP/recovery code, приватный ключ CA, Pulse API key/signing key, invite code, MLS private state, device identity private key или пользовательские данные в публичном Issue, Discussion либо Pull Request.
+Do not publish an exploit, session cookie, OAuth token, TOTP/recovery code, CA private key, Pulse credential/signing key, invite code, MLS private state, device identity private key or user data in a public Issue, Discussion or Pull Request.
 
-Используйте приватный GitHub Security Advisory:
+Use a private GitHub Security Advisory:
 
-1. откройте **Security → Advisories** в репозитории `Onmaynec/Nexora`;
-2. выберите **New draft security advisory**;
-3. укажите затронутую версию, платформу и компонент;
-4. опишите влияние, минимальные шаги воспроизведения и безопасный proof of concept;
-5. приложите только очищенные логи и тестовые данные.
+1. open **Security → Advisories** in `Onmaynec/Nexora`;
+2. select **New draft security advisory**;
+3. identify the affected version, platform and component;
+4. describe impact, minimum reproduction steps and a safe proof of concept;
+5. attach only sanitized logs and test data.
 
-Прямая форма: <https://github.com/Onmaynec/Nexora/security/advisories/new>.
+Direct form: <https://github.com/Onmaynec/Nexora/security/advisories/new>.
 
-## Ожидаемые сроки
+## Response targets
 
-- подтверждение получения — до 3 рабочих дней;
-- первичная оценка и запрос недостающих данных — до 7 рабочих дней;
-- исправление, выпуск и coordinated disclosure — по согласованному сроку с учётом сложности и риска.
+- acknowledgement: within 3 business days;
+- initial assessment or request for details: within 7 business days;
+- remediation and coordinated disclosure: agreed according to severity and complexity.
 
-Сроки являются целевыми, а не гарантированными. Публичное раскрытие до выпуска исправления может быть отложено, если оно создаёт непосредственный риск для пользователей.
+These are targets, not contractual SLA commitments. Disclosure may be delayed when early publication would create immediate risk.
 
-## Приоритетный scope
+## Security scope
 
-Особенно важны сообщения об уязвимостях в следующих областях:
+Priority reports include:
 
-- обход авторизации, ролей, блокировок или ограничений комнаты;
-- IDOR и чтение чужих комнат, сообщений, профилей или файлов;
-- RCE, Electron boundary bypass и опасная навигация WebView;
-- подмена TLS-сертификата, Server ID, fingerprint или update metadata;
-- CSRF, Origin bypass, session fixation и утечка cookies/tokens;
-- небезопасная обработка файлов, MIME spoofing, path traversal и SSRF;
-- повреждение SQLite, schema migration, backup/restore или audit trail;
-- обход подписи Pulse, replay, payload substitution, двойное списание или подмена entitlement;
-- Cloud Identity/MFA/OAuth 2.1 PKCE bypass;
-- metrics exposure, credential leakage в логах или обход audited developer commands;
-- bot/webhook scope bypass и утечка секретов.
+- authentication, authorization, role, ban or room-policy bypass;
+- IDOR and unauthorized access to rooms, messages, profiles, files or Cloud records;
+- RCE, Electron boundary bypass or unsafe WebView navigation;
+- TLS, Server ID, fingerprint or updater-metadata substitution;
+- CSRF, Origin bypass, session fixation and token/cookie exposure;
+- unsafe upload processing, MIME spoofing, path traversal or SSRF;
+- SQLite corruption, migration/backup/restore failure or audit tampering;
+- Pulse signature bypass, replay, double settlement or entitlement substitution;
+- Cloud Identity, MFA or OAuth 2.1 PKCE bypass;
+- metrics exposure, credential leakage in logs or developer-command escape;
+- bot/webhook scope bypass or secret disclosure.
 
-### Дополнительный Trust/MLS scope 3.2.0
+## Trust Core and MLS scope — 3.2.0
 
-Для ветки 3.2.0 приоритетными считаются:
+Priority Trust/MLS reports include:
 
-- plaintext downgrade после активации MLS group через REST, Socket.IO, outbox, draft, scheduled, poll, bot, webhook, forward, edit или upload path;
-- получение Local Server расшифрованного content/private group state;
-- подмена `(userId, deviceId)` credential или signature key;
-- регистрация устройства без proof of possession;
-- подтверждение/отзыв устройства без действующего одноразового challenge;
-- повторное использование, подмена области или race при KeyPackage/Welcome claim;
-- skipped/stale/duplicate epoch, commit substitution и ciphertext replay;
-- доставка revoked/removed device после изменения membership;
-- восстановление пропущенных commits с разрывом журнала;
-- rollback/cross-profile disclosure зашифрованного IndexedDB state;
-- сохранение локальных private keys/state после self-revoke;
-- расхождение authenticated data и conversation/client/device scope;
-- supply-chain подмена `ts-mls` или использование другого ciphersuite без явного migration/review.
+- plaintext downgrade after MLS activation through REST, Socket.IO, outbox, edit, forward, draft, scheduled, poll, bot or upload paths;
+- Local Server access to secure-message plaintext, private MLS state or secure-attachment key;
+- `(userId, deviceId)` credential or signing-key substitution;
+- device registration without proof of possession;
+- device verification/revocation without a valid one-time challenge;
+- KeyPackage/Welcome reuse, scope substitution or race;
+- stale/skipped/duplicate epoch, commit substitution or ciphertext replay;
+- secure delivery to revoked, unverified, removed or mismatched devices;
+- incomplete local key/state wipe after revocation;
+- cross-profile/rollback disclosure from encrypted IndexedDB state;
+- authenticated-data mismatch across conversation, client or device scope;
+- opaque attachment hash/size/scope substitution or claim reuse;
+- dependency or ciphersuite substitution without migration and review.
 
-Отчёт о Trust/MLS проблеме должен указывать Server ID, conversation/group record ID, epoch, роли устройств и очищенный порядок protocol events. Не прикладывайте private key, полный MLS state или реальное содержимое переписки.
+A Trust/MLS report should include Server ID, conversation/group record ID, epoch, device roles and a sanitized sequence of protocol events. Do not attach private keys, complete MLS state or real message content.
 
-## Trust Core security boundary 3.2.0
+## Implemented security boundary — 3.2.0
 
-На текущей ветке:
+The verified prerelease path establishes:
 
-- Local Server хранит public device keys, credentials, delivery records, commits, ciphertext hashes/data и audit metadata;
-- private device identity key и private MLS state остаются на клиенте;
-- private state, KeyPackages, decrypted cache и drafts шифруются локальным AES-GCM wrapping key;
-- identity private key создаётся non-extractable;
-- credential authentication разрешает только active/verified device с совпадающим registered signature key;
-- server-side route guards запрещают legacy plaintext fallback после MLS activation;
-- attachment/image/voice UI отключён, потому что encrypted-media protocol ещё не реализован.
+- Ed25519 device identity with proof-of-possession registration;
+- signed verification and revocation using scoped one-time challenges;
+- active/verified device requirements for Trust/MLS operations;
+- fixed profile `MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519`;
+- one-time KeyPackage and scoped Welcome delivery;
+- monotonic group epochs, commit continuity and replay rejection;
+- device-scoped Socket.IO authentication and secure delivery;
+- immediate targeted disconnect after Trust revocation;
+- ciphertext-only message persistence and durable outbox;
+- server-side rejection of legacy plaintext paths after MLS activation;
+- encrypted IndexedDB storage for private MLS state, KeyPackages, decrypted cache and drafts;
+- AES-256-GCM encrypted files, images and voice;
+- opaque attachment storage with exact-size/SHA-256 checks, pending expiry and one-time atomic claim;
+- fail-closed encrypted-media policy when room media classes are restricted.
 
-Это не устраняет XSS/client compromise: вредоносный renderer, dependency или подписанный клиентский бинарник может получить plaintext в момент использования приложения. Browser runtime входит в trusted computing base.
+Local Server does not receive secure-message plaintext, private MLS state, secure-attachment key, original filename, actual MIME, caption, voice duration or waveform.
 
-## Задокументированные ограничения 3.2.0
+## Trusted computing base
 
-Следующее не считается уже реализованной гарантией:
+The secure-message boundary does not eliminate client compromise. Plaintext is available to the authorized Client while composing, displaying or playing content. The trusted computing base includes:
 
-- encrypted attachments, images и voice;
-- сокрытие membership, timing, IP, ciphertext size и иных traffic metadata;
-- ретроактивное шифрование истории 3.1.x;
-- seamless recovery после полной потери локального private state;
-- совместимость secure conversation со stable 3.1.2 client;
-- независимый cryptographic/application-security audit.
+- browser/Electron renderer;
+- installed application binary;
+- runtime dependencies;
+- operating-system account and local device security;
+- local encrypted-state key material.
 
-Сообщение о том, что фактическое поведение выходит за эти ограничения небезопасным способом — например, attachment молча отправляется plaintext — является security issue.
+XSS, malicious dependencies, malware or a compromised signed client may access plaintext during use.
 
-## Безопасное исследование
+## Metadata limitations
 
-Разрешается исследование на собственной тестовой установке и с собственными данными. Не выполняйте действия, которые:
+Nexora `3.2.0` does not claim metadata or traffic-analysis confidentiality. Local Server can observe or infer:
 
-- нарушают доступность чужого сервера;
-- извлекают или изменяют чужие данные;
-- используют социальную инженерию;
-- публикуют секреты или персональные данные;
-- требуют эксплуатации за пределами минимального подтверждения проблемы.
+- account and device identifiers;
+- room/conversation membership;
+- sender/uploader identity;
+- group/epoch and delivery order;
+- attachment ID and ciphertext size;
+- timestamps, network/session context and IP address;
+- ciphertext/replay hashes and operational errors;
+- traffic patterns.
 
-Проект не обещает денежное вознаграждение за отчёты об уязвимостях.
+## Documented non-guarantees
 
-## Задокументированные границы, не являющиеся уязвимостью
+The following are not claimed:
 
-- Stable Nexora 3.1.2 не использует E2EE; оператор Local Server имеет технический доступ к рабочей базе и вложениям.
-- Наличие экспериментального Trust Core/MLS кода в development branch не означает, что stable-клиенты или существующие чаты защищены E2EE.
-- Local Server нельзя безопасно публиковать напрямую в интернет без HTTPS reverse proxy, firewall, мониторинга и корректного `allowedOrigins`.
-- Неподписанные локальные Windows-сборки предназначены для тестирования и не являются stable release.
-- Production Plus/Pulse требует отдельного Pulse Cloud и не активируется только локальной командой или флагом.
-- Local Pulse sandbox не выполняет реальные платежи, не создаёт production-entitlements и автоматически недоступен при production Cloud configuration.
+- retroactive encryption of 3.1.x history or files;
+- compatibility of a 3.1.x client with an active secure 3.2.0 conversation;
+- seamless recovery after complete loss of private device state;
+- traffic-analysis resistance;
+- independent cryptographic or application-security certification;
+- signed stable Windows release status for `3.2.0`;
+- suitability of the prerelease for high-risk communications.
 
-Если сомневаетесь, отправляйте отчёт приватно: maintainers определят, относится ли проблема к security scope.
+A report that actual behavior violates these documented boundaries in an unsafe way remains a valid security issue. For example, a secure attachment silently falling back to plaintext is in scope.
+
+## Safe research
+
+Research is permitted on installations and data you control. Do not:
+
+- degrade another operator's service;
+- access or modify third-party data;
+- use social engineering;
+- publish secrets or personal data;
+- continue exploitation beyond the minimum evidence required.
+
+The project does not promise a monetary bounty.
+
+## Operational boundaries
+
+- Public Local Server deployment requires HTTPS reverse proxy, firewall, monitoring and explicit `allowedOrigins`.
+- Unsigned local Windows builds are for development/testing and are not stable releases.
+- Production Plus/Pulse requires a separate Pulse Cloud and cannot be activated authoritatively by a local flag or command.
+- Local Pulse sandbox performs no real payment and creates no production entitlement or production signature.
+- Automated checks do not replace independent review, pentesting, supply-chain review or operational monitoring.
+
+When uncertain, report privately. Maintainers will classify the issue and coordinate the next step.
