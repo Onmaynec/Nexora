@@ -1,0 +1,132 @@
+name: Finalize Nexora 3.3 release PR
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: finalize-nexora-3.3-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  finalize:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.pull_request.head.ref == 'agent/nexora-3.3.0-full-release')
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Stop when already finalized
+        id: pending
+        shell: bash
+        run: |
+          if [ -f scripts/apply-3.3-source-patches.cjs ]; then
+            echo 'needed=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'needed=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install dependencies
+        if: steps.pending.outputs.needed == 'true'
+        run: npm ci
+
+      - name: Full release gate
+        if: steps.pending.outputs.needed == 'true'
+        run: npm run release:check
+
+      - name: Linux product suite
+        if: steps.pending.outputs.needed == 'true'
+        run: npm test
+
+      - name: Schema 8 soak
+        if: steps.pending.outputs.needed == 'true'
+        run: npm run test:soak
+
+      - name: Android source build
+        if: steps.pending.outputs.needed == 'true'
+        run: gradle -p android :app:assembleDebug --no-daemon
+
+      - name: Website validation
+        if: steps.pending.outputs.needed == 'true'
+        run: node --check website/app.js && node website/validate.mjs
+
+      - name: Record candidate evidence and remove temporary machinery
+        if: steps.pending.outputs.needed == 'true'
+        shell: bash
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          candidate=$(git rev-parse HEAD)
+          python - <<'PY'
+          from pathlib import Path
+          import os
+          path = Path('RELEASE_VERIFICATION_3.3.0.md')
+          text = path.read_text(encoding='utf-8')
+          marker = '## Finalized release-candidate gate\n'
+          block = f'''## Finalized release-candidate gate
+
+- Candidate SHA before cleanup: `{os.environ['CANDIDATE_SHA']}`;
+- Finalizer run: `{os.environ['RUN_ID']}`;
+- Run URL: {os.environ['RUN_URL']};
+- `npm run release:check`: PASS;
+- Linux `npm test`: PASS;
+- schema 8 soak: PASS;
+- Android `assembleDebug`: PASS;
+- website syntax/validation: PASS.
+
+The cleanup commit changes only release evidence and removes temporary PR automation. Runtime code is unchanged by cleanup.
+
+'''
+          if marker in text:
+              start = text.index(marker)
+              next_heading = text.find('\n## ', start + len(marker))
+              text = text[:start] + block + (text[next_heading + 1:] if next_heading >= 0 else '')
+          else:
+              anchor = '## Финальная фиксация\n'
+              text = text.replace(anchor, block + anchor)
+          path.write_text(text, encoding='utf-8')
+          PY
+        env:
+          CANDIDATE_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: Commit finalized release candidate
+        if: steps.pending.outputs.needed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f \
+            .github/workflows/sync-release-metadata-pr.yml \
+            .github/workflows/unit-test-matrix.yml \
+            .github/workflows/unit-test-diagnostic.yml \
+            .github/workflows/unit-status-diagnostic.yml \
+            .github/workflows/finalize-3.3-release-pr.yml \
+            scripts/apply-3.3-source-patches.cjs
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'chore(release): finalize Nexora 3.3.0 candidate evidence'
+          git push origin "HEAD:${{ github.event.pull_request.head.ref || github.ref_name }}"
