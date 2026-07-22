@@ -12,14 +12,14 @@ body:
   - type: markdown
     attributes:
       value: |
-        Спасибо за отчёт. Для уязвимостей и утечек данных не используйте этот шаблон — следуйте SECURITY.md и создайте приватный Security Advisory.
+        Спасибо за отчёт. Для уязвимостей и утечек данных не используйте этот шаблон — следуйте SECURITY.md и создайте приватный Security Advisory. Stable-версия — 3.1.2; для development branch обязательно укажите точное имя ветки и commit SHA.
 
   - type: input
     id: versions
     attributes:
-      label: Версии Client и Server
-      description: Укажите обе версии, даже если проблема видна только в одном компоненте.
-      placeholder: "Client 3.0.0 / Server 3.0.0"
+      label: Версии Client, Local Server и Pulse Cloud
+      description: Укажите все затронутые версии и branch/commit для development build.
+      placeholder: "Client 3.1.2 / Server 3.1.2 / Cloud 3.1.2 или disabled"
     validations:
       required: true
 
@@ -29,11 +29,14 @@ body:
       label: Компонент
       options:
         - Windows Client
-        - Windows Server
+        - Windows Local Server
         - Browser / PWA
         - Android
-        - API / Socket.IO
+        - Local Server API / Socket.IO
+        - Pulse Cloud / Cloud Identity / OAuth
+        - Plus / Impulse sandbox
         - Installer / updater
+        - Trust Core / MLS development branch
         - Documentation
         - Другое
     validations:
@@ -49,6 +52,7 @@ body:
         - Android
         - Linux server
         - Browser only
+        - Pulse Cloud deployment
         - Другое
     validations:
       required: true
@@ -62,6 +66,8 @@ body:
         - LAN
         - Radmin VPN / private VPN
         - Public HTTPS domain
+        - Local Pulse sandbox
+        - Production Pulse Cloud
         - Не применимо
     validations:
       required: true
@@ -103,14 +109,14 @@ body:
     id: diagnostics
     attributes:
       label: Диагностика
-      description: Приложите очищенный log, screenshot или video. Не публикуйте пароли, cookies, tokens, private keys, invite codes и пользовательские данные.
+      description: Приложите очищенный log, request ID, screenshot или video. Не публикуйте passwords, cookies, OAuth/session tokens, TOTP/recovery codes, API/signing/private keys, invite codes и пользовательские данные.
       render: shell
 
   - type: textarea
     id: regression
     attributes:
       label: Регрессия и дополнительный контекст
-      description: Работало ли это раньше? Есть ли временный обходной путь?
+      description: Работало ли это раньше? Есть ли временный обходной путь? Для 3.2.0 укажите, воспроизводится ли проблема только в Trust Core/MLS branch.
 
   - type: checkboxes
     id: checks
@@ -119,9 +125,9 @@ body:
       options:
         - label: Я проверил существующие Issues и не нашёл дубликат.
           required: true
-        - label: Я воспроизвёл проблему на актуальной поддерживаемой версии либо объяснил, почему это невозможно.
+        - label: Я воспроизвёл проблему на актуальной поддерживаемой версии либо указал точный development branch/commit.
           required: true
-        - label: Я удалил пароли, session cookies, API keys, private keys, invite codes и персональные данные.
+        - label: Я удалил passwords, session/OAuth tokens, API/signing/private keys, invite codes и персональные данные.
           required: true
         - label: Это не приватный отчёт об уязвимости.
           required: true
