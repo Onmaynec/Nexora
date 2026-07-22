@@ -1,0 +1,47 @@
+name: Sync release metadata
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - package.json
+      - scripts/sync-release-metadata.cjs
+      - .github/workflows/sync-release-metadata-pr.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-release-metadata-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'agent/nexora-3.3.0')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - run: node scripts/sync-release-metadata.cjs
+      - name: Commit synchronized metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- package-lock.json android/app/build.gradle.kts client/src/api.js test/server.test.cjs test/build-config.test.cjs; then
+            echo "Release metadata is already synchronized."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json android/app/build.gradle.kts client/src/api.js test/server.test.cjs test/build-config.test.cjs
+          git commit -m "chore(release): synchronize Nexora 3.3.0 metadata"
+          git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
