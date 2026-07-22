@@ -1,45 +1,69 @@
-# Nexora 3.2.0 Release Status
+# Статус выпуска Nexora 3.2.3
 
-## Classification
+## Классификация
 
-| Property | Value |
+| Параметр | Значение |
 |---|---|
 | Repository branch | `main` |
-| Version | `3.2.0` |
-| Source pull request | PR #12 |
+| Version | `3.2.3` |
+| Base version | `3.2.2` |
+| Source Pull Request | PR #20 |
 | Distribution | Source/PWA prerelease |
 | Signed production baseline | `3.1.2` |
-| Stable signed 3.2.0 approval | Not granted |
-| Independent security review | Not completed |
+| Stable signed 3.2.3 approval | не предоставлен |
+| Independent security review | не завершён |
 
-Nexora `3.2.0` is approved for controlled Source/PWA prerelease testing. It is not a signed stable Windows release and must not be described as independently audited E2EE.
+Nexora `3.2.3` разрешена для контролируемого Source/PWA prerelease testing. Она не является подписанным stable Windows release и не должна описываться как independently audited E2EE.
 
-## Implemented scope
+## Patch lineage
 
-- SQLite schema 8 migration with backup, integrity, free-space and downgrade checks;
-- Ed25519 device identity, proof-of-possession, verification and revocation;
-- one-time KeyPackages and device/conversation-scoped Welcome delivery;
-- monotonic MLS epochs, signed commits and replay protection;
-- device-scoped secure Socket.IO authentication and delivery;
-- immediate targeted disconnect after Trust revocation;
-- client-side Trust/MLS key and state wipe;
-- ciphertext-only secure messages, persistence and durable outbox;
-- encrypted IndexedDB private state, KeyPackages, decrypted cache and drafts;
-- Secure Message Pane and Trusted Devices UI;
-- client-side AES-256-GCM files, images and voice;
-- opaque attachment API with size/hash validation, pending expiry, cancel and one-time claim;
-- upload progress, verified local decrypt, image preview and voice playback;
-- fail-closed room media policy;
-- server-side plaintext downgrade guards;
-- migration, recovery, interoperability, realtime, media, performance, security and soak coverage.
+| Версия | Основное изменение |
+|---|---|
+| `3.2.0` | Trust Core, MLS secure messaging, encrypted media и schema 8 |
+| `3.2.1` | Authentication bootstrap ordering и serialized Server shutdown |
+| `3.2.2` | Trust configuration lifecycle race и safe encrypted-draft read |
+| `3.2.3` | Resource governance, route limiting, strict recovery и stale security-state cleanup |
 
-## Automated evidence
+## Реализовано в 3.2.3
 
-Implementation CI run `#250` (`29921551883`) passed on commit `9af91d129273d702cea2bf736354d25bac05d1e3`.
+- exact MLS BasicCredential binding к authenticated `{ userId, deviceId }`;
+- distinct identity и MLS signature Ed25519 keys;
+- atomic limit 16 active Trust devices/user;
+- KeyPackage ceilings: 25/request, 32/device, 256/user;
+- bounded sliding-window Trust/recovery/E2EE rate limiter;
+- stable `RATE_LIMITED` + `Retry-After` contract;
+- action-specific primitive Trust audit allowlists;
+- active-ban fail-closed conversation access при stale membership;
+- strict Client missed-commit group/scope/epoch/hash/public-state validation;
+- startup/hourly cleanup expired sessions, login history >90 days и stale rate-limit buckets.
 
-Final documentation CI run `#253` (`29921974662`) passed on head `7dbbeeb72edd276fbd7aac11f5b3c23f442dcc9c`.
+## Подтверждённые ранее существующие controls
 
-Verified gates:
+- mutating API CSRF и Origin validation;
+- Socket.IO origin rejection через `allowRequest`;
+- AES-GCM sealed IndexedDB state с non-extractable WebCrypto keys;
+- server-side commit/message replay constraints;
+- exact opaque attachment size/hash validation;
+- quota по actual stored ciphertext bytes;
+- plaintext downgrade guards после MLS activation.
+
+## Regression-first evidence
+
+Initial security candidate CI `#290` (`29934225971`) failed against `3.2.2` as expected, подтверждая отсутствие новых controls до correction.
+
+## Verified implementation evidence
+
+- implementation head: `a3586fe7d399dc03a990c939c31a3ceabcbad000`;
+- CI run: `#308`, ID `29937445396`;
+- result: PASS.
+
+## Final release-documentation evidence
+
+- final head: `5369263a3220e165d420615b53d770f7732a54b3`;
+- CI run: `#309`, ID `29937694136`;
+- result: PASS.
+
+Проверенные jobs:
 
 - Windows `npm run check`;
 - Windows `npm run test:unit`;
@@ -50,36 +74,44 @@ Verified gates:
 - schema 8 soak;
 - Android `assembleDebug`.
 
-The authoritative evidence is [RELEASE_VERIFICATION_3.2.0.md](RELEASE_VERIFICATION_3.2.0.md).
+Авторитетный отчёт: [RELEASE_VERIFICATION_3.2.3.md](RELEASE_VERIFICATION_3.2.3.md).
+
+## Compatibility
+
+- Local Server schema: 8, unchanged;
+- Application API: v3, unchanged;
+- Trust/MLS/encrypted-media API: v4, unchanged;
+- database migration from `3.2.0`, `3.2.1` или `3.2.2`: not required;
+- schema 7 → 8 migration остаётся необходимой для 3.1.x data.
 
 ## Distribution decision
 
-Without valid Authenticode secrets, the release workflow may publish only:
+Без обоих Authenticode secrets release workflow публикует только:
 
 - source ZIP;
 - built PWA ZIP;
 - SPDX SBOM;
 - SHA-256 checksums.
 
-Unsigned `.exe`, blockmap and `latest.yml` must not be published. Electron updater must not consume an unsigned build.
+Unsigned `.exe`, blockmap и `latest.yml` не публикуются. Electron updater не принимает prerelease как installable Windows update.
 
 ## Remaining stable-promotion gates
 
-1. packaged Windows Electron Client/Server runtime E2E;
-2. installed PWA runtime and extended offline evidence;
-3. physical Android device matrix and signed Android release validation;
-4. broader simultaneous-commit, revoke/re-add and corrupted-state scenarios;
-5. longer load/soak and long-offline recovery;
-6. metadata minimization and traffic-analysis review;
-7. Authenticode signing-machine and signed updater verification;
-8. independent cryptographic and application-security review without unresolved high/critical findings.
+1. packaged Windows Client/Server runtime E2E;
+2. installed PWA и physical Android runtime matrix;
+3. extended multi-device simultaneous-commit/revoke/re-add/corrupted-state scenarios;
+4. longer load/soak и long-offline field evidence;
+5. metadata minimization/traffic-analysis review;
+6. Authenticode signing-machine и complete updater verification;
+7. independent cryptographic/application-security review;
+8. отсутствие unresolved high/critical findings.
 
 ## Security boundary
 
-Local Server does not receive secure-message plaintext, private MLS state, secure-attachment key, original filename, actual MIME, caption, voice duration or waveform.
+Local Server не получает secure-message plaintext, private MLS state, secure-attachment key, original filename, actual MIME, caption, voice duration или waveform.
 
-Local Server still observes account/device identifiers, membership, conversation/room scope, uploader, attachment ID, ciphertext size, timing, IP/network context and delivery events. The release does not claim traffic-analysis resistance.
+Local Server всё ещё видит account/device identifiers, membership, conversation scope, uploader, attachment ID, ciphertext size, timing, IP/network context и delivery events. Traffic-analysis resistance не заявляется.
 
 ## Usage restriction
 
-The Source/PWA prerelease is intended for controlled testing with disposable accounts and data. It must not be used as the sole protection for high-risk communications or distributed as a signed/stable Windows release.
+Source/PWA prerelease предназначена для controlled testing с disposable accounts/data. Она не должна использоваться как единственная защита high-risk communications или распространяться как signed/stable Windows release.
