@@ -11,14 +11,11 @@ on:
       - "website/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
-  issues:
-    types: [opened]
 
 permissions:
   contents: read
   pages: write
   id-token: write
-  issues: write
 
 jobs:
   validate:
@@ -33,7 +30,7 @@ jobs:
       - run: node website/validate.mjs
 
   deploy:
-    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'issues' && github.event.issue.title == '[internal] Verify Pages redesign-20260722-4') }}
+    if: github.event_name != 'pull_request'
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 12
@@ -73,19 +70,3 @@ jobs:
           done
           echo "GitHub Pages did not expose redesign-20260722-4 within the verification window." >&2
           exit 1
-      - name: Record issue-triggered live verification
-        if: github.event_name == 'issues'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          printf -v body 'Live GitHub Pages verification passed for `%s`.\n\nPublished URL: %s\nSource commit: `%s`\nVerified marker: `%s`' \
-            'redesign-20260722-4' \
-            "$PAGE_URL" \
-            "$GITHUB_SHA" \
-            'website/build.json'
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/comments" -f body="$body"
-          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}" -f state='closed' -f state_reason='completed'
