@@ -1,44 +1,54 @@
-# Nexora Plus / Pulse 3.1.2
+# Nexora Plus and Pulse
 
-Этот документ описывает stable trust boundary Nexora Plus/Pulse. Базовое общение, доступ к собственным данным и локальные room functions не должны зависеть от paid entitlement.
+## 1. Purpose and boundary
 
-## Компоненты
+Nexora Pulse is an optional commercial and Cloud Identity subsystem. Basic messaging, access to a user's own data and local room functionality must not depend on a paid entitlement.
 
-| Компонент | Authority |
+| Component | Authority |
 |---|---|
-| Local Server | local users, rooms, messages, files, roles, membership, bans и room policy |
-| Pulse Cloud | Cloud Identity, provider/customer mapping, subscription state, receipts, double-entry Impulse ledger и production entitlements |
-| Payment provider | card/payment processing и authoritative provider events |
-| Client | UI и user input; никогда не является источником цены, balance или entitlement |
+| Local Server | local accounts, rooms, messages, files, roles, membership, bans and room policy |
+| Pulse Cloud | Cloud Identity, subscriptions, receipts, Impulse ledger and production entitlements |
+| Payment provider | card/payment processing and authoritative provider events |
+| Client | user interface and input; never authoritative for price, balance or entitlement |
 
-Pulse Cloud не хранит local messages, room history, attachments, Local Server password/session или local CA private key. Local Server не хранит card data, Cloud password, MFA secret, Cloud session, OAuth refresh token или Cloud signing private key.
+Pulse Cloud does not store local message content, room history, Local Server files, local password/session, Trust private keys or Local CA private key.
 
-## Продуктовая модель
+Local Server does not store payment-card data, Cloud password, Cloud MFA secret, Cloud session, OAuth refresh token or Cloud signing private key.
 
-Nexora Plus может предоставлять 400 Impulses за подтверждённый subscription period, premium themes/accents, avatar frames, extra sounds/reactions, увеличенный offline cache и скрываемый badge.
+## 2. Product model
 
-Impulses — целочисленные внутренние units:
+Nexora Plus may provide:
 
-- не переводятся напрямую между users;
-- не обмениваются на деньги;
-- не могут давать отрицательный balance;
-- используются только в server-defined catalog, включая room goals;
-- production balance изменяется только Cloud ledger transaction.
+- 400 Impulses for a verified subscription period;
+- premium themes and accents;
+- avatar frames;
+- additional sounds and reactions;
+- increased offline cache;
+- optional Plus badge visibility;
+- eligible room-goal capabilities.
 
-Каталог и фактически применяемые capabilities должны быть разделены. Local Server активирует только реализованные capabilities; неизвестные products закрываются capability gate.
+Impulses are integer internal units:
 
-## Режимы Local Server
+- they are not transferred directly between users;
+- they are not exchanged for money;
+- balance cannot become negative;
+- use is limited to a server-defined catalog;
+- production balance changes only through a Pulse Cloud ledger transaction.
 
-| Режим | Назначение | Checkout | Production signatures |
+Catalog entries and implemented capabilities are separate. Local Server applies only known supported capabilities; unknown products remain blocked by a capability gate.
+
+## 3. Local Server modes
+
+| Mode | Purpose | Checkout | Production authority |
 |---|---|---|---|
-| `disabled` | обычный Local Server | нет | нет |
-| `sandbox` | QA/demo без денег | заблокирован | нет |
-| `production` | отдельный Pulse Cloud/provider | Cloud only | Cloud only |
-| `misconfigured` | неполная production configuration | заблокирован | не принимаются |
+| `disabled` | normal Local Server without commercial capabilities | unavailable | none |
+| `sandbox` | local QA/demo Plus and Impulses | disabled | none |
+| `production` | separate Pulse Cloud/provider integration | Cloud only | Cloud only |
+| `misconfigured` | incomplete production configuration | blocked | rejected |
 
-## Local sandbox 3.1.2
+## 4. Local sandbox
 
-Sandbox включается только через audited Server command registry:
+The sandbox is controlled through the audited Server command registry:
 
 ```text
 pulse sandbox on|off
@@ -49,131 +59,180 @@ impulses grant <user> <amount> [reason]
 impulses revoke <user> <amount> [reason]
 ```
 
-Инварианты:
+Invariants:
 
-- sandbox автоматически недоступен, если настроен production Pulse Cloud;
-- checkout/provider operations отключены;
-- новый test Plus entitlement создаёт разовый grant 400 Impulses;
-- повторная activation существующего периода не создаёт второй grant;
-- revoke/grant выполняются транзакционно и журналируются;
-- balance не может стать отрицательным;
-- sandbox не создаёт Cloud Identity, production receipt или Ed25519 production entitlement.
+- automatically unavailable when production Pulse Cloud is configured;
+- no checkout or provider operation;
+- no Cloud Identity, production receipt or production entitlement;
+- no production Ed25519 signature;
+- one 400-Impulse grant for a newly activated test Plus period;
+- repeated activation does not duplicate the grant;
+- all grant/revoke operations are transactional and audited;
+- balance cannot become negative.
 
-Sandbox предназначен только для разработки, демонстрации и regression testing. Его state не является покупкой и не должен переноситься в production ledger.
+Sandbox state is test data, not a purchase, and must not be migrated into the production ledger.
 
-## Production configuration
+## 5. Production configuration
 
-Пример Local Server variables:
+Example Local Server variables:
 
 ```text
 NEXORA_PULSE_MODE=production
 NEXORA_PULSE_CLOUD_URL=https://pulse.example.com
 NEXORA_PULSE_API_KEY=<server-scoped credential>
-NEXORA_PULSE_PUBLIC_KEY=<pinned Ed25519 public key or key registry>
+NEXORA_PULSE_PUBLIC_KEY=<pinned Ed25519 public key or registry>
 ```
 
-URL обязан использовать HTTPS. Service credential не попадает в Client. Cloud signing private key хранится только в Cloud secret manager.
+Requirements:
 
-Production также требует Cloud variables для database, email delivery, OAuth clients, provider credentials/webhook secret, signing keys, metrics token и deployment origin. Используйте `.env.pulse.example` как reference, но не коммитьте реальные values.
+- HTTPS Cloud URL;
+- scoped, rotatable service credential;
+- pinned/managed Ed25519 verification keys;
+- Cloud database and backup strategy;
+- provider credentials and verified webhook secret;
+- transactional email;
+- OAuth client allowlist and exact redirect URIs;
+- metrics and alerting;
+- secret management and key rotation;
+- reconciliation, refund, dispute, cancellation and entitlement-revocation runbooks;
+- privacy, retention, offer, tax/receipt and support processes.
 
-## Cloud Identity
+Service credentials never enter the Client. Cloud signing private keys remain in the Cloud secret-management boundary.
 
-3.1.x поддерживает:
+## 6. Cloud Identity
 
-- Cloud Account registration и email verification;
+Cloud Identity supports:
+
+- account registration and email verification;
 - scrypt password storage;
-- TOTP MFA с AES-256-GCM protected secret;
-- одноразовые recovery codes;
+- TOTP MFA with AES-256-GCM protected secret;
+- one-time recovery codes;
 - secure Cloud sessions;
-- OAuth 2.1 Authorization Code flow с PKCE S256 и exact redirect URI;
+- OAuth 2.1 Authorization Code with PKCE S256;
+- exact redirect URI matching;
 - opaque hashed email/session/code/access/refresh tokens;
-- atomic authorization-code consumption и refresh-token rotation.
+- atomic authorization-code consumption;
+- atomic refresh-token rotation.
 
-Local Account связывается с Cloud Account через одноразовую signed attestation, привязанную к Server ID, Local User ID, link ID, nonce и expiry. Unlink требует local current-password reauthentication.
+Local Account linking uses a one-time signed attestation bound to Server ID, Local User ID, link ID, nonce and expiry. Unlink requires local current-password reauthentication.
 
-Подробнее: [CLOUD_IDENTITY.md](CLOUD_IDENTITY.md).
+See [Cloud Identity](CLOUD_IDENTITY.md).
 
-## Signed Local Server ↔ Cloud contract
+## 7. Signed Local Server ↔ Pulse Cloud contract
 
-Local Server request включает scoped service credential, request ID, timestamp, nonce и idempotency metadata. Cloud response использует Ed25519 signed envelope и authoritative scope.
+A Local Server request includes:
 
-Local Server проверяет:
+- scoped service credential;
+- request ID;
+- timestamp;
+- nonce;
+- idempotency metadata;
+- operation-specific scope.
 
-1. HTTPS Cloud URL;
-2. известный pinned key ID;
+Cloud responses use Ed25519 signed envelopes and authoritative scope.
+
+Local Server validates:
+
+1. HTTPS origin;
+2. known pinned key ID;
 3. envelope signature;
-4. nested entitlement signature, если он присутствует;
-5. `serverId`, `localUserId`/`cloudAccountId`, `roomId` и `productId` scope;
-6. `issuedAt`, activation time и `expiresAt`;
-7. replay/payload substitution;
-8. idempotency scope conflict.
+4. nested entitlement signature where present;
+5. server, local user/cloud account, room and product scope;
+6. issue, activation and expiry times;
+7. replay and payload substitution;
+8. idempotency scope conflicts.
 
-Unknown/replaced key, expired envelope, mismatched scope или changed payload отвергаются до изменения local verified cache.
+Unknown/replaced keys, expired envelopes, scope mismatch and changed payload are rejected before verified cache mutation.
 
-## Billing и ledger
+## 8. Billing and ledger
 
-Pulse Cloud является authority для:
+Pulse Cloud is authoritative for:
 
-- server-side product/price catalog;
+- product and price catalog;
 - provider-hosted checkout;
-- unique provider-event state machine;
+- provider-event state machine;
 - double-entry Impulse ledger;
-- materialized wallet balance в той же transaction;
-- subscription grants, purchases, receipts, refunds и chargeback compensation;
-- debt/restriction state при shortfall;
-- signed entitlements и event delta sync.
+- materialized wallet balance in the same transaction;
+- subscription grants and purchases;
+- receipts, refunds and chargeback compensation;
+- debt/restriction state for unresolved shortfall;
+- signed entitlements and event delta.
 
-Client никогда не передаёт authoritative price. Success redirect не подтверждает payment: settlement происходит только после verified provider event. Failed provider event может retry только с тем же provider/type/payload hash. Idempotency key привязывается к account/server/user/product/currency scope.
+Client never supplies an authoritative price. A checkout success redirect is not settlement evidence. Settlement occurs only after verified provider events.
 
-## Room goals
+Failed provider events may retry only with the same provider, type and payload hash. Checkout idempotency keys are bound to account, server, local user, product and currency scope.
 
-Только owner создаёт commercial goal из fixed catalog. Local Server до Cloud request повторно проверяет session, CSRF, membership, ban, room ownership, room state и idempotency.
+## 9. Room goals
 
-Contribution:
+Only a room owner creates a commercial goal from the fixed catalog.
 
-1. принимает только integer amount в разрешённом диапазоне;
-2. не превышает remaining target;
-3. возвращает authoritative accepted/refused amount;
-4. в production фиксируется Cloud ledger transaction;
-5. публикует scoped event только после verified response;
-6. при достижении target создаёт time-bounded room entitlement.
+Before a Cloud request, Local Server verifies:
 
-Повтор с тем же idempotency key и тем же scope не списывает balance повторно. Scope/payload mismatch возвращает conflict. Cancel/expiry/refund выполняются Cloud ledger transaction; Local Server хранит только verified cache/audit.
+- authenticated session;
+- Origin and CSRF;
+- room existence;
+- membership and ban state;
+- ownership permission;
+- room state and product eligibility;
+- integer amount and idempotency scope.
 
-## Event sync и offline behavior
+A contribution:
 
-Pulse Cloud публикует signed event delta. Local Server хранит cursor/inbox и применяет events idempotently. Entitlement revoke должен вступать в силу без restart.
+1. cannot exceed the remaining target;
+2. returns authoritative accepted/refused amounts;
+3. becomes a Cloud ledger transaction in production;
+4. emits a scoped event only after a verified response;
+5. creates a time-bounded room entitlement when the target is reached.
 
-Cloud outage:
+Retry with the same key and scope does not duplicate the debit. Scope/payload mismatch is a conflict. Cancellation, expiry and refund are Cloud ledger operations; Local Server stores verified cache and audit only.
 
-- не блокирует local messaging;
-- не разрешает новые production monetary writes;
-- UI может показывать только последний неистёкший verified cache;
-- stale/expired entitlement не продлевается локально;
-- failed delivery/reconciliation workers повторяют операции bounded retry/lease-safe способом.
+## 10. Event synchronization and outage behavior
 
-## Operational endpoints
+Pulse Cloud publishes a signed event delta. Local Server stores a cursor/inbox and applies events idempotently. Entitlement revocation takes effect without restart.
 
-Pulse Cloud предоставляет:
+During Cloud outage:
 
-- `/healthz/live`;
-- `/healthz/ready`;
-- `/metrics` с `CLOUD_METRICS_TOKEN` либо loopback-only policy.
+- local messaging remains available;
+- new production monetary writes are blocked;
+- UI may show only unexpired verified cache;
+- stale/expired entitlement is not renewed locally;
+- delivery/reconciliation workers use bounded retry and lease-safe processing.
 
-Readiness включает Cloud Identity, ledger invariant и workers. Operational logs используют request IDs и recursive credential redaction. Graceful shutdown переводит readiness в `503` до остановки workers/HTTP/storage.
+## 11. Operational endpoints
 
-## Что необходимо до реальных платежей
+Pulse Cloud provides:
 
-- изолированный Pulse Cloud deployment и production database;
-- secret manager и key-rotation procedure;
-- provider account, prices и verified webhooks;
-- transactional email delivery;
-- reconciliation, refund, dispute, cancellation и entitlement-revocation runbooks;
-- OAuth client allowlist и exact redirect URIs;
-- metrics/alerts, backup/restore и incident response;
-- налоги/чеки, оферта, privacy/retention и support process;
-- provider sandbox E2E, security review и независимый audit.
+- `GET /healthz/live`;
+- `GET /healthz/ready`;
+- `GET /metrics` protected by `CLOUD_METRICS_TOKEN` or loopback-only policy.
 
-До выполнения production checklist используйте `disabled` или изолированный `sandbox`.
+Readiness includes Cloud Identity, ledger invariant and worker state. Logs use request IDs and recursive credential redaction. Graceful shutdown changes readiness to `503` before workers, HTTP and storage stop.
 
-Связанные документы: [PULSE_CLOUD.md](PULSE_CLOUD.md), [LOCAL_PULSE_INTEGRATION.md](LOCAL_PULSE_INTEGRATION.md), [ADR_0001_PULSE_CLOUD_BOUNDARY.md](ADR_0001_PULSE_CLOUD_BOUNDARY.md), [RELEASE_3.1.0.md](RELEASE_3.1.0.md).
+## 12. Security and privacy rules
+
+- never trust Client price, balance or entitlement claims;
+- never settle payment from redirect state;
+- never expose service/provider/signing credentials to Client;
+- never log tokens, passwords, payment payload secrets or signature material;
+- never allow Local sandbox to issue production authority;
+- keep local messaging independent from Pulse availability;
+- keep commercial mutations server-side and idempotent;
+- verify every Cloud signature, time and scope before applying data.
+
+## 13. Production readiness
+
+Real payments require:
+
+- isolated Cloud deployment and production database;
+- key rotation and secret-management process;
+- provider sandbox and production separation;
+- verified webhooks and reconciliation;
+- refund/dispute/cancellation/entitlement-revocation testing;
+- transactional email and worker monitoring;
+- backup/restore and incident response;
+- privacy, retention, legal, tax and receipt approval;
+- independent security review.
+
+Until this checklist is complete, use `disabled` or an isolated `sandbox`.
+
+Related documents: [Pulse Cloud](PULSE_CLOUD.md), [Local Pulse Integration](LOCAL_PULSE_INTEGRATION.md), [Cloud Boundary ADR](ADR_0001_PULSE_CLOUD_BOUNDARY.md), [Release Policy](RELEASE_POLICY.md).

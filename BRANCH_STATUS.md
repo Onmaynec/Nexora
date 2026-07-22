@@ -1,68 +1,85 @@
-# Branch Status — `agent/nexora-3.2.0-trust-core-mls`
+# Nexora 3.2.0 Release Status
 
 ## Classification
 
-- Target version: `3.2.0`.
-- Base stable release: `3.1.2`.
-- Pull Request: `#12`.
-- Status: automated release candidate / GitHub source/PWA prerelease eligible.
-- Stable production promotion remains blocked until packaged runtime, signing and independent security-review gates are complete.
+| Property | Value |
+|---|---|
+| Repository branch | `main` |
+| Version | `3.2.0` |
+| Source pull request | PR #12 |
+| Distribution | Source/PWA prerelease |
+| Signed production baseline | `3.1.2` |
+| Stable signed 3.2.0 approval | Not granted |
+| Independent security review | Not completed |
 
-## Implemented and verified in code/tests
+Nexora `3.2.0` is approved for controlled Source/PWA prerelease testing. It is not a signed stable Windows release and must not be described as independently audited E2EE.
 
-- Local Server schema 8 migration with backup, integrity and downgrade checks;
-- Ed25519 device identity, verification and revocation;
-- one-time KeyPackage and conversation-scoped Welcome delivery;
+## Implemented scope
+
+- SQLite schema 8 migration with backup, integrity, free-space and downgrade checks;
+- Ed25519 device identity, proof-of-possession, verification and revocation;
+- one-time KeyPackages and device/conversation-scoped Welcome delivery;
 - monotonic MLS epochs, signed commits and replay protection;
-- ciphertext-only secure transport, persistence and durable outbox;
-- Socket.IO secure delivery scoped to active, verified MLS device rooms rather than account-wide rooms;
-- immediate targeted socket disconnect when Trust is revoked;
-- client-side revocation handling that removes local keys, MLS state, cache and drafts before reconnect;
-- encrypted IndexedDB state, KeyPackages, decrypted cache and drafts;
-- Secure Message Pane with no plaintext fallback;
-- Trusted Devices settings UI with fingerprint, verify, revoke and self-wipe;
-- AES-256-GCM encrypted files, images and voice with attachment keys/metadata inside MLS content;
-- opaque attachment API with exact-size/hash validation, pending expiry, cancel and one-time atomic claim;
-- client upload progress, cancellation, verified local decrypt, image preview and voice playback;
-- fail-closed room policy for opaque media when any file/image/voice class is disabled;
-- server-side guards for legacy send/forward/edit/draft/scheduled/poll/bot/upload paths;
-- missed-commit recovery and explicit lost-state failure;
-- schema, Trust Core, recovery, plaintext-guard, media, store-queue, device-scoped realtime and Alice/Bob interoperability tests;
-- isolated schema 8 performance smoke with 20 clients, 120 messages and an unchanged 20-second budget;
-- one-minute schema 8 soak with repeated mutations, backups and SQLite integrity checks;
-- synchronized `3.2.0` package/lock/Android/client metadata and full release-check integration.
+- device-scoped secure Socket.IO authentication and delivery;
+- immediate targeted disconnect after Trust revocation;
+- client-side Trust/MLS key and state wipe;
+- ciphertext-only secure messages, persistence and durable outbox;
+- encrypted IndexedDB private state, KeyPackages, decrypted cache and drafts;
+- Secure Message Pane and Trusted Devices UI;
+- client-side AES-256-GCM files, images and voice;
+- opaque attachment API with size/hash validation, pending expiry, cancel and one-time claim;
+- upload progress, verified local decrypt, image preview and voice playback;
+- fail-closed room media policy;
+- server-side plaintext downgrade guards;
+- migration, recovery, interoperability, realtime, media, performance, security and soak coverage.
 
-## Automated candidate gate
+## Automated evidence
 
-GitHub Actions CI run `#250` (`29921551883`) passed on implementation commit `9af91d129273d702cea2bf736354d25bac05d1e3`:
+Implementation CI run `#250` (`29921551883`) passed on commit `9af91d129273d702cea2bf736354d25bac05d1e3`.
 
-- Windows production check, unit suite, isolated performance smoke and security audit;
-- Linux full `npm test`;
+Final documentation CI run `#253` (`29921974662`) passed on head `7dbbeeb72edd276fbd7aac11f5b3c23f442dcc9c`.
+
+Verified gates:
+
+- Windows `npm run check`;
+- Windows `npm run test:unit`;
+- Windows `npm run test:performance`;
+- Windows `npm run audit:security`;
+- Linux `npm test`;
 - dedicated `npm run release:check`;
 - schema 8 soak;
 - Android `assembleDebug`.
 
-The retained evidence and release classification are recorded in `RELEASE_VERIFICATION_3.2.0.md`. A documentation-only final CI must remain green before merge.
+The authoritative evidence is [RELEASE_VERIFICATION_3.2.0.md](RELEASE_VERIFICATION_3.2.0.md).
 
-## Remaining stable-release blockers
+## Distribution decision
 
-- metadata minimization and traffic-analysis review beyond the documented metadata boundary;
-- broader simultaneous-commit, revoke/re-add and corrupted local-state platform matrix;
-- packaged Windows Electron, installed PWA and physical Android runtime E2E;
-- longer-duration load/soak and extended offline field evidence;
-- Authenticode signing-machine checks and signed Windows updater artifacts;
-- independent cryptographic and application-security review.
+Without valid Authenticode secrets, the release workflow may publish only:
 
-These blockers do not prevent publishing a clearly marked source/PWA GitHub prerelease. They do prevent a stable production claim, signed auto-update rollout or “audited E2EE” wording.
+- source ZIP;
+- built PWA ZIP;
+- SPDX SBOM;
+- SHA-256 checksums.
 
-## Metadata boundary
+Unsigned `.exe`, blockmap and `latest.yml` must not be published. Electron updater must not consume an unsigned build.
 
-Local Server does not receive secure-message plaintext, attachment key, source filename, actual MIME, voice duration or waveform. It still observes account/device identifiers, conversation/room scope, uploader, attachment ID, ciphertext size, timing, network context and delivery events. Nexora 3.2.0 does not claim traffic-analysis resistance.
+## Remaining stable-promotion gates
 
-## Documentation rule
+1. packaged Windows Electron Client/Server runtime E2E;
+2. installed PWA runtime and extended offline evidence;
+3. physical Android device matrix and signed Android release validation;
+4. broader simultaneous-commit, revoke/re-add and corrupted-state scenarios;
+5. longer load/soak and long-offline recovery;
+6. metadata minimization and traffic-analysis review;
+7. Authenticode signing-machine and signed updater verification;
+8. independent cryptographic and application-security review without unresolved high/critical findings.
 
-Branch-local documents describe verified behavior and separate automated evidence from manual, signing and independent-review evidence. Stable 3.1.2 documentation remains authoritative for signed production use until a signed 3.2.0 promotion is approved.
+## Security boundary
 
-## Safety
+Local Server does not receive secure-message plaintext, private MLS state, secure-attachment key, original filename, actual MIME, caption, voice duration or waveform.
 
-A source/PWA prerelease may be used for controlled testing with disposable accounts and data. Do not use it for high-risk private communications, distribute unsigned updater binaries, or describe it as independently audited E2EE.
+Local Server still observes account/device identifiers, membership, conversation/room scope, uploader, attachment ID, ciphertext size, timing, IP/network context and delivery events. The release does not claim traffic-analysis resistance.
+
+## Usage restriction
+
+The Source/PWA prerelease is intended for controlled testing with disposable accounts and data. It must not be used as the sole protection for high-risk communications or distributed as a signed/stable Windows release.

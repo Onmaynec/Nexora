@@ -1,106 +1,187 @@
-# Руководство администратора Nexora 3.1.2
+# Nexora Administrator Guide
 
-## 1. Назначение и границы
+## 1. Scope
 
-Nexora Local Server предназначен для Windows 10/11 и работает через localhost, LAN, Radmin VPN либо публичный HTTPS-домен. Для internet deployment используйте reverse proxy, действительный сертификат, ограниченный firewall, явные allowed origins, мониторинг и регулярные backup. Не публикуйте локальный порт простым port forwarding.
+This guide applies to the current `main` product line:
 
-Участник сети не считается автоматически доверенным: Server проверяет session, membership, role, ban/restriction, room settings и resource scope для каждой операции.
+- repository version: `3.2.0` Source/PWA prerelease;
+- signed production baseline: `3.1.2`;
+- application API: v3;
+- Trust/MLS API: v4;
+- Local Server database: SQLite schema 8.
 
-Stable 3.1.2 не использует E2EE. Оператор компьютера Local Server имеет технический доступ к рабочей SQLite и вложениям.
+Use `3.2.0` only for controlled prerelease testing until stable promotion gates are complete. For signed production deployment, `3.1.2` remains the confirmed baseline.
 
-## 2. Развёртывание
+## 2. Deployment requirements
 
-1. При необходимости установите Radmin VPN и подключите серверный ПК к нужной сети.
-2. Установите подписанный `Nexora-Server-Setup-3.1.2.exe` либо выполните `npm ci && npm start` из проверенного source-релиза.
-3. Разрешите входящий TCP 3443 только для необходимого private/Radmin-интерфейса. TCP 3080 нужен только для локального redirect на HTTPS.
-4. Запустите Server и проверьте:
-   - статус процесса;
-   - полный HTTPS-адрес;
-   - уникальный Server ID;
-   - SHA-256 certificate fingerprint;
-   - SQLite integrity и schema 7;
-   - readiness без drain/read-only errors.
-5. Зарегистрируйте первый локальный аккаунт — он станет администратором Server.
+Nexora Local Server supports localhost, LAN, private VPN and public HTTPS deployment.
 
-Рабочие данные находятся в `userData\server-data`. Точный путь открывает кнопка «Открыть данные».
+For public deployment:
 
-## 3. Health, metrics и диагностика
+- use a trusted HTTPS reverse proxy;
+- restrict firewall exposure;
+- configure exact `allowedOrigins`;
+- enable monitoring and backups;
+- do not expose the local server port through direct port forwarding.
 
-Local Server публикует:
+A network participant is not trusted automatically. Every operation remains subject to authentication, membership, role, ban/restriction, room-policy, resource-scope and rate-limit checks.
 
-- `GET /healthz/live` — процесс работает;
-- `GET /healthz/ready` — SQLite/schema/runtime готовы, процесс не находится в drain mode;
+## 3. Installation and startup
+
+### Source
+
+```bash
+npm ci
+npm start
+```
+
+### Windows package
+
+Only a complete signed stable release is suitable for automatic production distribution. Unsigned local installers and Source/PWA prereleases are for development or controlled testing.
+
+After startup verify:
+
+- process status;
+- full HTTPS address;
+- Server ID;
+- SHA-256 certificate fingerprint;
+- `/healthz/live`;
+- `/healthz/ready`;
+- SQLite integrity;
+- expected schema version;
+- available storage.
+
+The first registered local account receives server-administrator privileges.
+
+## 4. Client connection and certificate trust
+
+Provide users through a trusted channel:
+
+1. full HTTPS URL;
+2. Server ID;
+3. SHA-256 certificate fingerprint.
+
+Windows Electron Client pins the certificate fingerprint to the Server ID. A changed certificate requires explicit confirmation.
+
+Browser/PWA and Android use the operating-system trust store. For a Local CA, install the root `.crt` before connecting. Never instruct users to bypass TLS warnings.
+
+## 5. Health, metrics and logs
+
+Endpoints:
+
+- `GET /healthz/live` — process liveness;
+- `GET /healthz/ready` — database/schema/runtime readiness;
 - `GET /metrics` — Prometheus text format.
 
-Настройте `NEXORA_METRICS_TOKEN` для remote scraping. При отсутствии token `/metrics` должен оставаться доступным только с loopback source.
+Configure `NEXORA_METRICS_TOKEN` for remote metrics access. Without a token, metrics must remain loopback-only.
 
-Operational logs содержат request ID и не должны включать authorization headers, cookies, passwords, tokens, API keys, secrets или signatures. Перед отправкой диагностических файлов всё равно выполняйте ручную проверку и redaction.
+Operational logs include request IDs and perform recursive credential redaction. Before sharing logs, verify that they contain no cookies, passwords, tokens, API keys, signatures, private keys or user content.
 
-При shutdown Server сначала меняет readiness на `503`, затем завершает workers, HTTP/Socket.IO и закрывает SQLite. Не завершайте процесс принудительно без необходимости.
+Graceful shutdown sets readiness to `503` before stopping workers, HTTP, Socket.IO and SQLite.
 
-## 4. Client, браузер и сертификаты
+## 6. Users and sessions
 
-Передавайте пользователю полный адрес вида `https://26.x.x.x:3443`, Server ID и SHA-256 fingerprint по доверенному каналу.
+Administrators can:
 
-Nexora Client показывает карточку нового сертификата. Пользователь сверяет fingerprint и нажимает «Доверять и подключиться». Client закрепляет PEM SHA-256 за Server ID; системная установка CA для `.exe` не требуется. Изменившийся сертификат всегда требует повторного подтверждения.
+- disable a local account;
+- issue a temporary password;
+- terminate sessions;
+- inspect safe login/audit information.
 
-Для Edge/Chrome/PWA и Android при локальном CA экспортируйте `.crt` и установите его в доверенные сертификаты ОС, затем снова сравните fingerprint. Не предлагайте обходить предупреждение браузера или Android.
+Users manage profile data, password, local TOTP/recovery codes, notification preferences and active sessions.
 
-Если после подключения Radmin VPN адрес изменился, полностью перезапустите Server: certificate должен содержать текущий IP в SAN.
+Cloud Identity is separate from the local account. Local Server must not receive Cloud password, Cloud MFA secret, OAuth refresh token or Cloud session cookie.
 
-## 5. Пользователи и сессии
+## 7. Rooms and moderation
 
-В разделе «Пользователи» администратор может отключить local account или выдать временный пароль. Сброс завершает активные sessions, а следующий вход требует обязательной смены пароля.
+Roles:
 
-Пользователь самостоятельно управляет display name, bio/status, avatar, password, local TOTP/recovery codes, notifications/quiet hours и active sessions. Блокировка запрещает direct messages и новые requests; контакт можно удалить без удаления истории.
+- `owner` — exactly one room owner;
+- `moderator` — delegated moderation;
+- `member` — standard participant.
 
-Настройте password policy, число неверных попыток и lock duration. Журнал входа хранит IP, результат и безопасную причину отказа.
+Supported operations include:
 
-Cloud Identity — отдельная учётная запись Pulse Cloud. Local Server не должен получать Cloud password, MFA secret, OAuth refresh token или Cloud session cookie.
+- moderator appointment/removal;
+- atomic ownership transfer;
+- member removal, ban and unban;
+- join-request handling;
+- invitation creation, update, expiry, usage limit and revocation;
+- read-only, slow mode, announcement and pre-approval;
+- file/image/voice restrictions;
+- custom roles and categories;
+- reports, appeals and temporary restrictions;
+- room audit and system messages.
 
-## 6. Комнаты и модерация
+A removed or banned user must immediately lose REST and realtime access to the room.
 
-Владелец назначает/снимает moderators и передаёт ownership. Владелец, moderator и server admin в пределах полномочий могут:
+## 8. Storage, migration and backup
 
-- удалить или забанить участника;
-- просматривать room ban list;
-- включить read-only/slow mode;
-- отключить files или voice messages;
-- переименовать room;
-- рассматривать join requests;
-- обновить/отозвать invite, задать expiry и usage limit;
-- выпускать несколько invitations, создавать custom roles/categories;
-- разбирать reports/appeals и назначать temporary restrictions;
-- включить pre-approval и announcement mode;
-- просматривать room audit.
+Current `3.2.0` Local Server uses SQLite schema 8 with WAL and `synchronous=FULL`.
 
-Вступление, выход, изменение роли и transfer ownership создают system messages. Перед передачей владения убедитесь, что новый owner уже является участником. После удаления или бана пользователь должен потерять REST- и realtime-доступ к комнате.
+Upgrade `7 → 8` performs:
 
-## 7. Хранилище и резервные копии
+- source integrity check;
+- free-space calculation;
+- WAL checkpoint;
+- verified pre-migration backup;
+- transactional/idempotent migration;
+- destination integrity check;
+- downgrade protection.
 
-Server использует SQLite schema 7, WAL и `synchronous=FULL`. При upgrade с 3.0.0 перед schema 6 → 7 выполняются integrity/free-space checks и создаётся проверенный pre-migration backup. Миграция завершается до открытия network traffic. Downgrade к schema 6 блокируется.
+Rollback is restore-from-backup. In-place downgrade is not supported.
 
-В «Хранилище» задайте общую quota и retention файлов. До upload Client запрашивает доступную ёмкость. Retention `0` означает бессрочное хранение.
+Backup requirements:
 
-Для ручной защищённой копии задайте passphrase не короче 10 символов. SQLite и attachments шифруются AES-256-GCM; ключ выводится через scrypt. Passphrase нигде не сохраняется и не восстанавливается.
+- create a verified backup before every upgrade;
+- keep at least one copy outside the server computer;
+- do not copy an active SQLite file manually;
+- store backup passphrase separately;
+- verify integrity/schema/readiness after restore.
 
-При restore Server сначала создаёт `pre-restore` copy, атомарно заменяет данные и повторно проверяет integrity/schema. Храните хотя бы одну проверенную копию вне server computer. Не копируйте запущенный `nexora.sqlite` вручную.
+## 9. Trust devices and secure conversations
 
-## 8. Nexora Plus / Pulse
+### Device enrollment
 
-### Режимы
+- first device receives bootstrap verification;
+- later devices require signed approval from an active verified device;
+- users compare device fingerprints before approval;
+- verification/revocation uses scoped one-time challenges.
 
-| Режим | Назначение | Реальные платежи |
+### Revocation
+
+Revocation immediately disconnects the target secure socket. The affected Client removes device identity, private MLS state, KeyPackages, decrypted cache and drafts before reenrollment.
+
+### Operational limitations
+
+Local Server does not receive secure-message plaintext or secure-attachment keys, but still observes membership, account/device identifiers, timing, network context, ciphertext size, attachment ID and delivery metadata.
+
+Do not present prerelease Trust/MLS functionality as independently audited E2EE.
+
+## 10. Files, images and voice
+
+Legacy conversations use server-validated uploads with size, hash, MIME and quota checks.
+
+Secure conversations use opaque encrypted attachments:
+
+- Client encrypts with AES-256-GCM;
+- Server stores generic ciphertext;
+- pending data is inaccessible before message claim;
+- retries are idempotent for matching scope/hash;
+- reuse and substitution are rejected;
+- download is decrypted and verified locally.
+
+If any room class `files/images/voice` is disabled, the complete secure-media path fails closed.
+
+## 11. Nexora Plus and Pulse
+
+| Mode | Purpose | Real payments |
 |---|---|---|
-| `disabled` | обычный Local Server без commercial capabilities | нет |
-| `sandbox` | локальная QA/demo-модель Plus/Impulses | нет |
-| `production` | подписанная интеграция с отдельным Pulse Cloud | только через Cloud/provider |
+| `disabled` | local messaging without commercial features | no |
+| `sandbox` | QA/demo Plus and Impulses | no |
+| `production` | signed Pulse Cloud/provider integration | Cloud only |
 
-Production требует HTTPS Cloud URL, scoped service credential и pinned Ed25519 public keys. Local Server проверяет signed envelopes, key ID, expiry и server/user/room/product scope до обновления verified cache.
-
-### Local sandbox 3.1.2
-
-Sandbox управляется через Windows Server Admin или CLI:
+### Sandbox commands
 
 ```text
 pulse sandbox on|off
@@ -111,21 +192,20 @@ impulses grant <user> <amount> [reason]
 impulses revoke <user> <amount> [reason]
 ```
 
-Правила sandbox:
+Sandbox rules:
 
-- доступен только когда production Pulse Cloud не настроен;
-- checkout и реальные provider operations отключены;
-- новый test Plus entitlement выдаёт 400 Impulses один раз;
-- balance не может стать отрицательным;
-- grant/revoke operations выполняются Server, записываются в audit/ledger и не создают production signatures.
+- unavailable when production Pulse is configured;
+- checkout disabled;
+- no production signatures or entitlements;
+- initial test Plus activation grants 400 Impulses once;
+- balance cannot become negative;
+- all mutations are audited.
 
-### Production
+Production requires separate Cloud deployment, provider integration, webhooks, reconciliation, refunds/disputes, transactional email, secret management and legal/privacy/tax documentation.
 
-Для production нужны Cloud deployment, provider credentials, webhook verification, reconciliation, refund/dispute/cancel flow, transactional email, legal/privacy/tax documents и secret management. Полный контракт: [docs/PULSE.md](docs/PULSE.md).
+## 12. Audited developer commands
 
-## 9. Audited developer commands
-
-CLI и Windows Server Admin используют общий allowlist:
+The CLI and Windows Server Admin expose a fixed allowlist:
 
 ```text
 help
@@ -145,49 +225,47 @@ impulses grant <user> <amount> [reason]
 impulses revoke <user> <amount> [reason]
 ```
 
-Произвольные shell-команды и JavaScript не выполняются. Изменяющие команды записываются в `integrationAudit`; secret argument values не должны попадать в журнал.
+Arbitrary shell commands and JavaScript evaluation are not supported. Mutating commands are recorded in `integrationAudit` without secret argument values.
 
-## 10. Обновления
+## 13. Updates and release channels
 
-Electron Client 3.1.2 запускает updater после `app.whenReady()`, выполняет initial check, затем проверяет канал каждые шесть часов. Checks используют single-flight и корректно освобождают timers/listeners при выходе.
+Electron updater accepts only a complete signed stable Windows release containing the expected installer, blockmap and `latest.yml`.
 
-Только stable Release с подписанным Client installer, blockmap и `latest.yml` участвует в auto-update. Source/PWA prerelease и unsigned assets updater игнорирует. Отсутствие installable metadata должно отображаться стабильной причиной `no_installable_update`, а не opaque exception.
+Source/PWA prerelease and unsigned assets are not updater-eligible. Missing installable signed metadata should produce the stable reason `no_installable_update`.
 
-Server обновляется только по решению администратора. До update создайте backup. API v3 принимает основной диапазон Client major 2–3; несовместимая версия получает HTTP 426.
+Before updating Local Server:
 
-## 11. Боты и webhooks
+1. create a verified backup;
+2. review migration and rollback notes;
+3. verify release classification;
+4. confirm Client compatibility;
+5. validate health and integrity after restart.
 
-Создавайте bot account только в нужной комнате и выдавайте минимальные scopes. Token показывается один раз и хранится Server только как hash; при утечке немедленно отзовите его.
+## 14. Incident response
 
-Webhook принимает только публичный HTTPS endpoint, блокирует private/link-local destinations после DNS/IP validation и подписывает payload HMAC. Получатель обязан проверять `X-Nexora-Signature-256`, event ID и idempotency.
+Collect:
 
-## 12. Авария и восстановление
+- Client/Server/Cloud versions;
+- Server ID and request ID;
+- timestamps and last actions;
+- network/deployment profile;
+- live/ready results;
+- schema and integrity status;
+- sanitized logs.
 
-При сбое сохраните:
+Never share passwords, cookies, OAuth tokens, TOTP/recovery codes, invite codes, bot/Pulse credentials, private CA keys, Trust private state or backup passphrase.
 
-- очищенные `nexora-server.log` и при необходимости `nexora-client.log`;
-- версии Client/Server и Windows build;
-- Server ID, request ID, время и последние действия;
-- состояние сети и точный stable error code;
-- результаты `/healthz/live`, `/healthz/ready` и integrity check.
+When integrity fails, stop the server and restore the latest verified backup. Emergency read-only preserves reads during investigation but does not replace backup.
 
-Не отправляйте passwords, cookies, TOTP/recovery codes, OAuth tokens, bot/Pulse keys, invite codes, private CA key или backup passphrase.
+## 15. Release verification
 
-После отключения питания запустите Server и проверьте integrity/schema/readiness. Если integrity не проходит, остановите Server и восстановите последнюю подтверждённую backup.
+Before a release-sensitive deployment:
 
-Emergency read-only сохраняет чтение и блокирует mutations, но не заменяет backup.
-
-## 13. Выпуск Windows-релиза
-
-На чистой Windows 10 и 11:
-
-```bat
+```bash
 npm ci
 npm run release:check
-npm run audit:security
-set NEXORA_SOAK_MINUTES=60
 npm run test:soak
-npm run release:windows
+gradle -p android :app:assembleDebug --no-daemon
 ```
 
-Проверьте Authenticode обоих `.exe`, clean install/uninstall, upgrade с 3.0.0/3.1.0/3.1.1, сохранность schema 7 и auto-update Client с предыдущего stable release. Без signing secrets разрешён только Source/PWA prerelease. Подробный список: [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
+Stable Windows promotion additionally requires Authenticode verification, clean install/upgrade testing and updater validation. See [Release Policy](docs/RELEASE_POLICY.md) and [Release Checklist](docs/RELEASE_CHECKLIST.md).

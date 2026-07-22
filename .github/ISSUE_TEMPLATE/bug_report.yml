@@ -1,6 +1,6 @@
-name: Ошибка
+name: Product defect
 
-description: Сообщить о воспроизводимой проблеме Nexora
+description: Report a reproducible Nexora problem
 
 title: "bug: "
 
@@ -12,55 +12,74 @@ body:
   - type: markdown
     attributes:
       value: |
-        Спасибо за отчёт. Для уязвимостей и утечек данных не используйте этот шаблон — следуйте SECURITY.md и создайте приватный Security Advisory. Stable-версия — 3.1.2; для development branch обязательно укажите точное имя ветки и commit SHA.
+        Use this form for reproducible product defects. Do not publish vulnerabilities, secrets or user data here; follow SECURITY.md and create a private Security Advisory.
+
+        Current repository version: 3.2.0 Source/PWA prerelease. Signed production baseline: 3.1.2. State the exact release channel, version and commit when applicable.
 
   - type: input
     id: versions
     attributes:
-      label: Версии Client, Local Server и Pulse Cloud
-      description: Укажите все затронутые версии и branch/commit для development build.
-      placeholder: "Client 3.1.2 / Server 3.1.2 / Cloud 3.1.2 или disabled"
+      label: Client, Local Server and Pulse Cloud versions
+      description: Include every affected component, release channel and commit/tag for source builds.
+      placeholder: "Client 3.2.0 prerelease / Server 3.2.0 / Cloud disabled / commit abc123"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: release_channel
+    attributes:
+      label: Release channel
+      options:
+        - Signed stable release
+        - Source/PWA prerelease
+        - Local source build
+        - Local unsigned Windows build
+        - Development branch
+        - Not sure
     validations:
       required: true
 
   - type: dropdown
     id: surface
     attributes:
-      label: Компонент
+      label: Component
       options:
         - Windows Client
         - Windows Local Server
         - Browser / PWA
         - Android
         - Local Server API / Socket.IO
+        - Trust devices / MLS secure messaging
+        - Encrypted files / images / voice
         - Pulse Cloud / Cloud Identity / OAuth
         - Plus / Impulse sandbox
-        - Installer / updater
-        - Trust Core / MLS development branch
+        - Installer / updater / release assets
+        - Database migration / backup / restore
         - Documentation
-        - Другое
+        - Other
     validations:
       required: true
 
   - type: dropdown
     id: environment
     attributes:
-      label: Среда
+      label: Environment
       options:
         - Windows 11
         - Windows 10
-        - Android
-        - Linux server
-        - Browser only
+        - Android physical device
+        - Android emulator
+        - Linux Local Server
+        - Browser / PWA
         - Pulse Cloud deployment
-        - Другое
+        - Other
     validations:
       required: true
 
   - type: dropdown
     id: deployment
     attributes:
-      label: Тип подключения
+      label: Deployment profile
       options:
         - localhost
         - LAN
@@ -68,66 +87,74 @@ body:
         - Public HTTPS domain
         - Local Pulse sandbox
         - Production Pulse Cloud
-        - Не применимо
+        - Not applicable
     validations:
       required: true
 
   - type: textarea
     id: summary
     attributes:
-      label: Краткое описание
-      description: Что сломано и как это влияет на работу?
+      label: Summary and impact
+      description: What is broken, who is affected and what operation can no longer be completed safely or correctly?
     validations:
       required: true
 
   - type: textarea
     id: steps
     attributes:
-      label: Шаги воспроизведения
+      label: Reproduction steps
       placeholder: |
-        1. Открыть ...
-        2. Нажать ...
-        3. Увидеть ...
+        1. Start ...
+        2. Open ...
+        3. Perform ...
+        4. Observe ...
     validations:
       required: true
 
   - type: textarea
     id: expected
     attributes:
-      label: Ожидаемый результат
+      label: Expected result
     validations:
       required: true
 
   - type: textarea
     id: actual
     attributes:
-      label: Фактический результат
+      label: Actual result
+      description: Include the stable error code/message when available.
     validations:
       required: true
 
   - type: textarea
+    id: state
+    attributes:
+      label: Relevant state
+      description: Include sanitized schema version, room role/policy, Trust device state, MLS epoch or Pulse mode when relevant. Do not include private keys or message content.
+
+  - type: textarea
     id: diagnostics
     attributes:
-      label: Диагностика
-      description: Приложите очищенный log, request ID, screenshot или video. Не публикуйте passwords, cookies, OAuth/session tokens, TOTP/recovery codes, API/signing/private keys, invite codes и пользовательские данные.
+      label: Sanitized diagnostics
+      description: Attach request ID, log excerpt, screenshot or video. Remove passwords, cookies, OAuth/session tokens, TOTP/recovery codes, API/signing/private keys, invite codes, user content and personal data.
       render: shell
 
   - type: textarea
     id: regression
     attributes:
-      label: Регрессия и дополнительный контекст
-      description: Работало ли это раньше? Есть ли временный обходной путь? Для 3.2.0 укажите, воспроизводится ли проблема только в Trust Core/MLS branch.
+      label: Regression and workaround
+      description: Did this work in a previous version? Is there a safe temporary workaround?
 
   - type: checkboxes
     id: checks
     attributes:
-      label: Проверки перед отправкой
+      label: Submission checks
       options:
-        - label: Я проверил существующие Issues и не нашёл дубликат.
+        - label: I searched existing Issues and did not find a duplicate.
           required: true
-        - label: Я воспроизвёл проблему на актуальной поддерживаемой версии либо указал точный development branch/commit.
+        - label: I reproduced the problem on a supported version or supplied the exact branch/commit and release channel.
           required: true
-        - label: Я удалил passwords, session/OAuth tokens, API/signing/private keys, invite codes и персональные данные.
+        - label: I removed passwords, tokens, private keys, invite codes, message content and personal data.
           required: true
-        - label: Это не приватный отчёт об уязвимости.
+        - label: This is not a private vulnerability report.
           required: true
