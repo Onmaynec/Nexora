@@ -4,8 +4,6 @@ import App from "./App";
 import AppErrorBoundary from "./components/AppErrorBoundary";
 import ProductOnboarding from "./components/ProductOnboarding";
 import "./styles.css";
-import "./secure-messaging.css";
-import "./trust-devices.css";
 import "./onboarding.css";
 
 createRoot(document.getElementById("root")).render(

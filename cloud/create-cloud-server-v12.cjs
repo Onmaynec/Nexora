@@ -8,8 +8,6 @@ const { IdentityService } = require("./identity-service.cjs");
 const { mountIdentityRoutes } = require("./identity-routes.cjs");
 const { BillingWorkers, HttpEmailSender, SignedEventPublisher } = require("./workers.cjs");
 const { mountBillingManagementRoutes } = require("./billing-management-routes.cjs");
-const { createOperationalRuntime } = require("../server/operational-runtime.cjs");
-const { version: APP_VERSION } = require("../package.json");
 
 function parseJsonArray(value, fallback = []) {
   if (Array.isArray(value)) return value.map(String).filter(Boolean);
@@ -69,19 +67,6 @@ function createCloudAppV12(options = {}) {
   });
 
   const app = express();
-  const operational = createOperationalRuntime({
-    service: "nexora-pulse-cloud",
-    version: APP_VERSION,
-    metricsToken: options.metricsToken || process.env.CLOUD_METRICS_TOKEN || "",
-    healthProvider: async () => {
-      const ledger = base.database.ledgerInvariant();
-      const identityCount = base.database.db.prepare("SELECT COUNT(*) AS count FROM cloud_identities").get();
-      const balanced = ledger?.balanced !== false && ledger?.ok !== false;
-      return { ready: balanced, checks: { ledger: balanced ? "ok" : "unbalanced", identities: Number(identityCount?.count || 0), workers: workers.status() } };
-    },
-    log: options.log || (() => {}),
-  });
-  operational.mount(app);
   app.disable("x-powered-by");
   app.set("trust proxy", options.trustProxy || 1);
 
@@ -141,7 +126,7 @@ function createCloudAppV12(options = {}) {
     response.json({
       ok: true,
       service: "nexora-pulse-cloud",
-      version: APP_VERSION,
+      version: "3.1.0",
       ledger: base.database.ledgerInvariant(),
       identity: { accounts: Number(identityCount?.count || 0), emailDeliveryConfigured: Boolean(emailSender) },
       workers: workers.status(),
@@ -149,7 +134,7 @@ function createCloudAppV12(options = {}) {
   });
 
   app.use(base.app);
-  return { ...base, app, identity, workers, operational };
+  return { ...base, app, identity, workers };
 }
 
 module.exports = {

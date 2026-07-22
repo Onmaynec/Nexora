@@ -19,7 +19,6 @@
         <button data-view="storage">Хранилище</button>
         <button data-view="security">Безопасность</button>
         <button data-view="logs">Журнал</button>
-        <button data-view="console">Консоль</button>
       </nav>
       <div class="side-status"><i id="status-dot"></i><span id="side-status-text">Запуск…</span></div>
     </aside>
@@ -79,7 +78,6 @@
         <div class="table-head login-head"><div><span>LOGIN AUDIT</span><h2>Последние попытки входа</h2></div></div><div class="table-card"><table><thead><tr><th>Время</th><th>Пользователь</th><th>IP</th><th>Результат</th><th>Причина</th></tr></thead><tbody id="login-attempts-body"></tbody></table></div>
       </section>
       <section id="logs" class="view"><div class="table-head"><div><span>RUNTIME</span><h2>Журнал событий</h2></div><div class="table-actions"><button id="open-log-file">Открыть журнал</button><button id="clear-logs">Очистить экран</button></div></div><div id="log-list" class="log-list"></div></section>
-      <section id="console" class="view"><div class="table-head"><div><span>DEVELOPER CONTROL</span><h2>Команды сервера</h2></div><button id="console-help">Справка</button></div><article class="command-console"><div id="command-output" class="command-output" aria-live="polite"></div><form id="command-form"><label for="command-input">Команда</label><div><input id="command-input" autocomplete="off" spellcheck="false" placeholder="help" /><button class="primary" type="submit">Выполнить</button></div></form><p>Команды выполняются только через фиксированный registry. Shell, файловая система и произвольный JavaScript недоступны.</p></article></section>
     </main>
     <div id="password-modal" class="control-modal" aria-hidden="true"><form id="password-form"><span class="eyebrow">ADMIN ACTION</span><h2>Сбросить пароль</h2><p id="password-user"></p><input id="password-user-id" type="hidden" /><label>Временный пароль<input id="password-value" type="password" minlength="10" maxlength="128" autocomplete="new-password" required /></label><small>Пользователь обязан заменить его при следующем входе.</small><div><button id="password-cancel" type="button">Отмена</button><button class="primary" type="submit">Сбросить и завершить сессии</button></div></form></div>
     <div id="toast"></div>

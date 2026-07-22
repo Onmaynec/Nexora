@@ -57,7 +57,6 @@ function buildOptions() {
     workerIntervalMs: Number(process.env.CLOUD_WORKER_INTERVAL_MS || 30_000),
     workerLeaseMs: Number(process.env.CLOUD_WORKER_LEASE_MS || 60_000),
     workerTimeoutMs: Number(process.env.CLOUD_WORKER_TIMEOUT_MS || 10_000),
-    metricsToken: optional("CLOUD_METRICS_TOKEN"),
   };
 }
 
@@ -66,7 +65,7 @@ function start() {
   const host = String(process.env.HOST || "127.0.0.1").trim();
   const options = buildOptions();
   const { createCloudAppV12 } = require("./create-cloud-server-v12.cjs");
-  const { app, database, workers, operational } = createCloudAppV12({ ...options, log: (message, level = "info") => console[level === "error" ? "error" : level === "warn" ? "warn" : "log"](`[Pulse Cloud] ${message}`) });
+  const { app, database, workers } = createCloudAppV12({ ...options, log: (message, level = "info") => console[level === "error" ? "error" : level === "warn" ? "warn" : "log"](`[Pulse Cloud] ${message}`) });
   const server = http.createServer(app);
   server.keepAliveTimeout = 65_000;
   server.headersTimeout = 70_000;
@@ -76,10 +75,9 @@ function start() {
   const shutdown = async (signal) => {
     if (stopping) return;
     stopping = true;
-    operational.beginDrain();
     try { await workers.stop(); } catch (error) { console.error(`[Pulse Cloud] workers stop failed: ${error.message}`); }
     server.close((error) => {
-      try { database.close(); operational.close(); } catch (closeError) { console.error(`[Pulse Cloud] close failed: ${closeError.message}`); }
+      try { database.close(); } catch (closeError) { console.error(`[Pulse Cloud] close failed: ${closeError.message}`); }
       if (error) {
         console.error(`[Pulse Cloud] ${signal}: ${error.message}`);
         process.exitCode = 1;
@@ -90,11 +88,10 @@ function start() {
   process.once("SIGTERM", () => shutdown("SIGTERM"));
 
   server.listen(port, host, () => {
-    operational.markReady();
     workers.start(options.workerIntervalMs);
     console.log(`[Pulse Cloud] listening on http://${host}:${port}`);
   });
-  return { server, database, workers, operational };
+  return { server, database, workers };
 }
 
 if (require.main === module) {
