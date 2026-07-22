@@ -88,7 +88,17 @@ test("3.2.5: message rendering avoids full chat reloads and restores automatic m
 
 test("3.2.5: MLS group creation race waits for recovery instead of failing immediately", () => {
   const trust = fs.readFileSync(path.join(root, "client", "src", "crypto", "trust-client.js"), "utf8");
-  assert.match(trust, /claimWelcome\(device, conversation\.id\)\s*\|\|\s*await requestWelcomeAndWait/);
+  assert.match(trust, /claimWelcomeSafely\(device, conversation\.id\)\s*\|\|\s*await requestWelcomeAndWait/);
+  assert.doesNotMatch(trust, /const joined = await claimWelcome\(device, conversation\.id\)/);
+});
+
+test("3.2.5: message delivery does not force a full bootstrap refresh", () => {
+  const transport = fs.readFileSync(path.join(root, "server", "mls-transport.cjs"), "utf8");
+  const pane = fs.readFileSync(path.join(root, "client", "src", "components", "SecureMessagePane.jsx"), "utf8");
+  const app = fs.readFileSync(path.join(root, "client", "src", "App.jsx"), "utf8");
+  assert.doesNotMatch(transport, /emit\("data:refresh"\)/);
+  assert.match(app, /applyMessagePreview\(message\)/);
+  assert.doesNotMatch(pane, /result\.failed[\s\S]{0,180}onRefresh/);
 });
 
 test("3.2.5: local Windows release build is available without weakening signed publication", () => {

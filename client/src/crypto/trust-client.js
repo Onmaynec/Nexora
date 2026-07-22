@@ -288,16 +288,29 @@ async function claimWelcome(device, conversationId) {
   return loadLocalGroup(result.welcome.conversationId);
 }
 
+function isRecoverableWelcomeError(error) {
+  return ["MLS_WELCOME_NO_MATCHING_KEY_PACKAGE", "MLS_WELCOME_RACE"].includes(error?.code || error?.message);
+}
+
+async function claimWelcomeSafely(device, conversationId) {
+  try {
+    return await claimWelcome(device, conversationId);
+  } catch (error) {
+    if (isRecoverableWelcomeError(error)) return null;
+    throw error;
+  }
+}
+
 async function requestWelcomeAndWait(device, conversationId) {
   await trustApi("/conversations/" + encodeURIComponent(conversationId) + "/welcome/request", { method: "POST", deviceId: device.id, body: {} });
   const deadline = Date.now() + WELCOME_POLL_TIMEOUT_MS;
   while (Date.now() < deadline) {
     await delay(WELCOME_POLL_INTERVAL_MS);
     try {
-      const joined = await claimWelcome(device, conversationId);
+      const joined = await claimWelcomeSafely(device, conversationId);
       if (joined) return joined;
     } catch (error) {
-      if (!["MLS_WELCOME_NO_MATCHING_KEY_PACKAGE", "MLS_WELCOME_RACE"].includes(error.code || error.message)) throw error;
+      if (!isRecoverableWelcomeError(error)) throw error;
     }
   }
   return null;
@@ -386,9 +399,7 @@ async function ensureConversationGroupInternal(conversation, { forceSync = false
     const local = await loadLocalGroup(conversation.id);
     if (local) return { device, local, remote: { id: local.groupRecordId, conversationId: conversation.id, epoch: local.epoch } };
   }
-  await claimWelcome(device, conversation.id).catch((error) => {
-    if (!["MLS_WELCOME_NO_MATCHING_KEY_PACKAGE", "MLS_WELCOME_RACE"].includes(error.code || error.message)) throw error;
-  });
+  await claimWelcomeSafely(device, conversation.id);
   let local = await loadLocalGroup(conversation.id);
   let remote = (await trustApi(`/conversations/${encodeURIComponent(conversation.id)}/group`, { deviceId: device.id })).group;
 
@@ -413,14 +424,14 @@ async function ensureConversationGroupInternal(conversation, { forceSync = false
     });
     remote = created.group;
     if (remote.groupId && remote.groupId !== initial.protocolGroupId) {
-      const joined = await claimWelcome(device, conversation.id) || await requestWelcomeAndWait(device, conversation.id);
+      const joined = await claimWelcomeSafely(device, conversation.id) || await requestWelcomeAndWait(device, conversation.id);
       if (!joined) throw Object.assign(new Error("MLS group создан другим устройством; ожидается Welcome."), { code: "MLS_WELCOME_PENDING" });
       local = joined;
     } else {
       local = await persistGroup(conversation.id, remote.id, initial.state, initial.publicStateHash);
     }
   } else if (!local) {
-    const joined = await claimWelcome(device, conversation.id);
+    const joined = await claimWelcomeSafely(device, conversation.id);
     local = joined || await loadLocalGroup(conversation.id) || await requestWelcomeAndWait(device, conversation.id);
     if (!local) {
       const member = (remote.members || []).find((item) => item.deviceId === device.id && item.status === "active");

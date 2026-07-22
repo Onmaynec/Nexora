@@ -10,58 +10,6 @@ permissions:
   contents: read
 
 jobs:
-  finalize-3-2-5:
-    if: github.event_name == 'pull_request' && github.head_ref == 'agent/nexora-3.2.5-ui-console-performance' && github.event.pull_request.head.repo.full_name == github.repository
-    permissions:
-      contents: write
-    runs-on: windows-latest
-    timeout-minutes: 90
-    env:
-      CSC_IDENTITY_AUTO_DISCOVERY: "false"
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22.16.0
-          cache: npm
-      - run: npm ci
-      - name: Apply final 3.2.5 stability corrections
-        run: node scripts/finalize-3.2.5.cjs
-      - run: node --test test/release-3.2.5-regressions.test.cjs
-      - run: npm run check
-      - run: npm run test:unit
-      - run: npm run test:performance
-      - run: npm run audit:security
-      - run: npm run release:windows
-      - name: Verify local Windows installers
-        shell: pwsh
-        run: |
-          $version = node -p "require('./package.json').version"
-          $client = "release/client/Nexora-Client-Setup-$version.exe"
-          $server = "release/server/Nexora-Server-Setup-$version.exe"
-          if (-not (Test-Path -LiteralPath $client)) { throw "Missing Client installer: $client" }
-          if (-not (Test-Path -LiteralPath $server)) { throw "Missing Server installer: $server" }
-      - name: Remove one-shot finalizer and generated installers
-        shell: pwsh
-        run: |
-          git fetch origin main:refs/remotes/origin/main --depth=1
-          git checkout origin/main -- .github/workflows/ci.yml
-          Remove-Item scripts/finalize-3.2.5.cjs -Force
-          Remove-Item release -Recurse -Force -ErrorAction SilentlyContinue
-      - name: Commit verified final corrections
-        shell: pwsh
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git diff --cached --quiet
-          if ($LASTEXITCODE -eq 0) { throw "No final 3.2.5 changes were produced." }
-          git commit -m "fix: finalize Nexora 3.2.5 realtime delivery"
-          git push origin HEAD:${{ github.head_ref }}
-
   verify:
     runs-on: windows-latest
     timeout-minutes: 25

@@ -449,7 +449,6 @@ export default function SecureMessagePane({
         void flushOutbox(socket, me.id)
           .then((result) => {
             if (result.failed) showToast("Ciphertext не доставлен; доступен безопасный повтор.", "error");
-            void onRefresh().catch(() => {});
           })
           .catch((error) => showToast(error.message, "error"));
       }
@@ -501,7 +500,6 @@ export default function SecureMessagePane({
       setMediaState({ phase: "sending", progress: 100, name: descriptor.name });
       const result = await flushOutbox(socket, me.id);
       if (result.failed) throw new Error("E2EE attachment сохранён в безопасной очереди для повтора.");
-      void onRefresh().catch(() => {});
     } catch (error) {
       if (descriptor?.id && !enqueued) await cancelEncryptedAttachment(descriptor.id).catch(() => {});
       if (error.code !== "E2EE_ATTACHMENT_UPLOAD_CANCELLED") showToast(error.message, "error");
@@ -610,7 +608,9 @@ export default function SecureMessagePane({
 
   function retryPending(message) {
     retryOutboxEntry(me.id, message.outboxId);
-    if (socket.connected) flushOutbox(socket, me.id).then((result) => { if (result.sent) void onRefresh().catch(() => {}); });
+    if (socket.connected) void flushOutbox(socket, me.id)
+      .then((result) => { if (result.failed) showToast("Ciphertext не доставлен; доступен безопасный повтор.", "error"); })
+      .catch((error) => showToast(error.message, "error"));
   }
 
   async function discardPending(message) {
