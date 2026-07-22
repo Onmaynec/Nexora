@@ -1,23 +1,25 @@
-# Nexora 3.2.0 Release Checklist
+# Nexora 3.2.3 Release Checklist
 
-## Release classification
+## 1. Classification и repository state
 
-- [ ] Intended classification is explicitly selected: Development, Source/PWA prerelease, or Stable signed release.
-- [ ] Documentation and GitHub Release text use the same classification.
-- [ ] `3.2.0` is not described as independently audited E2EE.
-- [ ] Stable signed promotion is blocked while any mandatory manual/signing/security gate remains incomplete.
+- [ ] Release classification указана: Development, Source/PWA prerelease или Stable signed release.
+- [ ] `package.json`, lockfile, Client handshake и Android metadata показывают `3.2.3`.
+- [ ] Tag — `v3.2.3`, annotated/signed и указывает на verified release commit.
+- [ ] `CHANGELOG.md`, `RELEASE_NOTES_3.2.3.md`, `SECURITY_REVIEW_3.2.3.md` и `RELEASE_VERIFICATION_3.2.3.md` актуальны.
+- [ ] README, Security Policy, Architecture, Branch Status и Documentation Portal согласованы.
+- [ ] Release commit не содержит secrets, databases, backups, generated user data или temporary patchers.
+- [ ] `3.2.3` не описывается как independently audited E2EE или signed stable Windows release.
 
-## Version and repository state
+## 2. Regression-first security evidence
 
-- [ ] `package.json` and `package-lock.json` show `3.2.0`.
-- [ ] Client handshake shows `3.2.0`.
-- [ ] Android `versionName` is `3.2.0` and `versionCode` is `30200`.
-- [ ] tag is `v3.2.0`, annotated/signed and points to the verified release commit.
-- [ ] release commit contains no temporary diagnostics, secrets, databases or generated user data.
-- [ ] `CHANGELOG.md`, `RELEASE_NOTES_3.2.0.md` and `RELEASE_VERIFICATION_3.2.0.md` are current.
-- [ ] README, Security Policy, Architecture and release status agree on version, schema and distribution state.
+- [ ] Confirmed findings воспроизведены тестами до production correction.
+- [ ] Initial failing CI evidence сохранено.
+- [ ] Findings, уже mitigated в предыдущей версии, документированы без cosmetic replacement.
+- [ ] Rejected recommendations имеют техническое обоснование.
+- [ ] Root cause и correction записаны в Security Review/Verification.
+- [ ] Final implementation и documentation candidates прошли полный CI.
 
-## Automated release gate
+## 3. Automated gates
 
 - [ ] `npm ci` — PASS.
 - [ ] `npm run check` — PASS.
@@ -27,51 +29,128 @@
 - [ ] `npm run release:check` — PASS.
 - [ ] Linux `npm test` — PASS.
 - [ ] schema 8 soak — PASS.
-- [ ] `gradle -p android :app:assembleDebug --no-daemon` — PASS.
-- [ ] production dependency audit reports no high/critical vulnerability accepted without documented release decision.
+- [ ] Android `gradle -p android :app:assembleDebug --no-daemon` — PASS.
+- [ ] Dependency audit не содержит недокументированных high/critical findings.
 
-## Schema 8 migration and data
+## 4. Compatibility
 
-- [ ] schema 7 → 8 migration tested on a copy of supported data.
-- [ ] source `PRAGMA integrity_check` returns `ok`.
-- [ ] free-space calculation passes.
-- [ ] WAL checkpoint completes.
-- [ ] verified pre-migration backup is created.
-- [ ] migration is transactional and idempotent.
-- [ ] destination integrity check returns `ok`.
-- [ ] downgrade through persistence/restore is blocked.
-- [ ] existing 3.1.x messages/files remain readable and are not presented as retroactively encrypted.
-- [ ] restore-from-backup rollback procedure is tested.
+- [ ] Local Server schema остаётся 8.
+- [ ] Application API остаётся v3.
+- [ ] Trust/MLS/encrypted-media API остаётся v4.
+- [ ] Update с 3.2.0–3.2.2 не требует database migration.
+- [ ] Existing secure conversations остаются protocol-compatible.
+- [ ] Schema 7 → 8 migration по-прежнему работает для 3.1.x source data.
+- [ ] Incompatible downgrade блокируется.
 
-## Trust devices
+## 5. Lifecycle regressions 3.2.1–3.2.2
 
-- [ ] device registration verifies Ed25519 proof of possession.
-- [ ] first-device bootstrap behavior is documented and tested.
-- [ ] later-device verification requires an active verified device and scoped one-time challenge.
-- [ ] revocation requires a scoped one-time challenge and valid signature.
-- [ ] revoked device loses Trust/MLS API access.
-- [ ] revoked device Socket.IO connection is disconnected immediately.
-- [ ] other account devices remain connected.
-- [ ] revoked Client wipes device identity, private MLS state, KeyPackages, decrypted cache and drafts.
-- [ ] fingerprint comparison UX is accessible and unambiguous.
+- [ ] `/api/bootstrap` выполняется до Trust enrollment после authentication.
+- [ ] Login не зависает на «Собираем ваши чаты».
+- [ ] Trust scope использует authoritative Server ID из bootstrap.
+- [ ] Parent layout configuration выполняется до child encrypted-draft effects.
+- [ ] Pre-configuration draft read возвращает empty state вместо `TRUST_NOT_CONFIGURED`.
+- [ ] Реальные WebCrypto/IndexedDB/registration errors не скрываются.
+- [ ] Server stop/quit single-flight.
+- [ ] Pulse/Trust status после SQLite close формирует stopped-state snapshot.
+- [ ] Unexpected repository/database errors propagates.
 
-## MLS secure messaging
+## 6. Trust credential и key roles
 
-- [ ] fixed ciphersuite is `MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519`.
-- [ ] KeyPackages are one-time, expiring and scope-bound.
-- [ ] Welcome delivery is user/device/conversation scoped.
-- [ ] epoch increments are monotonic.
-- [ ] stale, skipped and duplicate epochs are rejected.
-- [ ] ciphertext replay is rejected.
-- [ ] missed-commit recovery requires a contiguous chain.
-- [ ] unrecoverable local state loss fails explicitly.
-- [ ] secure Socket.IO sessions bind authenticated account and active verified device.
-- [ ] ciphertext is emitted only to active verified MLS-member device rooms.
-- [ ] Alice/Bob interoperability test passes.
+- [ ] Device registration проверяет Ed25519 proof of possession.
+- [ ] MLS BasicCredential точно связывает authenticated `userId` и candidate `deviceId`.
+- [ ] Credential другого user/device scope отклоняется.
+- [ ] Identity proof и MLS signature keys различаются.
+- [ ] Reuse одного key для двух ролей отклоняется.
+- [ ] First-device bootstrap и later-device signed approval проверены.
+- [ ] Verify/revoke challenges one-time, expiring и operation-scoped.
 
-## Plaintext downgrade protection
+## 7. Trust device ceiling
 
-After MLS activation, direct attempts are rejected for:
+- [ ] До 16 active devices/user разрешены.
+- [ ] 17-й active device отклоняется без partial state.
+- [ ] Duplicate registration остаётся idempotent.
+- [ ] Revocation освобождает capacity.
+- [ ] Concurrent final-capacity registration не превышает 16 records.
+- [ ] Revoked device теряет Trust/MLS API access.
+- [ ] Target secure Socket.IO disconnect immediate.
+- [ ] Другие devices account остаются connected.
+- [ ] Revoked Client wipes identity, MLS state, KeyPackages, cache и drafts.
+
+## 8. KeyPackage governance
+
+- [ ] Максимум 25 KeyPackages/request.
+- [ ] 26-item request отклоняется полностью.
+- [ ] Максимум 32 unclaimed packages/device.
+- [ ] Максимум 256 unclaimed packages/user.
+- [ ] Overflowing batch rollback atomic.
+- [ ] Concurrent upload/claim не обходит limits.
+- [ ] Expired packages очищаются maintenance process.
+- [ ] Claim one-time и scope-bound.
+- [ ] Reuse/scope substitution отклоняется.
+
+## 9. Route rate limiting
+
+- [ ] Trust directory routes имеют dedicated limit.
+- [ ] Enrollment routes имеют dedicated limit.
+- [ ] KeyPackage routes имеют dedicated limit.
+- [ ] Recovery routes имеют dedicated limit.
+- [ ] E2EE upload routes имеют dedicated limit.
+- [ ] Limiter memory-bounded.
+- [ ] Exceeded request возвращает HTTP `429`.
+- [ ] Stable code — `RATE_LIMITED`.
+- [ ] `Retry-After` присутствует и корректен.
+- [ ] После expiry window requests возобновляются.
+- [ ] Buckets разных operations не смешиваются ошибочно.
+- [ ] Stale persisted buckets удаляются startup/hourly maintenance.
+- [ ] Rate limiting не заменяет authorization/resource ceilings.
+
+## 10. Room access fail-closed
+
+- [ ] Active ban блокирует conversation access при stale membership.
+- [ ] REST message/media/recovery operations отклоняются.
+- [ ] Socket.IO room delivery прекращается.
+- [ ] Removed/banned user не получает realtime events.
+- [ ] Error не раскрывает SQL/internal details.
+- [ ] Normal active membership без ban продолжает работать.
+
+## 11. Trust audit metadata
+
+- [ ] Audit использует action-specific primitive allowlists.
+- [ ] Arbitrary nested objects не сохраняются.
+- [ ] Secret-like nested values не попадают в audit.
+- [ ] Private keys, tokens, signatures и message content не сохраняются.
+- [ ] Required initiator/action/target/scope/time остаются доступны.
+- [ ] Existing audit readers совместимы.
+
+## 12. MLS secure messaging
+
+- [ ] Fixed profile — `MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519`.
+- [ ] Welcome user/device/conversation scoped.
+- [ ] Epoch increments monotonic.
+- [ ] Stale/skipped/duplicate epochs отклоняются.
+- [ ] Commit/message replay отклоняется.
+- [ ] Secure Socket.IO bind к authenticated active verified device.
+- [ ] Ciphertext доставляется только verified MLS-member devices.
+- [ ] Ciphertext-only serialization, persistence и outbox.
+- [ ] Alice/Bob interoperability — PASS.
+
+## 13. Strict missed-commit recovery
+
+- [ ] Complete group envelope проверяется.
+- [ ] Group/conversation scope exact.
+- [ ] Start/end epoch exact.
+- [ ] Epoch sequence contiguous и ordered.
+- [ ] SHA-256 каждого commit payload verified.
+- [ ] Duplicate commit hashes rejected.
+- [ ] Intermediate public-state hashes verified.
+- [ ] Final public-state hash verified.
+- [ ] Invalid state не persists.
+- [ ] Positive recovery persists only after complete validation.
+- [ ] Unrecoverable state возвращает explicit failure.
+
+## 14. Plaintext downgrade protection
+
+После MLS activation отклоняются:
 
 - [ ] legacy send;
 - [ ] forward;
@@ -82,124 +161,135 @@ After MLS activation, direct attempts are rejected for:
 - [ ] bot message;
 - [ ] multipart upload;
 - [ ] resumable upload;
-- [ ] mismatched or legacy Socket.IO device session.
+- [ ] legacy/mismatched-device Socket.IO session.
 
-- [ ] serializer exposes no secure-message plaintext.
-- [ ] UI does not silently offer legacy fallback after secure-path failure.
+- [ ] Serializer не раскрывает secure-message plaintext.
+- [ ] UI не предлагает silent plaintext fallback.
 
-## Encrypted files, images and voice
+## 15. Encrypted files, images и voice
 
-- [ ] Client uses random AES-256-GCM key and IV per payload.
-- [ ] AAD binds conversation, attachment ID and media kind.
-- [ ] plaintext and ciphertext hashes are verified.
-- [ ] source filename, actual MIME, caption, duration and waveform remain inside MLS content.
-- [ ] Local Server stores generic opaque ciphertext metadata.
-- [ ] exact GCM size and SHA-256 are validated.
-- [ ] pending ciphertext is inaccessible before atomic message claim.
-- [ ] pending expiry and cancel cleanup work.
-- [ ] matching retry is idempotent.
-- [ ] scope/hash/size substitution is rejected.
-- [ ] attachment reuse is rejected.
-- [ ] Client supports progress and cancel.
-- [ ] Client verifies local decrypt before preview/playback/download.
-- [ ] ordinary outbox/cache do not retain plaintext attachment descriptor fields.
-- [ ] disabling any room class `files/images/voice` blocks the complete opaque media path fail-closed.
+- [ ] Random AES-256-GCM key/IV на payload.
+- [ ] AAD binds conversation, attachment ID и media kind.
+- [ ] Plaintext и ciphertext hashes verified.
+- [ ] Raw ciphertext bounded до parsing.
+- [ ] Exact `plaintextSize + 16` validation.
+- [ ] Quota charged по actual stored ciphertext bytes.
+- [ ] Filename/MIME/caption/duration/waveform остаются внутри MLS content.
+- [ ] Pending object недоступен до atomic claim.
+- [ ] Pending expiry/cancel cleanup.
+- [ ] Matching retry idempotent.
+- [ ] Scope/hash/size substitution rejected.
+- [ ] Attachment reuse rejected.
+- [ ] Local decrypt/preview/playback/download verified.
+- [ ] Outbox/cache не сохраняет plaintext descriptor fields.
+- [ ] Любой room media ban блокирует complete opaque path fail-closed.
 
-## Identity, rooms and application security
+## 16. Sessions и maintenance
 
-- [ ] session, Origin and CSRF protections pass.
-- [ ] authorization, membership, role, ban and room-policy checks pass for direct API requests.
-- [ ] ownership transfer is atomic and produces audit/system records.
-- [ ] removed/banned users lose REST and realtime access.
-- [ ] invitation expiry, limit and concurrent final-use behavior pass.
-- [ ] local TOTP and one-time recovery codes pass.
-- [ ] bot token hash/scope/expiry and webhook HTTPS/SSRF/HMAC protections pass.
-- [ ] Electron context isolation, session isolation and certificate pinning pass.
-- [ ] Android rejects cleartext, mixed content and TLS errors.
+- [ ] Expired sessions удаляются startup/hourly.
+- [ ] Login history старше 90 дней удаляется.
+- [ ] Fresh login history сохраняется.
+- [ ] Stale rate-limit buckets удаляются.
+- [ ] Active buckets не удаляются преждевременно.
+- [ ] Expired Trust/KeyPackage resources очищаются.
+- [ ] Maintenance failure observable.
+- [ ] Cleanup не нарушает SQLite integrity.
 
-## Pulse Cloud and Cloud Identity
+## 17. Application security
 
-- [ ] email verification and Cloud sessions pass.
-- [ ] Cloud MFA and one-time recovery code pass.
-- [ ] OAuth 2.1 Authorization Code + PKCE S256 uses exact redirect URI.
-- [ ] Local Account link attestation is one-time and scope-bound.
-- [ ] envelope/entitlement key ID, signature, expiry and scope checks pass.
-- [ ] provider event replay/payload substitution protection passes.
-- [ ] checkout idempotency cannot cross account/product scope.
-- [ ] Cloud event delta and entitlement revoke apply idempotently.
-- [ ] Cloud outage does not block local messaging or authorize new monetary writes.
-- [ ] sandbox creates no production signature/payment and cannot produce a negative balance.
+- [ ] Secure sessions, Origin и CSRF — PASS.
+- [ ] Role, membership, ban и room-policy direct API tests — PASS.
+- [ ] Ownership transfer atomic + audit/system message.
+- [ ] Invitation expiry/limit/concurrent last-use — PASS.
+- [ ] Local TOTP/recovery one-time use — PASS.
+- [ ] Bot token hash/scope/expiry — PASS.
+- [ ] Webhook HTTPS/SSRF/DNS/HMAC — PASS.
+- [ ] Electron isolation и certificate pinning — PASS.
+- [ ] Android rejects cleartext/mixed content/TLS errors.
 
-## Operational runtime
+## 18. Pulse Cloud и Cloud Identity
 
-- [ ] `/healthz/live` and `/healthz/ready` pass for Local Server and Pulse Cloud.
-- [ ] readiness becomes `503` during drain.
-- [ ] `/metrics` is Bearer-protected or loopback-only.
-- [ ] logs contain request IDs and redact credentials recursively.
-- [ ] graceful shutdown closes workers, HTTP/Socket.IO and SQLite in order.
-- [ ] developer-command registry has no shell/eval escape.
-- [ ] mutating commands are audited without secret argument values.
-- [ ] backup/restore and emergency read-only procedures are verified.
+- [ ] Email verification и Cloud sessions.
+- [ ] Cloud MFA/recovery code one-time use.
+- [ ] OAuth 2.1 Authorization Code + PKCE S256.
+- [ ] Exact redirect URI.
+- [ ] Local Account link one-time и scope-bound.
+- [ ] Envelope/entitlement signature, key ID, expiry и scope.
+- [ ] Provider-event replay/payload substitution protection.
+- [ ] Checkout idempotency scope binding.
+- [ ] Cloud delta/revoke idempotent.
+- [ ] Cloud outage не блокирует local messaging.
+- [ ] Sandbox не создаёт production authority или negative balance.
 
-## UI, accessibility and offline
+## 19. Operational runtime
 
-- [ ] profile opens from all supported contexts and handles null relationship state.
-- [ ] zero badges are hidden.
-- [ ] reaction picker and message actions support mouse and keyboard.
-- [ ] 1920×1080, 1366×768 and narrow layouts pass.
-- [ ] long names, filenames and counters do not break layout.
-- [ ] `prefers-reduced-motion` is respected.
-- [ ] offline cache, durable outbox and delta sync recover without duplicates.
-- [ ] secure cache/drafts persist encrypted and are wiped on revoke.
-- [ ] loading, success, error, offline, restricted and disabled states are visible.
+- [ ] Local Server/Pulse live и ready endpoints.
+- [ ] Readiness `503` during drain.
+- [ ] Metrics Bearer-protected или loopback-only.
+- [ ] Logs содержат request ID и recursive redaction.
+- [ ] Graceful shutdown ordering verified.
+- [ ] Developer commands без shell/eval escape.
+- [ ] Mutating commands audited без secret args.
+- [ ] Backup/restore и emergency read-only verified.
 
-## Platform runtime gates
+## 20. UI, accessibility и offline
+
+- [ ] Profile opens из всех contexts и handles null relationship.
+- [ ] Zero badges hidden.
+- [ ] Reaction picker/actions keyboard accessible.
+- [ ] 1920×1080, 1366×768 и narrow layouts.
+- [ ] Long content и counters.
+- [ ] `prefers-reduced-motion` respected.
+- [ ] Offline cache/outbox/delta sync без duplicates.
+- [ ] Secure cache/drafts encrypted и wiped on revoke.
+- [ ] Loading/success/error/offline/restricted/rate-limited states видимы.
+
+## 21. Platform runtime gates
 
 ### Windows
 
-- [ ] clean Client/Server install on Windows 10 x64.
-- [ ] clean Client/Server install on Windows 11 x64.
-- [ ] upgrade from supported baseline preserves data and trust settings.
-- [ ] packaged Trust/MLS and encrypted-media runtime E2E passes.
-- [ ] Authenticode for both installers is valid and timestamped.
-- [ ] SmartScreen/reputation has been reviewed.
-- [ ] uninstall preserves Server data unless explicitly removed.
+- [ ] Clean Client/Server install Windows 10/11 x64.
+- [ ] Upgrade from supported baseline.
+- [ ] Packaged Trust/MLS/encrypted-media runtime E2E.
+- [ ] Authenticode valid и timestamped.
+- [ ] SmartScreen/reputation reviewed.
+- [ ] Uninstall preserves Server data unless explicit removal.
 
 ### PWA
 
-- [ ] installed PWA updates application shell correctly.
-- [ ] Service Worker does not cache API/Socket.IO.
-- [ ] offline authorized cache behavior passes.
-- [ ] Trust/MLS/encrypted-media runtime works after restart and reconnect.
+- [ ] Installed PWA application-shell update.
+- [ ] Service Worker excludes API/Socket.IO.
+- [ ] Offline authorized cache.
+- [ ] Trust/MLS recovery after restart/reconnect.
 
 ### Android
 
-- [ ] physical-device matrix passes.
-- [ ] HTTPS-only deep link passes.
-- [ ] changed/untrusted certificate is rejected.
-- [ ] file and microphone permission flows pass.
-- [ ] Trust/MLS/encrypted-media runtime passes.
-- [ ] signed APK/AAB and upgrade path are verified for stable promotion.
+- [ ] Physical-device matrix.
+- [ ] HTTPS-only deep link.
+- [ ] Changed/untrusted certificate rejected.
+- [ ] File/microphone permissions.
+- [ ] Trust/MLS/encrypted-media runtime.
+- [ ] Signed APK/AAB и upgrade path для stable promotion.
 
-## GitHub release and updater
+## 22. GitHub release и updater
 
-- [ ] `main` and release tags are protected; required CI and 2FA are enabled.
-- [ ] Source/PWA prerelease contains source ZIP, PWA ZIP, SPDX SBOM and checksums only.
-- [ ] no unsigned `.exe`, blockmap or `latest.yml` is published.
-- [ ] stable Windows release contains the complete signed asset set.
-- [ ] stable release is not marked prerelease.
-- [ ] updater n-1 → n passes on installed Client.
-- [ ] Source/PWA prerelease returns `no_installable_update`.
-- [ ] published stable assets are immutable.
+- [ ] `main` и release tags protected; required CI и 2FA enabled.
+- [ ] Source/PWA prerelease содержит source ZIP, PWA ZIP, SPDX SBOM и checksums.
+- [ ] Unsigned `.exe`, blockmap и `latest.yml` отсутствуют.
+- [ ] Stable Windows release содержит complete signed asset set.
+- [ ] Stable release не marked prerelease.
+- [ ] Updater n-1 → n verified.
+- [ ] Source/PWA prerelease возвращает `no_installable_update`.
+- [ ] Published stable assets immutable.
 
-## Stable promotion review
+## 23. Stable promotion review
 
-- [ ] metadata minimization and traffic-analysis review completed.
-- [ ] extended simultaneous-commit, revoke/re-add and corrupted-state matrix completed.
-- [ ] longer-duration load/soak and long-offline evidence completed.
-- [ ] independent cryptographic review completed.
-- [ ] independent application-security review completed.
-- [ ] no unresolved high/critical findings remain.
-- [ ] release owner records final signed production approval.
+- [ ] Metadata minimization/traffic-analysis review completed.
+- [ ] Extended multi-device concurrency/revoke/re-add/corruption matrix completed.
+- [ ] Longer load/soak и long-offline evidence completed.
+- [ ] Independent cryptographic review completed.
+- [ ] Independent application-security review completed.
+- [ ] No unresolved high/critical findings.
+- [ ] Release owner records final signed production approval.
 
-Until all stable-promotion items are complete, `3.2.0` remains a clearly marked Source/PWA prerelease and must not be promoted through the Electron stable updater.
+Пока stable-promotion items не завершены, `3.2.3` остаётся Source/PWA prerelease и не публикуется через stable Electron updater.
