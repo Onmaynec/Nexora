@@ -57,3 +57,5 @@ jobs:
           git add -A
           git commit -m "fix: make Client update checks observable and retryable"
           git push origin HEAD:agent/nexora-3.2.4-updater-mls-recovery
+
+# One-shot workflow: successful execution removes this file from the branch.
