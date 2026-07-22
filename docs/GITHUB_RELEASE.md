@@ -1,23 +1,32 @@
-# GitHub Release и автообновление
+# GitHub Release и автообновление Nexora 3.1.2
 
-## Репозиторий
+## Репозиторий и защита
 
 Активный public repository: [`Onmaynec/Nexora`](https://github.com/Onmaynec/Nexora). Public visibility нужна встроенному Client updater без пользовательского GitHub token.
 
-Защитите `main`, запретите force-push, включите обязательный CI и 2FA. Для production рекомендуется GitHub Environment `windows-release` с manual approval.
+Для production:
+
+- защитите `main` и release tags;
+- запретите force-push;
+- включите обязательный Windows/Linux/Android CI;
+- включите 2FA;
+- используйте GitHub Environment `windows-release` с manual approval;
+- не разрешайте workflow изменять уже опубликованный stable release.
 
 ## Secrets
 
 В **Settings → Secrets and variables → Actions** добавьте:
 
 - `WINDOWS_CERTIFICATE_BASE64` — PFX/P12 в base64 или поддерживаемый `electron-builder` source;
-- `WINDOWS_CERTIFICATE_PASSWORD` — пароль сертификата.
+- `WINDOWS_CERTIFICATE_PASSWORD` — password certificate.
 
-`GITHUB_TOKEN` GitHub Actions выдаёт автоматически. Не добавляйте secrets в `.env`, `update-config.json` или исходники.
+`GITHUB_TOKEN` GitHub Actions выдаёт автоматически. Не добавляйте secrets в `.env`, `update-config.json`, logs или source files.
 
-## Первый релиз
+Pulse Cloud/provider secrets не относятся к Windows release signing и должны храниться в отдельной deployment environment.
 
-Предпочтительный путь — отправить в `main` проверенный commit с префиксом `release:`. После успешного workflow `CI` релизный workflow сверяет `package.json`, создаёт аннотированный SemVer-тег и продолжает сборку в том же запуске. Тег также можно создать вручную:
+## Подготовка версии
+
+Перед релизом убедитесь, что версия синхронизирована в package/lockfile, Android metadata, UI/release docs и expected tag. Для 3.1.2 tag должен быть `v3.1.2`.
 
 ```bash
 git switch main
@@ -25,42 +34,75 @@ git pull --ff-only
 npm ci
 npm run release:check
 npm run audit:security
-git tag -s v3.0.0 -m "Nexora 3.0.0"
+```
+
+Релизный commit использует prefix `release:`. После успешного CI workflow сверяет version metadata, создаёт или проверяет annotated SemVer tag и продолжает release build.
+
+Ручной tag:
+
+```bash
+git tag -s v3.1.2 -m "Nexora 3.1.2"
 git push origin main
-git push origin v3.0.0
+git push origin v3.1.2
 ```
 
 Если signed Git tags пока не настроены, используйте annotated tag, но не lightweight tag.
 
-Workflow `.github/workflows/release.yml` на Windows:
+## Release workflow
 
-1. запускается после успешного `CI` release-коммита, прямого push тега или ручного выбора существующего тега;
-2. устанавливает Node 22.16, создаёт отсутствующий аннотированный tag и проверяет его соответствие `package.json`;
-3. запускает build/tests и определяет наличие Authenticode secrets;
+`.github/workflows/release.yml`:
+
+1. запускается после успешного CI release-commit, push tag или ручного выбора существующего tag;
+2. устанавливает pinned Node version и проверяет соответствие tag/package metadata;
+3. выполняет build/tests и проверяет наличие Authenticode secrets;
 4. всегда создаёт source ZIP, PWA ZIP, SPDX SBOM и `SHA256SUMS.txt`;
-5. при наличии secrets собирает Client в невидимый draft, добавляет Server и проверяет `.exe`, blockmap и `latest.yml`;
-6. публикует стабильный Latest только после проверки всех подписанных assets;
-7. без secrets публикует Source/PWA prerelease, намеренно исключая `.exe`, blockmap и `latest.yml`.
+5. при наличии signing secrets собирает Client в draft, добавляет Server и проверяет `.exe`, blockmap и `latest.yml`;
+6. публикует stable Latest только после проверки полного набора signed updater assets;
+7. без signing secrets публикует только Source/PWA prerelease и намеренно исключает `.exe`, blockmap и `latest.yml`.
 
-Ручной запуск требует уже существующий стабильный tag в поле `release_tag`; сборка произвольного состояния `main` как релиза запрещена.
-Незавершённый draft и Source/PWA prerelease можно безопасно заменить при повторном запуске. Уже опубликованный стабильный Release workflow не изменяет: исправление выпускается новой версией и новым тегом.
+Ручной запуск требует существующий stable tag в поле `release_tag`; сборка произвольного состояния `main` как релиза запрещена.
+
+Незавершённый draft или Source/PWA prerelease можно безопасно заменить повторным workflow run. Уже опубликованный stable release не изменяется: исправление выпускается новым patch number и новым tag.
+
+## Политика auto-update 3.1.2
+
+Electron Client updater:
+
+- инициализируется после `app.whenReady()`;
+- выполняет initial check;
+- повторяет automatic check каждые шесть часов;
+- объединяет concurrent requests через single-flight;
+- очищает listeners/timers при shutdown;
+- устанавливает update только при выполнении signature/install policy;
+- возвращает stable reason `no_installable_update`, если signed metadata/installable assets отсутствуют.
+
+Updater не должен принимать unsigned `.exe`, missing/foreign `latest.yml`, invalid signature или incomplete asset set.
 
 ## Проверка auto-update
 
-1. Опубликуйте подписанный `v3.0.0`.
-2. Соберите/установите предыдущую тестовую версию с тем же `appId`.
-3. Опубликуйте следующую patch-версию без prerelease-флага.
-4. Запустите старый Client: он должен показать downloading/downloaded.
-5. Закройте Client и убедитесь, что новая подписанная версия установилась.
-6. Проверьте, что пользовательские trusted servers и сессия сохранились.
+1. Установите предыдущий stable Client с тем же `appId`.
+2. Опубликуйте следующий signed stable patch release.
+3. Запустите старый Client и подтвердите initial update check.
+4. Проверьте downloading/downloaded states и отсутствие duplicate concurrent checks.
+5. Закройте Client и убедитесь, что новая signed version установилась.
+6. Проверьте сохранность trusted servers, isolated sessions и user settings.
+7. Повторите с Source/PWA-only prerelease: Client должен вернуть `no_installable_update`, а не скачать unsigned artifact.
+8. Повторите с missing/corrupt metadata в изолированной test feed: UI должен показать stable diagnostic reason без stack trace.
 
-Release Assets должны содержать Client `.exe`, `.blockmap`, `latest.yml`, Server `.exe` и `SHA256SUMS.txt`.
+Stable Release Assets должны содержать:
 
-Конфигурация следует официальным рекомендациям [electron-builder Auto Update](https://www.electron.build/docs/features/auto-update/) и [Publish](https://www.electron.build/publish/): Windows использует NSIS, metadata публикуется явно, а проверка подписи обновления включена через `verifyUpdateCodeSignature`.
+- signed Client `.exe`;
+- Client `.blockmap`;
+- `latest.yml`;
+- signed Server `.exe`;
+- source ZIP;
+- PWA ZIP;
+- SPDX SBOM;
+- `SHA256SUMS.txt`.
 
 ## Override канала
 
-Для private/internal канала можно задать HTTPS generic feed через `update-config.json`:
+Для private/internal test channel можно задать HTTPS generic feed через `update-config.json`:
 
 ```json
 {
@@ -69,8 +111,18 @@ Release Assets должны содержать Client `.exe`, `.blockmap`, `late
 }
 ```
 
-Или переменные `NEXORA_CLIENT_UPDATE_URL` / `NEXORA_SERVER_UPDATE_URL`. Небезопасный HTTP feed игнорируется.
+Или используйте `NEXORA_CLIENT_UPDATE_URL` / `NEXORA_SERVER_UPDATE_URL`. HTTP feed игнорируется. Internal feed не отменяет signature verification и install policy.
 
 ## Rollback
 
-Не заменяйте asset уже установленного version number. Выпустите новую patch-версию с исправлением. Для Server перед update/rollback создайте backup и убедитесь, что новая schema имеет задокументированный путь совместимости.
+Не заменяйте asset уже установленного version number. Выпустите новую patch-version с исправлением.
+
+Для Server перед update/rollback:
+
+1. создайте verified backup;
+2. зафиксируйте current schema;
+3. проверьте documented migration/rollback path;
+4. не запускайте binary, не поддерживающий schema 7;
+5. после rollback выполните integrity/readiness checks.
+
+Schema 7 intentionally blocks silent downgrade к 3.0.0/schema 6.
