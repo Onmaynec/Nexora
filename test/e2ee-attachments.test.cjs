@@ -65,7 +65,7 @@ test("opaque E2EE attachment API validates, stores and deletes ciphertext withou
   assert.ok(general?.conversationId);
   activateMlsGroup(instance, general.conversationId);
 
-  async function uploadAttachment(attachmentId, fixture) {
+  function uploadAttachment(attachmentId, fixture) {
     return agent.post(`/api/v4/e2ee/conversations/${general.conversationId}/attachments`)
       .set("Content-Type", "application/octet-stream")
       .set("X-Nexora-Attachment-ID", attachmentId)
