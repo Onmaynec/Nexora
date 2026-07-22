@@ -429,11 +429,22 @@ function contactState(state, viewerId, onlineUserIds = new Set()) {
 }
 
 function accessibleFiles(state, viewerId) {
-  return state.files.filter((file) => !file.deletedAt && file.kind !== "avatar" && canAccessConversation(state, findConversation(state, file.conversationId), viewerId));
+  return state.files
+    .filter((file) => !file.deletedAt && file.kind !== "avatar" && state.messages.some(
+      (message) => message.fileId === file.id && !message.deletedAt && canAccessConversation(state, findConversation(state, message.conversationId), viewerId),
+    ))
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+    .map((file) => ({
+      ...fileView(file),
+      conversationId: state.messages.find(
+        (message) => message.fileId === file.id && !message.deletedAt && canAccessConversation(state, findConversation(state, message.conversationId), viewerId),
+      )?.conversationId ?? file.conversationId,
+      uploader: publicUser(findUser(state, file.uploaderId)),
+    }));
 }
 
-function safeDownloadName(value) {
-  return path.basename(String(value || "file")).replace(/[\r\n"\\]/g, "_").slice(0, 180) || "file";
+function safeDownloadName(name) {
+  return path.basename(String(name || "file")).replace(/[\r\n"]/g, "_");
 }
 
 module.exports = {
@@ -442,6 +453,7 @@ module.exports = {
   canAccessConversation,
   canModerateConversation,
   contactState,
+  conversationSetting,
   conversationList,
   dmPeer,
   fileView,
@@ -449,8 +461,9 @@ module.exports = {
   findUser,
   isBlockedEither,
   isRoomBanned,
-  roomPermission,
+  readAt,
   roomRole,
+  roomPermission,
   roomView,
   safeDownloadName,
   serializeConversation,
