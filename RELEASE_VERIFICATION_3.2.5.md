@@ -5,32 +5,72 @@
 - версия: `3.2.5`;
 - базовая версия: `3.2.4`;
 - тип: patch release;
-- Local Server schema: `8`, без миграции;
+- Pull Request: `#25`;
+- кодовый кандидат: `805a231190883c406abf1c016a6241ca8bdd2a25`;
+- Local Server schema: `8`, без новой миграции;
 - Application API: v3;
 - Trust/MLS API: v4.
 
-## Regression-first
+## Первопричины исправленных регрессий
 
-Перед изменением production-кода создаётся `test/release-3.2.5-regressions.test.cjs`. Начальный запуск обязан падать как минимум на real-SQLite Pulse contract, renderer release modal contract, scoped ParticleField, стабильном message rendering и разделении local/signed Windows build.
+1. Pulse Sandbox создавал `billingLinks` с полем `localUserId`, тогда как SQLite persistence contract таблицы `billing_links` записывал `item.userId`. В параметр SQLite передавался `undefined`.
+2. После каждого MLS message event сервер дополнительно отправлял `data:refresh`, а Client выполнял полный `/api/bootstrap`, перестраивая workspace и вызывая рывки истории.
+3. Secure media UI требовал ручного действия «Расшифровать локально» даже для изображений и голосовых, что регрессировало относительно UX линии 2.0.0.
+4. При гонке создания MLS-группы или временном отсутствии подходящего KeyPackage recoverable Welcome errors могли преждевременно завершать инициализацию.
+5. Глобальный ParticleField рендерился за всеми разделами приложения вместо области истории сообщений.
 
-## Проверяемые сценарии
+## Regression-first покрытие
 
-- `plus grant netrox 30` и `impulses grant netrox 100` с реальным SQLite;
+`test/release-3.2.5-regressions.test.cjs` проверяет:
+
+- `plus grant netrox 30` и `impulses grant netrox 100` на настоящем `node:sqlite` store;
 - renderer-driven release announcement и per-version dismissal;
-- scoped interactive network только в истории чата;
-- автоматическое image/voice представление;
-- отсутствие блокирующего bootstrap refresh после отправки;
-- MLS group-creation race через Welcome request/wait;
-- local Windows build без сертификата при неизменном signing gate официального workflow;
-- themed disabled controls и scrollbars Nexora Server.
+- interactive network только внутри истории чата;
+- автоматическое inline-представление image/voice;
+- memoization message rows и сохранение scroll position;
+- отсутствие полного bootstrap refresh после message delivery;
+- безопасный Welcome request/wait при MLS group-creation race;
+- разделение local Windows build и signed production build;
+- тематические disabled controls и scrollbars Nexora Server.
 
-## Финальные команды
+## Подтверждённый GitHub Actions run
 
-- `npm run check`;
-- `npm run test:unit`;
-- `npm run test:performance`;
-- `npm run audit:security`;
-- `npm run release:windows` на Windows runner;
-- Android `assembleDebug` и Linux `npm test` — через штатный CI.
+**Run:** `29953309887`  
+**Workflow:** `CI`  
+**Кодовый кандидат:** `805a231190883c406abf1c016a6241ca8bdd2a25`
 
-Фактические run ID и результаты добавляются после прохождения current-head CI перед merge.
+| Job | Результат | Основные проверки |
+|---|---|---|
+| `verify` | success | `npm run check`, `test:unit`, `test:performance`, `audit:security` |
+| `release-gate` | success | полный `npm run release:check` |
+| `schema8-soak` | success | schema 8 soak suite |
+| `linux-tests` | success | `npm test` |
+| `android-source` | success | Gradle `:app:assembleDebug` |
+| `finalize-3-2-5` | success | regression suite, check, unit, performance, security audit, `release:windows`, проверка наличия Client/Server installers |
+
+Windows runner подтвердил создание:
+
+- `release/client/Nexora-Client-Setup-3.2.5.exe`;
+- `release/server/Nexora-Server-Setup-3.2.5.exe`.
+
+Артефакты этого local build намеренно не публиковались и были удалены после проверки. Официальный release workflow сохраняет `release:signing-check` и не публикует updater assets без Authenticode secrets.
+
+## Совместимость
+
+- schema 8 остаётся без изменений;
+- API v3 и Trust/MLS API v4 не получают breaking changes;
+- ручное редактирование базы не требуется;
+- старые sandbox rows с `localUserId` нормализуются в канонический `userId`;
+- обновление поддерживается с 3.2.0–3.2.4.
+
+## Остаточные ограничения
+
+- проверенный local Windows build не заменяет installed E2E подписанного auto-update;
+- physical Android runtime matrix в этом run не выполнялась, подтверждена source build;
+- независимый криптографический и application-security аудит не выполнен;
+- устройство, уже входящее в MLS tree, но потерявшее локальный private state, требует безопасной повторной регистрации вместо восстановления identity с сервера;
+- metadata/traffic-analysis resistance не заявляется.
+
+## Решение по кандидату
+
+Кодовый кандидат `805a231...` прошёл заявленные автоматические проверки и локальную Windows-сборку. Документационные commits после кандидата не меняют runtime-код и должны пройти штатный current-head CI перед переводом PR `#25` из draft в ready-for-review.
