@@ -27,8 +27,9 @@ async function maybeShowPostUpdate({ appImpl, dialogImpl, shellImpl, log = () =>
   const currentVersion = appImpl.getVersion();
   const { file, value } = await readState(appImpl, fsImpl);
   if (!value.lastVersion) {
-    await writeState(file, { ...value, lastVersion: currentVersion }, fsImpl);
-    return { shown: false, firstInstall: true };
+    value.lastVersion = currentVersion;
+    value.pendingNotesVersion = currentVersion;
+    await writeState(file, value, fsImpl);
   }
   if (value.lastVersion !== currentVersion) {
     value.lastVersion = currentVersion;

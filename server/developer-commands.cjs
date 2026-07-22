@@ -181,7 +181,8 @@ class DeveloperCommandService {
       mutated = true;
     } else if (root === "pulse" && action === "user") {
       if (!this.pulseSandbox || !args[0]) throw new DeveloperCommandError("Укажите пользователя.", "COMMAND_VALIDATION_FAILED");
-      result = { data: { overview: this.pulseSandbox.overview(unwrapPlaceholder(args[0])), transactions: this.pulseSandbox.transactions(args[0], 20) }, output: "Тестовое состояние Pulse получено." };
+      const userReference = unwrapPlaceholder(args[0]);
+      result = { data: { overview: this.pulseSandbox.overview(userReference), transactions: this.pulseSandbox.transactions(userReference, 20) }, output: "Тестовое состояние Pulse получено." };
     } else if (root === "plus" && ["grant", "revoke"].includes(action)) {
       if (!this.pulseSandbox || !args[0]) throw new DeveloperCommandError("Укажите пользователя.", "COMMAND_VALIDATION_FAILED");
       result = action === "grant"

@@ -215,9 +215,10 @@ function createWindow() {
     }
   });
   mainWindow.webContents.on("render-process-gone", (_event, details) => logClient(`render-process-gone: ${details.reason} (${details.exitCode})`, "error"));
-  mainWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
-    const normalizedLevel = ["warn", "error"].includes(String(level)) ? String(level) : "info";
-    logClient(`renderer ${sourceId || "unknown"}:${line || 0} ${message}`, normalizedLevel);
+  mainWindow.webContents.on("console-message", (_event, details) => {
+    const level = details?.level === "error" ? "error" : details?.level === "warning" ? "warn" : "info";
+    const message = String(details?.message || "").replace(/[\r\n]+/g, " ").slice(0, 4_000);
+    logClient(`renderer ${details?.sourceId || "unknown"}:${details?.lineNumber || 0} ${message}`, level);
   });
   showConnector("", active?.url || "").then(async () => {
     if (!active) return;

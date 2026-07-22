@@ -44,6 +44,12 @@ test("documentation placeholders are accepted without becoming literal identifie
   assert.equal(pulseCalls[0].options.days, "1");
 });
 
+test("pulse user normalizes copied help placeholders for every lookup", async () => {
+  const { service } = fixture();
+  const result = await service.execute("pulse user <netrox>", { actor: "test" });
+  assert.equal(result.data.overview.user, "netrox");
+});
+
 test("mutating command is audited without secret values", async () => {
   const { state, service } = fixture();
   const result = await service.execute("read-only on", { actor: "test" });

@@ -33,7 +33,7 @@ async function configuredFeed(kind, appImpl = app, fsImpl = fs) {
 async function configuredProvider(kind, appImpl = app, fsImpl = fs) {
   const feedUrl = await configuredFeed(kind, appImpl, fsImpl);
   if (feedUrl) {
-    if (!/^https:///i.test(feedUrl)) return null;
+    if (!/^https:\/\//i.test(feedUrl)) return null;
     return { provider: "generic", url: feedUrl };
   }
   if (kind !== "client") return null;
@@ -133,7 +133,7 @@ async function createUpdateService({
   };
 
   activeUpdater.autoDownload = Boolean(automatic);
-  activeUpdater.autoInstallOnAppQuit = Boolean(automatic);
+  activeUpdater.autoInstallOnAppQuit = automatic;
   activeUpdater.allowPrerelease = false;
   activeUpdater.allowDowngrade = false;
   activeUpdater.setFeedURL(provider);
