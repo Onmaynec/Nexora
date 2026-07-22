@@ -20,19 +20,22 @@ function statusLabel(device) {
   return device.trustState || device.status || "неизвестно";
 }
 
-export default function TrustDevicesCard({ serverId, userId, trustState, onLogout, showToast }) {
+export default function TrustDevicesCard({ serverId, userId, onLogout, showToast }) {
   const [devices, setDevices] = useState([]);
-  const [current, setCurrent] = useState(trustState?.device || null);
+  const [current, setCurrent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
+  const [loadError, setLoadError] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const result = await listTrustDevices();
       setCurrent(result.current);
       setDevices(result.devices);
     } catch (error) {
+      setLoadError(error.code || error.message);
       showToast(error.message, "error");
     } finally {
       setLoading(false);
@@ -86,8 +89,8 @@ export default function TrustDevicesCard({ serverId, userId, trustState, onLogou
         <div><h3>Доверенные устройства</h3><span>Ed25519 identity и MLS KeyPackage</span></div>
         <button type="button" className="trust-refresh" onClick={load} disabled={loading} title="Обновить список" aria-label="Обновить список доверенных устройств"><RefreshCcw size={15} className={loading ? "spin" : ""} /></button>
       </div>
-      {trustState?.status === "verification_required" && <div className="trust-device-warning" role="status"><ShieldAlert size={17} /><span>Это устройство ожидает подтверждения на другом уже доверенном устройстве.</span></div>}
-      {trustState?.status === "error" && <div className="trust-device-warning error" role="alert"><ShieldAlert size={17} /><span>Trust Core недоступен: {trustState.error}</span></div>}
+      {current?.trustState === "unverified" && current?.status === "active" && <div className="trust-device-warning" role="status"><ShieldAlert size={17} /><span>Это устройство ожидает подтверждения на другом уже доверенном устройстве.</span></div>}
+      {loadError && <div className="trust-device-warning error" role="alert"><ShieldAlert size={17} /><span>Trust Core недоступен: {loadError}</span></div>}
       {loading && !devices.length ? <p className="settings-empty"><LoaderCircle className="spin" size={17} /> Загружаем устройства…</p> : <div className="trust-device-list">
         {devices.map((device) => {
           const active = device.status === "active";
