@@ -12,16 +12,16 @@ body:
   - type: markdown
     attributes:
       value: |
-        Use this form for reproducible product defects. Do not publish vulnerabilities, secrets or user data here; follow SECURITY.md and create a private Security Advisory.
+        Use this form for reproducible product defects. Do not publish vulnerabilities, secrets, private keys, message content or user data here; follow SECURITY.md and create a private Security Advisory.
 
-        Current repository version: 3.2.0 Source/PWA prerelease. Signed production baseline: 3.1.2. State the exact release channel, version and commit when applicable.
+        Current version: 3.2.3 Source/PWA prerelease. Signed production baseline: 3.1.2. Releases 3.2.0–3.2.2 are superseded; reproduce on 3.2.3 when possible.
 
   - type: input
     id: versions
     attributes:
       label: Client, Local Server and Pulse Cloud versions
       description: Include every affected component, release channel and commit/tag for source builds.
-      placeholder: "Client 3.2.0 prerelease / Server 3.2.0 / Cloud disabled / commit abc123"
+      placeholder: "Client 3.2.3 prerelease / Server 3.2.3 / Cloud disabled / commit abc123"
     validations:
       required: true
 
@@ -48,9 +48,15 @@ body:
         - Windows Local Server
         - Browser / PWA
         - Android
+        - Authentication / bootstrap / sessions
         - Local Server API / Socket.IO
-        - Trust devices / MLS secure messaging
+        - Rooms / roles / bans / moderation
+        - Trust device enrollment / verification / revocation
+        - KeyPackage limits / inventory
+        - MLS secure messaging / recovery
         - Encrypted files / images / voice
+        - Rate limiting / resource governance
+        - Maintenance / retention / cleanup
         - Pulse Cloud / Cloud Identity / OAuth
         - Plus / Impulse sandbox
         - Installer / updater / release assets
@@ -95,7 +101,7 @@ body:
     id: summary
     attributes:
       label: Summary and impact
-      description: What is broken, who is affected and what operation can no longer be completed safely or correctly?
+      description: What is broken, who is affected and what operation cannot be completed correctly or safely?
     validations:
       required: true
 
@@ -122,28 +128,37 @@ body:
     id: actual
     attributes:
       label: Actual result
-      description: Include the stable error code/message when available.
+      description: Include HTTP status, stable error code and exact user-visible message when available.
+    validations:
+      required: true
+
+  - type: input
+    id: retry_after
+    attributes:
+      label: Retry-After or timing information
+      description: For HTTP 429 / RATE_LIMITED issues, include the Retry-After value and observed retry time. Otherwise enter "not applicable".
+      placeholder: "Retry-After: 30; request succeeds after 30 seconds"
     validations:
       required: true
 
   - type: textarea
     id: state
     attributes:
-      label: Relevant state
-      description: Include sanitized schema version, room role/policy, Trust device state, MLS epoch or Pulse mode when relevant. Do not include private keys or message content.
+      label: Relevant sanitized state
+      description: Include schema, room role/policy/ban state, Trust device count/status, KeyPackage counts, group/conversation/epoch scope, recovery range or Pulse mode. Do not include private keys, full MLS state or message content.
 
   - type: textarea
     id: diagnostics
     attributes:
       label: Sanitized diagnostics
-      description: Attach request ID, log excerpt, screenshot or video. Remove passwords, cookies, OAuth/session tokens, TOTP/recovery codes, API/signing/private keys, invite codes, user content and personal data.
+      description: Attach request ID, log excerpt, screenshot or video. Remove passwords, cookies, OAuth/session tokens, TOTP/recovery codes, API/signing/private keys, invite codes, message content and personal data.
       render: shell
 
   - type: textarea
     id: regression
     attributes:
       label: Regression and workaround
-      description: Did this work in a previous version? Is there a safe temporary workaround?
+      description: Did this work in an earlier version? Does it reproduce on 3.2.3? Is there a safe temporary workaround?
 
   - type: checkboxes
     id: checks

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <radialGradient id="bg" cx="65%" cy="45%" r="65%"><stop stop-color="#311650"/><stop offset=".42" stop-color="#110a1a"/><stop offset="1" stop-color="#050308"/></radialGradient>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ead8ff"/><stop offset="1" stop-color="#9b5cff"/></linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="18" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g opacity=".18" stroke="#c69cff" fill="none"><circle cx="910" cy="315" r="230"/><circle cx="910" cy="315" r="170"/><path d="M0 520C300 430 430 620 760 500s330-170 440-130"/></g>
+  <g transform="translate(95 92)"><rect width="58" height="58" rx="15" fill="#120c1c" stroke="#c69cff" stroke-opacity=".25"/><path d="M11 20h8l11 21 7-31 8 24h6v10H38l-6-17-7 27-12-24h-2Z" fill="url(#g)"/><circle cx="48" cy="14" r="3" fill="#fff"/></g>
+  <text x="175" y="131" fill="#f5f1fa" font-family="Segoe UI,Arial,sans-serif" font-size="28" font-weight="800" letter-spacing="8">NEXORA</text>
+  <text x="95" y="290" fill="#f5f1fa" font-family="Segoe UI,Arial,sans-serif" font-size="74" font-weight="650">Коммуникации</text>
+  <text x="95" y="377" fill="url(#g)" font-family="Segoe UI,Arial,sans-serif" font-size="74" font-weight="430">под вашим контролем.</text>
+  <text x="99" y="445" fill="#c5becf" font-family="Segoe UI,Arial,sans-serif" font-size="26">Self-hosted messenger · Windows · PWA · Android</text>
+  <g transform="translate(820 190)" filter="url(#glow)"><path d="M0 55h45l62 118 40-173 45 135h35v55h-73l-34-94-39 151L13 110H0Z" fill="url(#g)"/><circle cx="211" cy="22" r="13" fill="#fff"/></g>
+</svg>

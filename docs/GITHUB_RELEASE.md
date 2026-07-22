@@ -1,55 +1,55 @@
-# Nexora GitHub Release and Update Guide
+# GitHub Release и обновления Nexora
 
 ## 1. Repository controls
 
-The public repository is [`Onmaynec/Nexora`](https://github.com/Onmaynec/Nexora). Public visibility is required by the default GitHub-based Client updater when no user GitHub token is supplied.
+Public repository: [`Onmaynec/Nexora`](https://github.com/Onmaynec/Nexora).
 
 Production controls:
 
-- protect `main` and release tags;
-- prohibit force-push and tag replacement;
-- require Windows, Linux, release-gate, soak and Android checks where applicable;
-- require 2FA for maintainers;
-- use a protected `windows-release` GitHub Environment with manual approval;
-- restrict release/signing secrets;
-- never rewrite an already published stable release.
+- protect `main` и release tags;
+- prohibit force-push и tag replacement;
+- require Windows, Linux, release-gate, soak и Android checks;
+- require maintainer 2FA;
+- use protected `windows-release` Environment с manual approval;
+- restrict signing/release secrets;
+- never rewrite published stable release.
 
 ## 2. Release classifications
 
-| Classification | Allowed artifacts | Updater eligibility |
+| Classification | Artifacts | Updater eligible |
 |---|---|---|
-| Source/PWA prerelease | source ZIP, PWA ZIP, SPDX SBOM, checksums | no |
-| Stable signed Windows | signed Client/Server installers, blockmap, `latest.yml`, source/PWA/SBOM/checksums | yes |
-| Local unsigned build | local development output only | no |
+| Source/PWA prerelease | source ZIP, PWA ZIP, SPDX SBOM, checksums | нет |
+| Stable signed Windows | signed Client/Server `.exe`, blockmap, `latest.yml`, source/PWA/SBOM/checksums | да |
+| Local unsigned build | local development output | нет |
 
-Current status:
+Текущий статус:
 
-- `3.2.0` — Source/PWA prerelease;
-- `3.1.2` — last confirmed signed production baseline.
+- `3.2.3` — Source/PWA prerelease;
+- `3.1.2` — последняя confirmed signed production baseline.
 
 ## 3. Secrets
 
-Windows signing secrets:
+Windows signing:
 
-- `WINDOWS_CERTIFICATE_BASE64` — PFX/P12 or supported `electron-builder` certificate source;
-- `WINDOWS_CERTIFICATE_PASSWORD` — certificate password.
+- `WINDOWS_CERTIFICATE_BASE64`;
+- `WINDOWS_CERTIFICATE_PASSWORD`.
 
-`GITHUB_TOKEN` is provided by GitHub Actions.
+`GITHUB_TOKEN` выдаётся GitHub Actions.
 
-Do not store secrets in source files, `.env`, `update-config.json`, logs, release notes or artifacts. Pulse Cloud/provider credentials are separate deployment secrets and must not be reused for Windows signing.
+Не храните secrets в source, `.env`, `update-config.json`, logs, release notes или artifacts. Pulse/provider secrets отделены от Windows signing environment.
 
 ## 4. Version preparation
 
-Version metadata must match across:
+Metadata должны совпадать в:
 
 - `package.json`;
 - `package-lock.json`;
 - Client handshake;
 - Android `versionName`/`versionCode`;
-- release notes and verification report;
+- release notes/security review/verification;
 - release tag.
 
-Before release:
+Перед release:
 
 ```bash
 git switch main
@@ -59,85 +59,102 @@ npm run release:check
 gradle -p android :app:assembleDebug --no-daemon
 ```
 
-For current version `3.2.0`, the SemVer tag is `v3.2.0`.
-
-Example signed tag:
+Для `3.2.3` tag — `v3.2.3`.
 
 ```bash
-git tag -s v3.2.0 -m "Nexora 3.2.0"
+git tag -s v3.2.3 -m "Nexora 3.2.3"
 git push origin main
-git push origin v3.2.0
+git push origin v3.2.3
 ```
 
-When signed Git tags are not configured, use an annotated tag rather than a lightweight tag.
+Если signed Git tags не настроены, используйте annotated tag, а не lightweight tag.
 
-## 5. Release workflow
+## 5. Security patch evidence
+
+Для security patch release сохраняются:
+
+- regression-first failing CI;
+- verified implementation commit;
+- implementation CI;
+- final documentation head;
+- final CI;
+- Security Review;
+- Release Verification;
+- compatibility/schema/API statement.
+
+Для `3.2.3`:
+
+- regression-first CI: `#290`, ID `29934225971`;
+- verified implementation head: `a3586fe7d399dc03a990c939c31a3ceabcbad000`;
+- implementation CI: `#308`, ID `29937445396`;
+- final documentation head: `5369263a3220e165d420615b53d770f7732a54b3`;
+- final CI: `#309`, ID `29937694136`.
+
+## 6. Release workflow
 
 `.github/workflows/release.yml`:
 
-1. resolves a verified release commit/tag;
-2. checks tag and package metadata consistency;
-3. runs the required release checks;
-4. creates source ZIP, built PWA ZIP, SPDX SBOM and `SHA256SUMS.txt`;
-5. checks for valid Authenticode secrets;
-6. when signing is available, builds and verifies Client/Server Windows assets;
-7. publishes stable Latest only after the complete signed asset set passes verification;
-8. otherwise publishes an explicit Source/PWA prerelease and omits updater assets.
+1. resolves approved release commit/tag;
+2. verifies tag/package metadata;
+3. executes release checks;
+4. creates source ZIP, PWA ZIP, SPDX SBOM и `SHA256SUMS.txt`;
+5. checks Authenticode secrets;
+6. when signing is available, builds/verifies Client и Server Windows assets;
+7. publishes stable Latest only with complete signed set;
+8. otherwise publishes explicit Source/PWA prerelease without updater assets.
 
-A manual run must target an existing approved tag. Building an arbitrary untagged state as a release is prohibited.
+Manual run targets existing approved tag. Arbitrary untagged `main` cannot be published as release.
 
-An unpublished draft or prerelease may be regenerated. A published stable release is immutable; corrections require a new patch version and tag.
+Unpublished draft/prerelease may be regenerated. Published stable release is immutable; corrections use a new PATCH version/tag.
 
-## 6. Stable Windows asset set
-
-A stable updater-eligible release contains:
+## 7. Stable Windows asset set
 
 - signed Client `.exe`;
 - Client `.blockmap`;
 - valid `latest.yml`;
 - signed Server `.exe`;
 - source ZIP;
-- built PWA ZIP;
+- PWA ZIP;
 - SPDX SBOM;
 - `SHA256SUMS.txt`.
 
-Missing or unsigned installer metadata makes the release non-installable by the Client updater.
+Missing/unsigned install metadata makes release non-installable by Electron updater.
 
-## 7. Electron updater policy
+## 8. Electron updater policy
 
-The Client updater:
+Client updater:
 
 - initializes after `app.whenReady()`;
-- performs an initial check;
-- schedules checks every six hours;
-- uses single-flight for concurrent requests;
-- cleans listeners and timers at shutdown;
-- applies the signature/install policy;
-- returns `no_installable_update` when a valid signed asset set is unavailable.
+- performs initial check;
+- checks every six hours;
+- uses single-flight;
+- cleans listeners/timers on shutdown;
+- applies signature/install policy;
+- returns `no_installable_update` without complete signed set.
 
-The updater must reject:
+Updater rejects:
 
-- unsigned installers;
-- invalid or foreign `latest.yml`;
-- incomplete asset sets;
-- invalid code signatures;
-- prerelease Source/PWA-only distributions.
+- unsigned installer;
+- invalid/foreign `latest.yml`;
+- incomplete asset set;
+- invalid signature;
+- Source/PWA-only prerelease.
 
-## 8. Update verification
+## 9. Update verification
 
-1. Install the previous signed stable Client with the same `appId`.
-2. Publish the next complete signed stable patch.
-3. Confirm initial update check.
-4. Confirm single-flight behavior for concurrent manual/automatic checks.
-5. Verify downloading/downloaded states.
-6. Close the Client and verify signed installation.
-7. Confirm trusted servers, isolated sessions and settings remain intact.
-8. Test a Source/PWA-only prerelease and confirm `no_installable_update`.
-9. Test missing/corrupt metadata in an isolated feed and confirm a stable diagnostic without stack/secret disclosure.
+1. Install previous signed stable Client с тем же `appId`.
+2. Publish next complete signed stable patch.
+3. Confirm initial check.
+4. Confirm concurrent checks single-flight.
+5. Verify download states.
+6. Close Client и verify signed installation.
+7. Confirm trusted servers, isolated sessions и settings preserved.
+8. Test Source/PWA prerelease и confirm `no_installable_update`.
+9. Test missing/corrupt metadata в isolated feed и confirm stable diagnostic.
 
-## 9. Internal update feed
+## 10. Internal update feed
 
-A private/internal HTTPS feed may be set through `update-config.json`:
+`update-config.json`:
 
 ```json
 {
@@ -146,35 +163,46 @@ A private/internal HTTPS feed may be set through `update-config.json`:
 }
 ```
 
-Or use:
+Environment alternatives:
 
 - `NEXORA_CLIENT_UPDATE_URL`;
 - `NEXORA_SERVER_UPDATE_URL`.
 
-HTTP feeds are rejected. A private feed does not bypass signature verification or install policy.
+HTTP feed rejected. Internal feed не отменяет signature verification.
 
-## 10. Server update and rollback
+## 11. Server update 3.2.x → 3.2.3
 
-Before update:
+Database migration не требуется, schema остаётся 8.
 
-1. create a verified backup;
-2. record the current version and schema;
-3. review migration and rollback documentation;
+Перед update:
+
+1. create verified backup;
+2. record current version/schema;
+3. review release/security notes;
 4. verify Client compatibility;
-5. validate free disk space;
-6. stop traffic according to the operational procedure.
+5. check disk space;
+6. graceful shutdown.
 
-After update:
+После update:
 
-- verify `/healthz/live` and `/healthz/ready`;
-- verify SQLite integrity and schema;
-- verify Client connection and realtime;
-- verify backup creation and storage access.
+- verify `/healthz/live` и `/healthz/ready`;
+- verify SQLite integrity/schema;
+- test login/bootstrap;
+- test Server shutdown;
+- test Trust device enrollment/revocation;
+- test rate-limit contract;
+- test MLS recovery и encrypted attachments.
 
-Schema 8 rollback is restore-from-backup. Do not run an older binary that does not support schema 8. Never replace an asset under an already released version number.
+## 12. Rollback
 
-## 11. 3.2.0 distribution decision
+- не заменяйте asset существующего version number;
+- используйте новый patch release для correction;
+- Server rollback требует compatible verified backup;
+- не запускайте binary, не поддерживающий schema 8;
+- после restore проверяйте integrity/readiness.
 
-The automated gate permits a clearly marked Source/PWA prerelease. Stable signed production promotion remains blocked until packaged runtime, signing and independent security-review gates documented in [Release Verification 3.2.0](../RELEASE_VERIFICATION_3.2.0.md) are complete.
+## 13. Distribution decision 3.2.3
 
-See also [Release Policy](RELEASE_POLICY.md) and [Release Checklist](RELEASE_CHECKLIST.md).
+Automated gate позволяет Source/PWA prerelease. Stable signed promotion заблокирован до packaged runtime, signing, extended platform/security и independent-review gates.
+
+См. [Release Policy](RELEASE_POLICY.md), [Release Checklist](RELEASE_CHECKLIST.md) и [Release Verification 3.2.3](../RELEASE_VERIFICATION_3.2.3.md).

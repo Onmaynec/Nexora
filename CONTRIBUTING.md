@@ -1,31 +1,31 @@
-# Contributing to Nexora
+# Участие в разработке Nexora
 
-Thank you for contributing to Nexora. This policy defines the repository workflow, quality requirements and security expectations for Issues, Pull Requests and documentation.
+Документ определяет workflow, quality requirements и security expectations для Issues, Pull Requests и documentation.
 
-Participation is subject to the [Code of Conduct](CODE_OF_CONDUCT.md). Security reports must follow [SECURITY.md](SECURITY.md).
+Участие регулируется [Code of Conduct](CODE_OF_CONDUCT.md). Уязвимости сообщаются по [Security Policy](SECURITY.md).
 
-## 1. Current repository baseline
+## 1. Current baseline
 
-- repository version: `3.2.0`;
-- distribution classification: Source/PWA prerelease;
+- repository version: `3.2.3`;
+- distribution: Source/PWA prerelease;
 - signed production baseline: `3.1.2`;
-- application API: v3;
-- Trust/MLS API: v4;
+- Application API: v3;
+- Trust/MLS/encrypted-media API: v4;
 - Local Server database: SQLite schema 8.
 
-A contribution must not present prerelease functionality as stable, signed or independently audited.
+Contribution не должно представлять prerelease functionality как stable, signed или independently audited.
 
-## 2. Before opening a Pull Request
+## 2. Перед Pull Request
 
-Use the appropriate channel:
+Используйте соответствующий канал:
 
-- reproducible defect — [Bug report](https://github.com/Onmaynec/Nexora/issues/new?template=bug_report.yml);
-- product proposal — [Feature request](https://github.com/Onmaynec/Nexora/issues/new?template=feature_request.yml);
+- reproducible defect — [Bug Report](https://github.com/Onmaynec/Nexora/issues/new?template=bug_report.yml);
+- product proposal — [Feature Request](https://github.com/Onmaynec/Nexora/issues/new?template=feature_request.yml);
 - documentation defect — Documentation issue;
-- installation or operations question — [SUPPORT.md](SUPPORT.md);
+- installation/operations — [SUPPORT.md](SUPPORT.md);
 - vulnerability — private GitHub Security Advisory.
 
-Discuss large features, architecture changes, schema changes and new dependencies before implementation.
+Крупные features, architecture/schema/API changes и новые dependencies сначала обсуждаются в Issue.
 
 ## 3. Local environment
 
@@ -33,8 +33,8 @@ Requirements:
 
 - Node.js `22.16+`;
 - npm;
-- JDK 17, Android SDK 36 and Gradle 8.13 for Android work;
-- Windows 10/11 for complete Electron packaging validation.
+- JDK 17, Android SDK 36 и Gradle 8.13 для Android;
+- Windows 10/11 для complete Electron packaging validation.
 
 ```bash
 git clone https://github.com/Onmaynec/Nexora.git
@@ -45,54 +45,55 @@ npm test
 npm run audit:security
 ```
 
-Nexora uses `node:sqlite`. Do not introduce a native SQLite package or `node-gyp` requirement without an approved architecture decision.
+Nexora использует `node:sqlite`. Не добавляйте native SQLite package или `node-gyp` requirement без approved architecture decision.
 
 ## 4. Engineering principles
 
-- preserve the existing architecture and reuse current services, models, components and utilities;
-- fix the root cause, not only the visible symptom;
-- keep Client responsible for interface and local interaction state;
-- keep Server responsible for authorization, validation, business rules, storage integrity and realtime access;
-- perform critical permission and room-policy checks on the Server;
-- treat hidden UI actions as presentation, not security;
-- use transactions for related writes and race-sensitive operations;
-- add migrations, backup checks and rollback documentation for schema changes;
-- preserve API compatibility inside major line 3 or document migration/compatibility explicitly;
-- do not add dependencies without a documented need;
-- do not leave TODOs, stubs, fake data, empty handlers or unused code.
+- сохраняйте existing architecture и переиспользуйте services/models/components/utilities;
+- исправляйте root cause, а не симптом;
+- Client отвечает за UI и local interaction state;
+- Server отвечает за authorization, validation, business rules, integrity, limits и realtime access;
+- hidden UI action не является security control;
+- используйте transactions для связанных и race-sensitive mutations;
+- schema changes сопровождайте migration, backup verification и rollback plan;
+- сохраняйте API compatibility внутри major line либо документируйте migration;
+- используйте stable error codes и не раскрывайте internal stack/SQL/secrets;
+- не добавляйте dependencies без необходимости;
+- не оставляйте TODO, stubs, fake data, empty handlers или unused code.
 
-## 5. Security and privacy requirements
+## 5. Security и privacy requirements
 
-Never commit:
+Не коммитьте:
 
-- `.env` files or production credentials;
-- SQLite databases, backups or user attachments;
-- CA private keys, PFX/P12 files or signing secrets;
-- session cookies, OAuth/API/bot/Pulse tokens or invite codes;
-- Trust identity private keys or MLS private state;
-- real user data in tests, screenshots or logs.
+- `.env` и production credentials;
+- SQLite databases, backups или user attachments;
+- CA/private/signing keys, PFX/P12;
+- cookies, OAuth/API/bot/Pulse tokens или invite codes;
+- Trust identity keys или MLS private state;
+- secure-message plaintext;
+- real user/payment data в tests, screenshots или logs.
 
-Mutating browser requests must preserve session, Origin and CSRF checks. Trust operations must preserve device scope, challenge/signature validation and plaintext downgrade protection.
+Mutating browser requests должны сохранять session, Origin и CSRF checks. Trust operations сохраняют credential/device scope, challenge/signature validation, route/resource limits, replay protection и plaintext downgrade guards.
 
-Production Plus/Pulse entitlement cannot be issued authoritatively by Local Server.
+Production Plus/Pulse entitlement не выпускается authoritative Local Server.
 
-## 6. Branches and commits
+## 6. Branches и commits
 
-Create a focused branch from current `main`:
+Создавайте focused branch от current `main`:
 
 - `feat/` — functionality;
 - `fix/` — defect correction;
-- `docs/` — documentation/community files;
-- `test/` — test-only work;
-- `chore/` — maintenance without product behavior change.
+- `docs/` — documentation/community;
+- `test/` — tests;
+- `chore/` — maintenance.
 
-Use concise imperative commit subjects, for example:
+Пример imperative commit subject:
 
 ```text
-fix: reject stale MLS epoch
+fix: reject duplicate recovery commit hash
 ```
 
-Do not combine unrelated refactoring, feature work and documentation cleanup in one Pull Request.
+Не объединяйте unrelated refactoring, feature и documentation cleanup в одном PR.
 
 ## 7. Required tests
 
@@ -110,68 +111,91 @@ Release-sensitive gate:
 npm run release:check
 ```
 
-Additional affected-surface checks:
+Affected-surface checks:
 
 - performance — `npm run test:performance`;
 - Cloud — `npm run test:cloud`;
 - Local Pulse — `npm run test:pulse-local`;
-- long-running integrity — `npm run test:soak`;
+- integrity/retention — `npm run test:soak`;
 - Android — `gradle -p android :app:assembleDebug --no-daemon`;
 - local Windows packages — `npm run dist:windows`;
 - signed Windows release — `npm run release:windows`.
 
-UI changes require keyboard, responsive, long-content and reduced-motion review.
+UI changes требуют keyboard, responsive, long-content и reduced-motion review.
 
-## 8. Test expectations
+## 8. Regression-first security changes
 
-Add unit, integration and API coverage for affected behavior. Security-sensitive work should include direct bypass attempts, not only successful UI flows.
+Подтверждённый security gap исправляется в порядке:
 
-Relevant examples:
+1. проверить finding по current source;
+2. добавить failing regression;
+3. сохранить evidence failure;
+4. исправить root cause;
+5. добавить bypass/negative cases;
+6. выполнить полный release gate;
+7. обновить Security Review/Verification и boundary docs.
 
-- role and room-policy boundaries;
-- ban/removal realtime access loss;
-- invitation expiry/limit races;
-- upload MIME/size/hash substitution;
-- CSRF and IDOR attempts;
+Не добавляйте ineffective control только для формального закрытия рекомендации. Already-mitigated и technically invalid findings должны быть обоснованно документированы.
+
+## 9. Test expectations
+
+Unit, integration и API tests обязательны для affected behavior. Security changes включают direct bypass attempts.
+
+Примеры:
+
+- owner/moderator/member boundaries;
+- active ban при stale membership;
+- removal/ban realtime access loss;
+- invitation expiry/limit race;
+- MIME/size/hash/quota substitution;
+- CSRF, Origin и IDOR;
 - Pulse signature/replay/idempotency;
-- Trust device proof, verify/revoke and replay;
-- MLS epoch/replay/recovery;
+- BasicCredential user/device mismatch;
+- identity/MLS key-role reuse;
+- 16-device ceiling и concurrent capacity;
+- KeyPackage 25/32/256 ceilings;
+- `RATE_LIMITED`/`Retry-After` contract;
+- Trust audit nested metadata;
+- MLS epoch/replay/recovery envelope/hash/state validation;
 - plaintext downgrade after MLS activation;
 - encrypted attachment scope/hash/claim reuse;
-- migration, downgrade and restore behavior.
+- session/rate-state retention cleanup;
+- migration/downgrade/restore.
 
-## 9. Pull Request requirements
+## 10. Pull Request requirements
 
-A Pull Request must state:
+PR должен содержать:
 
-1. problem and solution;
-2. affected components;
-3. schema/API/client compatibility impact;
-4. security and privacy impact;
-5. migration/rollback plan;
-6. tests added or updated;
-7. actual command results;
-8. manual validation performed;
-9. documentation and changelog changes;
-10. remaining limitations.
+1. problem и root cause;
+2. chosen solution;
+3. affected components;
+4. schema/API/Client compatibility;
+5. security/privacy impact;
+6. rate/resource-limit impact;
+7. migration/rollback plan;
+8. tests added/updated;
+9. actual command results;
+10. manual validation;
+11. documentation/changelog updates;
+12. remaining limitations.
 
-Review may be blocked when a PR is not reproducible, contains secrets, bypasses Server checks, lacks migration/testing evidence or introduces unrelated mass refactoring.
+Review блокируется, если PR не воспроизводим, содержит secrets, обходит Server controls, не имеет migration/testing evidence или включает unrelated mass refactor.
 
-## 10. Documentation standard
+## 11. Documentation standard
 
-Documentation must:
+Documentation должна:
 
-- describe actual current behavior;
-- identify the relevant version and release classification;
-- separate implemented, automated-verified, manual-verified and planned scope;
-- state security limitations and trust boundaries;
-- use repository-relative links;
-- preserve historical release provenance;
-- avoid unsupported marketing claims;
-- update guides, release notes and changelog when user-visible behavior changes.
+- описывать actual current behavior;
+- указывать version и release classification;
+- разделять implemented, automated-verified, manual-verified и planned scope;
+- фиксировать security limitations и trust boundaries;
+- сохранять release provenance;
+- использовать relative links;
+- избегать unsupported marketing claims;
+- обновлять guide, changelog, release notes и verification при изменении поведения.
 
-The documentation index is [docs/README.md](docs/README.md).
+Documentation Portal: [docs/README.md](docs/README.md).
 
-## 11. Licensing
+## 12. Licensing
 
-By submitting a contribution, you confirm that you have the right to provide it and agree that it may be distributed under the [MIT License](LICENSE).
+Отправляя contribution, вы подтверждаете право предоставить его и соглашаетесь с распространением по [MIT License](LICENSE).
