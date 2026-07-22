@@ -43,7 +43,28 @@ jobs:
         run: npm run check
 
       - name: Unit and integration tests
-        run: npm run test:unit
+        id: unit
+        shell: bash
+        run: |
+          set +e
+          set -o pipefail
+          npm run test:unit 2>&1 | tee /tmp/nexora-3.2.4-unit.log
+          code=${PIPESTATUS[0]}
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload unit test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexora-3.2.4-unit-log
+          path: /tmp/nexora-3.2.4-unit.log
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Enforce unit test result
+        if: steps.unit.outputs.exit_code != '0'
+        run: exit 1
 
       - name: Security audit
         run: npm run audit:security
@@ -57,5 +78,3 @@ jobs:
           git add -A
           git commit -m "fix: complete Nexora 3.2.4 regression coverage"
           git push origin HEAD:agent/nexora-3.2.4-updater-mls-recovery
-
-# This workflow removes itself after a successful verified patch.
