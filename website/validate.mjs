@@ -4,8 +4,16 @@ import { fileURLToPath } from "node:url";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const html = await readFile(path.join(root, "index.html"), "utf8");
+const app = await readFile(path.join(root, "app.js"), "utf8");
 const requiredIds = ["main", "capabilities", "architecture", "platforms", "documentation", "limitations"];
-const requiredFiles = ["styles.css", "app.js", "assets/favicon.svg", "assets/og-cover.svg", "robots.txt"];
+const requiredFiles = [
+  "styles.css",
+  "app.js",
+  "assets/nexora-icon.png",
+  "assets/favicon.svg",
+  "assets/og-cover.svg",
+  "robots.txt",
+];
 
 for (const id of requiredIds) {
   if (!html.includes(`id="${id}"`)) throw new Error(`Missing required section #${id}`);
@@ -16,6 +24,9 @@ for (const file of requiredFiles) {
 }
 if (!html.includes("https://github.com/Onmaynec/Nexora")) throw new Error("Repository link is missing");
 if (!html.includes("MIT")) throw new Error("License section is missing");
+if (!app.includes('const officialIcon = "assets/nexora-icon.png"')) {
+  throw new Error("Official Nexora icon is not wired into the website runtime");
+}
 if (/<script[^>]+src=["']https?:/i.test(html) || /<link[^>]+href=["']https?:/i.test(html)) {
   throw new Error("External runtime assets are not allowed");
 }
