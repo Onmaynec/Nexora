@@ -1,9 +1,15 @@
 # Branch Status — `agent/nexora-3.1.0-pulse-cloud-foundation`
 
-- Target: Nexora 3.1.0 Pulse Cloud billing foundation.
-- Historical Pull Request: `#1`.
-- Status: merged and superseded by stable Nexora 3.1.2 on `main`.
+| Field | Value |
+|---|---|
+| Classification | Merged and superseded provenance |
+| Branch-local target | Nexora `3.1.0` Pulse Cloud billing foundation |
+| Related Pull Request | PR `#1` |
+| Current source of truth | `main`, Nexora `3.2.4` |
+| Release use | Historical review only |
 
-This branch contains the first isolated Cloud billing/ledger stage and intentionally did not represent a complete 3.1.0 product release. Its documented blockers were completed or revised in later 3.1.x branches.
+This branch contains the first isolated Pulse Cloud billing/ledger stage. It intentionally did not represent a complete Nexora 3.1.0 product release.
 
-Use this branch only for historical review of the foundation implementation. Current architecture, security, deployment and release documentation is maintained on `main`.
+Do not tag, publish, merge new work into, or treat this branch as supported current product code. Branch-local documents preserve the implementation and limitations that existed at this stage.
+
+Current product, Pulse, security, deployment and release documentation is maintained on `main` through `docs/README.md`. New changes must branch from latest verified `main`.
