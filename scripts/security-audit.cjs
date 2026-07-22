@@ -6,6 +6,7 @@ const { spawnSync } = require("node:child_process");
 
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+const containsAll = (source, values) => values.every((value) => source.includes(value));
 const server = read("server/create-server.cjs");
 const v3 = read("server/v3-features.cjs");
 const model = read("server/model.cjs");
@@ -38,17 +39,17 @@ const checks = [
   ["Hashed scoped bot tokens", /tokenHash:\s*hashToken\(raw\)/, v3],
   ["Webhook HTTPS and private-address rejection", /WEBHOOK_HTTPS_REQUIRED[\s\S]*WEBHOOK_PRIVATE_TARGET/, v3],
   ["Webhook DNS pinning and HMAC", /lookup:[\s\S]*target\.address[\s\S]*createHmac\("sha256"/, v3],
-  ["Trust challenges are one-time and expiring", /used_at IS NULL[\s\S]*expires_at>[\s\S]*UPDATE trust_challenges SET used_at=/, trustCore],
-  ["Trust device proofs use Ed25519 verification", /verifySignature[\s\S]*crypto\.verify\(null/, trustCore],
-  ["Trust mutations require CSRF and a device identifier", /CSRF_INVALID[\s\S]*TRUST_DEVICE_REQUIRED/, trustRoutes],
-  ["Client signs verify and revoke challenges", /verify_device[\s\S]*revoke_device[\s\S]*crypto\.subtle\.sign/, trustDevices],
-  ["Device identity private keys are non-extractable", /generateKey\([\s\S]*Ed25519[\s\S]*false,\s*\["sign"\]/, trustClient],
-  ["Private MLS state uses local AES-GCM wrapping", /AES-GCM[\s\S]*additionalData[\s\S]*tagLength:\s*128/, trustStore],
-  ["Self-revoke clears all Trust stores", /clearTrustScope[\s\S]*STORES\.devices[\s\S]*STORES\.groups[\s\S]*STORES\.messages[\s\S]*STORES\.drafts/, trustStore],
+  ["Trust challenges are one-time and expiring", containsAll(trustCore, ["used_at IS NULL", "expires_at>?", "UPDATE trust_challenges SET used_at="]), "boolean"],
+  ["Trust device proofs use Ed25519 verification", containsAll(trustCore, ["verifySignature", "crypto.verify(null"]), "boolean"],
+  ["Trust mutations require CSRF and a device identifier", server.includes("CSRF_INVALID") && trustRoutes.includes("TRUST_DEVICE_REQUIRED"), "boolean"],
+  ["Client signs verify and revoke challenges", containsAll(trustDevices, ["verify_device", "revoke_device", "crypto.subtle.sign"]), "boolean"],
+  ["Device identity private keys are non-extractable", containsAll(trustClient, ["generateKey", "Ed25519", "false", "identityPrivateKey"]), "boolean"],
+  ["Private MLS state uses local AES-GCM wrapping", containsAll(trustStore, ["AES-GCM", "additionalData", "tagLength: 128"]), "boolean"],
+  ["Self-revoke clears all Trust stores", trustDevices.includes("clearTrustScope") && containsAll(trustStore, ["STORES.devices", "STORES.groups", "STORES.messages", "STORES.drafts"]), "boolean"],
   ["MLS mandatory ciphersuite is fixed to 1", /MLS_CIPHERSUITE_ID\s*=\s*1/, mlsEngine],
   ["MLS transport rejects ciphertext replay", /MLS_CIPHERTEXT_REPLAYED/, mlsTransport],
-  ["Secure serialization never exposes MLS plaintext", /message\.mlsEnvelope[\s\S]*text:\s*""/, model],
-  ["Legacy plaintext routes are guarded after MLS activation", /E2EE_PLAINTEXT_FORBIDDEN[\s\S]*conversationUsesMls/, server + v3],
+  ["Secure serialization never exposes MLS plaintext", containsAll(model, ["message.mlsEnvelope", "text: \"\""]), "boolean"],
+  ["Legacy plaintext routes are guarded after MLS activation", containsAll(server + v3, ["E2EE_PLAINTEXT_FORBIDDEN", "conversationUsesMls"]), "boolean"],
   ["Android cleartext disabled", /usesCleartextTraffic="false"/, androidManifest],
   ["Android TLS errors are cancelled", /onReceivedSslError[\s\S]*handler\.cancel\(\)/, android],
   ["Android never bypasses TLS errors", !/handler\.proceed\(\)/.test(android), "boolean"],
