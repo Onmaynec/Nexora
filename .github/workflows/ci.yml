@@ -7,9 +7,39 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
+  apply-security-patch:
+    if: github.event_name == 'pull_request' && github.head_ref == 'agent/nexora-3.2.3-security-hardening' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/nexora-3.2.3-security-hardening
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - run: npm ci
+      - run: node scripts/apply-3.2.3-security-hardening.cjs
+      - run: npm run release:sync-version
+      - run: npm ci
+      - run: npm run release:check
+      - name: Commit verified security patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git diff --cached --quiet && { echo "No patch changes were produced"; exit 1; }
+          git commit -m "fix: harden Trust resource and recovery boundaries"
+          git push origin HEAD:agent/nexora-3.2.3-security-hardening
+
   verify:
     runs-on: windows-latest
     timeout-minutes: 25
