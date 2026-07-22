@@ -18,10 +18,6 @@ permissions:
   id-token: write
   issues: write
 
-concurrency:
-  group: pages
-  cancel-in-progress: true
-
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -39,6 +35,9 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 12
+    concurrency:
+      group: github-pages-production
+      cancel-in-progress: true
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -57,20 +56,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          url="${{ steps.deployment.outputs.page_url }}build.json?cache=redesign-20260722-2"
+          url="${{ steps.deployment.outputs.page_url }}build.json?cache=redesign-20260722-3"
           for attempt in $(seq 1 30); do
             payload="$(curl --fail --silent --show-error --location \
               --header 'Cache-Control: no-cache' \
               --header 'Pragma: no-cache' \
               "$url" || true)"
-            if grep -Fq '"siteBuild": "redesign-20260722-2"' <<<"$payload"; then
+            if grep -Fq '"siteBuild": "redesign-20260722-3"' <<<"$payload"; then
               echo "Published redesign verified at $url"
               exit 0
             fi
             echo "Attempt $attempt: CDN still serves an older build; retrying in 10 seconds."
             sleep 10
           done
-          echo "GitHub Pages did not expose redesign-20260722-2 within the verification window." >&2
+          echo "GitHub Pages did not expose redesign-20260722-3 within the verification window." >&2
           exit 1
       - name: Record live verification
         env:
@@ -79,15 +78,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          marker='<!-- nexora-pages-redesign-20260722-2 -->'
-          comments="$(gh api "repos/${GITHUB_REPOSITORY}/issues/28/comments" --paginate --jq '.[].body' || true)"
+          marker='<!-- nexora-pages-redesign-20260722-3 -->'
+          comments="$(gh api "repos/${GITHUB_REPOSITORY}/issues/32/comments" --paginate --jq '.[].body' || true)"
           if grep -Fq "$marker" <<<"$comments"; then
             echo "Live verification was already recorded."
             exit 0
           fi
           printf -v body '%s\n\nLive GitHub Pages verification passed for `%s`.\n\nPublished URL: %s\nSource commit: `%s`' \
             "$marker" \
-            'redesign-20260722-2' \
+            'redesign-20260722-3' \
             "$PAGE_URL" \
             "$GITHUB_SHA"
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/28/comments" -f body="$body"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/32/comments" -f body="$body"

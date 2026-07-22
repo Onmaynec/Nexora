@@ -1,5 +1,5 @@
 {
-  "siteBuild": "redesign-20260722-2",
+  "siteBuild": "redesign-20260722-3",
   "sourceCommit": "c1ba9393825d94e80ede50052122913be1e2fb6d",
-  "purpose": "GitHub Pages deployment and cache verification marker"
+  "purpose": "PR-observable GitHub Pages deployment and CDN verification marker"
 }
