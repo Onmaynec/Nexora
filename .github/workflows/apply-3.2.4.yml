@@ -7,13 +7,19 @@ on:
     paths:
       - scripts/apply-3.2.4-patch.cjs
       - .github/workflows/apply-3.2.4.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - scripts/apply-3.2.4-patch.cjs
+      - .github/workflows/apply-3.2.4.yml
 
 permissions:
   contents: write
 
 jobs:
   apply:
-    if: github.actor != 'github-actions[bot]'
+    if: github.actor != 'github-actions[bot]' && github.head_ref == 'agent/nexora-3.2.4-updater-mls-recovery'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,5 +47,3 @@ jobs:
           fi
           git commit -m "feat: implement Nexora 3.2.4 update and MLS recovery"
           git push origin HEAD:agent/nexora-3.2.4-updater-mls-recovery
-
-# Existing-workflow push trigger for the one-shot applicator.
