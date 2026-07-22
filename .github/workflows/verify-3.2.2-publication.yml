@@ -1,0 +1,66 @@
+name: Verify Nexora 3.2.2 publication
+
+on:
+  push:
+    branches: [agent/verify-3.2.2-publication]
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  verify-publication:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RELEASE_TAG: v3.2.2
+      RELEASE_COMMIT: 23b21c78b8ff78f91bad21007b541f4b290b4358
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/verify-3.2.2-publication
+          fetch-depth: 0
+      - name: Wait for release and validate assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 45); do
+            if gh release view "$RELEASE_TAG" --json tagName,name,isDraft,isPrerelease,publishedAt,url,assets,targetCommitish > release.json 2>/dev/null; then
+              break
+            fi
+            sleep 15
+          done
+          test -s release.json
+          tag_target="$(git rev-list -n 1 "$RELEASE_TAG")"
+          test "$tag_target" = "$RELEASE_COMMIT"
+          jq -e '.isDraft == false and .isPrerelease == true' release.json >/dev/null
+          for asset in \
+            Nexora-3.2.2-source.zip \
+            Nexora-PWA-3.2.2.zip \
+            Nexora-3.2.2.spdx.json \
+            SHA256SUMS.txt; do
+            jq -e --arg asset "$asset" '.assets | map(.name) | index($asset) != null' release.json >/dev/null
+          done
+          jq -e '.assets | map(.name) | all(test("\\.(exe|blockmap)$") | not) and (index("latest.yml") == null)' release.json >/dev/null
+          mkdir -p verification-assets
+          gh release download "$RELEASE_TAG" --dir verification-assets
+          (cd verification-assets && sha256sum --check SHA256SUMS.txt)
+          jq -n \
+            --arg verifiedAt "$(date -u +%FT%TZ)" \
+            --arg releaseCommit "$RELEASE_COMMIT" \
+            --arg tagTarget "$tag_target" \
+            --slurpfile release release.json \
+            '{verifiedAt:$verifiedAt,releaseCommit:$releaseCommit,tagTarget:$tagTarget,release:$release[0],requiredAssetsPresent:true,forbiddenUnsignedUpdaterAssetsAbsent:true,checksumFileVerified:true}' \
+            > RELEASE_PUBLICATION_3.2.2.json
+      - name: Commit verification evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add RELEASE_PUBLICATION_3.2.2.json
+          git commit -m "verification: confirm Nexora 3.2.2 publication"
+          git push origin HEAD:agent/verify-3.2.2-publication
