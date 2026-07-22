@@ -37,6 +37,8 @@ import {
 
 const textEncoder = new TextEncoder();
 const DEVICE_KEY_PACKAGE_TARGET = 8;
+const WELCOME_POLL_INTERVAL_MS = 500;
+const WELCOME_POLL_TIMEOUT_MS = 10_000;
 const deviceDirectory = new Map();
 const conversationQueues = new Map();
 let configuration = null;
@@ -48,6 +50,8 @@ function canonical(value) {
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
   return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}`;
 }
+
+function delay(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
 
 function current() {
   if (!configuration?.serverId || !configuration?.userId) throw new Error("TRUST_NOT_CONFIGURED");
@@ -281,6 +285,21 @@ async function claimWelcome(device, conversationId) {
   return loadLocalGroup(result.welcome.conversationId);
 }
 
+async function requestWelcomeAndWait(device, conversationId) {
+  await trustApi("/conversations/" + encodeURIComponent(conversationId) + "/welcome/request", { method: "POST", deviceId: device.id, body: {} });
+  const deadline = Date.now() + WELCOME_POLL_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    await delay(WELCOME_POLL_INTERVAL_MS);
+    try {
+      const joined = await claimWelcome(device, conversationId);
+      if (joined) return joined;
+    } catch (error) {
+      if (!["MLS_WELCOME_NO_MATCHING_KEY_PACKAGE", "MLS_WELCOME_RACE"].includes(error.code || error.message)) throw error;
+    }
+  }
+  return null;
+}
+
 function participantIds(conversation) {
   return [...new Set([
     current().userId,
@@ -395,7 +414,7 @@ async function ensureConversationGroupInternal(conversation) {
     }
   } else if (!local) {
     const joined = await claimWelcome(device, conversation.id);
-    local = joined || await loadLocalGroup(conversation.id);
+    local = joined || await loadLocalGroup(conversation.id) || await requestWelcomeAndWait(device, conversation.id);
     if (!local) {
       const member = (remote.members || []).find((item) => item.deviceId === device.id && item.status === "active");
       throw Object.assign(new Error(member ? "Локальное MLS-состояние утрачено. Отзовите это устройство и подключите новое." : "Устройство ожидает MLS Welcome от активного участника."), { code: member ? "MLS_STATE_LOST" : "MLS_WELCOME_PENDING" });
@@ -420,6 +439,17 @@ function serializeConversationOperation(conversationId, operation) {
 
 export function ensureConversationGroup(conversation) {
   return serializeConversationOperation(conversation.id, () => ensureConversationGroupInternal(conversation));
+}
+
+export async function handleWelcomeRequest(conversation) {
+  if (!conversation?.id) return false;
+  try {
+    await ensureConversationGroup(conversation);
+    return true;
+  } catch (error) {
+    if (["MLS_WELCOME_PENDING", "MLS_STATE_LOST"].includes(error.code)) return false;
+    throw error;
+  }
 }
 
 export async function prepareEncryptedText({ conversation, text, replyToId = null, threadRootId = null, silent = false, clientId = crypto.randomUUID() }) {

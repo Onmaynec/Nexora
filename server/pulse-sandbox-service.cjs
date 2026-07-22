@@ -16,7 +16,7 @@ function nowIso(clock) {
 }
 
 function resolveUser(state, reference) {
-  const value = String(reference || "").trim().replace(/^@/, "").toLowerCase();
+  const value = String(reference || "").trim().replace(/^(?:<|\[)/, "").replace(/(?:>|\])$/, "").replace(/^@/, "").toLowerCase();
   const user = state.users.find((item) => item.id.toLowerCase() === value || item.username.toLowerCase() === value);
   if (!user) throw new PulseSandboxError("Пользователь не найден.", "USER_NOT_FOUND", 404);
   return user;

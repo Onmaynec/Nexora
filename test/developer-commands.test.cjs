@@ -2,7 +2,7 @@
 
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { DeveloperCommandService, splitCommandLine } = require("../server/developer-commands.cjs");
+const { DeveloperCommandService, splitCommandLine, unwrapPlaceholder } = require("../server/developer-commands.cjs");
 
 function fixture() {
   const state = { settings: { emergencyReadOnly: false }, integrationAudit: [], users: [], rooms: [] };
@@ -19,12 +19,35 @@ function fixture() {
     createBackup: async () => ({ directory: "/backup", createdAt: new Date().toISOString() }),
     cleanupStorage: async () => ({ removed: 0 }),
   };
-  return { state, service: new DeveloperCommandService({ instance, store }) };
+  const pulseCalls = [];
+  const pulseSandbox = {
+    grantPlus: async (user, options) => { pulseCalls.push({ type: "grant", user, options }); return { user }; },
+    revokePlus: async (user, options) => { pulseCalls.push({ type: "revoke", user, options }); return { user }; },
+    overview: (user) => ({ user }), transactions: () => [],
+    adjustImpulses: async (user, amount, options) => { pulseCalls.push({ type: "impulses", user, amount, options }); return { user, amount }; },
+    setEnabled: async (enabled) => ({ enabled }),
+  };
+  return { state, pulseCalls, service: new DeveloperCommandService({ instance, store, pulseSandbox }) };
 }
 
 test("command parser supports quoted values and rejects incomplete input", () => {
   assert.deepEqual(splitCommandLine('backup create "long secure passphrase"'), ["backup", "create", "long secure passphrase"]);
   assert.throws(() => splitCommandLine('backup create "broken'), /незавершённую/);
+});
+
+test("documentation placeholders are accepted without becoming literal identifiers", async () => {
+  assert.equal(unwrapPlaceholder("<netrox>"), "netrox");
+  assert.equal(unwrapPlaceholder("[30]"), "30");
+  const { pulseCalls, service } = fixture();
+  await service.execute("plus grant <netrox> [1]", { actor: "test" });
+  assert.equal(pulseCalls[0].user, "netrox");
+  assert.equal(pulseCalls[0].options.days, "1");
+});
+
+test("pulse user normalizes copied help placeholders for every lookup", async () => {
+  const { service } = fixture();
+  const result = await service.execute("pulse user <netrox>", { actor: "test" });
+  assert.equal(result.data.overview.user, "netrox");
 });
 
 test("mutating command is audited without secret values", async () => {

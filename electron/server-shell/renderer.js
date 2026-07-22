@@ -161,8 +161,11 @@ async function runCommand(command) {
   const value = String(command || "").trim();
   if (!value) return;
   elements["command-input"].disabled = true;
-  try { appendCommandResult(value, await window.nexoraServer.runCommand(value)); }
-  catch (error) { appendCommandResult(value, null, error); }
+  try {
+    const result = await window.nexoraServer.runCommand(value);
+    if (result?.ok === false) appendCommandResult(value, null, result.error || { code: "COMMAND_FAILED", message: "Команда не выполнена." });
+    else appendCommandResult(value, result);
+  } catch (error) { appendCommandResult(value, null, { code: error.code || "IPC_FAILED", message: error.message || "Не удалось вызвать команду." }); }
   finally { elements["command-input"].disabled = false; elements["command-input"].focus(); }
 }
 

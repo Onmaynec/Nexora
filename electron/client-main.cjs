@@ -13,6 +13,7 @@ const {
   normalizeServerUrl,
 } = require("./client-connection.cjs");
 const { createUpdateService } = require("./update-service.cjs");
+const { maybeShowPostUpdate, openTestLogConsole, testModeRequested } = require("./release-experience.cjs");
 
 let mainWindow;
 let configFile;
@@ -214,6 +215,11 @@ function createWindow() {
     }
   });
   mainWindow.webContents.on("render-process-gone", (_event, details) => logClient(`render-process-gone: ${details.reason} (${details.exitCode})`, "error"));
+  mainWindow.webContents.on("console-message", (_event, details) => {
+    const level = details?.level === "error" ? "error" : details?.level === "warning" ? "warn" : "info";
+    const message = String(details?.message || "").replace(/[\r\n]+/g, " ").slice(0, 4_000);
+    logClient(`renderer ${details?.sourceId || "unknown"}:${details?.lineNumber || 0} ${message}`, level);
+  });
   showConnector("", active?.url || "").then(async () => {
     if (!active) return;
     try {
@@ -266,19 +272,24 @@ app.whenReady().then(async () => {
     const componentStack = String(report.componentStack || "").replace(/[\r\n]+/g, " ").slice(0, 4_000);
     logClient(`renderer-error: ${message} ${componentStack}`, "error");
   });
-  createWindow();
   updateService = await createUpdateService({
     kind: "client",
     automatic: true,
+    log: logClient,
     onEvent: async (state) => {
+      logClient("update " + state.status + (state.availableVersion ? " " + state.availableVersion : ""), state.status === "error" ? "error" : "info");
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("client:update", state);
       if (state.status === "downloaded" && mainWindow && !mainWindow.isDestroyed()) {
-        const result = await dialog.showMessageBox(mainWindow, { type: "info", title: "Обновление Nexora", message: `Nexora ${state.availableVersion} готова к установке.`, buttons: ["Перезапустить и установить", "Позже"], defaultId: 0, cancelId: 1 });
+        const result = await dialog.showMessageBox(mainWindow, { type: "info", title: "Обновление Nexora", message: "Nexora " + state.availableVersion + " готова к установке.", buttons: ["Перезапустить и установить", "Позже"], defaultId: 0, cancelId: 1 });
         if (result.response === 0) updateService.install();
       }
     },
   });
+  createWindow();
   updateService.start();
+  await logClient("Client " + app.getVersion() + " started" + (testModeRequested() ? " in test mode" : ""));
+  if (testModeRequested() && process.platform === "win32") openTestLogConsole({ logFile: clientLogFile || path.join(app.getPath("logs"), "nexora-client.log") });
+  setTimeout(() => maybeShowPostUpdate({ appImpl: app, dialogImpl: dialog, shellImpl: shell, log: logClient }).catch((error) => logClient("Post-update dialog failed: " + (error?.stack || error), "error")), 900);
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 

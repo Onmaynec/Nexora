@@ -17,7 +17,11 @@ files:
   - electron/client-preload.cjs
   - electron/client-shell/**/*
   - electron/update-service.cjs
+  - electron/release-experience.cjs
   - package.json
+extraResources:
+  - from: build/Nexora-Client-Test-Mode.cmd
+    to: Nexora-Client-Test-Mode.cmd
 extraMetadata:
   main: electron/client-main.cjs
 win:
@@ -27,6 +31,14 @@ win:
     - nsis
 nsis:
   oneClick: false
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
+  installerSidebar: build/installerSidebar.bmp
+  uninstallerSidebar: build/installerSidebar.bmp
+  include: build/installer.nsh
+  installerLanguages:
+    - ru_RU
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true

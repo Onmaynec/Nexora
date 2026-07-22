@@ -2,6 +2,25 @@
 
 Формат основан на Keep a Changelog. Версии следуют Semantic Versioning.
 
+## [3.2.4] — 2026-07-22
+
+### Fixed
+
+- Client auto-update service is initialized before renderer access, keeps its scheduler alive and derives a stable result even when the updater does not emit a terminal event;
+- manual Client update checks now return actionable current, available, network and missing-signed-release states;
+- Server developer commands accept copied documentation placeholders such as `<netrox>` and `[1]`, and IPC preserves stable command error codes;
+- verified devices waiting for MLS Welcome request recovery from active group members and retry the claim automatically, restoring text, media and voice sending when another active member is online.
+
+### Added
+
+- post-update release summary with “Подробнее”, “Закрыть” and “Не показывать снова”;
+- Windows Client test mode with a live PowerShell log console and a dedicated Start Menu shortcut;
+- branded Russian NSIS installer assets for Client and Server.
+
+### Compatibility
+
+- Local Server schema remains 8; API v3 and Trust/MLS API v4 remain compatible; no database migration is required.
+
 ## [3.2.3] — 2026-07-22
 
 ### Security
