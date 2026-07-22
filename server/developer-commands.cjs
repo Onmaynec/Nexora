@@ -50,6 +50,12 @@ function splitCommandLine(value) {
   return values;
 }
 
+function unwrapPlaceholder(value) {
+  const normalized = String(value ?? "").trim();
+  const match = /^(?:<([^<>]+)>|\[([^\[\]]+)\])$/.exec(normalized);
+  return String(match?.[1] || match?.[2] || normalized).trim();
+}
+
 function compactStatus(status) {
   return {
     version: status.version || null,
@@ -107,7 +113,7 @@ class DeveloperCommandService {
 
     if (root === "help") {
       result = {
-        output: "help | status | health | users list | rooms list | backup create [passphrase] | storage cleanup | read-only on|off | pulse sandbox on|off | pulse user <user> | plus grant <user> [days] | plus revoke <user> | impulses grant|revoke <user> <amount> [reason] | audit tail [count]",
+        output: "Команды: help | status | health | users list | rooms list | backup create [passphrase] | storage cleanup | read-only on|off | pulse sandbox on|off | pulse user <user> | plus grant <user> [days] | plus revoke <user> | impulses grant|revoke <user> <amount> [reason] | audit tail [count]\nПример: plus grant netrox 30. Символы < > и [ ] в справке обозначают параметры; если вставить их буквально, консоль 3.2.4 безопасно удалит оболочку.",
       };
     } else if (root === "status") {
       result = { data: compactStatus(this.instance.status()), output: "Статус сервера получен." };
@@ -175,19 +181,19 @@ class DeveloperCommandService {
       mutated = true;
     } else if (root === "pulse" && action === "user") {
       if (!this.pulseSandbox || !args[0]) throw new DeveloperCommandError("Укажите пользователя.", "COMMAND_VALIDATION_FAILED");
-      result = { data: { overview: this.pulseSandbox.overview(args[0]), transactions: this.pulseSandbox.transactions(args[0], 20) }, output: "Тестовое состояние Pulse получено." };
+      result = { data: { overview: this.pulseSandbox.overview(unwrapPlaceholder(args[0])), transactions: this.pulseSandbox.transactions(args[0], 20) }, output: "Тестовое состояние Pulse получено." };
     } else if (root === "plus" && ["grant", "revoke"].includes(action)) {
       if (!this.pulseSandbox || !args[0]) throw new DeveloperCommandError("Укажите пользователя.", "COMMAND_VALIDATION_FAILED");
       result = action === "grant"
-        ? { data: await this.pulseSandbox.grantPlus(args[0], { days: args[1], actor }), output: "Тестовая подписка Plus выдана." }
-        : { data: await this.pulseSandbox.revokePlus(args[0], { actor }), output: "Тестовая подписка Plus отозвана." };
+        ? { data: await this.pulseSandbox.grantPlus(unwrapPlaceholder(args[0]), { days: unwrapPlaceholder(args[1]), actor }), output: "Тестовая подписка Plus выдана." }
+        : { data: await this.pulseSandbox.revokePlus(unwrapPlaceholder(args[0]), { actor }), output: "Тестовая подписка Plus отозвана." };
       mutated = true;
     } else if (root === "impulses" && ["grant", "revoke"].includes(action)) {
       if (!this.pulseSandbox || !args[0]) throw new DeveloperCommandError("Укажите пользователя и количество.", "COMMAND_VALIDATION_FAILED");
-      const amount = Math.abs(Math.trunc(Number(args[1])));
+      const amount = Math.abs(Math.trunc(Number(unwrapPlaceholder(args[1]))));
       if (!Number.isSafeInteger(amount) || amount < 1) throw new DeveloperCommandError("Количество должно быть положительным целым числом.", "COMMAND_VALIDATION_FAILED");
       const delta = action === "grant" ? amount : -amount;
-      result = { data: await this.pulseSandbox.adjustImpulses(args[0], delta, { actor, reason: args.slice(2).join(" ") || "operator_adjustment" }), output: action === "grant" ? "Импульсы выданы." : "Импульсы изъяты." };
+      result = { data: await this.pulseSandbox.adjustImpulses(unwrapPlaceholder(args[0]), delta, { actor, reason: args.slice(2).map(unwrapPlaceholder).join(" ") || "operator_adjustment" }), output: action === "grant" ? "Импульсы выданы." : "Импульсы изъяты." };
       mutated = true;
     } else if (root === "audit" && action === "tail") {
       const count = Math.max(1, Math.min(200, Number(args[0]) || 50));
@@ -208,4 +214,5 @@ module.exports = {
   DeveloperCommandService,
   compactStatus,
   splitCommandLine,
+  unwrapPlaceholder,
 };

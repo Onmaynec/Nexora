@@ -188,13 +188,17 @@ app.whenReady().then(async () => {
     shell.showItemInFolder(logFile);
     return logFile;
   });
-  ipcMain.handle("server:command", async (_event, command) => { if (!instance?.commandService) throw new Error("Сервер не запущен."); return instance.commandService.execute(command, { actor: "electron-admin" }); });
+  ipcMain.handle("server:command", async (_event, command) => {
+    if (!instance?.commandService) return { ok: false, error: { code: "SERVER_NOT_RUNNING", message: "Сервер не запущен." } };
+    try { return await instance.commandService.execute(command, { actor: "electron-admin" }); }
+    catch (error) { return { ok: false, error: { code: String(error?.code || "COMMAND_FAILED"), message: String(error?.message || "Команда не выполнена.") } }; }
+  });
   ipcMain.handle("server:update-status", () => updateService?.status() ?? { enabled: false, status: "initializing" });
   ipcMain.handle("server:check-update", () => updateService?.check() ?? { enabled: false });
   ipcMain.handle("server:download-update", () => updateService?.download() ?? { enabled: false });
   ipcMain.handle("server:install-update", () => updateService?.install() ?? false);
+  updateService = await createUpdateService({ kind: "server", automatic: false, log: (message, level = "info") => persistLog({ message, level, createdAt: new Date().toISOString() }), onEvent: (state) => send("server:update", state) });
   createWindow();
-  updateService = await createUpdateService({ kind: "server", automatic: false, onEvent: (state) => send("server:update", state) });
   startServer().catch((error) => send("server:log", { level: "error", message: error.message, createdAt: new Date().toISOString() }));
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });

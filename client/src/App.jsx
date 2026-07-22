@@ -8,7 +8,7 @@ import { LoadingScreen } from "./components/ui";
 import { getSocket } from "./socket";
 import { flushOutbox } from "./outbox";
 import { cacheBootstrap, readLastBootstrap, syncSequenceKey } from "./offline-store";
-import { configureTrust, ensureTrustDevice, handleTrustDeviceRevoked, processCommitEvent } from "./crypto/trust-client";
+import { configureTrust, ensureTrustDevice, handleTrustDeviceRevoked, handleWelcomeRequest, processCommitEvent } from "./crypto/trust-client";
 
 function playNotificationSound(name) {
   if (!name || name === "none") return;
@@ -189,6 +189,14 @@ export default function App() {
         playNotificationSound(sound);
       }
     };
+    const onWelcomeRequested = (event) => {
+      if (!event?.conversationId || String(event.requesterDeviceId || "") === String(deviceId)) return;
+      const conversation = bootstrapRef.current?.conversations?.find((item) => item.id === event.conversationId);
+      if (!conversation) return;
+      handleWelcomeRequest(conversation)
+        .then((changed) => { if (changed) scheduleRefresh(); })
+        .catch((error) => showToast(error.message || "Не удалось подготовить MLS Welcome", "error"));
+    };
     const onMlsCommit = (event) => {
       processCommitEvent(event)
         .then((changed) => { if (changed) scheduleRefresh(); })
@@ -242,6 +250,7 @@ export default function App() {
     socket.on("data:refresh", scheduleRefresh);
     socket.on("message:new", onMessage);
     socket.on("mls.commit", onMlsCommit);
+    socket.on("mls.welcome_requested", onWelcomeRequested);
     socket.on("presence:update", onPresence);
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
@@ -252,6 +261,7 @@ export default function App() {
       socket.off("data:refresh", scheduleRefresh);
       socket.off("message:new", onMessage);
       socket.off("mls.commit", onMlsCommit);
+      socket.off("mls.welcome_requested", onWelcomeRequested);
       socket.off("presence:update", onPresence);
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);

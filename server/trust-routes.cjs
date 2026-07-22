@@ -16,6 +16,7 @@ const {
 const { MLS_CIPHERSUITE, TrustCoreError, canonical, hash } = require("./trust-core.cjs");
 const { disconnectTrustDevice, emitToVerifiedGroupDevices } = require("./trust-socket.cjs");
 const { createSlidingWindowRateLimiter } = require("./rate-limit.cjs");
+const { requestMlsWelcome } = require("./mls-welcome-recovery.cjs");
 
 function requestId(value) {
   const text = String(value || "");
@@ -127,8 +128,9 @@ function mountTrustRoutes({ app, store, io, trustCore, log = () => {} } = {}) {
   }
 
   function emitConversation(conversationId, type, payload) {
-    emitToVerifiedGroupDevices(io, store.db, { conversationId }, type, payload);
+    const recipients = emitToVerifiedGroupDevices(io, store.db, { conversationId }, type, payload);
     emitToVerifiedGroupDevices(io, store.db, { conversationId }, "trust:event", { type, payload });
+    return recipients;
   }
 
   app.use("/api/v4/trust", context, authRequired);
@@ -272,6 +274,20 @@ function mountTrustRoutes({ app, store, io, trustCore, log = () => {} } = {}) {
       requesterDeviceId,
     });
     response.json({ ok: true, requestId: request.trustRequestId, keyPackage });
+  }));
+
+  app.post("/api/v4/trust/conversations/:conversationId/welcome/request", asyncRoute(async (request, response) => {
+    const { conversation } = requireConversation(request.trustAuth.user.id, request.params.conversationId);
+    const requesterDeviceId = deviceId(request);
+    enforceRateLimit(trustRateLimits.recovery, "welcome-request:" + request.trustAuth.user.id + ":" + requesterDeviceId, response, "Слишком много запросов MLS Welcome.");
+    const result = requestMlsWelcome({
+      trustCore,
+      userId: request.trustAuth.user.id,
+      deviceId: requesterDeviceId,
+      conversationId: conversation.id,
+      emit: (payload) => emitConversation(conversation.id, "mls.welcome_requested", payload),
+    });
+    response.status(result.requested ? 202 : 200).json({ ok: true, requestId: request.trustRequestId, ...result });
   }));
 
   app.get("/api/v4/trust/conversations/:conversationId/group", asyncRoute(async (request, response) => {

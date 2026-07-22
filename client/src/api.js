@@ -8,7 +8,7 @@ export class ApiError extends Error {
   }
 }
 
-export const CLIENT_VERSION = "3.2.3";
+export const CLIENT_VERSION = "3.2.4";
 let csrfToken = sessionStorage.getItem("nexora:csrf") || "";
 
 export function setCsrfToken(value) {

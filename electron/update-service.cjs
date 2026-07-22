@@ -9,7 +9,6 @@ const DEFAULT_GITHUB_RELEASES = Object.freeze({
   owner: "Onmaynec",
   repo: "Nexora",
   private: false,
-  releaseType: "release",
 });
 const DEFAULT_INITIAL_DELAY_MS = 8_000;
 const DEFAULT_INTERVAL_MS = 6 * 60 * 60_000;
@@ -25,7 +24,7 @@ async function configuredFeed(kind, appImpl = app, fsImpl = fs) {
   if (process.env[environmentName]) return String(process.env[environmentName]).trim();
   try {
     const value = JSON.parse(await fsImpl.readFile(path.join(appImpl.getPath("userData"), "update-config.json"), "utf8"));
-    return String(value[`${kind}FeedUrl`] || "").trim();
+    return String(value[String(kind) + "FeedUrl"] || "").trim();
   } catch {
     return "";
   }
@@ -34,7 +33,7 @@ async function configuredFeed(kind, appImpl = app, fsImpl = fs) {
 async function configuredProvider(kind, appImpl = app, fsImpl = fs) {
   const feedUrl = await configuredFeed(kind, appImpl, fsImpl);
   if (feedUrl) {
-    if (!/^https:\/\//i.test(feedUrl)) return null;
+    if (!/^https:///i.test(feedUrl)) return null;
     return { provider: "generic", url: feedUrl };
   }
   if (kind !== "client") return null;
@@ -45,13 +44,31 @@ async function configuredProvider(kind, appImpl = app, fsImpl = fs) {
   };
 }
 
+function numericVersion(value) {
+  const match = /^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/.exec(String(value || "").trim());
+  return match ? match.slice(1).map(Number) : null;
+}
+
+function isNewerVersion(candidate, current) {
+  const left = numericVersion(candidate);
+  const right = numericVersion(current);
+  if (!left || !right) return String(candidate || "") !== String(current || "");
+  for (let index = 0; index < 3; index += 1) {
+    if (left[index] !== right[index]) return left[index] > right[index];
+  }
+  return false;
+}
+
 function normalizedUpdateError(error) {
   const message = String(error?.message || error || "Ошибка обновления");
-  if (/latest\.yml|404|no published versions|cannot find latest/i.test(message)) {
+  if (/latest\.yml|404|no published versions|cannot find latest|no releases found/i.test(message)) {
     return {
       reason: "no_installable_update",
-      error: "Для выбранного канала пока нет подписанного устанавливаемого обновления.",
+      error: "В GitHub пока нет подписанного устанавливаемого обновления для этого канала.",
     };
+  }
+  if (/net::ERR_|ENOTFOUND|ETIMEDOUT|ECONNRESET|network/i.test(message)) {
+    return { reason: "network_error", error: "Не удалось связаться с каналом обновлений. Проверьте интернет и повторите попытку." };
   }
   return { reason: "update_error", error: message };
 }
@@ -72,6 +89,7 @@ async function createUpdateService({
   kind,
   automatic = false,
   onEvent = () => {},
+  log = () => {},
   appImpl = app,
   updater = null,
   fsImpl = fs,
@@ -80,9 +98,7 @@ async function createUpdateService({
   setTimeoutImpl = setTimeout,
   clearTimeoutImpl = clearTimeout,
 } = {}) {
-  if (!appImpl || typeof appImpl.getVersion !== "function") {
-    throw new Error("Electron app adapter is unavailable.");
-  }
+  if (!appImpl || typeof appImpl.getVersion !== "function") throw new Error("Electron app adapter is unavailable.");
   let state = {
     enabled: false,
     status: "disabled",
@@ -94,6 +110,7 @@ async function createUpdateService({
     automatic: Boolean(automatic),
     lastCheckedAt: null,
     nextCheckAt: null,
+    detailsUrl: kind === "client" ? "https://github.com/Onmaynec/Nexora/releases/latest" : null,
   };
   let timer = null;
   let stopped = false;
@@ -107,7 +124,6 @@ async function createUpdateService({
   };
 
   if (!appImpl.isPackaged) return disabledService(state, "development");
-
   const provider = await configuredProvider(kind, appImpl, fsImpl);
   if (!provider) return disabledService(state, "feed_not_configured");
   const activeUpdater = updater || loadDefaultUpdater();
@@ -117,34 +133,21 @@ async function createUpdateService({
   };
 
   activeUpdater.autoDownload = Boolean(automatic);
-  activeUpdater.autoInstallOnAppQuit = automatic;
+  activeUpdater.autoInstallOnAppQuit = Boolean(automatic);
   activeUpdater.allowPrerelease = false;
+  activeUpdater.allowDowngrade = false;
   activeUpdater.setFeedURL(provider);
-  emit({
-    enabled: true,
-    status: "idle",
-    provider: provider.provider,
-    channel: provider.provider === "github" ? `${provider.owner}/${provider.repo}` : provider.url,
-  });
+  emit({ enabled: true, status: "idle", provider: provider.provider, channel: provider.provider === "github" ? provider.owner + "/" + provider.repo : provider.url });
 
   listen("checking-for-update", () => emit({ status: "checking", error: null, reason: null }));
-  listen("update-available", (info) => emit({
-    status: automatic ? "downloading" : "available",
-    availableVersion: info.version,
-    reason: null,
-  }));
-  listen("update-not-available", () => emit({ status: "current", availableVersion: null, reason: null }));
-  listen("download-progress", (progress) => emit({
-    status: "downloading",
-    progress: Math.round(progress.percent || 0),
-  }));
-  listen("update-downloaded", (info) => emit({
-    status: "downloaded",
-    availableVersion: info.version,
-    progress: 100,
-    reason: null,
-  }));
-  listen("error", (error) => emit({ status: "error", ...normalizedUpdateError(error) }));
+  listen("update-available", (info) => emit({ status: automatic ? "downloading" : "available", availableVersion: info.version, reason: null }));
+  listen("update-not-available", () => emit({ status: "current", availableVersion: null, progress: 0, reason: null }));
+  listen("download-progress", (progress) => emit({ status: "downloading", progress: Math.round(progress.percent || 0) }));
+  listen("update-downloaded", (info) => emit({ status: "downloaded", availableVersion: info.version, progress: 100, reason: null }));
+  listen("error", (error) => {
+    log("Updater error: " + (error?.stack || error), "error");
+    emit({ status: "error", ...normalizedUpdateError(error) });
+  });
 
   function schedule(delay) {
     if (stopped || !automatic) return;
@@ -153,13 +156,9 @@ async function createUpdateService({
     emit({ nextCheckAt: new Date(Date.now() + bounded).toISOString() });
     timer = setTimeoutImpl(async () => {
       timer = null;
-      try {
-        await check();
-      } finally {
-        schedule(intervalMs);
-      }
+      try { await check(); }
+      finally { schedule(intervalMs); }
     }, bounded);
-    timer?.unref?.();
   }
 
   async function check() {
@@ -167,8 +166,15 @@ async function createUpdateService({
     inFlight = (async () => {
       emit({ status: "checking", error: null, reason: null, lastCheckedAt: new Date().toISOString() });
       try {
-        await activeUpdater.checkForUpdates();
+        const result = await activeUpdater.checkForUpdates();
+        if (state.status === "checking") {
+          const candidate = result?.updateInfo?.version;
+          emit(candidate && isNewerVersion(candidate, state.currentVersion)
+            ? { status: automatic ? "downloading" : "available", availableVersion: candidate, reason: null }
+            : { status: "current", availableVersion: null, progress: 0, reason: null });
+        }
       } catch (error) {
+        log("Update check failed: " + (error?.stack || error), "error");
         emit({ status: "error", ...normalizedUpdateError(error) });
       } finally {
         inFlight = null;
@@ -182,9 +188,9 @@ async function createUpdateService({
     status: () => ({ ...state }),
     check,
     download: async () => {
-      try {
-        await activeUpdater.downloadUpdate();
-      } catch (error) {
+      try { await activeUpdater.downloadUpdate(); }
+      catch (error) {
+        log("Update download failed: " + (error?.stack || error), "error");
         emit({ status: "error", ...normalizedUpdateError(error) });
       }
       return { ...state };
@@ -196,7 +202,7 @@ async function createUpdateService({
     },
     start: () => {
       stopped = false;
-      if (automatic) schedule(initialDelayMs);
+      if (automatic && !timer) schedule(initialDelayMs);
       return { ...state };
     },
     stop: () => {
@@ -216,6 +222,7 @@ module.exports = {
   configuredFeed,
   configuredProvider,
   createUpdateService,
+  isNewerVersion,
   loadDefaultUpdater,
   normalizedUpdateError,
 };
