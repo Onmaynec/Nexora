@@ -41,3 +41,5 @@ jobs:
           fi
           git commit -m "feat: implement Nexora 3.2.4 update and MLS recovery"
           git push origin HEAD:agent/nexora-3.2.4-updater-mls-recovery
+
+# Existing-workflow push trigger for the one-shot applicator.
