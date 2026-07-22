@@ -1,4 +1,4 @@
-name: Verify published Nexora 3.2.1 release
+name: Diagnose Nexora 3.2.1 main CI
 
 on:
   push:
@@ -10,75 +10,39 @@ permissions:
   contents: write
 
 jobs:
-  verify-release:
+  diagnose-main-ci:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 8
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      RELEASE_TAG: v3.2.1
-      RELEASE_COMMIT: ae5b21e085ab253c98a410638ab8e6f7cd405a27
+      FAILED_RUN_ID: "29927717990"
+      FAILED_JOB_ID: "88949070603"
     steps:
       - uses: actions/checkout@v4
         with:
           ref: agent/nexora-3.2.1-login-shutdown-fix
           fetch-depth: 0
-      - name: Wait for main CI and release publication
+      - name: Capture failing Windows performance output
         shell: bash
         run: |
           set -euo pipefail
-          ci='null'
-          release='null'
-          for attempt in $(seq 1 36); do
-            runs=$(gh run list --branch main --limit 20 --json databaseId,workflowName,status,conclusion,headSha,event,displayTitle,createdAt,updatedAt)
-            ci=$(printf '%s' "$runs" | jq --arg sha "$RELEASE_COMMIT" '[.[] | select(.workflowName == "CI" and .headSha == $sha)][0] // null')
-            conclusion=$(printf '%s' "$ci" | jq -r '.conclusion // ""')
-            status=$(printf '%s' "$ci" | jq -r '.status // ""')
-            if [ "$status" = "completed" ]; then
-              if [ "$conclusion" = "success" ]; then
-                if release=$(gh release view "$RELEASE_TAG" --json tagName,name,url,publishedAt,isDraft,isPrerelease,assets 2>/dev/null); then
-                  break
-                fi
-              else
-                break
-              fi
-            fi
-            sleep 15
-          done
-
-          tag_target=$(git ls-remote --tags origin "refs/tags/$RELEASE_TAG^{}" | awk '{print $1}')
-          if [ -z "$tag_target" ]; then
-            tag_target=$(git ls-remote --tags origin "refs/tags/$RELEASE_TAG" | awk '{print $1}')
-          fi
-
-          required=false
-          forbidden_absent=false
-          if [ "$release" != "null" ]; then
-            names=$(printf '%s' "$release" | jq -r '.assets[].name')
-            required=true
-            for name in "Nexora-3.2.1-source.zip" "Nexora-PWA-3.2.1.zip" "Nexora-3.2.1.spdx.json" "SHA256SUMS.txt"; do
-              if ! grep -Fxq "$name" <<< "$names"; then required=false; fi
-            done
-            forbidden_absent=true
-            if grep -Eq '\.(exe|blockmap)$|^latest\.yml$' <<< "$names"; then forbidden_absent=false; fi
-          fi
-
-          jq -n \
-            --arg verifiedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            --arg releaseCommit "$RELEASE_COMMIT" \
-            --arg tagTarget "$tag_target" \
-            --argjson ci "$ci" \
-            --argjson release "$release" \
-            --argjson requiredAssetsPresent "$required" \
-            --argjson forbiddenUnsignedUpdaterAssetsAbsent "$forbidden_absent" \
-            '{verifiedAt:$verifiedAt,releaseCommit:$releaseCommit,tagTarget:$tagTarget,ci:$ci,release:$release,requiredAssetsPresent:$requiredAssetsPresent,forbiddenUnsignedUpdaterAssetsAbsent:$forbiddenUnsignedUpdaterAssetsAbsent}' \
-            > POST_RELEASE_STATUS_3.2.1.json
-      - name: Commit verification result
+          gh run view "$FAILED_RUN_ID" --job "$FAILED_JOB_ID" --log > main-ci-full.log
+          {
+            echo "run_id=$FAILED_RUN_ID"
+            echo "job_id=$FAILED_JOB_ID"
+            echo
+            grep -n -E "test:performance|not ok|AssertionError|20 секунд|duration_ms|Process completed|ERR_ASSERTION" main-ci-full.log | tail -n 160 || true
+            echo
+            echo "--- LOG TAIL ---"
+            tail -n 260 main-ci-full.log
+          } > MAIN_CI_FAILURE_3.2.1.txt
+      - name: Commit diagnostic
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add POST_RELEASE_STATUS_3.2.1.json
-          git commit -m "diagnostic: capture Nexora 3.2.1 release status"
+          git add MAIN_CI_FAILURE_3.2.1.txt
+          git commit -m "diagnostic: capture failed 3.2.1 main performance run"
           git push origin HEAD:agent/nexora-3.2.1-login-shutdown-fix
