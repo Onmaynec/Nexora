@@ -1,29 +1,31 @@
 # Nexora for Android
 
-## Status
+## Статус
 
-| Property | Value |
+| Параметр | Значение |
 |---|---|
-| Current repository version | `3.2.0` |
-| Distribution classification | Source/PWA prerelease |
+| Current version | `3.2.3` |
+| Distribution | Source/PWA prerelease |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
-| Trust/MLS API | v4 |
+| Trust/MLS/encrypted-media API | v4 |
+| Local Server database | schema 8, server-side |
 
-The Android application is a controlled WebView shell for the shared adaptive Nexora Client. Android source compatibility is verified by CI. Stable promotion of `3.2.0` still requires physical-device runtime testing and signed APK/AAB validation.
+Android application — controlled WebView shell общего adaptive Nexora Client. Source compatibility проверяется CI. Stable promotion `3.2.3` требует physical-device runtime matrix и signed APK/AAB validation.
 
-## Capabilities
+## Возможности
 
-- saved HTTPS servers and server picker;
-- `nexora://connect?url=...` deep links;
-- local authentication, rooms, messages, search and notifications;
-- files, images and voice recording/playback;
-- offline application shell and authorized local cache;
-- Trust device enrollment, verification and revocation;
-- MLS secure messaging and encrypted media in compatible 3.2.0 conversations;
-- external links opened outside the WebView.
+- сохранённые HTTPS servers и server picker;
+- deep link `nexora://connect?url=...`;
+- local authentication, profiles, rooms, messages, search и notifications;
+- files, images и voice recording/playback;
+- offline application shell и authorized local cache;
+- Trust device enrollment, verification и revocation;
+- MLS secure messaging и encrypted media в compatible 3.2.x conversations;
+- strict missed-commit recovery validation;
+- external links вне WebView.
 
-The shell does not store the Local Server database, Cloud password, payment-card data, Pulse signing keys or Local CA private key.
+Shell не хранит Local Server database, Cloud password, payment-card data, Pulse signing keys или Local CA private key.
 
 ## Build requirements
 
@@ -37,79 +39,124 @@ gradle :app:assembleDebug --no-daemon
 gradle :app:assembleRelease --no-daemon
 ```
 
-A release APK/AAB must be signed with an Android release key stored outside the repository. Never commit keystores, passwords or private signing configuration.
+Release APK/AAB подписывается Android release key вне repository. Не коммитьте keystore, passwords или private signing configuration.
 
-## TLS and navigation policy
+## TLS и navigation policy
 
-For a Local Server using a private CA, install the operator-provided root certificate in the Android trust store and separately verify Server ID and SHA-256 certificate fingerprint.
+Для Local Server с private CA установите operator-provided root certificate в Android trust store и отдельно сверьте Server ID/SHA-256 fingerprint.
 
 Security policy:
 
-- `onReceivedSslError` always cancels the connection;
-- HTTP and mixed content are disabled;
-- WebView file/content access is restricted;
-- third-party cookies are disabled;
-- in-app navigation is limited to the selected Server origin;
-- external origins open in the system browser;
-- deep links accept valid HTTPS URLs only;
-- certificate changes require explicit trust through the supported connection flow.
+- `onReceivedSslError` всегда отменяет connection;
+- HTTP и mixed content запрещены;
+- WebView file/content access ограничен;
+- third-party cookies отключены;
+- in-app navigation ограничена selected Server origin;
+- external origins открываются system browser;
+- deep link принимает только valid HTTPS URL;
+- certificate change требует explicit confirmation.
 
-## Trust and secure data
+## Authentication и Trust bootstrap
 
-In 3.2.0 secure conversations:
+После login Android renderer:
 
-- private device identity and MLS state remain client-side;
-- private state, KeyPackages, decrypted cache and drafts are encrypted locally;
-- messages are encrypted before durable outbox enqueue;
-- files, images and voice are encrypted before upload;
-- attachment keys and original metadata travel inside MLS content;
-- Local Server receives only opaque ciphertext and service metadata.
+1. получает `/api/bootstrap`;
+2. определяет authoritative Server ID/user scope;
+3. конфигурирует Trust store до чтения encrypted drafts;
+4. выполняет enrollment active device;
+5. подключает device-scoped Socket.IO.
 
-The Android renderer remains part of the trusted computing base. Malware, XSS, dependency compromise or a malicious application binary can access plaintext during authorized use.
+Cold login не должен зависать или завершаться `TRUST_NOT_CONFIGURED`. Safe pre-configuration draft read возвращает empty state, но реальные WebCrypto/IndexedDB/registration errors остаются visible.
+
+## Trust и secure data
+
+В secure conversations:
+
+- private device identity и MLS state остаются Client-side;
+- private state, KeyPackages, decrypted cache и drafts encrypted locally;
+- identity proof и MLS signature keys distinct;
+- BasicCredential bound к local `{ userId, deviceId }`;
+- messages encrypted до durable outbox;
+- files/images/voice encrypted до upload;
+- attachment keys/original metadata находятся внутри MLS content;
+- Local Server получает opaque ciphertext и service metadata;
+- missed commits проверяются по scope, epoch sequence, payload hashes и public-state hashes до persist.
+
+Android renderer входит в trusted computing base. Malware, XSS, dependency compromise или malicious application binary могут получить plaintext во время authorized use.
+
+## Resource limits
+
+Server-side controls применяются ко всем Android clients:
+
+- максимум 16 active Trust devices/user;
+- 25 KeyPackages/request;
+- 32 unclaimed KeyPackages/device;
+- 256 unclaimed KeyPackages/user;
+- route-specific rate limits;
+- HTTP `429`, stable `RATE_LIMITED` и `Retry-After`.
+
+UI должен отображать понятное состояние limit/rate-limit без бесконечного automatic retry.
 
 ## Acceptance checks
 
-### Source and installation
+### Build и installation
 
-- CI `assembleDebug` passes;
-- release build completes in a controlled signing environment;
-- clean install and upgrade preserve configured servers and authorized state;
-- version metadata matches `3.2.0`.
+- CI `assembleDebug` — PASS;
+- release build в controlled signing environment;
+- clean install/upgrade сохраняют configured servers и authorized state;
+- version metadata — `3.2.3`.
 
 ### Connection
 
-- manually entered HTTPS URL works;
-- `nexora://connect` works for HTTPS;
-- HTTP, invalid host and untrusted/changed certificate are rejected;
-- external navigation opens outside the app.
+- manual HTTPS URL;
+- `nexora://connect` для HTTPS;
+- rejection HTTP/invalid host/untrusted or changed certificate;
+- external navigation открывается вне app.
 
 ### Core product
 
-- login, profiles, rooms, messages, search and notifications;
-- legacy files and voice;
-- offline/reconnect behavior;
-- Cloud Identity/Pulse UI without Cloud secrets in WebView storage.
+- login/bootstrap;
+- profiles, rooms, messages, search и notifications;
+- legacy files/voice;
+- offline/reconnect;
+- Cloud Identity/Pulse UI без Cloud secrets в WebView storage.
 
-### Trust/MLS prerelease
+### Trust/MLS 3.2.3
 
-- first and additional device enrollment;
-- fingerprint verification and revocation;
-- secure message send/receive after restart and reconnect;
-- immediate disconnect and local state wipe after revocation;
-- encrypted file/image/voice upload, preview/playback and verified download;
-- no plaintext fallback when secure path or room policy blocks an action.
+- first/later device enrollment;
+- fingerprint verify/revoke;
+- BasicCredential/key-role rejection cases;
+- 16-device ceiling;
+- KeyPackage ceilings;
+- visible `RATE_LIMITED` state;
+- secure message после restart/reconnect;
+- strict valid/invalid recovery scenarios;
+- immediate disconnect/local wipe после revocation;
+- encrypted media preview/playback/download;
+- no plaintext fallback.
 
-### Stable-promotion requirements
+### Runtime lifecycle
+
+- background/foreground;
+- process death и relaunch;
+- network loss/recovery;
+- microphone/file permission denial;
+- storage pressure;
+- logout и local Trust scope cleanup;
+- rate-limit retry after declared window.
+
+## Stable-promotion requirements
 
 - physical-device matrix;
-- long-offline and recovery scenarios;
+- long-offline/recovery scenarios;
 - permission denial/revocation flows;
-- background/foreground and process-death behavior;
+- background/process-death stability;
 - signed APK/AAB verification;
-- independent security review relevant to the Android runtime.
+- update path;
+- independent Android-relevant security review.
 
-## Limitations
+## Ограничения
 
-Nexora 3.2.0 does not claim traffic-analysis resistance or independent cryptographic certification. Existing 3.1.x history is not retroactively encrypted, and a 3.1.x Client cannot participate in an active secure 3.2.0 conversation.
+Nexora `3.2.3` не заявляет traffic-analysis resistance или independent cryptographic certification. Existing 3.1.x history не шифруется retroactively; 3.1.x Client не участвует в active secure 3.2.x conversation.
 
-See [Documentation Portal](../docs/README.md), [Security Policy](../SECURITY.md) and [Release Verification 3.2.0](../RELEASE_VERIFICATION_3.2.0.md).
+См. [Documentation Portal](../docs/README.md), [Security Model](../docs/SECURITY_MODEL.md), [Security Policy](../SECURITY.md), [Release Verification 3.2.3](../RELEASE_VERIFICATION_3.2.3.md).
