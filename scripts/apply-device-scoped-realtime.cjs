@@ -10,10 +10,9 @@ function patch(relativePath, replacements) {
   let source = fs.readFileSync(file, "utf8");
   for (const { before, after, label } of replacements) {
     const first = source.indexOf(before);
-    if (first < 0 || source.indexOf(before, first + before.length) >= 0) {
-      throw new Error(`${relativePath}: expected exactly one ${label}`);
-    }
-    source = source.replace(before, after);
+    const second = first < 0 ? -1 : source.indexOf(before, first + before.length);
+    if (first < 0 || second >= 0) throw new Error(`${relativePath}: expected exactly one ${label}`);
+    source = source.slice(0, first) + after + source.slice(first + before.length);
   }
   fs.writeFileSync(file, source, "utf8");
 }
@@ -21,8 +20,8 @@ function patch(relativePath, replacements) {
 patch("server/trust-routes.cjs", [
   {
     label: "trust socket import",
-    before: 'const { TrustCoreError } = require("./trust-core.cjs");',
-    after: 'const { TrustCoreError } = require("./trust-core.cjs");\nconst { disconnectTrustDevice, emitToVerifiedGroupDevices } = require("./trust-socket.cjs");',
+    before: 'const { MLS_CIPHERSUITE, TrustCoreError, canonical, hash } = require("./trust-core.cjs");',
+    after: 'const { MLS_CIPHERSUITE, TrustCoreError, canonical, hash } = require("./trust-core.cjs");\nconst { disconnectTrustDevice, emitToVerifiedGroupDevices } = require("./trust-socket.cjs");',
   },
   {
     label: "conversation emitter",
@@ -49,7 +48,7 @@ patch("server/mls-transport.cjs", [
   {
     label: "group device emitter import",
     before: 'const { TrustCoreError } = require("./trust-core.cjs");',
-    after: 'const { TrustCoreError } = require("./trust-core.cjs");\nconst { emitToVerifiedGroupDevices } = require("./trust-socket.cjs");',
+    after: 'const { TrustCoreError } = require("./trust-core.cjs");\nconst { emitToVerifiedGroupDevices, trustDeviceRoom } = require("./trust-socket.cjs");',
   },
   {
     label: "secure message emitter",
@@ -68,7 +67,7 @@ patch("server/mls-transport.cjs", [
       groupRecordId: result.message.mlsEnvelope?.groupRecordId || null,
     };
     const recipients = emitToVerifiedGroupDevices(io, store.db, scope, eventName, ({ userId }) => serializeMessage(state, result.message, userId));
-    for (const recipient of recipients) io.to(\`trust-device:\${recipient.deviceId}\`).emit("data:refresh");
+    for (const recipient of recipients) io.to(trustDeviceRoom(recipient.deviceId)).emit("data:refresh");
   }`,
   },
   {
@@ -141,33 +140,33 @@ patch("client/src/App.jsx", [
   },
   {
     label: "remote revocation import",
-    before: 'import { configureTrust, ensureTrustDevice } from "./crypto/trust-client";',
-    after: 'import { configureTrust, ensureTrustDevice, handleTrustDeviceRevoked } from "./crypto/trust-client";',
+    before: 'import { configureTrust, ensureTrustDevice, processCommitEvent } from "./crypto/trust-client";',
+    after: 'import { configureTrust, ensureTrustDevice, handleTrustDeviceRevoked, processCommitEvent } from "./crypto/trust-client";',
   },
   {
     label: "socket trust guard",
     before: `  useEffect(() => {
-    if (!me || me.mustChangePassword) return;
+    if (!me || me.mustChangePassword) return undefined;
+    refresh();
     socket.connect();`,
     after: `  useEffect(() => {
     const deviceId = trustState.device?.id;
-    if (!me || me.mustChangePassword || !deviceId) return;
+    if (!me || me.mustChangePassword || !deviceId) return undefined;
     if (socket.connected && socket.auth?.deviceId !== deviceId) socket.disconnect();
     socket.auth = { ...(socket.auth || {}), deviceId, clientVersion: CLIENT_VERSION };
+    refresh();
     socket.connect();`,
   },
   {
     label: "connect error and revoke handlers",
-    before: `    function onConnectError(error) {
-      setServerOnline(false);
+    before: `    const onConnectError = (error) => {
       if (error.message === "UNAUTHORIZED") {
         setMe(null);
         setBootstrap(null);
-        bootstrapRef.current = null;
         setAuthState("anonymous");
       }
-    }`,
-    after: `    async function onConnectError(error) {
+    };`,
+    after: `    const onConnectError = async (error) => {
       setServerOnline(false);
       const code = error.data?.code || error.message;
       if (["TRUST_DEVICE_REVOKED", "TRUST_DEVICE_NOT_FOUND", "TRUST_SOCKET_AUTH_FAILED"].includes(code)) {
@@ -183,14 +182,14 @@ patch("client/src/App.jsx", [
         bootstrapRef.current = null;
         setAuthState("anonymous");
       }
-    }
-    async function onTrustDeviceRevoked(event) {
+    };
+    const onTrustDeviceRevoked = async (event) => {
       if (String(event?.deviceId || "") !== String(deviceId)) return;
       await handleTrustDeviceRevoked(deviceId).catch(() => {});
       setTrustState({ status: "error", device: null, error: "Доверие этого устройства отозвано. Локальные ключи и MLS state удалены." });
       socket.disconnect();
       showToast("Доверие устройства отозвано; защищённая доставка остановлена.", "error");
-    }`,
+    };`,
   },
   {
     label: "revoke listener registration",
