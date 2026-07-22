@@ -86,14 +86,16 @@ function conversationSetting(state, conversationId, userId) {
 
 function fileView(file) {
   if (!file || file.deletedAt) return null;
+  const encrypted = file.kind === "encrypted";
   return {
     id: file.id,
-    name: file.originalName,
-    mimeType: file.mimeType,
+    name: encrypted ? "Защищённое вложение" : file.originalName,
+    mimeType: encrypted ? "application/octet-stream" : file.mimeType,
     size: file.size,
     kind: file.kind,
-    duration: file.duration ?? null,
-    waveform: Array.isArray(file.waveform) ? file.waveform.slice(0, 96) : [],
+    ciphertextSha256: encrypted ? file.ciphertextSha256 : null,
+    duration: encrypted ? null : file.duration ?? null,
+    waveform: encrypted ? [] : Array.isArray(file.waveform) ? file.waveform.slice(0, 96) : [],
     url: `/api/files/${file.id}`,
     thumbnailUrl: file.kind === "image" ? `/api/files/${file.id}?thumbnail=1` : null,
     createdAt: file.createdAt,
@@ -193,7 +195,7 @@ function serializeMessage(state, message, viewerId) {
     listenedByMe: listened.some((item) => item.userId === viewerId),
     listenedCount: listened.length,
     isOwn: message.senderId === viewerId,
-    canEdit: message.senderId === viewerId && !deleted && !attachmentExpired && ["text", "encrypted"].includes(message.type) && !message.pendingApproval,
+    canEdit: message.senderId === viewerId && !deleted && !attachmentExpired && ["text", "encrypted"].includes(message.type) && !message.fileId && !message.pendingApproval,
     canDelete: (message.senderId === viewerId || (conversation?.type === "room" && roomPermission(state, conversation.roomId, viewerId, "room.delete_messages"))) && !deleted,
     canPin: conversation?.type === "room" && roomPermission(state, conversation.roomId, viewerId, "room.pin_messages") && !deleted,
   };
@@ -427,22 +429,11 @@ function contactState(state, viewerId, onlineUserIds = new Set()) {
 }
 
 function accessibleFiles(state, viewerId) {
-  return state.files
-    .filter((file) => !file.deletedAt && file.kind !== "avatar" && state.messages.some(
-      (message) => message.fileId === file.id && !message.deletedAt && canAccessConversation(state, findConversation(state, message.conversationId), viewerId),
-    ))
-    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
-    .map((file) => ({
-      ...fileView(file),
-      conversationId: state.messages.find(
-        (message) => message.fileId === file.id && !message.deletedAt && canAccessConversation(state, findConversation(state, message.conversationId), viewerId),
-      )?.conversationId ?? file.conversationId,
-      uploader: publicUser(findUser(state, file.uploaderId)),
-    }));
+  return state.files.filter((file) => !file.deletedAt && file.kind !== "avatar" && canAccessConversation(state, findConversation(state, file.conversationId), viewerId));
 }
 
-function safeDownloadName(name) {
-  return path.basename(String(name || "file")).replace(/[\r\n"]/g, "_");
+function safeDownloadName(value) {
+  return path.basename(String(value || "file")).replace(/[\r\n"\\]/g, "_").slice(0, 180) || "file";
 }
 
 module.exports = {
@@ -451,7 +442,6 @@ module.exports = {
   canAccessConversation,
   canModerateConversation,
   contactState,
-  conversationSetting,
   conversationList,
   dmPeer,
   fileView,
@@ -459,9 +449,8 @@ module.exports = {
   findUser,
   isBlockedEither,
   isRoomBanned,
-  readAt,
-  roomRole,
   roomPermission,
+  roomRole,
   roomView,
   safeDownloadName,
   serializeConversation,
