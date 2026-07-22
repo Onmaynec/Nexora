@@ -14,6 +14,7 @@ const { upgradeStoreToSchema8 } = require("./trust-schema8.cjs");
 const { TrustCore } = require("./trust-core.cjs");
 const { mountTrustRoutes } = require("./trust-routes.cjs");
 const { mountTrustRecoveryRoutes } = require("./trust-recovery-routes.cjs");
+const { mountTrustSocketAuthorization } = require("./trust-socket.cjs");
 const { mountMlsTransport } = require("./mls-transport.cjs");
 
 function parsePublicKeys(options = {}) {
@@ -79,6 +80,7 @@ async function createNexoraServer(options = {}) {
 
     const sandbox = new PulseSandboxService({ store: instance.store, productionMode: client.status().mode === "production", clock: options.clock, log });
     const trustCore = new TrustCore({ store: instance.store, clock: options.clock, log });
+    mountTrustSocketAuthorization({ io: instance.io, trustCore, log });
 
     const pulseRoutes = mountPulseV3Routes({
       app: instance.app,
@@ -118,7 +120,7 @@ async function createNexoraServer(options = {}) {
       ...baseStatus(),
       schemaVersion: 8,
       pulseV3: { ...client.status(), ...(sandbox.enabled() ? { mode: "sandbox", enabled: true, productionReady: false, testMode: true } : {}), sync: syncWorker.status() },
-      trust: { ...trustCore.status(), encryptedAttachments: true },
+      trust: { ...trustCore.status(), encryptedAttachments: true, deviceScopedRealtime: true },
       migration: pulseMigration,
       migrations: { pulse: pulseMigration, trust: trustMigration },
     });
