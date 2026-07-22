@@ -2,7 +2,7 @@
 
 Формат основан на Keep a Changelog. Версии следуют Semantic Versioning.
 
-## [3.2.0] — Unreleased
+## [3.2.0] — 2026-07-22 (Source/PWA prerelease)
 
 ### Added
 
@@ -16,6 +16,8 @@
 - локальные image preview, voice recording/playback, upload progress/cancel и verified download;
 - missed-commit recovery, conversation-scoped Welcome и Alice/Bob interoperability coverage;
 - реальные REST/Socket.IO plaintext-downgrade и attachment transport regression tests;
+- device-scoped secure realtime: socket-to-device binding, verified MLS member rooms, targeted revoke disconnect и local Trust wipe;
+- schema 8 soak gate с повторными mutations, backup и SQLite integrity checks;
 - migration/rollback, administrator/tester и Trust Core readiness documentation.
 
 ### Changed
@@ -24,7 +26,7 @@
 - Local Server schema 7 автоматически мигрирует к schema 8 до network listen с backup и integrity checks;
 - conversation с активной MLS group больше не использует legacy plaintext message/upload path;
 - room с запретом любого из `files/images/voice` блокирует весь opaque E2EE media path fail-closed;
-- release security audit проверяет Trust challenge-response, non-extractable device keys, AES-GCM local wrapping, replay protection, plaintext guards и encrypted-media boundary.
+- release security audit проверяет Trust challenge-response, non-extractable device keys, AES-GCM local wrapping, socket-to-device binding, verified-device-only MLS delivery, targeted revoke disconnect, replay protection, plaintext guards и encrypted-media boundary.
 
 ### Fixed
 
@@ -36,19 +38,22 @@
 
 - Local Server не получает private MLS state и не расшифровывает secure-message content;
 - attachment key, IV, source filename, actual MIME, caption, voice duration и waveform находятся только внутри MLS ciphertext;
-- устройство должно быть active и verified для KeyPackage/Welcome/commit/ciphertext delivery;
+- устройство должно быть active и verified для KeyPackage/Welcome/commit/ciphertext delivery, а secure Socket.IO event отправляется только в его device-scoped room;
+- legacy, unverified и mismatched-device sockets не получают MLS ciphertext; отзыв доверия немедленно отключает целевой socket и инициирует локальную очистку Trust state;
 - signed verify/revoke challenge одноразовый, expiring и operation-scoped;
 - duplicate/stale/skipped epochs, replayed ciphertext и повторное использование KeyPackage/Welcome/attachment отклоняются;
 - attachment ciphertext проверяется по exact GCM size и timing-safe SHA-256, а Client повторно проверяет ciphertext, GCM tag и plaintext hash перед preview/download;
 - legacy send/forward/edit/draft/scheduled/poll/bot/upload paths блокируются сервером после MLS activation;
 - сервер всё ещё видит uploader, conversation/room scope, attachment ID, ciphertext size, timing, network context и delivery events — metadata confidentiality не заявляется.
 
-### Unreleased blockers
+### Stable promotion blockers
 
-- metadata minimization/traffic-analysis review;
-- расширенная multi-device concurrency/revoke/re-add/corruption matrix и runtime E2E;
-- load/soak и long-offline recovery;
-- signing-machine checks, финальный verification report и независимый cryptographic/application-security review.
+- metadata minimization/traffic-analysis review beyond the documented boundary;
+- расширенная simultaneous-commit/re-add/corrupted-state platform matrix и packaged runtime E2E;
+- longer-duration load/soak и extended offline field evidence;
+- Authenticode signing-machine checks и независимый cryptographic/application-security review.
+
+Source/PWA prerelease не содержит unsigned updater assets и не заявляется как stable или independently audited E2EE.
 
 ## [3.1.2] — 2026-07-21
 

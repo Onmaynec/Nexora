@@ -2,7 +2,7 @@
 
 ## Status
 
-This document covers the development branch `agent/nexora-3.2.0-trust-core-mls`. It is an implementation record and release-readiness checklist, not a security certification.
+This document covers the `3.2.0` source/PWA prerelease candidate on branch `agent/nexora-3.2.0-trust-core-mls`. It is an implementation and automated-verification record, not a security certification or stable signed-release approval.
 
 Verified in the branch implementation and automated tests:
 
@@ -11,14 +11,17 @@ Verified in the branch implementation and automated tests:
 - one-time MLS KeyPackage and conversation-scoped Welcome delivery;
 - monotonic group epochs, signed commits and ciphertext replay protection;
 - ciphertext-only secure-message transport and persistence;
+- device-scoped Socket.IO binding and verified MLS-member-only ciphertext delivery;
+- immediate targeted disconnect plus client Trust-state wipe after revocation;
 - encrypted local MLS state, KeyPackages, decrypted cache and drafts;
 - secure-message UI/outbox and trusted-device management UI;
 - AES-256-GCM encrypted files, images and voice with authenticated descriptor inside MLS content;
 - opaque attachment upload, exact-size/hash checks, one-time claim, cancel and cleanup;
 - server-side plaintext guards for legacy message, forward, scheduled, poll, bot and upload paths;
-- schema, Trust Core, recovery, plaintext-guard, media, store-queue and Alice/Bob interoperability tests.
+- schema, Trust Core, recovery, plaintext-guard, media, store-queue, device-scoped realtime and Alice/Bob interoperability tests;
+- schema 8 soak with repeated mutations, backup creation and integrity checks.
 
-The branch remains draft because the complete platform/runtime matrix, metadata/traffic-analysis review, load/soak, signing-machine checks and independent cryptographic review are not complete.
+The automated candidate is eligible for a clearly marked source/PWA prerelease. Stable promotion remains blocked by packaged/physical-device runtime evidence, signing-machine checks and independent cryptographic/application-security review.
 
 ## Security objective
 
@@ -78,7 +81,8 @@ Credential authentication is not `accept-all`: the engine resolves the `(userId,
 - signed challenge-response for registration, verification and revocation;
 - AES-GCM wrapping of private MLS state, KeyPackages, decrypted cache and drafts in IndexedDB;
 - scope separation by Server ID and local user ID;
-- complete local wipe after self-revocation;
+- complete local wipe after self-revocation or a remote revocation event targeting the current device;
+- Socket.IO authentication with the active Trust device ID and forced disconnect on Trust failure;
 - attachment AES-256-GCM encryption/decryption and AAD binding;
 - XHR upload progress and abort;
 - server-envelope ID/hash/size validation;
@@ -100,7 +104,9 @@ The browser runtime is still part of the trusted computing base. XSS, compromise
 - monotonic epoch transitions;
 - signed commit proof verification;
 - replay hashes and expiration;
-- immediate delivery denial after device revocation.
+- socket-to-device ownership and trust-state validation;
+- ciphertext emission only to active, verified MLS member device rooms;
+- immediate delivery denial and targeted Socket.IO disconnect after device revocation.
 
 Local Server is the Delivery Service. It does not hold private MLS state and does not decrypt secure-message content.
 
@@ -141,7 +147,7 @@ The rollback procedure is restore-from-backup, not an in-place destructive downg
 3. Client signs the canonical Trust proof.
 4. The first device receives bootstrap verification; later devices remain unverified.
 5. A currently verified device signs a `verify_device` challenge for the pending device.
-6. Revocation uses a separate `revoke_device` challenge and immediately removes delivery rights.
+6. Revocation uses a separate `revoke_device` challenge, removes group delivery rights, disconnects the targeted socket and causes the affected client to clear its local Trust scope.
 
 ### KeyPackage and Welcome
 
@@ -165,6 +171,8 @@ The rollback procedure is restore-from-backup, not an in-place destructive downg
 - the composer produces an MLS application message before entering outbox;
 - outbox stores and retries ciphertext envelopes only;
 - Local Server validates account/device/conversation/group/epoch and replay state without decryption;
+- the sending socket must be bound to the same active verified device named by the MLS envelope;
+- ciphertext is emitted only to active verified devices in the current MLS group;
 - recipients decrypt only after group-state and authenticated-data checks;
 - local search operates over the encrypted decrypted-content cache;
 - edits/replies/reactions are represented through the secure client path where supported.
@@ -196,11 +204,11 @@ Encrypted media uses only the v4 opaque endpoint and MLS message binding. It doe
 
 ## Remaining release blockers
 
-- metadata minimization and traffic-analysis review;
-- multi-device concurrency, simultaneous commits, removal/re-add and corrupted-state matrix;
-- browser/Electron/Android runtime integration tests beyond source/production build;
-- load/soak and long-offline recovery testing;
-- final signing-machine release checks and verification report;
+- metadata minimization and traffic-analysis review beyond the documented boundary;
+- broader simultaneous-commit, re-add and corrupted local-state platform matrix;
+- packaged Electron, installed PWA and physical Android runtime integration;
+- longer-duration load/soak and extended offline field evidence;
+- final Authenticode signing-machine release checks;
 - independent cryptographic and application-security review.
 
 ## Required final gates
@@ -208,6 +216,7 @@ Encrypted media uses only the v4 opaque endpoint and MLS message binding. It doe
 - `npm run release:check`;
 - Windows production web/syntax/unit/security gate;
 - Linux full test suite;
+- schema 8 soak with repeated writes, backups and integrity checks;
 - Android `assembleDebug` and release-source validation;
 - schema 7 fixture migration and backup restore exercise;
 - direct REST/Socket.IO downgrade attempts;

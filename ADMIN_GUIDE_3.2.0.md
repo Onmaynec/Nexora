@@ -1,6 +1,6 @@
-# Nexora 3.2.0 Administrator Guide — Development
+# Nexora 3.2.0 Administrator Guide — Source/PWA Prerelease
 
-> This guide applies only to PR #12 / `agent/nexora-3.2.0-trust-core-mls`. Stable production administration remains documented in [ADMIN_GUIDE.md](ADMIN_GUIDE.md). Do not deploy this branch for real private conversations before the remaining release blockers and external review are closed.
+> This guide applies to the controlled-testing 3.2.0 source/PWA prerelease candidate from PR #12. Stable signed production administration remains documented in [ADMIN_GUIDE.md](ADMIN_GUIDE.md). Do not use this candidate for high-risk private communications or represent it as independently audited E2EE.
 
 ## 1. Scope
 
@@ -8,13 +8,14 @@ Nexora 3.2.0 adds:
 
 - Local Server schema 8;
 - Trust device registration, verification and revocation;
-- MLS secure-message delivery;
+- MLS secure-message delivery bound to active verified Trust devices;
+- device-scoped Socket.IO ciphertext delivery and immediate revoke disconnect;
 - ciphertext-only persistence for secure messages;
 - encrypted local client state;
 - encrypted files, images and voice through an opaque attachment API;
 - server-side plaintext downgrade guards.
 
-The branch is still development-only. It does not claim metadata confidentiality, traffic-analysis resistance or independent cryptographic review.
+The candidate passed automated build/test/security/soak gates and may be used for controlled source/PWA testing. It does not claim metadata confidentiality, traffic-analysis resistance, signed Windows distribution or independent cryptographic review.
 
 ## 2. Pre-upgrade preparation
 
@@ -90,6 +91,8 @@ Revoking a device:
 - marks the device revoked;
 - removes it from active group delivery;
 - blocks new KeyPackage/Welcome/commit/ciphertext access;
+- emits a targeted revocation event and disconnects every socket bound to that device;
+- causes the affected client to clear local Trust keys, MLS state, cache and drafts;
 - records a Trust audit entry.
 
 Self-revocation additionally deletes local wrapping key, device key material, KeyPackages, private group state, decrypted cache and drafts, then logs out.
@@ -102,6 +105,8 @@ When a conversation activates an MLS group:
 
 - the client creates ciphertext before durable outbox;
 - the server stores encrypted message envelopes only;
+- the secure socket must present the same active verified `deviceId` used by the MLS envelope;
+- ciphertext events go only to active verified device rooms for current MLS members;
 - previews use a neutral protected-message label;
 - legacy plaintext send/forward/edit/draft/scheduled/poll/bot/upload routes return stable E2EE errors;
 - files, images and voice use only the v4 opaque attachment API and MLS descriptor binding.
@@ -157,6 +162,8 @@ Monitor existing liveness/readiness/metrics plus Trust/media signals:
 - `MLS_MESSAGE_REPLAY`;
 - commit log gaps;
 - revoked-device access attempts;
+- `TRUST_SOCKET_DEVICE_MISMATCH`, `TRUST_DEVICE_UNVERIFIED` or repeated secure-socket reconnect failures;
+- target sockets that remain connected after revocation;
 - repeated lost-state or Welcome-pending errors;
 - `E2EE_ATTACHMENT_HASH_MISMATCH` or ID/scope conflicts;
 - unexpected growth of pending encrypted attachments;

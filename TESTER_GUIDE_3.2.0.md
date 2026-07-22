@@ -1,6 +1,6 @@
-# Nexora 3.2.0 Trust/MLS Tester Guide — Development
+# Nexora 3.2.0 Trust/MLS Tester Guide — Source/PWA Prerelease
 
-> Test only disposable installations and accounts. This branch is not an independently audited stable release. Stable testing remains documented in [TESTER_GUIDE.md](TESTER_GUIDE.md).
+> Test only disposable installations and accounts. This source/PWA prerelease candidate passed automated gates but is not a signed or independently audited stable release. Stable testing remains documented in [TESTER_GUIDE.md](TESTER_GUIDE.md).
 
 ## 1. Test matrix
 
@@ -12,6 +12,7 @@ Minimum environments:
 - two browser profiles on one machine;
 - two physical/logically isolated machines where available;
 - schema 7 fixture upgraded to schema 8;
+- schema 8 soak run with repeated writes, backups and integrity checks;
 - Pulse sandbox and production-mode-disabled sandbox checks.
 
 Minimum identities:
@@ -118,11 +119,13 @@ Expected stable errors: scope mismatch, invalid/consumed/expired proof; no state
 
 ### 4.4 Revoke other device
 
-1. Revoke A2 from A1.
-2. Confirm A2 status revoked.
-3. On A2 attempt KeyPackage upload/claim, Welcome, commits and ciphertext delivery.
+1. Connect A1 and A2 concurrently and confirm both socket sessions are visible.
+2. Revoke A2 from A1.
+3. Confirm A2 receives the revocation event and its socket disconnects immediately.
+4. Confirm A1 and unrelated devices remain connected.
+5. On A2 attempt KeyPackage upload/claim, Welcome, commits and ciphertext delivery.
 
-Expected: all secure operations denied immediately.
+Expected: all secure operations are denied immediately, only the targeted socket is disconnected, and A2 removes its local Trust/MLS state.
 
 ### 4.5 Self-revoke
 
@@ -131,7 +134,21 @@ Expected: all secure operations denied immediately.
 3. Complete operation.
 4. Inspect IndexedDB in the test profile.
 
-Expected: wrapping key, device record, KeyPackages, group state, decrypted cache and drafts are removed; session logs out.
+Expected: wrapping key, device record, KeyPackages, group state, decrypted cache and drafts are removed; secure socket disconnects and the session logs out.
+
+### 4.6 Device-scoped realtime isolation
+
+1. Connect three sessions for the same account: verified A1, unverified A2 and a legacy socket without `deviceId`.
+2. Make both A1 and A2 visible in an MLS membership fixture.
+3. Send a secure message from A1.
+4. Attempt secure sends from the legacy socket, A2 and A1 while naming A2 in the envelope.
+
+Expected:
+
+- only A1 receives `message:new`;
+- A2 and the legacy socket receive no ciphertext;
+- all three invalid sends return `TRUST_SOCKET_DEVICE_MISMATCH`;
+- account-wide user rooms are not used for MLS ciphertext delivery.
 
 ## 5. Alice/Bob MLS lifecycle
 
