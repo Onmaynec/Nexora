@@ -1,83 +1,191 @@
-# Руководство тестера Nexora 3.1.2
+# Nexora Acceptance Test Guide
 
-## Подключение
+## 1. Test scope
 
-1. При необходимости установите Radmin VPN и подключитесь к сети владельца Nexora.
-2. Установите подписанный Nexora Client 3.1.2, PWA или Android-клиент.
-3. Скопируйте из окна Server полный адрес вида `https://26.x.x.x:3443`.
-4. Сверьте SHA-256 fingerprint и Server ID с владельцем по доверенному каналу.
-5. Нажмите «Доверять и подключиться» и зарегистрируйтесь.
+This guide covers:
 
-Для `.exe` установка `.crt` не требуется. Для Edge/Chrome/PWA и Android при локальном CA корневой `.crt` обязателен. Никогда не обходите certificate warning.
+- signed production baseline `3.1.2`;
+- current `3.2.0` Source/PWA prerelease;
+- Windows Client/Server, PWA and Android source/runtime surfaces;
+- application API v3, Trust/MLS API v4 and SQLite schema 8.
 
-## Если Client не подключается
+The `3.2.0` prerelease is intended for controlled testing with disposable accounts and data. It is not independently audited E2EE and is not a signed stable Windows release.
 
-- `ERR_CERT_AUTHORITY_INVALID (-202)` — удалите сохранённую запись сервера, снова вставьте полный адрес и подтвердите актуальный fingerprint; убедитесь, что используется Client 3.1.2.
-- «Введите полный IPv4-адрес» — `https://26.` недостаточно, нужны четыре octets и port.
-- «Сертификат не содержит адрес» — владелец должен запустить VPN и перезапустить Server, чтобы текущий address попал в SAN.
-- «Нет маршрута/сервер недоступен» — оба устройства должны быть online в одной сети; проверьте private firewall TCP 3443.
-- «Несовместимая версия» — API v3 принимает основной диапазон Client major 2–3; обновите более старый Client.
+## 2. Test environment record
 
-## Приёмочный тест 3.1.2
+Record before testing:
 
-### Профили и контакты
+- Client version and platform;
+- Local Server version and schema;
+- Pulse Cloud version/mode where applicable;
+- operating system and browser;
+- deployment type: localhost, LAN, private VPN or public HTTPS;
+- Server ID and sanitized certificate fingerprint;
+- test date and responsible tester;
+- Git commit/tag or release asset identifier.
 
-- Нажмите avatar в message, header, chat list, contacts, search и room members — должна открываться одна profile card.
-- Повторите для профиля без contact/common rooms: blank screen и error boundary недопустимы.
-- Проверьте display name, @username, bio/status, common rooms и действия «Написать/Добавить/Блокировать».
-- Загрузите avatar, измените password, просмотрите и завершите отдельную session.
-- Удалите contact без блокировки; history должна сохраниться.
+## 3. Connection and TLS
 
-### Чаты
+1. Obtain the full HTTPS URL, Server ID and SHA-256 fingerprint through a trusted channel.
+2. Connect with Windows Client, PWA or Android.
+3. Confirm that a new certificate requires explicit trust.
+4. Confirm that a changed fingerprint requires renewed approval.
+5. Verify that browser/PWA and Android reject an untrusted certificate.
+6. Verify that HTTP and mixed content are rejected where required.
 
-- При отсутствии unread рядом с «Сообщения» не должно быть `0`.
-- Отправьте text, reply, reaction, poll, mention, silent и scheduled message; отредактируйте, удалите, закрепите, сохраните и перешлите сообщение.
-- Наведите мышь на message, откройте reaction picker и переведите cursor на emoji: picker не должен исчезнуть.
-- Откройте details drawer и повторите actions у левого/правого края: menus не должны выходить за chat или прятаться под drawer.
-- Проверьте Saved Messages, multi-select/copy, drafts, archive/pin/mute и filters.
-- Отключите Server, прочитайте cache, поставьте text в outbox, перезапустите Client, запустите Server и проверьте delta sync без дублей.
+Expected failures:
 
-### Поиск и непрочитанные
+- incomplete IPv4/URL is rejected;
+- certificate SAN mismatch is rejected;
+- incompatible Client receives a clear compatibility error;
+- external Android links open outside the application;
+- TLS errors are never bypassed automatically.
 
-- Выполните global search и search внутри chat.
-- Нажмите reply/search result — feed должна перейти к original message и подсветить его.
-- Проверьте divider «Новые сообщения» и кнопку «К последнему».
+## 4. Core messaging
 
-### Комнаты и модерация
+Test:
 
-- Создайте public/private rooms; войдите напрямую, по request и по invite.
-- Назначьте moderator, передайте ownership, удалите и забаньте user.
-- Проверьте read-only, slow mode, запрет files/voice и room audit.
-- Выпустите два invitations, отзовите одно, задайте expiry/usage limit.
-- Проверьте custom role/category, report, appeal, temporary restriction и pre-approval.
-- После remove/ban убедитесь, что пользователь не получает новые room events и прямой API request отклоняется.
+- direct messages, Saved Messages and rooms;
+- text, reply, thread, reaction, mention and poll;
+- edit, delete, forward, pin and bookmark;
+- silent and scheduled send;
+- drafts, archive, mute, filters and search;
+- read state, notifications and unread divider;
+- offline cache, restart, durable outbox and delta sync without duplicates.
 
-### Файлы и голосовые
+UI acceptance:
 
-- Перетащите несколько files; отмените один upload и повторите failed upload.
-- Прервите upload файла больше 2 МБ и убедитесь, что chunk upload продолжается; fake image extension должен быть отклонён или обработан как binary.
-- Откройте image, PDF/text preview, media tab и общий file archive.
-- Запишите voice: pause → resume → preview → send.
-- Проверьте waveform, 1×/1.5×/2×, listened state и продолжение playback после смены chat.
-- Откройте global voice dock и нажмите X: dock должен немедленно исчезнуть, playback остановиться, а повторное открытие другого voice не должно использовать прежние name/URL/time/speed.
+- no zero badges;
+- reaction picker remains interactive;
+- menus and docks stay within viewport/panel boundaries;
+- long names, filenames and 99+ counters do not break layout;
+- keyboard navigation and narrow-window behavior remain usable.
 
-### Local accounts и Cloud Identity
+## 5. Profiles, contacts and sessions
 
-- Включите local TOTP, сохраните recovery codes, войдите с TOTP и один раз — recovery code; reuse должен быть отклонён.
-- Создайте Cloud Account, подтвердите email и включите Cloud MFA.
-- Проверьте OAuth 2.1 Authorization Code flow с PKCE S256 и exact redirect URI.
-- Свяжите Local Account с Cloud Account через одноразовый link flow; повторное использование link/nonce должно быть отклонено.
-- Разорвите link после current-password reauthentication и убедитесь, что local messaging продолжает работать.
+- open the same profile card from message, header, chat list, contacts, search and room members;
+- verify null/empty relationship state does not produce a blank screen;
+- update display name, bio/status and avatar;
+- change password and terminate a specific session;
+- remove a contact without deleting history;
+- block/unblock and verify direct-message restrictions;
+- enable local TOTP and consume a recovery code once.
 
-### Nexora Plus / Pulse
+## 6. Rooms and moderation
 
-#### Disabled
+Create public and private rooms and verify:
 
-- UI объясняет, что Pulse не настроен; базовые chats и собственные данные остаются доступны.
+- direct join, join request and invitation join;
+- `owner`, `moderator`, `member` permission boundaries;
+- moderator appointment/removal;
+- atomic ownership transfer;
+- removal, ban and unban;
+- read-only and slow mode;
+- file/image/voice restrictions;
+- multiple invitations, expiry, usage limit and revocation;
+- custom roles/categories;
+- reports, appeals, temporary restrictions and pre-approval;
+- audit entries and system messages.
 
-#### Local sandbox 3.1.2
+After removal or ban, direct REST calls and realtime events for the room must be denied.
 
-На тестовом Server выполните:
+## 7. Legacy files and voice
+
+- upload multiple files;
+- cancel and retry an upload;
+- interrupt a resumable upload and continue it;
+- verify size, SHA-256 and actual MIME behavior;
+- verify fake image extension is rejected or handled as binary;
+- open image, PDF/text preview and media archive;
+- record, pause, resume, preview and send voice;
+- verify waveform, playback speeds and listened state;
+- close the global voice dock and confirm complete audio-state reset.
+
+## 8. Trust devices — 3.2.0
+
+### Enrollment
+
+- create the first device and verify bootstrap state;
+- enroll a second device;
+- compare fingerprints through a trusted channel;
+- approve the second device from an active verified device;
+- confirm unverified device cannot perform secure operations.
+
+### Revocation
+
+- revoke a second device;
+- confirm targeted Socket.IO disconnect is immediate;
+- confirm other devices remain connected;
+- confirm revoked Client wipes device identity, private MLS state, KeyPackages, cache and drafts;
+- confirm revoked device cannot receive new KeyPackage, Welcome, commit or ciphertext events;
+- verify reenrollment requires a new device lifecycle.
+
+## 9. MLS secure messaging — 3.2.0
+
+- create a secure conversation between verified devices;
+- verify one-time KeyPackage claim;
+- verify Welcome scope is bound to user, device and conversation;
+- send messages in both directions;
+- restart one Client and recover a contiguous commit chain;
+- verify replayed ciphertext is rejected;
+- verify stale/skipped epoch is rejected;
+- verify explicit failure after unrecoverable private-state loss;
+- verify local decrypted search/cache behavior;
+- verify server serialization exposes no plaintext message text.
+
+### Downgrade tests
+
+After MLS activation, attempt direct legacy operations:
+
+- send;
+- forward;
+- edit;
+- server draft;
+- scheduled message;
+- poll;
+- bot message;
+- multipart upload;
+- resumable upload.
+
+Every plaintext path must fail closed. No secure operation may silently fall back to legacy plaintext.
+
+## 10. Secure files, images and voice — 3.2.0
+
+- upload encrypted file, image and voice payloads;
+- verify progress and cancel behavior;
+- verify pending ciphertext cannot be downloaded before message claim;
+- atomically claim attachment through an MLS message;
+- verify authorized local decrypt and integrity;
+- verify image preview and voice playback;
+- repeat upload with same ID/scope/hash and confirm idempotency;
+- change hash, size, scope or descriptor and confirm rejection;
+- attempt attachment reuse in another message and confirm rejection;
+- cancel pending upload and confirm cleanup;
+- verify failed outbox retains only opaque attachment ID and MLS ciphertext;
+- verify ordinary cache does not retain decrypted attachment descriptor.
+
+Room policy:
+
+- disable files, images or voice;
+- confirm the complete opaque secure-media path is blocked;
+- confirm no plaintext fallback is offered.
+
+## 11. Cloud Identity and Pulse
+
+### Cloud Identity
+
+- register and verify email;
+- enable Cloud MFA;
+- exercise OAuth 2.1 Authorization Code + PKCE S256;
+- verify exact redirect URI matching;
+- link Local Account using one-time signed flow;
+- reject replayed link/nonce;
+- unlink after current-password reauthentication;
+- confirm local messaging remains available during Cloud outage.
+
+### Local sandbox
+
+Execute:
 
 ```text
 pulse sandbox on
@@ -88,62 +196,107 @@ impulses revoke <user> 10 qa
 plus revoke <user>
 ```
 
-Проверьте:
+Verify:
 
-- новая test Plus activation выдаёт 400 Impulses только один раз;
-- повторный grant активного entitlement не создаёт второй monthly grant;
-- balance не становится отрицательным;
-- checkout недоступен;
-- operations отражаются в audit/ledger;
-- после включения production Pulse local sandbox commands блокируются.
+- initial test Plus activation grants 400 Impulses once;
+- repeated active grant does not duplicate the grant;
+- balance never becomes negative;
+- checkout is disabled;
+- all mutations appear in audit/ledger;
+- production Pulse configuration disables local sandbox authority.
 
-#### Production test environment
+### Production provider sandbox
 
-- Используйте только отдельный Pulse Cloud/provider sandbox.
-- Проверьте checkout, verified webhook, receipt, billing portal, cancel-at-period-end и entitlement revoke propagation.
-- Повтор provider event или idempotency key с тем же payload не должен дублировать settlement; scope/payload substitution должен отклоняться.
-- Cloud outage не должен блокировать local messaging; UI может показывать только последний verified cache.
+- checkout and verified webhook;
+- receipt and billing portal;
+- cancel-at-period-end;
+- entitlement revoke propagation;
+- duplicate provider event/idempotency no-op;
+- payload or scope substitution rejection;
+- Cloud outage fallback to last verified cache without blocking messaging.
 
-### Operational health
+## 12. Operational runtime
 
-- `GET /healthz/live` возвращает success для Local Server и Pulse Cloud.
-- `GET /healthz/ready` отражает SQLite/schema/ledger/worker state и становится `503` в drain mode.
-- `/metrics` с configured token требует Bearer authentication; без token доступ разрешён только loopback.
-- Проверьте, что operational logs содержат request ID, но не credentials/cookies/passwords/tokens/API keys/signatures.
-- Выполните allowlisted developer commands `status`, `health`, `users list`, `rooms list`, `audit tail`.
-- Попытка shell/eval или неизвестной команды должна быть отклонена.
-- Включите emergency read-only: reads работают, mutations блокируются; затем выключите режим.
+- `GET /healthz/live` returns success;
+- `GET /healthz/ready` reports database/schema/runtime state;
+- readiness becomes `503` during drain;
+- `/metrics` requires Bearer token when configured;
+- without token, metrics are loopback-only;
+- logs contain request ID and no credentials;
+- allowlisted developer commands execute;
+- shell/eval and unknown commands are rejected;
+- emergency read-only permits reads and blocks mutations;
+- graceful shutdown completes without SQLite corruption.
 
-### Auto-update 3.1.2
+## 13. Migration and recovery
 
-- После `app.whenReady()` Client выполняет initial update check.
-- Параллельные manual/automatic checks не создают несколько simultaneous requests.
-- Следующая automatic check запланирована через шесть часов; при quit timers/listeners очищаются.
-- Signed stable release с `latest.yml`/blockmap принимается согласно policy.
-- При отсутствии installable signed metadata UI получает стабильную причину `no_installable_update`, а не raw stack/provider error.
+From a verified schema 7 backup:
 
-### Боты и webhooks
+1. start the 3.2.0 Local Server;
+2. confirm source integrity and free-space checks;
+3. confirm pre-migration backup creation;
+4. confirm schema 8 and post-migration integrity;
+5. confirm existing 3.1.x data remains readable;
+6. confirm old binary/downgrade path is blocked;
+7. restore the verified backup according to the documented rollback procedure.
 
-- Создайте bot token только с `messages:write`, отправьте message и убедитесь, что read/foreign room недоступны.
-- Проверьте token expiry/revocation и отсутствие plaintext token в storage/logs.
-- Проверьте HMAC webhook на public HTTPS endpoint; localhost/private/link-local target должен быть отклонён.
+Do not use production data as the first migration test.
 
-### Responsive, PWA и Android
+## 14. Platform matrix
 
-- Проверьте 1920×1080, 1366×768 и narrow window.
-- Раскройте каждый dock/menu: он не должен выходить за panel boundaries.
-- Проверьте long names, filenames, bio и 99+ unread.
-- Установите PWA, перезапустите без сети и убедитесь, что доступен cached history, но API responses не выдаются Service Worker.
-- Откройте Android deep link `nexora://connect?url=<HTTPS URL>`; HTTP URL должен быть отклонён.
-- При untrusted/changed certificate Android обязан cancel loading.
-- External origin должен открываться во внешнем browser.
+### Windows
 
-## Голосовое не записывается
+- clean Client/Server installation;
+- update from previous signed stable version;
+- certificate/session persistence;
+- updater initial check and six-hour schedule;
+- single-flight checks;
+- `no_installable_update` diagnostic;
+- Authenticode and updater assets for stable release only.
 
-Проверьте HTTPS, certificate trust, microphone permission и отсутствие другого приложения, занявшего device. В комнате voice messages может отключить moderator. Максимум — 5 минут и 25 МБ.
+### PWA
 
-## Отчёт об ошибке
+- install/update application shell;
+- offline shell and authorized local cache;
+- no API/Socket.IO Service Worker caching;
+- secure-state persistence across restart.
 
-Укажите версии Client/Server/Cloud, platform/OS, exact steps, expected/actual result, time, request ID, network/deployment type и приложите очищенный screenshot/log.
+### Android
 
-Не отправляйте password, session cookie, OAuth token, TOTP/recovery code, bot/Pulse key, signing key, invite code, private CA key, user data или backup passphrase.
+- source build with JDK 17 / SDK 36 / Gradle 8.13;
+- HTTPS-only deep link;
+- TLS error cancellation;
+- external navigation handling;
+- microphone and file permission flow;
+- physical-device runtime matrix for stable promotion.
+
+## 15. Automated gates
+
+```bash
+npm ci
+npm run check
+npm run test:unit
+npm run test:performance
+npm run audit:security
+npm run release:check
+npm run test:soak
+gradle -p android :app:assembleDebug --no-daemon
+```
+
+The authoritative automated evidence for 3.2.0 is [RELEASE_VERIFICATION_3.2.0.md](RELEASE_VERIFICATION_3.2.0.md).
+
+## 16. Defect report
+
+Include:
+
+- Client/Server/Cloud versions;
+- platform and OS;
+- deployment type;
+- exact reproduction steps;
+- expected and actual result;
+- timestamp and request ID;
+- sanitized screenshot/log;
+- whether the issue is a regression;
+- migration/Trust/MLS state where relevant, without secrets.
+
+Never publish passwords, cookies, OAuth tokens, TOTP/recovery codes, invite codes, bot/Pulse credentials, private CA keys, device private keys, MLS private state, user data or backup passphrase.
