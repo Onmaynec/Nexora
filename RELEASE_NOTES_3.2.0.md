@@ -1,6 +1,6 @@
-# Nexora 3.2.0 Release Notes — Source/PWA Prerelease Candidate
+# Nexora 3.2.0 Release Notes — Source/PWA Prerelease
 
-> **Release classification:** controlled-testing prerelease candidate. The automated source/build/test/security gates pass. Stable signed Windows distribution and independently audited E2EE are not claimed.
+> **Release classification:** controlled-testing source/PWA prerelease. Automated source, build, test, performance, security and soak gates pass. Stable signed Windows distribution and independently audited E2EE are not claimed.
 
 ## Trust Core and MLS secure messaging
 
@@ -85,11 +85,13 @@ Migration behavior:
 
 Rollback is restore-from-backup, not an in-place downgrade. See [docs/MIGRATION_3.2.0.md](docs/MIGRATION_3.2.0.md).
 
-## Reliability fixes
+## Reliability and performance fixes
 
 A rejected `SqliteStore.mutate()` operation previously left the internal serialized queue rejected. The caller received the correct error, but later `flush()` or shutdown could rethrow the already handled failure. The queue now stores a handled continuation while the caller retains the rejected operation Promise. Regression coverage verifies rollback, successful flush and subsequent mutation.
 
-The release candidate also runs a schema 8 soak job with repeated state mutations, backup creation and SQLite integrity verification.
+The 20-client / 120-message performance budget previously ran inside the parallel unit-suite process. Hosted-runner CPU and SQLite contention could therefore produce a false failure even though the same benchmark passed immediately when rerun. Functional tests and the schema 8 performance smoke now run as separate stages on Windows, Linux and the release gate. The original 20-second budget was retained; focused diagnosis completed in approximately 2.47 seconds.
+
+The release also runs a schema 8 soak job with repeated state mutations, backup creation and SQLite integrity verification.
 
 ## Security gate additions
 
@@ -113,19 +115,20 @@ The release security audit checks:
 - upload progress/cancel and descriptor isolation from ordinary outbox/cache;
 - production dependency audit with no high or critical vulnerabilities.
 
-## Automated candidate evidence
+## Automated release evidence
 
-GitHub Actions CI run `#222` (`29919641225`) passed on commit `927ae6300392d161f987acb057435f5d0e6ca2f9`:
+GitHub Actions CI run `#250` (`29921551883`) passed on implementation commit `9af91d129273d702cea2bf736354d25bac05d1e3`:
 
 - Windows `npm run check`;
 - Windows `npm run test:unit`;
+- Windows `npm run test:performance`;
 - Windows `npm run audit:security`;
 - Linux `npm test`;
 - dedicated `npm run release:check`;
 - one-minute schema 8 soak;
 - Android `gradle -p android :app:assembleDebug --no-daemon`.
 
-The final documentation-only candidate head is verified separately in [RELEASE_VERIFICATION_3.2.0.md](RELEASE_VERIFICATION_3.2.0.md).
+The retained evidence and classification are documented in [RELEASE_VERIFICATION_3.2.0.md](RELEASE_VERIFICATION_3.2.0.md).
 
 ## Compatibility
 
@@ -149,7 +152,7 @@ It intentionally withholds unsigned `.exe`, `latest.yml` and blockmap assets, so
 
 ## Remaining stable-promotion gates
 
-The following do not block a clearly marked source/PWA prerelease, but remain mandatory before stable production promotion:
+The following do not block this clearly marked source/PWA prerelease, but remain mandatory before stable production promotion:
 
 - metadata minimization and traffic-analysis review beyond the documented boundary;
 - broader simultaneous-commit, revoke/re-add and corrupted local-state platform matrix;
