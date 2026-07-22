@@ -57,3 +57,5 @@ jobs:
           git add -A
           git commit -m "fix: complete Nexora 3.2.4 regression coverage"
           git push origin HEAD:agent/nexora-3.2.4-updater-mls-recovery
+
+# This workflow removes itself after a successful verified patch.
