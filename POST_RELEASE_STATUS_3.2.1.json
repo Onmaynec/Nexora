@@ -1,0 +1,19 @@
+{
+  "verifiedAt": "2026-07-22T14:21:05Z",
+  "releaseCommit": "ae5b21e085ab253c98a410638ab8e6f7cd405a27",
+  "tagTarget": "",
+  "ci": {
+    "conclusion": "failure",
+    "createdAt": "2026-07-22T14:15:34Z",
+    "databaseId": 29927717990,
+    "displayTitle": "release: Nexora 3.2.1 login and Server shutdown bugfix",
+    "event": "push",
+    "headSha": "ae5b21e085ab253c98a410638ab8e6f7cd405a27",
+    "status": "completed",
+    "updatedAt": "2026-07-22T14:18:00Z",
+    "workflowName": "CI"
+  },
+  "release": null,
+  "requiredAssetsPresent": false,
+  "forbiddenUnsignedUpdaterAssetsAbsent": false
+}
