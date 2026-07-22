@@ -1,9 +1,15 @@
 # Branch Status — `agent/nexora-3.1.0-local-pulse-integration`
 
-- Target: Nexora 3.1.0 Local Server schema 7 and signed Pulse integration.
-- Historical Pull Request: `#3`.
-- Status: merged and superseded by stable Nexora 3.1.2 on `main`.
+| Field | Value |
+|---|---|
+| Classification | Merged and superseded provenance |
+| Branch-local target | Nexora `3.1.0`, schema 7 and signed Local/Pulse integration |
+| Related Pull Request | PR `#3` |
+| Current source of truth | `main`, Nexora `3.2.4` |
+| Release use | Historical review only |
 
-This branch represents the schema 6 → 7 and Local Server ↔ Pulse Cloud integration stage. It was stacked on the earlier Cloud foundation and did not contain the final 3.1.0 productization by itself.
+This branch represents the schema 6 → 7 and Local Server ↔ Pulse Cloud integration stage. It did not contain the complete 3.1.0 productization by itself.
 
-Use branch-local documents only to review this historical stage. Current administration, security, Pulse and migration guidance is maintained on `main`.
+Do not tag, publish or continue product work from this branch. Its migration and integration documentation applies only to the branch-local stage and must not replace current schema 8 guidance.
+
+Use `main` and `docs/README.md` for current administration, Pulse, security, migration and release documentation.
