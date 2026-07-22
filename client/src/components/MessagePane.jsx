@@ -12,6 +12,7 @@ import {
 } from "../outbox";
 import { emitAck } from "../socket";
 import { cacheMessages, readCachedMessages } from "../offline-store";
+import ConfirmDialog from "./ConfirmDialog";
 import VoiceRecorder from "./VoiceRecorder";
 import VoicePlayer from "./VoicePlayer";
 import { Avatar, EmptyState, formatBytes, formatTime, InlineLoader } from "./ui";
@@ -227,6 +228,8 @@ export default function MessagePane({ conversation, conversations, initialDraft 
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [pollOpen, setPollOpen] = useState(false);
   const [editHistory, setEditHistory] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const fileInputRef = useRef(null);
   const listRef = useRef(null);
   const typingTimer = useRef(null);
@@ -559,6 +562,20 @@ export default function MessagePane({ conversation, conversations, initialDraft 
     }
   }
 
+  async function confirmDelete() {
+    if (!deleteTarget || deleteBusy) return;
+    setDeleteBusy(true);
+    try {
+      await emitAck(socket, "message:delete", { messageId: deleteTarget.id });
+      setDeleteTarget(null);
+      await onRefresh();
+    } catch (error) {
+      showToast(error.message, "error");
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
+
   async function searchCurrent(event) {
     event?.preventDefault();
     const query = searchQuery.trim();
@@ -654,7 +671,7 @@ export default function MessagePane({ conversation, conversations, initialDraft 
 
       <div className="message-list" ref={listRef} onScroll={(event) => { const node = event.currentTarget; setShowJump(node.scrollHeight - node.scrollTop - node.clientHeight > 260); }}>
         {hasMore && <button type="button" className="load-earlier" onClick={loadEarlier} disabled={loadingMore}>{loadingMore ? <InlineLoader label="Загрузка" /> : <><ChevronDown size={15} /> Более ранние сообщения</>}</button>}
-        {loading ? <div className="messages-loading"><InlineLoader label="Загружаем переписку" /></div> : displayMessages.length === 0 ? <EmptyState icon={conversation.type === "dm" ? Send : UsersRound} title={conversation.isSavedMessages ? "Ваше личное пространство" : "Начало разговора"} description={conversation.isSavedMessages ? "Сохраняйте здесь заметки, файлы и сообщения — они доступны только вам на этом сервере." : conversation.type === "dm" ? `Напишите первое сообщение для ${conversation.title}.` : "В этой комнате пока тихо. Начните обсуждение."} /> : displayMessages.map((message) => <div key={message.id} className={highlightedId === message.id ? "message-highlight" : ""}>{firstUnreadId.current === message.id && <div className="unread-divider"><span>Новые сообщения</span></div>}<MessageItem message={message} conversation={conversation} onReply={(item) => { setReplyingTo(item); setEditing(null); }} onEdit={(item) => { setEditing(item); setReplyingTo(null); setText(item.text); }} onDelete={(item) => window.confirm("Удалить сообщение? Это действие нельзя отменить.") && action("message:delete", { messageId: item.id })} onReact={(item, emoji) => action("message:react", { messageId: item.id, emoji })} onPin={(item) => action("message:pin", { messageId: item.id })} onBookmark={toggleBookmark} onPreview={setImagePreview} onJump={jumpToMessage} onForward={setForwarding} onOpenProfile={onOpenProfile} onPollVote={votePoll} onReport={reportMessage} onHistory={showEditHistory} selectionMode={selectionMode} selected={selectedIds.has(message.id)} onToggleSelect={toggleSelected} onRetry={retryPending} onDiscard={(item) => removeOutboxEntry(me.id, item.outboxId)} /></div>)}
+        {loading ? <div className="messages-loading"><InlineLoader label="Загружаем переписку" /></div> : displayMessages.length === 0 ? <EmptyState icon={conversation.type === "dm" ? Send : UsersRound} title={conversation.isSavedMessages ? "Ваше личное пространство" : "Начало разговора"} description={conversation.isSavedMessages ? "Сохраняйте здесь заметки, файлы и сообщения — они доступны только вам на этом сервере." : conversation.type === "dm" ? `Напишите первое сообщение для ${conversation.title}.` : "В этой комнате пока тихо. Начните обсуждение."} /> : displayMessages.map((message) => <div key={message.id} className={highlightedId === message.id ? "message-highlight" : ""}>{firstUnreadId.current === message.id && <div className="unread-divider"><span>Новые сообщения</span></div>}<MessageItem message={message} conversation={conversation} onReply={(item) => { setReplyingTo(item); setEditing(null); }} onEdit={(item) => { setEditing(item); setReplyingTo(null); setText(item.text); }} onDelete={setDeleteTarget} onReact={(item, emoji) => action("message:react", { messageId: item.id, emoji })} onPin={(item) => action("message:pin", { messageId: item.id })} onBookmark={toggleBookmark} onPreview={setImagePreview} onJump={jumpToMessage} onForward={setForwarding} onOpenProfile={onOpenProfile} onPollVote={votePoll} onReport={reportMessage} onHistory={showEditHistory} selectionMode={selectionMode} selected={selectedIds.has(message.id)} onToggleSelect={toggleSelected} onRetry={retryPending} onDiscard={(item) => removeOutboxEntry(me.id, item.outboxId)} /></div>)}
       </div>
 
       {showJump && <button type="button" className="jump-latest" onClick={() => scrollToBottom()}><ArrowDown size={17} /> К последнему</button>}
@@ -695,6 +712,7 @@ export default function MessagePane({ conversation, conversations, initialDraft 
       {editHistory && <div className="modal-backdrop" role="dialog" aria-modal="true" onMouseDown={(event) => event.target === event.currentTarget && setEditHistory(null)}><section className="modal-card mini-feature-modal"><header><div><span>EDIT HISTORY</span><h2>История правок</h2></div><button type="button" onClick={() => setEditHistory(null)}><X size={18} /></button></header><div className="edit-history-list">{editHistory.edits.map((edit) => <article key={edit.id}><time>{new Date(edit.createdAt).toLocaleString("ru")}</time><p>{edit.previousText}</p></article>)}</div><div className="edit-history-current"><strong>Текущая версия</strong><p>{editHistory.message.text}</p></div></section></div>}
 
       {imagePreview && <div className="lightbox" role="dialog" aria-modal="true" aria-label="Просмотр вложения" onClick={() => setImagePreview(null)}><button type="button" onClick={() => setImagePreview(null)}><X size={22} /></button>{imagePreview.kind === "image" ? <img src={imagePreview.url} alt={imagePreview.name} onClick={(event) => event.stopPropagation()} /> : <iframe src={`${imagePreview.url}?preview=1`} title={imagePreview.name} onClick={(event) => event.stopPropagation()} />}<span>{imagePreview.name}</span></div>}
+      <ConfirmDialog open={Boolean(deleteTarget)} danger busy={deleteBusy} title="Удалить сообщение?" description="Сообщение будет заменено системной отметкой. Это действие нельзя отменить." confirmLabel="Удалить" onCancel={() => !deleteBusy && setDeleteTarget(null)} onConfirm={confirmDelete} />
     </section>
   );
 }

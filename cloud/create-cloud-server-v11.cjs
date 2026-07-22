@@ -32,7 +32,8 @@ function createCloudAppV11(options = {}) {
       next();
     });
   });
-  app.use(express.json({ limit: "256kb", strict: true }));
+  const jsonBody = express.json({ limit: "256kb", strict: true });
+  app.use((request, response, next) => request.path === "/v1/provider/webhooks/stripe" ? next() : jsonBody(request, response, next));
 
   function sendError(response, error) {
     const status = error instanceof BillingError ? error.status : 500;
