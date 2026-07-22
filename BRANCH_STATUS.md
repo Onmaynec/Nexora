@@ -1,25 +1,16 @@
 # Branch Status — `agent/nexora-3.2.0-trust-core`
 
-## Classification
+| Field | Value |
+|---|---|
+| Classification | Active historical draft / superseded foundation |
+| Target | Nexora `3.2.0` development |
+| Base release | `3.1.2` |
+| Pull Request | Draft PR `#11` |
+| Release use | Prohibited |
+| Current source of truth | `main`, Nexora `3.2.4` |
 
-- Target version: `3.2.0` development.
-- Base stable release: `3.1.2`.
-- Pull Request: `#11`.
-- Status: draft Trust Core foundation.
-- Production use: prohibited.
+This branch contains the early Rust/WebAssembly OpenMLS foundation. It does not represent the implementation currently shipped on `main` and remains incomplete as a standalone Delivery Service, Client integration and release candidate.
 
-## Purpose
+Do not merge, tag, publish or use this branch for real private communications without a new explicit rebase, architecture review, migration review and full security/release verification.
 
-This branch establishes a separate Rust/WebAssembly cryptographic boundary based on OpenMLS 0.8.1 and MLS 1.0. It covers device credentials, signing identities, KeyPackages, group lifecycle, application encryption/decryption, provider-state integrity and exported group secrets.
-
-## Explicit limitations
-
-This branch does not yet establish a complete Local Server Delivery Service, key transparency, secure-channel UI, cross-device integration, plaintext-bypass protection or release-ready E2EE.
-
-## Documentation rule
-
-Do not copy branch claims into stable documentation. The authoritative stable release remains Nexora 3.1.2 on `main`, where messages are not protected from the Local Server operator by E2EE.
-
-## Safety
-
-Use disposable accounts and data. Do not use this branch for real private conversations or security-sensitive production deployment.
+Branch-local documentation describes this historical foundation only. Current product, security, deployment and release documentation is maintained in `main` under `docs/README.md`. Historical claims must not be copied into current documentation without verification.
