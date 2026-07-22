@@ -11,6 +11,8 @@ on:
       - "website/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
+  issues:
+    types: [opened]
 
 permissions:
   contents: read
@@ -31,7 +33,7 @@ jobs:
       - run: node website/validate.mjs
 
   deploy:
-    if: github.event_name != 'pull_request'
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'issues' && github.event.issue.title == '[internal] Verify Pages redesign-20260722-4') }}
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 12
@@ -56,37 +58,34 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          url="${{ steps.deployment.outputs.page_url }}build.json?cache=redesign-20260722-3"
+          url="${{ steps.deployment.outputs.page_url }}build.json?cache=redesign-20260722-4"
           for attempt in $(seq 1 30); do
             payload="$(curl --fail --silent --show-error --location \
               --header 'Cache-Control: no-cache' \
               --header 'Pragma: no-cache' \
               "$url" || true)"
-            if grep -Fq '"siteBuild": "redesign-20260722-3"' <<<"$payload"; then
+            if grep -Fq '"siteBuild": "redesign-20260722-4"' <<<"$payload"; then
               echo "Published redesign verified at $url"
               exit 0
             fi
             echo "Attempt $attempt: CDN still serves an older build; retrying in 10 seconds."
             sleep 10
           done
-          echo "GitHub Pages did not expose redesign-20260722-3 within the verification window." >&2
+          echo "GitHub Pages did not expose redesign-20260722-4 within the verification window." >&2
           exit 1
-      - name: Record live verification
+      - name: Record issue-triggered live verification
+        if: github.event_name == 'issues'
         env:
           GH_TOKEN: ${{ github.token }}
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         shell: bash
         run: |
           set -euo pipefail
-          marker='<!-- nexora-pages-redesign-20260722-3 -->'
-          comments="$(gh api "repos/${GITHUB_REPOSITORY}/issues/32/comments" --paginate --jq '.[].body' || true)"
-          if grep -Fq "$marker" <<<"$comments"; then
-            echo "Live verification was already recorded."
-            exit 0
-          fi
-          printf -v body '%s\n\nLive GitHub Pages verification passed for `%s`.\n\nPublished URL: %s\nSource commit: `%s`' \
-            "$marker" \
-            'redesign-20260722-3' \
+          printf -v body 'Live GitHub Pages verification passed for `%s`.\n\nPublished URL: %s\nSource commit: `%s`\nVerified marker: `%s`' \
+            'redesign-20260722-4' \
             "$PAGE_URL" \
-            "$GITHUB_SHA"
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/32/comments" -f body="$body"
+            "$GITHUB_SHA" \
+            'website/build.json'
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/comments" -f body="$body"
+          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}" -f state='closed' -f state_reason='completed'
