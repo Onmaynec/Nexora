@@ -11,31 +11,44 @@
 - Trusted Devices UI с fingerprint, verify/revoke, self-revoke и полной очисткой локального Trust scope;
 - browser MLS engine для `MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519`;
 - ciphertext-only Secure Message Pane, encrypted local drafts/cache/state и durable MLS outbox;
+- AES-256-GCM encrypted files, images и voice с versioned descriptor внутри MLS application content;
+- opaque v4 attachment API с exact-size/SHA-256 validation, pending expiry, cancel и one-time atomic claim;
+- локальные image preview, voice recording/playback, upload progress/cancel и verified download;
 - missed-commit recovery, conversation-scoped Welcome и Alice/Bob interoperability coverage;
-- migration/rollback guide и Trust Core readiness documentation.
+- реальные REST/Socket.IO plaintext-downgrade и attachment transport regression tests;
+- migration/rollback, administrator/tester и Trust Core readiness documentation.
 
 ### Changed
 
 - development version синхронизирована как 3.2.0 для package, lockfile, Android и Client handshake;
 - Local Server schema 7 автоматически мигрирует к schema 8 до network listen с backup и integrity checks;
-- conversation с активной MLS group больше не использует legacy plaintext message path;
-- release security audit проверяет Trust challenge-response, non-extractable device keys, AES-GCM local wrapping, replay protection и plaintext guards.
+- conversation с активной MLS group больше не использует legacy plaintext message/upload path;
+- room с запретом любого из `files/images/voice` блокирует весь opaque E2EE media path fail-closed;
+- release security audit проверяет Trust challenge-response, non-extractable device keys, AES-GCM local wrapping, replay protection, plaintext guards и encrypted-media boundary.
+
+### Fixed
+
+- отклонённая `SqliteStore.mutate()` операция больше не оставляет внутреннюю serial queue в rejected-состоянии и не ломает последующий `flush()`, shutdown или следующую mutation;
+- pending attachment недоступен до MLS claim, а failed claim освобождает replay reservation без повторного использования attachment;
+- ordinary outbox и offline cache не сохраняют attachment key, исходное имя или MIME отдельными plaintext-полями.
 
 ### Security
 
 - Local Server не получает private MLS state и не расшифровывает secure-message content;
+- attachment key, IV, source filename, actual MIME, caption, voice duration и waveform находятся только внутри MLS ciphertext;
 - устройство должно быть active и verified для KeyPackage/Welcome/commit/ciphertext delivery;
 - signed verify/revoke challenge одноразовый, expiring и operation-scoped;
-- duplicate/stale/skipped epochs, replayed ciphertext и повторное использование KeyPackage/Welcome отклоняются;
+- duplicate/stale/skipped epochs, replayed ciphertext и повторное использование KeyPackage/Welcome/attachment отклоняются;
+- attachment ciphertext проверяется по exact GCM size и timing-safe SHA-256, а Client повторно проверяет ciphertext, GCM tag и plaintext hash перед preview/download;
 - legacy send/forward/edit/draft/scheduled/poll/bot/upload paths блокируются сервером после MLS activation;
-- attachments/images/voice в secure pane намеренно отключены до появления encrypted-media protocol вместо небезопасного fallback.
+- сервер всё ещё видит uploader, conversation/room scope, attachment ID, ciphertext size, timing, network context и delivery events — metadata confidentiality не заявляется.
 
 ### Unreleased blockers
 
-- encrypted attachments/images/voice и authenticated metadata format;
 - metadata minimization/traffic-analysis review;
-- расширенная multi-device concurrency/corruption matrix и runtime E2E;
-- load/soak, signing-machine checks и независимый cryptographic/application-security review.
+- расширенная multi-device concurrency/revoke/re-add/corruption matrix и runtime E2E;
+- load/soak и long-offline recovery;
+- signing-machine checks, финальный verification report и независимый cryptographic/application-security review.
 
 ## [3.1.2] — 2026-07-21
 
