@@ -1,58 +1,73 @@
-# Nexora Deployment Guide
+# Руководство по развёртыванию Nexora
 
-## 1. Назначение
+## 1. Область
 
-Этот документ описывает поддерживаемые варианты развёртывания Nexora Local Server и требования к подключению Windows, PWA и Android clients.
+Документ описывает deployment Nexora `3.2.3`:
+
+- Source/PWA prerelease;
+- signed production baseline `3.1.2`;
+- Application API v3;
+- Trust/MLS/encrypted-media API v4;
+- SQLite schema 8.
 
 ## 2. Поддерживаемые профили
 
 | Профиль | Назначение | Минимальные требования |
 |---|---|---|
 | Local development | разработка и автоматические тесты | localhost, Node.js 22.16+, npm |
-| Private LAN/VPN | частная установка | HTTPS, private firewall, подтверждение fingerprint |
-| Public HTTPS | интернет-доступ | reverse proxy, публичный certificate, firewall, `allowedOrigins`, monitoring, backups |
-| Controlled 3.2.0 prerelease | Trust/MLS testing | disposable data, compatible 3.2.0 clients, documented limitations |
+| Private LAN/VPN | частная установка | HTTPS, private firewall, fingerprint verification |
+| Public HTTPS | internet access | reverse proxy, public certificate, firewall, `allowedOrigins`, monitoring, backups |
+| Controlled 3.2.3 prerelease | Trust/MLS/security testing | disposable data, compatible clients, documented limitations |
 
-Прямой port forwarding Local Server без reverse proxy, monitoring и firewall не считается поддерживаемой production-топологией.
+Прямой port forwarding Local Server без reverse proxy, monitoring и firewall не является поддерживаемой production-топологией.
 
-## 3. Local Server
+## 3. Требования
 
-### 3.1 Source start
+- Node.js `22.16+`;
+- npm;
+- writable application data directory;
+- достаточное место для SQLite, WAL, attachments и backup;
+- HTTPS certificate и корректный SAN;
+- уникальный Server ID;
+- точный allowlist origins;
+- protected OS account;
+- external backup location;
+- JDK 17, Android SDK 36 и Gradle 8.13 для Android build.
+
+## 4. Local Server startup
 
 ```bash
 npm ci
 npm start
 ```
 
-Для разработки Client и Server:
+Для совместной разработки Client/Server:
 
 ```bash
 npm run dev
 ```
 
-### 3.2 Проверка перед запуском
+Перед открытием traffic проверьте:
 
-Проверьте:
+- version `3.2.3`;
+- SQLite integrity;
+- schema 8;
+- successful startup maintenance;
+- readiness без drain/read-only error;
+- storage capacity;
+- отсутствие secrets в repository/logs.
 
-- Node.js `22.16+`;
-- доступность рабочей директории;
-- достаточное место для database, files и migration backup;
-- действующий HTTPS certificate;
-- корректный Server ID;
-- SQLite integrity и ожидаемую schema version;
-- readiness без drain/read-only failure;
-- отсутствие production secrets в repository или logs.
+## 5. Network exposure
 
-### 3.3 Network exposure
+- ограничьте inbound access нужным interface и source range;
+- для public deployment завершайте TLS на trusted reverse proxy;
+- задавайте exact `allowedOrigins`;
+- не разрешайте cleartext HTTP для production clients;
+- включите request logging с redaction;
+- используйте отдельный token для remote Prometheus scraping;
+- предусмотрите DDoS/rate controls на perimeter, не отключая application limits.
 
-- ограничьте inbound access необходимым network interface;
-- не открывайте Local Server всему интернету напрямую;
-- для public deployment завершайте TLS на доверенном reverse proxy;
-- задавайте точный allowlist origins;
-- сохраняйте request IDs и безопасные operational logs;
-- используйте отдельный monitoring token для remote Prometheus scraping.
-
-## 4. Client connection and certificate trust
+## 6. Certificate trust
 
 Передайте пользователю по доверенному каналу:
 
@@ -60,58 +75,121 @@ npm run dev
 2. Server ID;
 3. SHA-256 certificate fingerprint.
 
-Windows Electron Client создаёт отдельную persistent session для каждого Server ID и закрепляет certificate fingerprint. Изменение certificate требует нового подтверждения.
+Windows Electron Client создаёт отдельную persistent session на Server ID и закрепляет fingerprint. Изменённый certificate требует нового confirmation.
 
-Browser/PWA и Android используют системное certificate trust store. Для Local CA установите корневой `.crt` в доверенное хранилище операционной системы. Не обходите TLS warnings.
+Browser/PWA и Android используют OS trust store. Для Local CA установите root `.crt`. Не обходите TLS warnings.
 
-## 5. Database and migration
+## 7. Database и migration
 
-Текущая Local Server database — SQLite schema 8.
+Текущая database — SQLite schema 8.
 
-Upgrade `7 → 8` выполняется до network listen и включает:
+### Upgrade 3.1.x → 3.2.3
+
+Migration `7 → 8` выполняется до network listen:
 
 - source integrity check;
 - free-space calculation;
 - WAL checkpoint;
 - verified pre-migration backup;
-- transactional schema creation;
+- transactional/idempotent schema changes;
 - destination integrity check;
 - downgrade protection.
 
-Rollback выполняется восстановлением verified backup. In-place downgrade к schema 7 не поддерживается. Подробности: [MIGRATION_3.2.0.md](MIGRATION_3.2.0.md).
+Rollback — restore совместимого verified backup. In-place downgrade к schema 7 не поддерживается.
 
-## 6. Backups and restore
+### Upgrade 3.2.0–3.2.2 → 3.2.3
 
-- создавайте backup перед каждым upgrade;
-- храните минимум одну проверенную копию вне server computer;
-- не копируйте активный SQLite-файл вручную;
-- проверяйте passphrase backup отдельно от самой копии;
-- после restore повторно проверяйте integrity, schema и readiness;
-- emergency read-only не заменяет backup.
+Database migration не требуется:
 
-## 7. Health and monitoring
+- schema остаётся 8;
+- Application API остаётся v3;
+- Trust/MLS API остаётся v4;
+- existing secure conversations сохраняют protocol compatibility.
 
-Local Server и Pulse Cloud публикуют:
+Перед patch update всё равно создайте backup и после restart проверьте integrity/readiness.
 
-- `GET /healthz/live` — процесс запущен;
-- `GET /healthz/ready` — service готов к traffic;
-- `GET /metrics` — Prometheus text format.
+## 8. Security hardening defaults 3.2.3
 
-Remote `/metrics` должен использовать Bearer token. Без token endpoint остаётся loopback-only.
+Deployment должен сохранять server-side controls:
 
-При graceful shutdown readiness сначала переходит в `503`, затем останавливаются workers, HTTP/Socket.IO и SQLite.
+- 16 active Trust devices/user;
+- 25 KeyPackages/request;
+- 32 unclaimed KeyPackages/device;
+- 256 unclaimed KeyPackages/user;
+- bounded Trust/recovery/E2EE route limits;
+- HTTP `429 RATE_LIMITED` и `Retry-After`;
+- active-ban fail-closed access;
+- startup/hourly security-state cleanup;
+- strict Client recovery validation.
 
-## 8. Pulse deployment
+Не отключайте или не увеличивайте limits без documented security/load review.
+
+## 9. Backups и restore
+
+Backup requirements:
+
+- создавайте verified backup перед каждым upgrade;
+- храните минимум одну копию вне server computer;
+- не используйте manual copy active SQLite как единственный backup;
+- храните passphrase отдельно;
+- фиксируйте version, schema, timestamp и checksum;
+- регулярно выполняйте restore drill.
+
+После restore проверьте:
+
+- SQLite integrity;
+- schema;
+- live/ready;
+- users/rooms/messages/files;
+- Trust directory;
+- realtime access;
+- storage quota.
+
+## 10. Maintenance
+
+При startup и каждый час Local Server очищает:
+
+- expired sessions;
+- login history старше 90 дней;
+- stale persisted rate-limit buckets;
+- expired Trust/KeyPackage resources;
+- orphan/pending resources по retention policy.
+
+Maintenance errors должны быть observable. Не считайте cleanup заменой backup, quota или monitoring.
+
+## 11. Health и monitoring
+
+Endpoints:
+
+- `GET /healthz/live`;
+- `GET /healthz/ready`;
+- `GET /metrics`.
+
+Remote `/metrics` требует Bearer token. Без token endpoint остаётся loopback-only.
+
+Рекомендуемые alerts:
+
+- unexpected readiness `503`;
+- database integrity errors;
+- backup failure;
+- storage/quota exhaustion;
+- repeated `RATE_LIMITED` spike;
+- Trust recovery hash mismatch;
+- repeated replay/attachment claim rejection;
+- Pulse worker/reconciliation failure;
+- graceful shutdown timeout.
+
+## 12. Pulse deployment
 
 ### Disabled
 
-Используйте для обычного self-hosted messaging без коммерческих функций.
+Обычный self-hosted messaging без commercial capabilities.
 
 ### Sandbox
 
-Используйте только для QA/demo:
+Только QA/demo:
 
-- реальных платежей нет;
+- реальные платежи отсутствуют;
 - checkout отключён;
 - production signatures не создаются;
 - balance не может стать отрицательным;
@@ -125,35 +203,54 @@ Remote `/metrics` должен использовать Bearer token. Без tok
 - HTTPS Cloud origin;
 - scoped Local Server credential;
 - pinned Ed25519 public keys;
-- payment provider credentials;
-- verified webhooks и idempotency;
+- provider credentials и verified webhooks;
+- idempotency и reconciliation;
 - transactional email;
-- reconciliation/refund/dispute/cancel flows;
+- refund/dispute/cancel flows;
 - secret management;
-- privacy, legal и tax documents.
+- monitoring и backup;
+- privacy, legal и tax documentation.
 
 Local Server не должен получать card data, Cloud password/MFA secret, signing private key или OAuth refresh token.
 
-## 9. Release channels
+## 13. Release channels
 
-| Канал | Назначение | Update policy |
+| Канал | Назначение | Updater policy |
 |---|---|---|
-| Stable signed Windows | production baseline | Client updater может использовать signed `.exe`, blockmap и `latest.yml` |
-| Source/PWA prerelease | controlled testing | unsigned Windows updater assets не публикуются |
-| Local unsigned build | development only | не является stable release |
+| Stable signed Windows | production baseline | signed `.exe`, blockmap и `latest.yml` допустимы |
+| Source/PWA prerelease | controlled testing | Windows updater assets не публикуются |
+| Local unsigned build | development only | не updater-eligible |
 
-Текущая `3.2.0` классифицирована как Source/PWA prerelease. Последняя signed production baseline — `3.1.2`.
+`3.2.3` классифицирована как Source/PWA prerelease. Последняя signed production baseline — `3.1.2`.
 
-## 10. Incident checklist
+## 14. Graceful shutdown
 
-При сбое сохраните:
+Shutdown должен:
 
-- версии Client, Server и Cloud;
-- Server ID и request ID;
-- время и последние действия;
-- результаты live/ready checks;
-- schema и integrity status;
-- очищенные Client/Server logs;
-- network/deployment profile.
+1. установить readiness `503`;
+2. прекратить новый traffic;
+3. остановить workers;
+4. завершить HTTP/Socket.IO;
+5. flush database queue;
+6. закрыть SQLite;
+7. вернуть stopped-state status без чтения закрытого repository.
 
-Не отправляйте passwords, cookies, OAuth tokens, TOTP/recovery codes, invite codes, bot/Pulse credentials, private CA keys, Trust private state или backup passphrase.
+Concurrent stop/quit сериализуются.
+
+## 15. Incident checklist
+
+Сохраните:
+
+- Client/Server/Cloud versions;
+- commit/tag или asset ID;
+- Server ID и request IDs;
+- timestamps;
+- live/ready/metrics state;
+- schema/integrity result;
+- storage/quota state;
+- sanitized logs;
+- affected device/group/epoch identifiers без private content.
+
+Не отправляйте passwords, cookies, OAuth tokens, TOTP/recovery codes, invite codes, bot/Pulse credentials, private CA/device keys, complete MLS state или backup passphrase.
+
+Подробные процедуры: [Operations Runbook](OPERATIONS_RUNBOOK.md).
