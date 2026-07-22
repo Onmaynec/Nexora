@@ -43,9 +43,7 @@
 | `docs/sync-3.1.2` | Stable 3.1.2 documentation synchronization | Merged through PR #13 |
 | `docs/branch-status-index` | Central branch-status index | Merged through PR #14 |
 | `docs/official-product-documentation-3.2.0` | Official product documentation foundation | Merged through PR #17 |
-| `docs/official-product-documentation-3.2.3` | Current product/security/operations documentation | Current documentation update branch |
-
-После merge последняя строка становится historical merged branch и `main` снова остаётся единственным authoritative source.
+| `docs/official-product-documentation-3.2.3` | Current product/security/operations documentation | Merged through PR #23 |
 
 ## Closed synchronization helper
 
