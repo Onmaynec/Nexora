@@ -7,11 +7,14 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
   windows-unit-diagnostic:
     runs-on: windows-latest
     timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -25,7 +28,7 @@ jobs:
           $ErrorActionPreference = "Continue"
           npm run test:unit *> windows-unit.log
           $code = $LASTEXITCODE
-          Get-Content windows-unit.log -Tail 200
+          Get-Content windows-unit.log -Tail 240 | Set-Content windows-unit-tail.txt
           "exit_code=$code" | Set-Content windows-unit-exit.txt
           exit 0
       - uses: actions/upload-artifact@v4
@@ -33,5 +36,22 @@ jobs:
           name: windows-unit-diagnostic
           path: |
             windows-unit.log
+            windows-unit-tail.txt
             windows-unit-exit.txt
           if-no-files-found: error
+      - name: Publish diagnostic tail to PR
+        shell: pwsh
+        run: |
+          $exitCode = Get-Content windows-unit-exit.txt -Raw
+          $tail = Get-Content windows-unit-tail.txt -Raw
+          @"
+          <!-- windows-unit-diagnostic -->
+          ## Windows unit diagnostic
+
+          `$exitCode
+
+          ```text
+          $tail
+          ```
+          "@ | Set-Content windows-unit-comment.md
+          gh pr comment 12 --body-file windows-unit-comment.md
