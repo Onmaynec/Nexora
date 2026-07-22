@@ -19,6 +19,12 @@ replace(
 )
 
 replace(
+    "electron/update-service.cjs",
+    '  activeUpdater.autoInstallOnAppQuit = Boolean(automatic);',
+    '  activeUpdater.autoInstallOnAppQuit = automatic;',
+)
+
+replace(
     "electron/client-main.cjs",
     '''  mainWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
     const normalizedLevel = ["warn", "error"].includes(String(level)) ? String(level) : "info";
@@ -48,6 +54,12 @@ replace(
     "server/developer-commands.cjs",
     '      result = { data: { overview: this.pulseSandbox.overview(unwrapPlaceholder(args[0])), transactions: this.pulseSandbox.transactions(args[0], 20) }, output: "Тестовое состояние Pulse получено." };',
     '      const userReference = unwrapPlaceholder(args[0]);\n      result = { data: { overview: this.pulseSandbox.overview(userReference), transactions: this.pulseSandbox.transactions(userReference, 20) }, output: "Тестовое состояние Pulse получено." };',
+)
+
+replace(
+    "test/build-config.test.cjs",
+    'test("релиз 3.2.3 собирает проверяемые артефакты без native SQLite", () => {',
+    'test("релиз 3.2.4 собирает проверяемые артефакты без native SQLite", () => {',
 )
 
 (ROOT / "test/release-experience.test.cjs").write_text('''"use strict";
