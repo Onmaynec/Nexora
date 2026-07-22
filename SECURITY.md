@@ -2,66 +2,50 @@
 
 ## Поддерживаемые версии
 
-| Версия | Security updates |
+| Версия / ветка | Статус |
 |---|---|
-| `3.0.x` | Поддерживается |
-| `2.x` и старше | Не поддерживается |
+| `main` / `3.1.x` | Поддерживаемая stable-линия |
+| `agent/nexora-3.2.0-trust-core` | Experimental Trust Core foundation; production support отсутствует |
+| `3.0.x` и старше | Не поддерживаются |
 
-Исправления безопасности сначала попадают в актуальную ветку разработки, после проверки — в поддерживаемый patch-релиз.
+Эта branch не является завершённой E2EE implementation. Она изолирует cryptographic foundation, но не включает подтверждённый end-to-end Client ↔ Delivery Service path.
 
-## Сообщение об уязвимости
+## Reporting
 
-Не публикуйте рабочий exploit, session cookie, приватный ключ CA, Pulse API key, invite code или пользовательские данные в публичном Issue, Discussion либо Pull Request.
+Не публикуйте private signing/MLS material, provider-state secrets, session/OAuth tokens, CA/Pulse keys или user data в public Issue/PR.
 
-Используйте приватный GitHub Security Advisory:
+Используйте private GitHub Security Advisory: <https://github.com/Onmaynec/Nexora/security/advisories/new>.
 
-1. откройте **Security → Advisories** в репозитории `Onmaynec/Nexora`;
-2. выберите **New draft security advisory**;
-3. укажите затронутую версию и компонент;
-4. опишите влияние, минимальные шаги воспроизведения и безопасный proof of concept;
-5. приложите только очищенные логи и тестовые данные.
+Укажите exact branch/commit, runtime target (`native`/`wasm32`/browser), expected invariant, minimal disposable reproduction и impact.
 
-Прямая форма: <https://github.com/Onmaynec/Nexora/security/advisories/new>.
+## Foundation security scope
 
-## Ожидаемые сроки
+Особенно важны:
 
-- подтверждение получения — до 3 рабочих дней;
-- первичная оценка и запрос недостающих данных — до 7 рабочих дней;
-- исправление, выпуск и coordinated disclosure — по согласованному сроку с учётом сложности и риска.
+- private signing key или MLS state leakage;
+- predictable/reused identity, nonce, credential или KeyPackage material;
+- invalid signature/credential acceptance;
+- provider-state integrity bypass, rollback или cross-profile reuse;
+- group-state confusion between server/account/device/conversation contexts;
+- incorrect create/load/join/add-member lifecycle;
+- application ciphertext forgery, replay or wrong-group decryption;
+- unsafe exported group-secret semantics;
+- native/WASM behavior divergence;
+- secret material in logs/errors/serialization;
+- silent plaintext fallback in integration code.
 
-Сроки являются целевыми, а не гарантированными. Публичное раскрытие до выпуска исправления может быть отложено, если оно создаёт непосредственный риск для пользователей.
+Stable auth/authorization, Electron/WebView/TLS/update, SQLite, Pulse and upload vulnerabilities also remain in scope.
 
-## Приоритетный scope
+## Safe research
 
-Особенно важны сообщения об уязвимостях в следующих областях:
+Use only your own disposable installation, identities, groups and data. Do not attack third-party servers, extract foreign data, publish working keys or exceed minimal proof of the defect.
 
-- обход авторизации, ролей, блокировок или ограничений комнаты;
-- IDOR и чтение чужих комнат, сообщений, профилей или файлов;
-- RCE, Electron boundary bypass и опасная навигация WebView;
-- подмена TLS-сертификата, fingerprint или механизма обновления;
-- CSRF, Origin bypass, session fixation и утечка cookies/tokens;
-- небезопасная обработка файлов, MIME spoofing, path traversal и SSRF;
-- повреждение SQLite, миграций, backup/restore или audit trail;
-- обход подписи Pulse, replay, двойное списание или подмена entitlement;
-- bot/webhook scope bypass и утечка секретов.
+## Documented limitations
 
-## Безопасное исследование
+- Stable Nexora 3.1.2 does not provide E2EE.
+- Compiling OpenMLS/Trust Core or passing local encrypt/decrypt tests does not make existing chats secure.
+- Local Server Delivery Service, device transparency, secure UI/outbox, plaintext guards, recovery and cross-device integration are incomplete in this foundation branch.
+- Exported group secrets do not mean attachments are encrypted.
+- No independent cryptographic review or production release gate has been completed.
 
-Разрешается исследование на собственной тестовой установке и с собственными данными. Не выполняйте действия, которые:
-
-- нарушают доступность чужого сервера;
-- извлекают или изменяют чужие данные;
-- используют социальную инженерию;
-- публикуют секреты или персональные данные;
-- требуют эксплуатации за пределами минимального подтверждения проблемы.
-
-Проект не обещает денежное вознаграждение за отчёты об уязвимостях.
-
-## Задокументированные границы, не являющиеся уязвимостью
-
-- Nexora 3.0.0 не использует E2EE; оператор Server имеет технический доступ к рабочей базе и вложениям.
-- Локальный Server нельзя безопасно публиковать напрямую в интернет без HTTPS reverse proxy, firewall и корректного `allowedOrigins`.
-- Неподписанные локальные Windows-сборки предназначены для тестирования и не являются stable release.
-- Production Plus/Pulse требует отдельного Pulse Cloud и не активируется только локальным флагом.
-
-Если сомневаетесь, отправляйте отчёт приватно: maintainers определят, относится ли проблема к security scope.
+Use this branch only with disposable data. Send uncertain reports privately.
