@@ -1,0 +1,303 @@
+exit_code=1
+
+--- TAP tail ---
+    Test.assert (D:\a\Nexora\Nexora\node_modules\supertest\lib\test.js:195:23)
+    localAssert (D:\a\Nexora\Nexora\node_modules\supertest\lib\test.js:138:14)
+    Server.<anonymous> (D:\a\Nexora\Nexora\node_modules\supertest\lib\test.js:152:11)
+    Object.onceWrapper (node:events:632:28)
+    Server.emit (node:events:518:28)
+    emitCloseNT (node:net:2418:8)
+    process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+  ...
+# Subtest: создаёт постоянные аккаунты и назначает первого администратора
+ok 77 - создаёт постоянные аккаунты и назначает первого администратора
+  ---
+  duration_ms: 427.2915
+  type: 'test'
+  ...
+# Subtest: оба пользователя автоматически входят в общую комнату
+ok 78 - оба пользователя автоматически входят в общую комнату
+  ---
+  duration_ms: 11.8095
+  type: 'test'
+  ...
+# Subtest: заявка в контакты создаёт личный чат после принятия
+ok 79 - заявка в контакты создаёт личный чат после принятия
+  ---
+  duration_ms: 71.6469
+  type: 'test'
+  ...
+# Subtest: личные сообщения, реакции, прочтение и редактирование работают в real-time
+ok 80 - личные сообщения, реакции, прочтение и редактирование работают в real-time
+  ---
+  duration_ms: 205.4642
+  type: 'test'
+  ...
+# Subtest: приватная комната принимает участника по коду
+ok 81 - приватная комната принимает участника по коду
+  ---
+  duration_ms: 42.0914
+  type: 'test'
+  ...
+# Subtest: загружает файл до 25 МБ и создаёт сообщение
+ok 82 - загружает файл до 25 МБ и создаёт сообщение
+  ---
+  duration_ms: 44.1936
+  type: 'test'
+  ...
+# Subtest: загружает голосовое сообщение с длительностью и отдаёт аудио
+ok 83 - загружает голосовое сообщение с длительностью и отдаёт аудио
+  ---
+  duration_ms: 98.6286
+  type: 'test'
+  ...
+# Subtest: владелец управляет ролями, заявками, банами, режимами комнаты и приглашением
+ok 84 - владелец управляет ролями, заявками, банами, режимами комнаты и приглашением
+  ---
+  duration_ms: 687.2621
+  type: 'test'
+  ...
+# Subtest: профиль поддерживает статус, аватар и выбор звука
+ok 85 - профиль поддерживает статус, аватар и выбор звука
+  ---
+  duration_ms: 48.4372
+  type: 'test'
+  ...
+# Subtest: API v3 синхронизирует события, уведомления и отложенные сообщения
+ok 86 - API v3 синхронизирует события, уведомления и отложенные сообщения
+  ---
+  duration_ms: 263.6569
+  type: 'test'
+  ...
+# Subtest: опросы, история правок и scoped bot API работают в рамках комнаты
+ok 87 - опросы, история правок и scoped bot API работают в рамках комнаты
+  ---
+  duration_ms: 427.5399
+  type: 'test'
+  ...
+# Subtest: возобновляемая загрузка проверяет части и реальный тип медиа
+ok 88 - возобновляемая загрузка проверяет части и реальный тип медиа
+  ---
+  duration_ms: 348.7906
+  type: 'test'
+  ...
+# Subtest: TOTP требует второй фактор и хранит secret только в зашифрованном виде
+ok 89 - TOTP требует второй фактор и хранит secret только в зашифрованном виде
+  ---
+  duration_ms: 580.5078
+  type: 'test'
+  ...
+# Subtest: CSRF, Origin, постоянная блокировка входа и политика паролей защищают сервер
+ok 90 - CSRF, Origin, постоянная блокировка входа и политика паролей защищают сервер
+  ---
+  duration_ms: 518.6347
+  type: 'test'
+  ...
+# Subtest: показывает активные сессии и отключает выбранное устройство
+ok 91 - показывает активные сессии и отключает выбранное устройство
+  ---
+  duration_ms: 245.2904
+  type: 'test'
+  ...
+# Subtest: смена пароля сохраняет текущую сессию и запрещает старый пароль
+ok 92 - смена пароля сохраняет текущую сессию и запрещает старый пароль
+  ---
+  duration_ms: 551.3772
+  type: 'test'
+  ...
+# Subtest: поиск, ответы, пересылка, mute и идемпотентная очередь работают вместе
+ok 93 - поиск, ответы, пересылка, mute и идемпотентная очередь работают вместе
+  ---
+  duration_ms: 239.2632
+  type: 'test'
+  ...
+# Subtest: контакт можно удалить без удаления переписки и без блокировки
+ok 94 - контакт можно удалить без удаления переписки и без блокировки
+  ---
+  duration_ms: 30.3727
+  type: 'test'
+  ...
+# Subtest: блокировка запрещает личные сообщения и новые заявки
+ok 95 - блокировка запрещает личные сообщения и новые заявки
+  ---
+  duration_ms: 46.4406
+  type: 'test'
+  ...
+# Subtest: сервер показывает хранилище, экспортирует комнату и удаляет потерянные файлы
+ok 96 - сервер показывает хранилище, экспортирует комнату и удаляет потерянные файлы
+  ---
+  duration_ms: 243.3333
+  type: 'test'
+  ...
+# Subtest: ручная резервная копия восстанавливает базу и вложения
+ok 97 - ручная резервная копия восстанавливает базу и вложения
+  ---
+  duration_ms: 385.0936
+  type: 'test'
+  ...
+# Subtest: администратор сбрасывает пароль и завершает сессии пользователя
+ok 98 - администратор сбрасывает пароль и завершает сессии пользователя
+  ---
+  duration_ms: 694.0207
+  type: 'test'
+  ...
+# Subtest: локальный HTTPS-сертификат доверяется сгенерированному CA
+ok 99 - локальный HTTPS-сертификат доверяется сгенерированному CA
+  ---
+  duration_ms: 2247.9957
+  type: 'test'
+  ...
+# (node:9384) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: a rejected mutation reaches its caller without poisoning flush or later mutations
+ok 100 - a rejected mutation reaches its caller without poisoning flush or later mutations
+  ---
+  duration_ms: 1264.7786
+  type: 'test'
+  ...
+# Subtest: TOTP соответствует RFC 4226 и принимает только соседнее временное окно
+ok 101 - TOTP соответствует RFC 4226 и принимает только соседнее временное окно
+  ---
+  duration_ms: 19.5202
+  type: 'test'
+  ...
+# (node:1284) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: Trust Core accepts a functional clock and derives TTLs from its returned Date
+ok 102 - Trust Core accepts a functional clock and derives TTLs from its returned Date
+  ---
+  duration_ms: 299.6258
+  type: 'test'
+  ...
+# (node:1496) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: device registration proves key possession and subsequent devices require verification
+ok 103 - device registration proves key possession and subsequent devices require verification
+  ---
+  duration_ms: 497.1522
+  type: 'test'
+  ...
+# Subtest: a Trust challenge is single-use and scoped to the exact operation
+ok 104 - a Trust challenge is single-use and scoped to the exact operation
+  ---
+  duration_ms: 457.9421
+  type: 'test'
+  ...
+# Subtest: MLS KeyPackage claims are atomic and one-time
+ok 105 - MLS KeyPackage claims are atomic and one-time
+  ---
+  duration_ms: 524.3909
+  type: 'test'
+  ...
+# Subtest: MLS group enforces monotonic epochs, signed commits and ciphertext replay protection
+ok 106 - MLS group enforces monotonic epochs, signed commits and ciphertext replay protection
+  ---
+  duration_ms: 506.8808
+  type: 'test'
+  ...
+# Subtest: revoked devices immediately lose MLS delivery rights
+ok 107 - revoked devices immediately lose MLS delivery rights
+  ---
+  duration_ms: 519.9225
+  type: 'test'
+  ...
+# (node:5376) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: Welcome claim is scoped to the requested conversation
+ok 108 - Welcome claim is scoped to the requested conversation
+  ---
+  duration_ms: 616.0593
+  type: 'test'
+  ...
+# Subtest: commit recovery accepts an initial epoch-1 commit and enforces continuity
+ok 109 - commit recovery accepts an initial epoch-1 commit and enforces continuity
+  ---
+  duration_ms: 817.2345
+  type: 'test'
+  ...
+# (node:2056) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: schema 7 migrates atomically to schema 8 with Trust Core tables
+ok 110 - schema 7 migrates atomically to schema 8 with Trust Core tables
+  ---
+  duration_ms: 265.1286
+  type: 'test'
+  ...
+# Subtest: schema 8 migration is idempotent and cannot be downgraded by legacy persistence
+ok 111 - schema 8 migration is idempotent and cannot be downgraded by legacy persistence
+  ---
+  duration_ms: 525.6931
+  type: 'test'
+  ...
+# (node:1504) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: secure realtime is scoped to verified MLS devices and revocation disconnects the target
+ok 112 - secure realtime is scoped to verified MLS devices and revocation disconnects the target
+  ---
+  duration_ms: 2798.2008
+  type: 'test'
+  ...
+# Subtest: нулевые счётчики непрочитанных не отображаются
+ok 113 - нулевые счётчики непрочитанных не отображаются
+  ---
+  duration_ms: 1.1398
+  type: 'test'
+  ...
+# Subtest: аватары открывают профиль во всех ключевых пользовательских списках
+ok 114 - аватары открывают профиль во всех ключевых пользовательских списках
+  ---
+  duration_ms: 0.2543
+  type: 'test'
+  ...
+# Subtest: меню реакций сохраняет кликабельную hover-зону
+ok 115 - меню реакций сохраняет кликабельную hover-зону
+  ---
+  duration_ms: 0.5169
+  type: 'test'
+  ...
+# Subtest: панели действий и навигации не выходят за границы своих областей
+ok 116 - панели действий и навигации не выходят за границы своих областей
+  ---
+  duration_ms: 0.3034
+  type: 'test'
+  ...
+# Downloading Electron binary...
+# Subtest: automatic update service schedules an initial check and reschedules
+ok 117 - automatic update service schedules an initial check and reschedules
+  ---
+  duration_ms: 3.4112
+  type: 'test'
+  ...
+# Subtest: concurrent update checks are single-flight
+ok 118 - concurrent update checks are single-flight
+  ---
+  duration_ms: 0.4562
+  type: 'test'
+  ...
+# Subtest: missing signed updater metadata produces a stable reason
+ok 119 - missing signed updater metadata produces a stable reason
+  ---
+  duration_ms: 0.9037
+  type: 'test'
+  ...
+# Subtest: webhook SSRF-фильтр распознаёт локальные, VPN, reserved, multicast и CGNAT адреса
+ok 120 - webhook SSRF-фильтр распознаёт локальные, VPN, reserved, multicast и CGNAT адреса
+  ---
+  duration_ms: 9.4541
+  type: 'test'
+  ...
+# Subtest: тип чувствительного медиа определяется по сигнатуре, а не заголовку
+ok 121 - тип чувствительного медиа определяется по сигнатуре, а не заголовку
+  ---
+  duration_ms: 0.5513
+  type: 'test'
+  ...
+1..121
+# tests 121
+# suites 0
+# pass 120
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 31945.6085
