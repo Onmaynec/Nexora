@@ -58,15 +58,15 @@ test("Pulse Sandbox serves catalog, receipts and room goals without Cloud fallba
 test("unsigned test binaries are downloadable but excluded from updater metadata", () => {
   const workflow = read(".github/workflows/release.yml");
   const site = read("website/app.js");
-  assert.match(workflow, /Nexora-Client-Setup-\$version-UNSIGNED-TEST\.exe/);
-  assert.match(workflow, /Nexora-Server-Setup-\$version-UNSIGNED-TEST\.exe/);
-  assert.match(workflow, /Nexora-Android-\$version-UNSIGNED-TEST\.apk/);
-  assert.match(workflow, /Unsigned release must not expose updater metadata/);
-  assert.match(site, /function signatureState/);
-  assert.match(site, /unsigned/);
-  assert.match(site, /test-build/);
-  assert.match(site, /test\\\.exe/);
-  assert.match(site, /data-signature/);
+  assert.ok(workflow.includes("Nexora-Client-Setup-$version-UNSIGNED-TEST.exe"));
+  assert.ok(workflow.includes("Nexora-Server-Setup-$version-UNSIGNED-TEST.exe"));
+  assert.ok(workflow.includes("Nexora-Android-$version-UNSIGNED-TEST.apk"));
+  assert.ok(workflow.includes("Unsigned release must not expose updater metadata"));
+  assert.ok(workflow.includes('if ($names -contains "latest.yml"'));
+  assert.ok(workflow.includes("\\.blockmap$"));
+  assert.ok(site.includes("function signatureState"));
+  assert.ok(site.includes("unsigned|test-build|test\\.exe"));
+  assert.ok(site.includes("data-signature"));
 });
 
 test("website 3.3 typography prevents overlapping headings and keeps controls clickable", () => {
