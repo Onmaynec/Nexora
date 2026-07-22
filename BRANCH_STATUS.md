@@ -1,9 +1,15 @@
 # Branch Status — `automation/nexora-3.1.0-tag`
 
-- Purpose: historical 3.1.0 tag/release automation attempt.
-- Pull Request: `#6`.
-- Status: obsolete and superseded by the completed 3.1.x release train.
+| Field | Value |
+|---|---|
+| Classification | Obsolete automation provenance |
+| Historical purpose | Nexora `3.1.0` tag/release automation attempt |
+| Related Pull Request | Open PR `#6` |
+| Current source of truth | `main`, Nexora `3.2.4` |
+| Merge/tag/publish | Prohibited |
 
-This branch must not be used to publish or recreate the current stable release. Version 3.1.2 and its documentation are authoritative on `main`.
+This branch is obsolete and must not be used to recreate, replace or publish any current or historical release. Its version and workflow assumptions are no longer authoritative.
 
-Close or delete this branch after confirming no release workflow depends on it. New release work must start from current protected `main` and a new SemVer version.
+The associated Pull Request should be closed after required provenance review. The branch may then be deleted if no audit dependency remains.
+
+New release work starts from protected current `main` and uses a new SemVer version, current release policy and current CI gates.
