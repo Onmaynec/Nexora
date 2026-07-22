@@ -53,9 +53,7 @@ The 3.2.5 branch is active development, not current product documentation. The e
 | `docs/branch-status-index` | Initial central branch index | Merged through PR #14 |
 | `docs/official-product-documentation-3.2.0` | Product documentation foundation | Merged through PR #17 |
 | `docs/official-product-documentation-3.2.3` | Security/operations documentation for 3.2.3 | Merged through PR #23 |
-| `docs/reconcile-all-branches-3.2.4` | Current 3.2.4 documentation and all-branch status reconciliation | Documentation branch for current change |
-
-After merge, the final entry becomes merged provenance and `main` remains the only current source.
+| `docs/reconcile-all-branches-3.2.4` | Current 3.2.4 documentation and all-branch status reconciliation | Merged through PR #27 |
 
 ## 6. Closed synchronization helper
 
