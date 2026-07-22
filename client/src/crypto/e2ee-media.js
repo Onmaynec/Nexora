@@ -73,6 +73,56 @@ function validatedDescriptor(value) {
   };
 }
 
+function requestError(xhr) {
+  let body = xhr.response;
+  if (!body && xhr.responseText) {
+    try { body = JSON.parse(xhr.responseText); } catch { body = null; }
+  }
+  const error = new Error(body?.message || body?.error || `Ошибка ${xhr.status || 0}`);
+  error.status = xhr.status || 0;
+  error.code = body?.code || "E2EE_ATTACHMENT_UPLOAD_FAILED";
+  error.details = body?.details || {};
+  return error;
+}
+
+function uploadCiphertext(url, bytes, headers, { signal, onProgress } = {}) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    let settled = false;
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      signal?.removeEventListener("abort", abort);
+      callback(value);
+    };
+    const abort = () => {
+      xhr.abort();
+      const error = Object.assign(new Error("Загрузка E2EE attachment отменена."), { code: "E2EE_ATTACHMENT_UPLOAD_CANCELLED" });
+      finish(reject, error);
+    };
+    xhr.open("POST", url, true);
+    xhr.withCredentials = true;
+    xhr.responseType = "json";
+    xhr.setRequestHeader("X-Nexora-Client-Version", CLIENT_VERSION);
+    const csrf = sessionStorage.getItem("nexora:csrf");
+    if (csrf) xhr.setRequestHeader("X-Nexora-CSRF", csrf);
+    for (const [name, value] of Object.entries(headers)) xhr.setRequestHeader(name, String(value));
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable) return;
+      onProgress?.({ phase: "uploading", loaded: event.loaded, total: event.total, progress: event.total ? event.loaded / event.total : 0 });
+    };
+    xhr.onerror = () => finish(reject, Object.assign(new Error("Сеть недоступна во время E2EE upload."), { code: "E2EE_ATTACHMENT_UPLOAD_NETWORK" }));
+    xhr.onabort = abort;
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) finish(resolve, xhr.response);
+      else finish(reject, requestError(xhr));
+    };
+    if (signal?.aborted) return abort();
+    signal?.addEventListener("abort", abort, { once: true });
+    xhr.send(bytes);
+  });
+}
+
 export function attachmentAad({ conversationId, attachmentId, kind }) {
   return encoder.encode(`NEXORA-E2EE-ATTACHMENT-V1\n${String(conversationId)}\n${String(attachmentId)}\n${normalizeKind(kind)}`);
 }
@@ -120,7 +170,7 @@ export async function sha256Hex(value) {
   return [...digest].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export async function encryptAndUploadAttachment({ conversationId, file, kind = "file", duration = null, waveform = [] }) {
+export async function encryptAndUploadAttachment({ conversationId, file, kind = "file", duration = null, waveform = [], signal, onProgress }) {
   if (!conversationId) throw Object.assign(new Error("Не выбран E2EE-диалог."), { code: "E2EE_CONVERSATION_REQUIRED" });
   if (!(file instanceof Blob)) throw Object.assign(new Error("Файл недоступен для шифрования."), { code: "E2EE_ATTACHMENT_INVALID" });
   if (!file.size || file.size > MAX_PLAINTEXT_BYTES) {
@@ -128,25 +178,26 @@ export async function encryptAndUploadAttachment({ conversationId, file, kind = 
   }
   const normalizedKind = normalizeKind(kind);
   const attachmentId = crypto.randomUUID();
+  onProgress?.({ phase: "reading", loaded: 0, total: file.size, progress: 0 });
   const plaintext = new Uint8Array(await file.arrayBuffer());
+  if (signal?.aborted) throw Object.assign(new Error("Загрузка E2EE attachment отменена."), { code: "E2EE_ATTACHMENT_UPLOAD_CANCELLED" });
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const aad = attachmentAad({ conversationId, attachmentId, kind: normalizedKind });
   const key = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
   const rawKey = new Uint8Array(await crypto.subtle.exportKey("raw", key));
   try {
+    onProgress?.({ phase: "encrypting", loaded: plaintext.byteLength, total: plaintext.byteLength, progress: 0.1 });
     const plaintextSha256 = await sha256Hex(plaintext);
     const encrypted = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: aad, tagLength: 128 }, key, plaintext));
     const ciphertextSha256 = await sha256Hex(encrypted);
-    const result = await api(`/api/v4/e2ee/conversations/${encodeURIComponent(conversationId)}/attachments`, {
-      method: "POST",
-      body: encrypted,
-      headers: {
-        "Content-Type": "application/octet-stream",
-        "X-Nexora-Attachment-ID": attachmentId,
-        "X-Nexora-Ciphertext-SHA256": ciphertextSha256,
-        "X-Nexora-Plaintext-Size": String(plaintext.byteLength),
-      },
-    });
+    onProgress?.({ phase: "uploading", loaded: 0, total: encrypted.byteLength, progress: 0 });
+    const result = await uploadCiphertext(`/api/v4/e2ee/conversations/${encodeURIComponent(conversationId)}/attachments`, encrypted, {
+      "Content-Type": "application/octet-stream",
+      "X-Nexora-Attachment-ID": attachmentId,
+      "X-Nexora-Ciphertext-SHA256": ciphertextSha256,
+      "X-Nexora-Plaintext-Size": String(plaintext.byteLength),
+    }, { signal, onProgress });
+    onProgress?.({ phase: "verifying", loaded: encrypted.byteLength, total: encrypted.byteLength, progress: 1 });
     if (result.attachment?.id !== attachmentId || result.attachment?.ciphertextSha256 !== ciphertextSha256) {
       await api(`/api/v4/e2ee/attachments/${encodeURIComponent(attachmentId)}`, { method: "DELETE" }).catch(() => {});
       throw Object.assign(new Error("Сервер вернул другой E2EE attachment."), { code: "E2EE_ATTACHMENT_SCOPE_INVALID" });
