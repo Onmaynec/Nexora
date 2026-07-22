@@ -1,0 +1,43 @@
+name: Apply Nexora 3.2.4 patch
+
+on:
+  push:
+    branches:
+      - agent/nexora-3.2.4-updater-mls-recovery
+    paths:
+      - scripts/apply-3.2.4-patch.cjs
+      - .github/workflows/apply-3.2.4.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/nexora-3.2.4-updater-mls-recovery
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+
+      - name: Apply patch
+        run: node scripts/apply-3.2.4-patch.cjs
+
+      - name: Commit applied patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+          git commit -m "feat: implement Nexora 3.2.4 update and MLS recovery"
+          git push origin HEAD:agent/nexora-3.2.4-updater-mls-recovery
