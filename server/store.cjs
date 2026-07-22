@@ -801,7 +801,7 @@ class SqliteStore extends EventEmitter {
         this.emit("changed");
         return result == null ? result : structuredClone(result);
       });
-    this.queue = operation;
+    this.queue = operation.catch(() => {});
     return operation;
   }
 
