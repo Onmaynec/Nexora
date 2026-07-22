@@ -46,13 +46,15 @@ jobs:
             cloud/create-cloud-server-v11.cjs
             test/server.test.cjs
             test/build-config.test.cjs
+            README.md
+            CHANGELOG.md
           )
           if git diff --quiet -- "${paths[@]}"; then
             echo "Release metadata and deterministic source patches are already synchronized."
             exit 0
           fi
           git config user.name "github-actions[bot]"
-          git config user.email "4189822+github-actions[bot]@users.noreply.github.com"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "${paths[@]}"
           git commit -m "chore(release): synchronize Nexora 3.3.0 sources"
           git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
