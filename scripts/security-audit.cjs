@@ -8,12 +8,15 @@ const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 const containsAll = (source, values) => values.every((value) => source.includes(value));
 const server = read("server/create-server.cjs");
+const serverV31 = read("server/create-server-v31.cjs");
 const v3 = read("server/v3-features.cjs");
 const model = read("server/model.cjs");
 const trustCore = read("server/trust-core.cjs");
 const trustRoutes = read("server/trust-routes.cjs");
+const trustSocket = read("server/trust-socket.cjs");
 const mlsTransport = read("server/mls-transport.cjs");
 const e2eeAttachments = read("server/e2ee-attachments.cjs");
+const appClient = read("client/src/App.jsx");
 const trustClient = read("client/src/crypto/trust-client.js");
 const trustDevices = read("client/src/crypto/trust-device-management.js");
 const trustStore = read("client/src/crypto/trust-store.js");
@@ -51,6 +54,10 @@ const checks = [
   ["Device identity private keys are non-extractable", containsAll(trustClient, ["importKey", "Ed25519", "false", "identityPrivateKey"]), "boolean"],
   ["Private MLS state uses local AES-GCM wrapping", containsAll(trustStore, ["AES-GCM", "additionalData", "tagLength: 128"]), "boolean"],
   ["Self-revoke clears all Trust stores", trustDevices.includes("clearTrustScope") && containsAll(trustStore, ["STORES.devices", "STORES.groups", "STORES.messages", "STORES.drafts"]), "boolean"],
+  ["Socket authorization binds supplied Trust devices", containsAll(serverV31, ["mountTrustSocketAuthorization", "trustCore"]) && containsAll(trustSocket, ["requestedDeviceId", "trustCore.requireDevice", "trustDeviceRoom", "socket.join"]), "boolean"],
+  ["MLS ciphertext delivery uses verified device rooms only", containsAll(trustSocket, ["d.status='active'", "d.trust_state='verified'", "emitToVerifiedGroupDevices"]) && containsAll(mlsTransport, ["emitToVerifiedGroupDevices", "trustDeviceRoom", "TRUST_SOCKET_DEVICE_MISMATCH"]), "boolean"],
+  ["Trust revocation immediately disconnects the target device", trustRoutes.includes("disconnectTrustDevice(io, device.id") && containsAll(trustSocket, ["trust.device_revoked", "socket.disconnect(true)"]), "boolean"],
+  ["Remote revocation wipes local Trust state and stops realtime", containsAll(appClient, ["handleTrustDeviceRevoked", "trust.device_revoked", "socket.disconnect()", "deviceId, clientVersion: CLIENT_VERSION"]) && containsAll(trustClient, ["handleTrustDeviceRevoked", "clearTrustScope", "conversationQueues.clear()"]), "boolean"],
   ["MLS mandatory ciphersuite is fixed to 1", /MLS_CIPHERSUITE_ID\s*=\s*1/, mlsEngine],
   ["MLS transport rejects ciphertext replay", trustCore.includes("MLS_MESSAGE_REPLAY") && trustCore.includes("mls_replay_cache") && mlsTransport.includes("trustCore.reserveMessage"), "boolean"],
   ["Secure serialization never exposes MLS plaintext", containsAll(model, ["message.mlsEnvelope", "text: deleted ? \"\"", "message.type === \"encrypted\" ? \"\""]), "boolean"],
