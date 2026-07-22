@@ -13,10 +13,14 @@ const model = read("server/model.cjs");
 const trustCore = read("server/trust-core.cjs");
 const trustRoutes = read("server/trust-routes.cjs");
 const mlsTransport = read("server/mls-transport.cjs");
+const e2eeAttachments = read("server/e2ee-attachments.cjs");
 const trustClient = read("client/src/crypto/trust-client.js");
 const trustDevices = read("client/src/crypto/trust-device-management.js");
 const trustStore = read("client/src/crypto/trust-store.js");
 const mlsEngine = read("client/src/crypto/mls-engine.js");
+const e2eeMedia = read("client/src/crypto/e2ee-media.js");
+const securePane = read("client/src/components/SecureMessagePane.jsx");
+const outbox = read("client/src/outbox.js");
 const android = read("android/app/src/main/java/com/nexora/mobile/MainActivity.kt");
 const androidManifest = read("android/app/src/main/AndroidManifest.xml");
 const releaseWorkflow = read(".github/workflows/release.yml");
@@ -51,6 +55,15 @@ const checks = [
   ["MLS transport rejects ciphertext replay", trustCore.includes("MLS_MESSAGE_REPLAY") && trustCore.includes("mls_replay_cache") && mlsTransport.includes("trustCore.reserveMessage"), "boolean"],
   ["Secure serialization never exposes MLS plaintext", containsAll(model, ["message.mlsEnvelope", "text: deleted ? \"\"", "message.type === \"encrypted\" ? \"\""]), "boolean"],
   ["Legacy plaintext routes are guarded after MLS activation", containsAll(server, ["conversationUsesMls", "E2EE_REQUIRED", "E2EE_FORWARD_REQUIRED", "E2EE_ATTACHMENT_REQUIRED"]) && containsAll(v3, ["conversationUsesMls", "E2EE_DRAFT_LOCAL_ONLY", "E2EE_SCHEDULE_UNSUPPORTED", "E2EE_POLL_UNSUPPORTED", "E2EE_BOT_UNSUPPORTED"]) && attachmentGuardCount >= 3, "boolean"],
+  ["Encrypted attachment upload validates exact GCM size and ciphertext hash", containsAll(e2eeAttachments, ["plaintextSize + AES_GCM_TAG_BYTES", "safeHashEqual", "timingSafeEqual", "E2EE_ATTACHMENT_HASH_MISMATCH"]), "boolean"],
+  ["Encrypted attachment server metadata is opaque", containsAll(e2eeAttachments, ["application/octet-stream", "pendingE2ee: true", "ciphertextSha256", "e2ee-${attachmentId}.bin"]) && !e2eeAttachments.includes("request.headers[\"x-nexora-file-name\"]"), "boolean"],
+  ["Encrypted attachment claim is one-time and scope-bound", containsAll(e2eeAttachments, ["requirePendingAttachment", "file.pendingE2ee = false", "file.messageId = String(messageId)"]) && containsAll(mlsTransport, ["claimE2eeAttachment", "attachmentId", "message.fileId"]), "boolean"],
+  ["Encrypted room media policy is fail-closed", containsAll(e2eeAttachments, ["room.allowFiles !== false", "room.allowImages !== false", "room.allowVoice !== false", "E2EE_MEDIA_POLICY_RESTRICTED"]), "boolean"],
+  ["Client attachment encryption binds AES-GCM AAD", containsAll(e2eeMedia, ["AES-GCM", "length: 256", "additionalData: aad", "tagLength: 128", "NEXORA-E2EE-ATTACHMENT-V1"]), "boolean"],
+  ["Client verifies ciphertext and plaintext after download", containsAll(e2eeMedia, ["E2EE_ATTACHMENT_CIPHERTEXT_INVALID", "E2EE_ATTACHMENT_PLAINTEXT_INVALID", "ciphertextSha256", "plaintextSha256"]), "boolean"],
+  ["Encrypted media upload supports progress and cancellation", containsAll(e2eeMedia, ["XMLHttpRequest", "xhr.upload.onprogress", "AbortSignal", "E2EE_ATTACHMENT_UPLOAD_CANCELLED"]) || containsAll(e2eeMedia, ["XMLHttpRequest", "xhr.upload.onprogress", "signal?.addEventListener", "E2EE_ATTACHMENT_UPLOAD_CANCELLED"]), "boolean"],
+  ["Attachment secrets stay inside MLS content and out of regular outbox fields", containsAll(e2eeMedia, ["encodeAttachmentContent", "ATTACHMENT_CONTENT_PREFIX"]) && containsAll(outbox, ["attachmentId", "message: String(prepared.payload.message)"]) && !containsAll(outbox, ["plaintextSha256", "mimeType", "rawKey"]), "boolean"],
+  ["Offline cache removes decrypted attachment descriptor", containsAll(securePane, ["offlineSafe", "attachment: _attachment", "redactDecryptedForCache"]), "boolean"],
   ["Android cleartext disabled", /usesCleartextTraffic="false"/, androidManifest],
   ["Android TLS errors are cancelled", /onReceivedSslError[\s\S]*handler\.cancel\(\)/, android],
   ["Android never bypasses TLS errors", !/handler\.proceed\(\)/.test(android), "boolean"],
