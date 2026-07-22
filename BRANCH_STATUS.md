@@ -5,7 +5,7 @@
 - Target version: `3.2.0`.
 - Base stable release: `3.1.2`.
 - Pull Request: `#12`.
-- Status: automated release candidate / GitHub prerelease eligible.
+- Status: automated release candidate / GitHub source/PWA prerelease eligible.
 - Stable production promotion remains blocked until packaged runtime, signing and independent security-review gates are complete.
 
 ## Implemented and verified in code/tests
@@ -28,20 +28,21 @@
 - server-side guards for legacy send/forward/edit/draft/scheduled/poll/bot/upload paths;
 - missed-commit recovery and explicit lost-state failure;
 - schema, Trust Core, recovery, plaintext-guard, media, store-queue, device-scoped realtime and Alice/Bob interoperability tests;
+- isolated schema 8 performance smoke with 20 clients, 120 messages and an unchanged 20-second budget;
 - one-minute schema 8 soak with repeated mutations, backups and SQLite integrity checks;
 - synchronized `3.2.0` package/lock/Android/client metadata and full release-check integration.
 
 ## Automated candidate gate
 
-GitHub Actions CI run `#222` (`29919641225`) passed on commit `927ae6300392d161f987acb057435f5d0e6ca2f9`:
+GitHub Actions CI run `#250` (`29921551883`) passed on implementation commit `9af91d129273d702cea2bf736354d25bac05d1e3`:
 
-- Windows production check, unit suite and security audit;
+- Windows production check, unit suite, isolated performance smoke and security audit;
 - Linux full `npm test`;
 - dedicated `npm run release:check`;
 - schema 8 soak;
 - Android `assembleDebug`.
 
-A final documentation-only CI run must still bind the verification report to the exact release-candidate head.
+The retained evidence and release classification are recorded in `RELEASE_VERIFICATION_3.2.0.md`. A documentation-only final CI must remain green before merge.
 
 ## Remaining stable-release blockers
 
@@ -60,7 +61,7 @@ Local Server does not receive secure-message plaintext, attachment key, source f
 
 ## Documentation rule
 
-Branch-local documents describe verified behavior and separate automated evidence from manual, signing and independent-review evidence. Stable 3.1.2 documentation remains authoritative for production until a signed 3.2.0 promotion is approved.
+Branch-local documents describe verified behavior and separate automated evidence from manual, signing and independent-review evidence. Stable 3.1.2 documentation remains authoritative for signed production use until a signed 3.2.0 promotion is approved.
 
 ## Safety
 
