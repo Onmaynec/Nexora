@@ -41,6 +41,8 @@ const WELCOME_POLL_INTERVAL_MS = 500;
 const WELCOME_POLL_TIMEOUT_MS = 10_000;
 const deviceDirectory = new Map();
 const conversationQueues = new Map();
+const conversationReadyAt = new Map();
+const CONVERSATION_FAST_PATH_MS = 20_000;
 let configuration = null;
 let devicePromise = null;
 let refillPromise = null;
@@ -114,6 +116,7 @@ export function configureTrust({ serverId, user }) {
     refillPromise = null;
     deviceDirectory.clear();
     conversationQueues.clear();
+    conversationReadyAt.clear();
   }
 }
 
@@ -376,9 +379,13 @@ async function addMissingDevices(conversation, local, remote, device) {
   return persistGroup(conversation.id, remote.id, created.state, created.publicStateHash);
 }
 
-async function ensureConversationGroupInternal(conversation) {
+async function ensureConversationGroupInternal(conversation, { forceSync = false } = {}) {
   const device = await ensureTrustDevice();
   if (device.trustState !== "verified") throw Object.assign(new Error("Подтвердите это устройство перед использованием E2EE."), { code: "TRUST_DEVICE_UNVERIFIED" });
+  if (!forceSync && Date.now() - Number(conversationReadyAt.get(conversation.id) || 0) < CONVERSATION_FAST_PATH_MS) {
+    const local = await loadLocalGroup(conversation.id);
+    if (local) return { device, local, remote: { id: local.groupRecordId, conversationId: conversation.id, epoch: local.epoch } };
+  }
   await claimWelcome(device, conversation.id).catch((error) => {
     if (!["MLS_WELCOME_NO_MATCHING_KEY_PACKAGE", "MLS_WELCOME_RACE"].includes(error.code || error.message)) throw error;
   });
@@ -406,7 +413,7 @@ async function ensureConversationGroupInternal(conversation) {
     });
     remote = created.group;
     if (remote.groupId && remote.groupId !== initial.protocolGroupId) {
-      const joined = await claimWelcome(device, conversation.id);
+      const joined = await claimWelcome(device, conversation.id) || await requestWelcomeAndWait(device, conversation.id);
       if (!joined) throw Object.assign(new Error("MLS group создан другим устройством; ожидается Welcome."), { code: "MLS_WELCOME_PENDING" });
       local = joined;
     } else {
@@ -424,7 +431,9 @@ async function ensureConversationGroupInternal(conversation) {
   local = await syncMissedCommits(local, remote, device);
   remote = (await trustApi(`/conversations/${encodeURIComponent(conversation.id)}/group`, { deviceId: device.id })).group;
   local = await addMissingDevices(conversation, local, remote, device);
-  return { device, local, remote: (await trustApi(`/conversations/${encodeURIComponent(conversation.id)}/group`, { deviceId: device.id })).group };
+  const synchronizedRemote = (await trustApi(`/conversations/${encodeURIComponent(conversation.id)}/group`, { deviceId: device.id })).group;
+  conversationReadyAt.set(conversation.id, Date.now());
+  return { device, local, remote: synchronizedRemote };
 }
 
 function serializeConversationOperation(conversationId, operation) {
@@ -437,14 +446,14 @@ function serializeConversationOperation(conversationId, operation) {
   return next;
 }
 
-export function ensureConversationGroup(conversation) {
-  return serializeConversationOperation(conversation.id, () => ensureConversationGroupInternal(conversation));
+export function ensureConversationGroup(conversation, options = {}) {
+  return serializeConversationOperation(conversation.id, () => ensureConversationGroupInternal(conversation, options));
 }
 
 export async function handleWelcomeRequest(conversation) {
   if (!conversation?.id) return false;
   try {
-    await ensureConversationGroup(conversation);
+    await ensureConversationGroup(conversation, { forceSync: true });
     return true;
   } catch (error) {
     if (["MLS_WELCOME_PENDING", "MLS_STATE_LOST"].includes(error.code)) return false;
@@ -544,6 +553,7 @@ export async function processCommitEvent(event) {
     if (!currentGroup || currentGroup.epoch >= Number(event.epoch)) return false;
     const processed = await processCommitMessage({ state: currentGroup.state, commitBytes: fromBase64(event.commit), resolveDevice: resolveTrustedDevice });
     await persistGroup(event.conversationId, event.groupId, processed.state, processed.publicStateHash);
+    conversationReadyAt.set(event.conversationId, Date.now());
     return true;
   });
 }

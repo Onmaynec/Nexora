@@ -11,7 +11,6 @@ import HoverDock from "./HoverDock";
 import GlobalSearch from "./GlobalSearch";
 import SecureMessagePane from "./SecureMessagePane";
 import NotificationsPage from "./NotificationsPage";
-import ParticleField from "./ParticleField";
 import PulsePage from "./PulsePage";
 import AccountSettingsPage from "./SettingsPage";
 import UserProfileModal from "./UserProfileModal";
@@ -32,17 +31,19 @@ function ConversationList({ conversations, drafts = [], activeId, onOpen, onOpen
   const [filter, setFilter] = useState("all");
   const [menuId, setMenuId] = useState(null);
   const [draftMap, setDraftMap] = useState({});
+  const conversationIdsKey = conversations.map((conversation) => conversation.id).join("|");
   useEffect(() => {
     let cancelled = false;
+    const ids = conversationIdsKey ? conversationIdsKey.split("|") : [];
     const refresh = async () => {
-      const entries = await Promise.all(conversations.map(async (conversation) => [conversation.id, Boolean(await loadE2eeDraft(conversation.id).catch(() => ""))]));
+      const entries = await Promise.all(ids.map(async (conversationId) => [conversationId, Boolean(await loadE2eeDraft(conversationId).catch(() => ""))]));
       if (!cancelled) setDraftMap(Object.fromEntries(entries));
     };
     refresh();
     const listener = () => refresh();
     window.addEventListener("nexora:drafts", listener);
     return () => { cancelled = true; window.removeEventListener("nexora:drafts", listener); };
-  }, [conversations]);
+  }, [conversationIdsKey]);
   useEffect(() => { const close = () => setMenuId(null); window.addEventListener("pointerdown", close); return () => window.removeEventListener("pointerdown", close); }, []);
   const unreadTotal = conversations.reduce((sum, item) => sum + item.unreadCount, 0);
   const filtered = conversations.filter((conversation) => {
@@ -428,7 +429,6 @@ export default function Workspace({ me, bootstrap, socket, onlineUserIds, trustS
 
   return (
     <main className={`workspace-shell workspace-${section}`}>
-      <ParticleField quiet={section !== "chats"} />
       <button type="button" className="mobile-rail-toggle" onClick={() => setRailOpen((value) => !value)} aria-label="Открыть навигацию"><Menu size={19} /></button>
       {railOpen && <button type="button" className="mobile-rail-scrim" onClick={() => setRailOpen(false)} aria-label="Закрыть навигацию" />}
       <aside className={`workspace-rail${railOpen ? " open" : ""}`}>

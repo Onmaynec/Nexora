@@ -12,6 +12,9 @@ contextBridge.exposeInMainWorld("nexoraClient", {
   updateStatus: () => ipcRenderer.invoke("client:update-status"),
   checkForUpdates: () => ipcRenderer.invoke("client:check-update"),
   installUpdate: () => ipcRenderer.invoke("client:install-update"),
+  getReleaseNotes: () => ipcRenderer.invoke("client:get-release-notes"),
+  dismissReleaseNotes: (version, dontShowAgain = false) => ipcRenderer.invoke("client:dismiss-release-notes", { version, dontShowAgain }),
+  openReleaseNotes: (version) => ipcRenderer.invoke("client:open-release-notes", version),
   reportRendererError: (report) => ipcRenderer.send("client:renderer-error", report),
   onUpdate: (callback) => {
     const listener = (_event, state) => callback(state);

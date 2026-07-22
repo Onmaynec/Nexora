@@ -13,7 +13,7 @@ const {
   normalizeServerUrl,
 } = require("./client-connection.cjs");
 const { createUpdateService } = require("./update-service.cjs");
-const { maybeShowPostUpdate, openTestLogConsole, testModeRequested } = require("./release-experience.cjs");
+const { dismissReleaseNotes, getPendingReleaseNotes, openReleaseNotesDetails, openTestLogConsole, testModeRequested } = require("./release-experience.cjs");
 
 let mainWindow;
 let configFile;
@@ -266,6 +266,9 @@ app.whenReady().then(async () => {
   ipcMain.handle("client:update-status", () => updateService?.status() ?? { enabled: false, status: "initializing" });
   ipcMain.handle("client:check-update", () => updateService?.check() ?? { enabled: false });
   ipcMain.handle("client:install-update", () => updateService?.install() ?? false);
+  ipcMain.handle("client:get-release-notes", (event) => { requireNexoraWindow(event); return getPendingReleaseNotes({ appImpl: app }); });
+  ipcMain.handle("client:dismiss-release-notes", (event, payload = {}) => { requireNexoraWindow(event); return dismissReleaseNotes({ appImpl: app, version: payload.version, dontShowAgain: Boolean(payload.dontShowAgain) }); });
+  ipcMain.handle("client:open-release-notes", (event, version) => { requireNexoraWindow(event); return openReleaseNotesDetails({ appImpl: app, shellImpl: shell, version }); });
   ipcMain.on("client:renderer-error", (event, report = {}) => {
     requireNexoraWindow(event);
     const message = String(report.message || "Unknown renderer error").replace(/[\r\n]+/g, " ").slice(0, 500);
@@ -289,7 +292,6 @@ app.whenReady().then(async () => {
   updateService.start();
   await logClient("Client " + app.getVersion() + " started" + (testModeRequested() ? " in test mode" : ""));
   if (testModeRequested() && process.platform === "win32") openTestLogConsole({ logFile: clientLogFile || path.join(app.getPath("logs"), "nexora-client.log") });
-  setTimeout(() => maybeShowPostUpdate({ appImpl: app, dialogImpl: dialog, shellImpl: shell, log: logClient }).catch((error) => logClient("Post-update dialog failed: " + (error?.stack || error), "error")), 900);
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 

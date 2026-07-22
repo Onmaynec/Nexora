@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bookmark, Check, CheckCheck, Copy, Download, FileText, Image as ImageIcon, Info, KeyRound,
-  LoaderCircle, LockKeyhole, Mic, Paperclip, Pencil, RefreshCcw, Reply, Search, Send,
+  LoaderCircle, LockKeyhole, Mic, Paperclip, Pause, Pencil, Play, RefreshCcw, Reply, Search, Send,
   ShieldAlert, ShieldCheck, SmilePlus, Square, Trash2, Volume2, VolumeX, X,
 } from "lucide-react";
 import { api, patch, post } from "../api";
@@ -27,6 +27,7 @@ import {
 } from "../outbox";
 import { cacheMessages, readCachedMessages } from "../offline-store";
 import { emitAck } from "../socket";
+import ParticleField from "./ParticleField";
 import { Avatar, EmptyState, formatTime, InlineLoader } from "./ui";
 
 const reactions = ["👍", "❤️", "🔥", "😂", "👀", "🎉"];
@@ -40,6 +41,16 @@ function formatBytes(value) {
 
 function hydrated(message) {
   return decodeAttachmentContent(message);
+}
+
+function nearBottom(element, threshold = 150) {
+  if (!element) return true;
+  return element.scrollHeight - element.scrollTop - element.clientHeight <= threshold;
+}
+
+function formatDuration(value) {
+  const seconds = Math.max(0, Math.round(Number(value) || 0));
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
 function offlineSafe(messages) {
@@ -80,26 +91,60 @@ function TrustGate({ trustState }) {
   return <div className="secure-trust-gate"><Icon className={trustState.status === "initializing" ? "spin" : ""} size={30} /><div><strong>{title}</strong><p>{detail}</p></div></div>;
 }
 
+function SecureVoicePlayer({ resource, waveform = [], duration = 0 }) {
+  const audioRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [current, setCurrent] = useState(0);
+  const [total, setTotal] = useState(Number(duration) || 0);
+  const [rate, setRate] = useState(1);
+  const bars = waveform.length ? waveform.slice(0, 56) : Array.from({ length: 42 }, (_, index) => 22 + ((index * 17) % 58));
+
+  async function toggle() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audio.paused) await audio.play(); else audio.pause();
+  }
+
+  function seek(event) {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    audio.currentTime = ((event.clientX - rect.left) / Math.max(1, rect.width)) * Math.max(total, 1);
+  }
+
+  function cycleRate() {
+    const next = rate === 1 ? 1.5 : rate === 1.5 ? 2 : 1;
+    setRate(next);
+    if (audioRef.current) audioRef.current.playbackRate = next;
+  }
+
+  return (
+    <div className="secure-voice-message">
+      <audio ref={audioRef} src={resource.url} preload="metadata" onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)} onLoadedMetadata={(event) => setTotal(Number(event.currentTarget.duration) || Number(duration) || 0)} onTimeUpdate={(event) => setCurrent(event.currentTarget.currentTime)} />
+      <button type="button" className="secure-voice-play" onClick={toggle} aria-label={playing ? "Пауза" : "Воспроизвести"}>{playing ? <Pause size={17} fill="currentColor" /> : <Play size={17} fill="currentColor" />}</button>
+      <div className="secure-voice-wave-wrap">
+        <button type="button" className="secure-voice-wave" onClick={seek} aria-label="Перемотать голосовое">{bars.map((height, index) => <i key={index} className={total && index / bars.length <= current / total ? "played" : ""} style={{ height: `${Math.max(10, Math.min(100, Number(height) || 10))}%` }} />)}</button>
+        <span>{formatDuration(current)} / {formatDuration(total)}</span>
+      </div>
+      <button type="button" className="secure-voice-rate" onClick={cycleRate}>{rate}×</button>
+    </div>
+  );
+}
+
 function SecureAttachment({ message, showToast }) {
   const [resource, setResource] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const urlRef = useRef(null);
 
-  useEffect(() => () => {
-    if (urlRef.current) URL.revokeObjectURL(urlRef.current);
-  }, []);
+  useEffect(() => () => { if (urlRef.current) URL.revokeObjectURL(urlRef.current); }, []);
 
   async function ensureResource() {
     if (resource) return resource;
     setLoading(true);
     setError("");
     try {
-      const decrypted = await decryptDownloadedAttachment({
-        conversationId: message.conversationId,
-        attachment: message.attachment,
-        serverFile: message.file,
-      });
+      const decrypted = await decryptDownloadedAttachment({ conversationId: message.conversationId, attachment: message.attachment, serverFile: message.file });
       if (urlRef.current) URL.revokeObjectURL(urlRef.current);
       const next = { ...decrypted, url: URL.createObjectURL(decrypted.blob) };
       urlRef.current = next.url;
@@ -114,6 +159,10 @@ function SecureAttachment({ message, showToast }) {
     }
   }
 
+  useEffect(() => {
+    if (["image", "voice"].includes(message.attachment.kind)) void ensureResource();
+  }, [message.id]);
+
   async function download() {
     const value = await ensureResource();
     if (!value) return;
@@ -124,24 +173,25 @@ function SecureAttachment({ message, showToast }) {
     anchor.click();
   }
 
-  const Icon = message.attachment.kind === "image" ? ImageIcon : message.attachment.kind === "voice" ? Volume2 : FileText;
+  if (message.attachment.kind === "image") {
+    return <div className="secure-media-inline secure-image-inline">{loading && <div className="secure-media-skeleton"><LoaderCircle className="spin" size={20} /> Расшифровываем изображение…</div>}{resource && <img className="secure-image-preview" src={resource.url} alt={resource.name} loading="lazy" />}{resource && <button type="button" className="secure-media-download-float" onClick={download} title="Скачать"><Download size={16} /></button>}{error && <span className="secure-attachment-error"><ShieldAlert size={14} />{error}</span>}</div>;
+  }
+  if (message.attachment.kind === "voice") {
+    return <div className="secure-media-inline">{loading && <div className="secure-media-skeleton"><LoaderCircle className="spin" size={18} /> Готовим голосовое…</div>}{resource && <SecureVoicePlayer resource={resource} waveform={message.attachment.waveform} duration={message.attachment.duration || resource.duration} />}{error && <span className="secure-attachment-error"><ShieldAlert size={14} />{error}</span>}</div>;
+  }
+
   return (
-    <div className={`secure-attachment-card ${message.attachment.kind}`}>
-      <div className="secure-attachment-summary">
-        <span className="secure-attachment-icon"><Icon size={20} /></span>
-        <div><strong>{message.attachment.name}</strong><span>{formatBytes(message.attachment.plaintextSize)} · AES-256-GCM</span></div>
-        <ShieldCheck size={16} title="Descriptor проверен MLS" />
-      </div>
-      {!resource && <button type="button" className="secure-attachment-open" onClick={ensureResource} disabled={loading}>{loading ? <LoaderCircle className="spin" size={16} /> : <LockKeyhole size={16} />}{loading ? "Проверяем и расшифровываем…" : "Расшифровать локально"}</button>}
-      {resource?.kind === "image" && <img className="secure-image-preview" src={resource.url} alt={resource.name} />}
-      {resource?.kind === "voice" && <div className="secure-voice-player"><audio controls preload="metadata" src={resource.url} /><span>{resource.duration ? `${resource.duration} сек.` : "Голосовое сообщение"}</span></div>}
+    <div className="secure-attachment-card file">
+      <div className="secure-attachment-summary"><span className="secure-attachment-icon"><FileText size={20} /></span><div><strong>{message.attachment.name}</strong><span>{formatBytes(message.attachment.plaintextSize)} · AES-256-GCM</span></div><ShieldCheck size={16} title="Descriptor проверен MLS" /></div>
+      {!resource && <button type="button" className="secure-attachment-open" onClick={ensureResource} disabled={loading}>{loading ? <LoaderCircle className="spin" size={16} /> : <LockKeyhole size={16} />}{loading ? "Проверяем и расшифровываем…" : "Открыть локально"}</button>}
       {resource && <button type="button" className="secure-attachment-download" onClick={download}><Download size={15} /> Скачать {resource.name}</button>}
       {error && <span className="secure-attachment-error"><ShieldAlert size={14} />{error}</span>}
     </div>
   );
 }
 
-function SecureMessage({ message, onReply, onEdit, onDelete, onReact, onBookmark, onCopy, onRetry, onDiscard, showToast }) {
+const SecureMessage = memo(function SecureMessage(
+{ message, onReply, onEdit, onDelete, onReact, onBookmark, onCopy, onRetry, onDiscard, showToast }) {
   const [showReactions, setShowReactions] = useState(false);
   const deleted = message.type === "deleted";
   const pending = Boolean(message.deliveryState);
@@ -181,7 +231,7 @@ function SecureMessage({ message, onReply, onEdit, onDelete, onReact, onBookmark
       </div>
     </article>
   );
-}
+}, (previous, next) => previous.message === next.message && previous.showToast === next.showToast);
 
 async function voiceWaveform(blob) {
   const AudioContextClass = globalThis.AudioContext || globalThis.webkitAudioContext;
@@ -231,6 +281,8 @@ export default function SecureMessagePane({
   const recorderRef = useRef(null);
   const recordingTimer = useRef(null);
   const activeConversationId = conversation.id;
+  const conversationRef = useRef(conversation);
+  conversationRef.current = conversation;
   const ready = trustState.status === "ready";
   const mediaAllowed = conversation.type !== "room" || (conversation.permissions?.allowFiles !== false && conversation.permissions?.allowImages !== false && conversation.permissions?.allowVoice !== false);
 
@@ -261,14 +313,14 @@ export default function SecureMessagePane({
     if (!ready || !socket.connected) return null;
     setGroupState("initializing");
     try {
-      const result = await ensureConversationGroup(conversation);
+      const result = await ensureConversationGroup(conversationRef.current);
       setGroupState("ready");
       return result;
     } catch (error) {
       setGroupState(error.code || "error");
       throw error;
     }
-  }, [conversation, ready, socket.connected]);
+  }, [activeConversationId, ready, socket.connected]);
 
   const loadMessages = useCallback(async () => {
     setLoading(true);
@@ -300,6 +352,12 @@ export default function SecureMessagePane({
   }, [activeConversationId, loadMessages, ready]);
 
   useEffect(() => {
+    if (!ready || !socket.connected || ["ready", "initializing"].includes(groupState)) return undefined;
+    const timer = setTimeout(() => initializeGroup().catch(() => {}), groupState === "idle" ? 0 : 6_000);
+    return () => clearTimeout(timer);
+  }, [groupState, initializeGroup, ready, socket.connected]);
+
+  useEffect(() => {
     const sync = (event) => { if (!event.detail?.userId || event.detail.userId === me.id) setOutbox(readOutbox(me.id)); };
     window.addEventListener("nexora:outbox", sync);
     return () => window.removeEventListener("nexora:outbox", sync);
@@ -310,11 +368,12 @@ export default function SecureMessagePane({
     async function onNew(message) {
       if (!active || message.conversationId !== activeConversationId) return;
       if (message.clientId) removeOutboxEntry(me.id, message.clientId);
+      const shouldFollow = message.sender?.id === me.id || nearBottom(listRef.current);
       const decrypted = hydrated(await decryptServerMessage(message));
       if (!active) return;
       setMessages((current) => current.some((item) => item.id === decrypted.id) ? current : [...current, decrypted]);
       if (message.sender?.id !== me.id) socket.emit("conversation:read", { conversationId: activeConversationId }, () => {});
-      requestAnimationFrame(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }));
+      if (shouldFollow) requestAnimationFrame(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }));
     }
     async function onUpdated(message) {
       if (!active || message.conversationId !== activeConversationId) return;
@@ -355,6 +414,10 @@ export default function SecureMessagePane({
     const value = text.trim();
     if (!value || sending || mediaState || recording) return;
     if (!ready) return showToast("Trust Core ещё не готов", "error");
+    if (groupState !== "ready") {
+      void initializeGroup().catch(() => {});
+      return showToast("Синхронизируем защищённый диалог…", "error");
+    }
     if (!socket.connected) {
       persistDraft(value);
       return showToast("Соединение отсутствует. Текст сохранён только в зашифрованном локальном черновике.", "error");
@@ -362,27 +425,34 @@ export default function SecureMessagePane({
     setSending(true);
     try {
       if (editing) {
-        const payload = await prepareEncryptedEdit({ conversation, messageId: editing.id, text: value });
+        const payload = await prepareEncryptedEdit({ conversation: conversationRef.current, messageId: editing.id, text: value });
         const result = await emitAck(socket, "mls:message-edit", payload, 20_000);
         const decrypted = hydrated(await decryptServerMessage(result.message));
         setMessages((current) => current.map((item) => item.id === decrypted.id ? decrypted : item));
         setEditing(null);
+        setText("");
+        await saveE2eeDraft(activeConversationId, "");
+        void onRefresh().catch(() => {});
       } else {
         const prepared = await prepareEncryptedText({
-          conversation,
+          conversation: conversationRef.current,
           text: value,
           replyToId: replyingTo?.id || null,
           threadRootId: conversation.type === "room" && replyingTo ? (replyingTo.threadRootId || replyingTo.id) : null,
         });
         enqueueEncryptedMessage(me.id, prepared);
-        const result = await flushOutbox(socket, me.id);
-        if (result.failed) throw new Error("Ciphertext не доставлен; доступен безопасный повтор.");
+        setText("");
         setReplyingTo(null);
+        void saveE2eeDraft(activeConversationId, "");
+        socket.emit("typing:set", { conversationId: activeConversationId, isTyping: false });
+        setSending(false);
+        void flushOutbox(socket, me.id)
+          .then((result) => {
+            if (result.failed) showToast("Ciphertext не доставлен; доступен безопасный повтор.", "error");
+            void onRefresh().catch(() => {});
+          })
+          .catch((error) => showToast(error.message, "error"));
       }
-      setText("");
-      await saveE2eeDraft(activeConversationId, "");
-      socket.emit("typing:set", { conversationId: activeConversationId, isTyping: false });
-      await onRefresh();
     } catch (error) {
       showToast(error.message, "error");
     } finally {
@@ -390,7 +460,8 @@ export default function SecureMessagePane({
     }
   }
 
-  async function sendAttachment(file, kind, extras = {}) {
+  async function sendAttachment
+(file, kind, extras = {}) {
     if (!file || sending || mediaState) return;
     if (!ready || !socket.connected) return showToast("E2EE media требует активное соединение и готовый Trust Core.", "error");
     if (!mediaAllowed) return showToast("В комнате ограничен один или несколько типов медиа. E2EE media заблокирован fail-closed.", "error");
@@ -430,7 +501,7 @@ export default function SecureMessagePane({
       setMediaState({ phase: "sending", progress: 100, name: descriptor.name });
       const result = await flushOutbox(socket, me.id);
       if (result.failed) throw new Error("E2EE attachment сохранён в безопасной очереди для повтора.");
-      await onRefresh();
+      void onRefresh().catch(() => {});
     } catch (error) {
       if (descriptor?.id && !enqueued) await cancelEncryptedAttachment(descriptor.id).catch(() => {});
       if (error.code !== "E2EE_ATTACHMENT_UPLOAD_CANCELLED") showToast(error.message, "error");
@@ -516,7 +587,7 @@ export default function SecureMessagePane({
   }
 
   async function action(event, payload) {
-    try { await emitAck(socket, event, payload); await onRefresh(); }
+    try { await emitAck(socket, event, payload); void onRefresh().catch(() => {}); }
     catch (error) { showToast(error.message, "error"); }
   }
 
@@ -533,13 +604,13 @@ export default function SecureMessagePane({
   }
 
   async function toggleMute() {
-    try { await patch(`/api/conversations/${activeConversationId}/settings`, { muted: !conversation.notificationSettings?.muted }); await onRefresh(); }
+    try { await patch(`/api/conversations/${activeConversationId}/settings`, { muted: !conversation.notificationSettings?.muted }); void onRefresh().catch(() => {}); }
     catch (error) { showToast(error.message, "error"); }
   }
 
   function retryPending(message) {
     retryOutboxEntry(me.id, message.outboxId);
-    if (socket.connected) flushOutbox(socket, me.id).then((result) => result.sent && onRefresh());
+    if (socket.connected) flushOutbox(socket, me.id).then((result) => { if (result.sent) void onRefresh().catch(() => {}); });
   }
 
   async function discardPending(message) {
@@ -555,12 +626,12 @@ export default function SecureMessagePane({
     const query = searchQuery.trim().toLocaleLowerCase("ru");
     return query.length >= 2 ? messages.filter((message) => `${message.text || ""} ${message.attachment?.name || ""}`.toLocaleLowerCase("ru").includes(query)) : messages;
   }, [messages, searchQuery]);
-  const pending = outbox.filter((entry) => entry.kind === "mls-message" && entry.conversationId === activeConversationId && !messages.some((message) => message.clientId === entry.id)).map((entry) => pendingMessage(entry, me));
-  const displayMessages = [...filtered, ...pending].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
+  const pending = useMemo(() => outbox.filter((entry) => entry.kind === "mls-message" && entry.conversationId === activeConversationId && !messages.some((message) => message.clientId === entry.id)).map((entry) => pendingMessage(entry, me)), [activeConversationId, me, messages, outbox]);
+  const displayMessages = useMemo(() => [...filtered, ...pending].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt)), [filtered, pending]);
   const titleOnline = conversation.type === "dm" && onlineUserIds.has(conversation.peer?.id);
   const typingNames = [...typingUsers.values()];
   const cannotPost = conversation.type === "room" && (conversation.permissions?.readOnly || conversation.permissions?.announcementOnly) && !conversation.permissions?.canBypassPosting;
-  const busy = sending || Boolean(mediaState) || Boolean(recording);
+  const busy = sending || Boolean(mediaState) || Boolean(recording) || groupState !== "ready";
 
   if (!ready) return <section className="message-pane secure-message-pane"><TrustGate trustState={trustState} /></section>;
 
@@ -574,7 +645,8 @@ export default function SecureMessagePane({
       {searchOpen && <div className="chat-search-bar secure-local-search"><Search size={17} /><input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Локальный поиск по расшифрованным сообщениям" autoFocus /><button type="button" onClick={() => { setSearchOpen(false); setSearchQuery(""); }}><X size={16} /></button></div>}
       <div className="secure-policy-banner"><LockKeyhole size={16} /><span><strong>Сервер получает только MLS ciphertext и opaque media.</strong> Ключи, имена, MIME и подписи вложений находятся внутри MLS. Опросы и отложенная отправка остаются отключены.</span></div>
       {!mediaAllowed && <div className="secure-policy-banner warning"><ShieldAlert size={16} /><span>В комнате ограничен один или несколько типов медиа. Поскольку сервер не видит тип зашифрованного файла, весь E2EE media path заблокирован fail-closed.</span></div>}
-      <div className="message-list" ref={listRef}>
+      <div className="message-list secure-message-history" ref={listRef}>
+        <ParticleField contained className="chat-particle-field" />
         {loading ? <div className="messages-loading"><InlineLoader label="Проверяем ключи и расшифровываем" /></div> : displayMessages.length === 0 ? <EmptyState icon={LockKeyhole} title="Защищённый диалог готов" description="Первое сообщение создаст или синхронизирует MLS-группу для всех подтверждённых устройств участников." /> : displayMessages.map((message) => <SecureMessage key={message.id} message={message} onReply={(item) => { setReplyingTo(item); setEditing(null); }} onEdit={(item) => { setEditing(item); setReplyingTo(null); setText(item.text); }} onDelete={(item) => window.confirm("Удалить защищённое сообщение?") && action("message:delete", { messageId: item.id })} onReact={(item, emoji) => action("message:react", { messageId: item.id, emoji })} onBookmark={toggleBookmark} onCopy={copyMessage} onRetry={retryPending} onDiscard={discardPending} showToast={showToast} />)}
       </div>
       <footer className="composer-zone secure-composer-zone">

@@ -126,6 +126,9 @@ function normalizeState(value) {
     ...session,
     csrfToken: session.csrfToken || crypto.randomBytes(24).toString("base64url"),
   }));
+  normalized.billingLinks = normalized.billingLinks
+    .map((link) => ({ ...link, userId: link.userId || link.localUserId || null }))
+    .filter((link) => link.id && link.userId && link.cloudAccountId);
   normalized.rooms = normalized.rooms.map((room) => ({
     readOnly: false,
     slowModeSeconds: 0,

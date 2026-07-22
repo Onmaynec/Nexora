@@ -2,6 +2,27 @@
 
 Формат основан на Keep a Changelog. Версии следуют Semantic Versioning.
 
+## [3.2.5] — 2026-07-22
+
+### Исправлено
+
+- команды `plus grant`, `plus revoke` и `impulses grant|revoke` теперь сохраняют канонический `userId` и не передают `undefined` в SQLite;
+- MLS group-creation race ожидает Welcome в фоне вместо немедленного `MLS_WELCOME_PENDING`;
+- история чата больше не очищается при каждом bootstrap refresh, а сообщения отправляются через оптимистичную encrypted outbox без блокирующего полного обновления;
+- изображения и голосовые автоматически расшифровываются локально и отображаются в привычном inline-виде;
+- интерактивная сеть ограничена только областью истории сообщений;
+- элементы управления и scrollbars Nexora Server больше не используют выбивающиеся системные стили.
+
+### Добавлено
+
+- красивое доступное окно описания обновления внутри Nexora Client;
+- локальная команда `release:windows` без требования сертификата и отдельная `release:windows:signed` для подписанного production build;
+- real-SQLite regression coverage для Pulse Sandbox и UI/performance contracts 3.2.5.
+
+### Совместимость
+
+- schema 8, API v3 и Trust/MLS API v4 остаются совместимыми; миграция базы не требуется.
+
 ## [3.2.4] — 2026-07-22
 
 ### Fixed
