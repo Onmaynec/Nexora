@@ -605,12 +605,15 @@ class TrustCore {
       ciphersuite: MLS_CIPHERSUITE,
       privateKeysOnServer: false,
       devices: null,
-      activeGroups: Number(this.db.prepare("SELECT COUNT(*) AS count FROM mls_groups WHERE status='active'").get().count || 0),
+      activeGroups: 0,
     };
+    const db = this.store?.db;
+    if (!db) return result;
+    result.activeGroups = Number(db.prepare("SELECT COUNT(*) AS count FROM mls_groups WHERE status='active'").get().count || 0);
     if (userId) {
       result.devices = {
-        active: Number(this.db.prepare("SELECT COUNT(*) AS count FROM trust_devices WHERE user_id=? AND status='active'").get(String(userId)).count || 0),
-        verified: Number(this.db.prepare("SELECT COUNT(*) AS count FROM trust_devices WHERE user_id=? AND status='active' AND trust_state='verified'").get(String(userId)).count || 0),
+        active: Number(db.prepare("SELECT COUNT(*) AS count FROM trust_devices WHERE user_id=? AND status='active'").get(String(userId)).count || 0),
+        verified: Number(db.prepare("SELECT COUNT(*) AS count FROM trust_devices WHERE user_id=? AND status='active' AND trust_state='verified'").get(String(userId)).count || 0),
       };
     }
     return result;

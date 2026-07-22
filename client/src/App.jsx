@@ -131,6 +131,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (authState !== "authenticated" || !me?.id || me.mustChangePassword || bootstrap) return undefined;
+    refresh();
+    return undefined;
+  }, [authState, bootstrap, me?.id, me?.mustChangePassword, refresh]);
+
+  useEffect(() => {
     const serverId = bootstrap?.server?.id;
     if (!me?.id || !serverId || me.mustChangePassword) return undefined;
     let cancelled = false;

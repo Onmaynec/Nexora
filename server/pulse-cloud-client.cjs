@@ -108,12 +108,18 @@ class PulseCloudClient {
   }
 
   status() {
+    let keyCount = 0;
+    try {
+      keyCount = this.repository?.keyRegistry?.().size || 0;
+    } catch (error) {
+      if (error?.code !== "PULSE_LOCAL_STORE_UNAVAILABLE") throw error;
+    }
     return {
       mode: this.mode,
       enabled: this.mode === "production" || this.mode === "sandbox",
       productionReady: this.mode === "production",
       cloudOrigin: this.cloudUrl ? new URL(this.cloudUrl).origin : null,
-      keyCount: this.repository?.keyRegistry?.().size || 0,
+      keyCount,
       errorCode: this.configurationError?.code || null,
     };
   }

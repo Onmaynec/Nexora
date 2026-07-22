@@ -10,6 +10,7 @@ const { createUpdateService } = require("./update-service.cjs");
 let window;
 let instance;
 let starting = null;
+let stopping = null;
 let logFile;
 let updateService;
 
@@ -41,6 +42,7 @@ async function decoratedStatus() {
 }
 
 async function startServer() {
+  if (stopping) await stopping;
   if (instance?.status().running) return decoratedStatus();
   if (starting) return starting;
   starting = (async () => {
@@ -70,10 +72,21 @@ async function startServer() {
 }
 
 async function stopServer() {
-  if (instance) await instance.close();
-  const status = await decoratedStatus();
-  send("server:status-changed", status);
-  return status;
+  if (stopping) return stopping;
+  const current = instance;
+  if (!current) return decoratedStatus();
+  instance = null;
+  stopping = (async () => {
+    await current.close();
+    const status = await decoratedStatus();
+    send("server:status-changed", status);
+    return status;
+  })();
+  try {
+    return await stopping;
+  } finally {
+    stopping = null;
+  }
 }
 
 function createWindow() {
@@ -187,9 +200,11 @@ app.whenReady().then(async () => {
 });
 
 app.on("before-quit", (event) => {
-  if (instance?.status().running) {
+  if (instance || starting || stopping) {
     event.preventDefault();
-    stopServer().finally(() => { instance = null; app.quit(); });
+    stopServer()
+      .catch((error) => persistLog({ level: "error", message: `Server shutdown failed: ${error?.stack || error}`, createdAt: new Date().toISOString() }))
+      .finally(() => app.quit());
   }
 });
 
