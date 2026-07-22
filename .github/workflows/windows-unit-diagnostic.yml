@@ -1,0 +1,37 @@
+name: Windows unit diagnostic
+
+on:
+  push:
+    branches: [agent/nexora-3.2.0-trust-core-mls]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-unit-diagnostic:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - run: npm ci
+      - name: Capture complete unit TAP
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Continue"
+          npm run test:unit *> windows-unit.log
+          $code = $LASTEXITCODE
+          Get-Content windows-unit.log -Tail 200
+          "exit_code=$code" | Set-Content windows-unit-exit.txt
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-unit-diagnostic
+          path: |
+            windows-unit.log
+            windows-unit-exit.txt
+          if-no-files-found: error
