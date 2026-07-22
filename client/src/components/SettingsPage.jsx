@@ -16,6 +16,19 @@ function deviceLabel(userAgent) {
   return { icon: Laptop, title: "Браузер" };
 }
 
+function clientUpdateStatusText(update) {
+  if (!update) return "Загружаем состояние обновлений…";
+  if (update.status === "checking") return "Проверяем GitHub Releases…";
+  if (update.status === "downloaded") return `Версия ${update.availableVersion} готова к установке`;
+  if (update.status === "downloading") return `Загрузка ${Math.max(0, Number(update.progress) || 0)}%`;
+  if (update.status === "available") return `Доступна версия ${update.availableVersion}`;
+  if (update.status === "current") return `Установлена актуальная версия ${update.currentVersion || ""}`.trim();
+  if (update.status === "error") return update.error || "Не удалось проверить обновления";
+  if (update.reason === "development") return "Проверка доступна в установленном Client";
+  if (update.reason === "feed_not_configured") return "Канал обновлений не настроен";
+  return "Автоматическая проверка включена";
+}
+
 export default function SettingsPage({ me, blocked, version, server, preferences, passwordPolicy, onMeChanged, onOpenProfile, onUnblock, onLogout, showToast }) {
   const [displayName, setDisplayName] = useState(me.displayName);
   const [status, setStatus] = useState(me.status ?? "");
@@ -26,6 +39,7 @@ export default function SettingsPage({ me, blocked, version, server, preferences
   const [saving, setSaving] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [update, setUpdate] = useState(null);
+  const [updateBusy, setUpdateBusy] = useState(false);
   const [totpEnabled, setTotpEnabled] = useState(Boolean(me.totpEnabled));
   const [totpSetup, setTotpSetup] = useState(null);
   const [recoveryCodes, setRecoveryCodes] = useState([]);
@@ -44,7 +58,9 @@ export default function SettingsPage({ me, blocked, version, server, preferences
     const onInstallReady = () => setInstallReady(true);
     window.addEventListener("nexora:install-ready", onInstallReady);
     if (!window.nexoraClient?.updateStatus) return () => window.removeEventListener("nexora:install-ready", onInstallReady);
-    window.nexoraClient.updateStatus().then(setUpdate);
+    window.nexoraClient.updateStatus()
+      .then(setUpdate)
+      .catch((error) => setUpdate({ status: "error", error: error?.message || "Не удалось получить состояние обновлений" }));
     const removeUpdate = window.nexoraClient.onUpdate?.(setUpdate);
     return () => { removeUpdate?.(); window.removeEventListener("nexora:install-ready", onInstallReady); };
   }, []);
@@ -164,6 +180,29 @@ export default function SettingsPage({ me, blocked, version, server, preferences
     } catch (error) { showToast(error.message, "error"); }
   }
 
+  async function checkClientUpdates() {
+    if (!window.nexoraClient?.checkForUpdates || updateBusy) return;
+    setUpdateBusy(true);
+    setUpdate((current) => ({ ...(current || {}), status: "checking", error: null, reason: null }));
+    try {
+      const result = await window.nexoraClient.checkForUpdates();
+      setUpdate(result);
+      if (result?.status === "current") showToast("Установлена актуальная версия Nexora");
+      else if (result?.status === "available") showToast(`Доступна Nexora ${result.availableVersion}`);
+      else if (result?.status === "downloading") showToast(`Nexora ${result.availableVersion || ""} загружается`.trim());
+      else if (result?.status === "downloaded") showToast(`Nexora ${result.availableVersion} готова к установке`);
+      else if (result?.status === "error") showToast(result.error || "Не удалось проверить обновления", "error");
+      else if (result?.reason === "development") showToast("Проверка обновлений доступна только в установленном Client", "error");
+      else if (result?.enabled === false) showToast("Канал обновлений недоступен", "error");
+    } catch (error) {
+      const message = error?.message || "Не удалось проверить обновления";
+      setUpdate((current) => ({ ...(current || {}), status: "error", error: message }));
+      showToast(message, "error");
+    } finally {
+      setUpdateBusy(false);
+    }
+  }
+
   async function installPwa() {
     const prompt = window.nexoraInstallPrompt;
     if (!prompt) return;
@@ -223,8 +262,8 @@ export default function SettingsPage({ me, blocked, version, server, preferences
         </section>
 
         {window.nexoraClient?.checkForUpdates && <section className="settings-card update-card">
-          <div className="settings-card-title"><DownloadCloud size={20} /><div><h3>Обновления Client</h3><span>{update?.status === "downloaded" ? `Версия ${update.availableVersion} готова` : update?.status === "downloading" ? `Загрузка · ${update.progress}%` : update?.status === "available" ? `Доступна ${update.availableVersion}` : update?.status === "current" ? "Установлена актуальная версия" : update?.reason === "feed_not_configured" ? "Канал обновлений не настроен" : "Автоматическая проверка"}</span></div></div>
-          {update?.status === "downloaded" ? <button type="button" className="server-switch" onClick={() => window.nexoraClient.installUpdate()}>Перезапустить и установить</button> : <button type="button" className="server-switch" onClick={() => window.nexoraClient.checkForUpdates().then(setUpdate)}><RefreshCcw size={15} /> Проверить обновления</button>}
+          <div className="settings-card-title"><DownloadCloud size={20} /><div><h3>Обновления Client</h3><span aria-live="polite">{clientUpdateStatusText(update)}</span></div></div>
+          {update?.status === "downloaded" ? <button type="button" className="server-switch" onClick={() => window.nexoraClient.installUpdate()}>Перезапустить и установить</button> : <button type="button" className="server-switch" onClick={checkClientUpdates} disabled={updateBusy || update?.status === "checking" || update?.status === "downloading"}>{updateBusy || update?.status === "checking" || update?.status === "downloading" ? <LoaderCircle className="spin" size={15} /> : <RefreshCcw size={15} />} {update?.status === "checking" ? "Проверяем…" : update?.status === "downloading" ? `Загрузка ${Math.max(0, Number(update.progress) || 0)}%` : update?.status === "error" ? "Повторить проверку" : "Проверить обновления"}</button>}
         </section>}
 
         <section className="settings-card blocked-card">
