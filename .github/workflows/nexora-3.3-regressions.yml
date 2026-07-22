@@ -1,0 +1,35 @@
+name: Nexora 3.3 regressions
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nexora-3.3-regressions-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - run: npm ci
+      - name: Pulse Sandbox service
+        run: node --test test/pulse-sandbox-service.test.cjs
+      - name: Pulse Cloud catalog
+        run: node --test test/pulse-catalog-3.3.test.cjs
+      - name: Release contracts
+        run: node --test test/release-3.3.0-regressions.test.cjs
+      - name: Website validation
+        run: node --check website/app.js && node website/validate.mjs
+      - name: Production web build
+        run: npm run build:web
