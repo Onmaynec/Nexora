@@ -2,30 +2,30 @@
 
 ## 1. Repository controls
 
-Public repository: [`Onmaynec/Nexora`](https://github.com/Onmaynec/Nexora).
+Repository: [`Onmaynec/Nexora`](https://github.com/Onmaynec/Nexora).
 
-Production controls:
+Required controls:
 
-- protect `main` и release tags;
-- prohibit force-push и tag replacement;
-- require Windows, Linux, release-gate, soak и Android checks;
-- require maintainer 2FA;
-- use protected `windows-release` Environment с manual approval;
-- restrict signing/release secrets;
-- never rewrite published stable release.
+- protected `main` и release tags;
+- no force-push/tag replacement;
+- required Windows/Linux/release/soak/Android checks;
+- maintainer 2FA;
+- protected `windows-release` Environment;
+- restricted signing secrets;
+- immutable published stable release.
 
 ## 2. Release classifications
 
 | Classification | Artifacts | Updater eligible |
 |---|---|---|
-| Source/PWA prerelease | source ZIP, PWA ZIP, SPDX SBOM, checksums | нет |
-| Stable signed Windows | signed Client/Server `.exe`, blockmap, `latest.yml`, source/PWA/SBOM/checksums | да |
-| Local unsigned build | local development output | нет |
+| Source/PWA prerelease | source ZIP, PWA ZIP, SPDX SBOM, checksums | no |
+| Stable signed Windows | signed Client/Server `.exe`, blockmap, `latest.yml`, source/PWA/SBOM/checksums | yes |
+| Local unsigned build | local test output | no |
 
-Текущий статус:
+Current status:
 
-- `3.2.3` — Source/PWA prerelease;
-- `3.1.2` — последняя confirmed signed production baseline.
+- `3.2.4` — Source/PWA prerelease;
+- `3.1.2` — last confirmed signed production baseline.
 
 ## 3. Secrets
 
@@ -34,22 +34,18 @@ Windows signing:
 - `WINDOWS_CERTIFICATE_BASE64`;
 - `WINDOWS_CERTIFICATE_PASSWORD`.
 
-`GITHUB_TOKEN` выдаётся GitHub Actions.
-
-Не храните secrets в source, `.env`, `update-config.json`, logs, release notes или artifacts. Pulse/provider secrets отделены от Windows signing environment.
+`GITHUB_TOKEN` supplied by Actions. Do not store secrets in source, `.env`, update config, logs, notes or artifacts. Pulse/provider credentials are separate.
 
 ## 4. Version preparation
 
-Metadata должны совпадать в:
+The following must match:
 
 - `package.json`;
 - `package-lock.json`;
 - Client handshake;
-- Android `versionName`/`versionCode`;
+- Android version metadata;
 - release notes/security review/verification;
 - release tag.
-
-Перед release:
 
 ```bash
 git switch main
@@ -59,102 +55,63 @@ npm run release:check
 gradle -p android :app:assembleDebug --no-daemon
 ```
 
-Для `3.2.3` tag — `v3.2.3`.
+Current tag: `v3.2.4`.
 
 ```bash
-git tag -s v3.2.3 -m "Nexora 3.2.3"
+git tag -s v3.2.4 -m "Nexora 3.2.4"
 git push origin main
-git push origin v3.2.3
+git push origin v3.2.4
 ```
 
-Если signed Git tags не настроены, используйте annotated tag, а не lightweight tag.
+When signed Git tag unavailable, use annotated tag rather than lightweight.
 
-## 5. Security patch evidence
-
-Для security patch release сохраняются:
-
-- regression-first failing CI;
-- verified implementation commit;
-- implementation CI;
-- final documentation head;
-- final CI;
-- Security Review;
-- Release Verification;
-- compatibility/schema/API statement.
-
-Для `3.2.3`:
-
-- regression-first CI: `#290`, ID `29934225971`;
-- verified implementation head: `a3586fe7d399dc03a990c939c31a3ceabcbad000`;
-- implementation CI: `#308`, ID `29937445396`;
-- final documentation head: `5369263a3220e165d420615b53d770f7732a54b3`;
-- final CI: `#309`, ID `29937694136`.
-
-## 6. Release workflow
+## 5. Release workflow
 
 `.github/workflows/release.yml`:
 
-1. resolves approved release commit/tag;
-2. verifies tag/package metadata;
-3. executes release checks;
-4. creates source ZIP, PWA ZIP, SPDX SBOM и `SHA256SUMS.txt`;
-5. checks Authenticode secrets;
-6. when signing is available, builds/verifies Client и Server Windows assets;
-7. publishes stable Latest only with complete signed set;
+1. resolves approved tag/commit;
+2. validates tag/package metadata;
+3. runs release checks;
+4. creates source ZIP, PWA ZIP, SPDX SBOM и checksums;
+5. evaluates Authenticode secrets;
+6. builds/verifies signed Client/Server assets when available;
+7. publishes stable only for complete signed asset set;
 8. otherwise publishes explicit Source/PWA prerelease without updater assets.
 
-Manual run targets existing approved tag. Arbitrary untagged `main` cannot be published as release.
+Arbitrary untagged state must not be published as release.
 
-Unpublished draft/prerelease may be regenerated. Published stable release is immutable; corrections use a new PATCH version/tag.
+## 6. Stable Windows asset set
 
-## 7. Stable Windows asset set
-
-- signed Client `.exe`;
-- Client `.blockmap`;
+- signed Client installer;
+- Client blockmap;
 - valid `latest.yml`;
-- signed Server `.exe`;
+- signed Server installer;
 - source ZIP;
 - PWA ZIP;
 - SPDX SBOM;
 - `SHA256SUMS.txt`.
 
-Missing/unsigned install metadata makes release non-installable by Electron updater.
+Missing/unsigned installer metadata makes release non-installable.
 
-## 8. Electron updater policy
+## 7. Packaged Client updater 3.2.4
 
-Client updater:
+- service initializes before renderer IPC;
+- default provider is GitHub Releases for `Onmaynec/Nexora`;
+- custom generic feed accepted only by explicit HTTPS config;
+- initial check after startup;
+- bounded scheduled checks;
+- single-flight manual/automatic requests;
+- checking/progress/current/available/downloaded/error states;
+- fallback terminal result when updater emits no terminal event;
+- no downgrade/prerelease;
+- `verifyUpdateCodeSignature: true` remains;
+- stable non-installable result when signed asset set absent.
 
-- initializes after `app.whenReady()`;
-- performs initial check;
-- checks every six hours;
-- uses single-flight;
-- cleans listeners/timers on shutdown;
-- applies signature/install policy;
-- returns `no_installable_update` without complete signed set.
+Unpackaged development mode intentionally does not perform real automatic update checks.
 
-Updater rejects:
+## 8. Feed configuration
 
-- unsigned installer;
-- invalid/foreign `latest.yml`;
-- incomplete asset set;
-- invalid signature;
-- Source/PWA-only prerelease.
-
-## 9. Update verification
-
-1. Install previous signed stable Client с тем же `appId`.
-2. Publish next complete signed stable patch.
-3. Confirm initial check.
-4. Confirm concurrent checks single-flight.
-5. Verify download states.
-6. Close Client и verify signed installation.
-7. Confirm trusted servers, isolated sessions и settings preserved.
-8. Test Source/PWA prerelease и confirm `no_installable_update`.
-9. Test missing/corrupt metadata в isolated feed и confirm stable diagnostic.
-
-## 10. Internal update feed
-
-`update-config.json`:
+Optional internal feed:
 
 ```json
 {
@@ -163,46 +120,87 @@ Updater rejects:
 }
 ```
 
-Environment alternatives:
+Or:
 
 - `NEXORA_CLIENT_UPDATE_URL`;
 - `NEXORA_SERVER_UPDATE_URL`.
 
-HTTP feed rejected. Internal feed не отменяет signature verification.
+HTTP is rejected. Private feed does not bypass signature/no-downgrade policy.
 
-## 11. Server update 3.2.x → 3.2.3
+## 9. Updater acceptance
 
-Database migration не требуется, schema остаётся 8.
+1. install previous signed stable Client;
+2. publish complete signed 3.2.4 asset set;
+3. verify initial check;
+4. verify single-flight manual/automatic checks;
+5. verify progress and terminal state;
+6. download/install/restart;
+7. verify Server trust, sessions/settings preserved;
+8. verify post-update summary;
+9. verify exact official release link;
+10. verify per-version dismissal;
+11. test incomplete/unsigned feed and confirm non-installable state;
+12. test network failure and retry without stack disclosure.
 
-Перед update:
+## 10. Post-update notes
 
-1. create verified backup;
-2. record current version/schema;
-3. review release/security notes;
-4. verify Client compatibility;
-5. check disk space;
-6. graceful shutdown.
+3.2.4 displays:
 
-После update:
+- “Подробнее” — exact official tag;
+- “Закрыть”;
+- “Не показывать снова” — stores version/display state only.
 
-- verify `/healthz/live` и `/healthz/ready`;
-- verify SQLite integrity/schema;
-- test login/bootstrap;
-- test Server shutdown;
-- test Trust device enrollment/revocation;
-- test rate-limit contract;
-- test MLS recovery и encrypted attachments.
+Published release text must be stable and safe for rendering.
 
-## 12. Rollback
+## 11. Windows test mode
 
-- не заменяйте asset существующего version number;
-- используйте новый patch release для correction;
-- Server rollback требует compatible verified backup;
-- не запускайте binary, не поддерживающий schema 8;
-- после restore проверяйте integrity/readiness.
+- `--test-mode`;
+- installer “Nexora Client (Test Mode)” shortcut;
+- `NEXORA_CLIENT_TEST_MODE=1`.
 
-## 13. Distribution decision 3.2.3
+PowerShell tails existing local Client log. It must not enable DevTools, Node integration, remote debugging or privileged IPC.
 
-Automated gate позволяет Source/PWA prerelease. Stable signed promotion заблокирован до packaged runtime, signing, extended platform/security и independent-review gates.
+## 12. NSIS acceptance
 
-См. [Release Policy](RELEASE_POLICY.md), [Release Checklist](RELEASE_CHECKLIST.md) и [Release Verification 3.2.3](../RELEASE_VERIFICATION_3.2.3.md).
+Client/Server installer verifies:
+
+- official Nexora icon;
+- branded 164×314 sidebar;
+- Russian language;
+- clean install/update/uninstall;
+- valid Authenticode signature/timestamp for stable release;
+- test-mode shortcut only for Client;
+- Server data preservation according to documented uninstall behavior.
+
+## 13. Server update
+
+Before:
+
+1. verified backup;
+2. current version/schema record;
+3. migration/rollback review;
+4. Client compatibility;
+5. free space;
+6. maintenance/drain.
+
+After:
+
+- live/ready;
+- integrity/schema;
+- login/bootstrap;
+- messaging/realtime;
+- Trust/MLS/Welcome recovery;
+- backup/storage.
+
+Schema 8 rollback is restore-based. Never run unsupported old binary against schema 8.
+
+## 14. Release evidence
+
+3.2.4 evidence is recorded in:
+
+- [Release Notes](../RELEASE_NOTES_3.2.4.md);
+- [Security Review](../SECURITY_REVIEW_3.2.4.md);
+- [Release Verification](../RELEASE_VERIFICATION_3.2.4.md);
+- [Release Checklist](RELEASE_CHECKLIST.md).
+
+Source/PWA prerelease remains non-updater-eligible until signed installed-runtime acceptance completes.
