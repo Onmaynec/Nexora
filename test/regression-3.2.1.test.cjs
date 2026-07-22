@@ -51,6 +51,16 @@ test("authenticated client requests bootstrap before a Trust device exists", () 
   );
 });
 
+test("Electron Server detaches and serializes the active instance before closing SQLite", () => {
+  const source = fs.readFileSync(path.join(root, "electron", "server-main.cjs"), "utf8");
+  assert.match(source, /let stopping = null;/);
+  assert.match(
+    source,
+    /const current = instance;\s*if \(!current\) return decoratedStatus\(\);\s*instance = null;\s*stopping = \(async \(\) => \{\s*await current\.close\(\);/,
+  );
+  assert.match(source, /stopServer\(\)\s*\.catch\(\(error\) => persistLog/);
+});
+
 test("schema 8 status remains readable after server close", async () => {
   const directory = await fsPromises.mkdtemp(path.join(os.tmpdir(), "nexora-shutdown-regression-"));
   const instance = await createNexoraServer({
@@ -70,6 +80,7 @@ test("schema 8 status remains readable after server close", async () => {
     assert.equal(status.running, false);
     assert.equal(status.schemaVersion, 8);
     assert.equal(status.pulseV3.keyCount, 0);
+    assert.equal(status.trust.activeGroups, 0);
   } finally {
     await instance.close().catch(() => {});
     await fsPromises.rm(directory, { recursive: true, force: true });
