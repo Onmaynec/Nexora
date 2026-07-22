@@ -14,9 +14,10 @@ New work starts from latest verified `main`, если approved stacked-branch pl
 
 | Branch | Purpose | Status |
 |---|---|---|
+| `agent/nexora-3.2.5-ui-console-performance` | Planned 3.2.5 UX, Pulse persistence, MLS Welcome and Windows-build corrections | Active draft PR #25; not release-approved |
 | `agent/nexora-3.2.0-trust-core` | Early Rust/OpenMLS Trust Core foundation | Draft PR #11; superseded by current implementation; release prohibited |
 
-This branch remains open only as development provenance. It must not merge, tag or publish without a new explicit rebase/review decision.
+The 3.2.5 branch is active development, not current product documentation. The early Trust Core branch remains open only as historical provenance and must not merge, tag or publish without a new explicit rebase/review decision.
 
 ## 3. Merged release branches
 
@@ -40,7 +41,7 @@ This branch remains open only as development provenance. It must not merge, tag 
 
 | Branch | Purpose | Status |
 |---|---|---|
-| `agent/project-showcase-site` | Static product website and Pages workflow | Merged through PR #22 |
+| `agent/project-showcase-site` | Static product website and GitHub Pages workflow | Merged through PR #22 |
 | `agent/fix-showcase-logo-pages` | Official logo and Pages workflow correction | Merged through PR #24 |
 
 ## 5. Merged documentation branches
@@ -69,7 +70,7 @@ After merge, the final entry becomes merged provenance and `main` remains the on
 | `automation/nexora-3.1.0-tag` | Historical tag automation attempt | Open obsolete PR #6; do not merge/tag/publish |
 | `automation/nexora-3.1.0-finalize` | Historical finalization attempt | Open obsolete PR #7; do not merge/tag/publish |
 
-These branches should be closed/deleted after required provenance is preserved. Their branch-local documentation must identify them as obsolete.
+These branches should be closed/deleted after required provenance is preserved. Their branch-local documentation identifies them as obsolete.
 
 ## 8. Branch documentation state
 
