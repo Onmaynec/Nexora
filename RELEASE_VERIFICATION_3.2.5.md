@@ -5,8 +5,10 @@
 - версия: `3.2.5`;
 - базовая версия: `3.2.4`;
 - тип: patch release;
-- Pull Request: `#25`;
-- кодовый кандидат: `805a231190883c406abf1c016a6241ca8bdd2a25`;
+- Pull Request: `#25`, merged;
+- merge commit: `df671ce63e71c5736f13d2fa3d7db36466efc780`;
+- release tag: `v3.2.5`;
+- кодовый кандидат расширенной Windows-проверки: `805a231190883c406abf1c016a6241ca8bdd2a25`;
 - Local Server schema: `8`, без новой миграции;
 - Application API: v3;
 - Trust/MLS API: v4.
@@ -18,6 +20,16 @@
 3. Secure media UI требовал ручного действия «Расшифровать локально» даже для изображений и голосовых, что регрессировало относительно UX линии 2.0.0.
 4. При гонке создания MLS-группы или временном отсутствии подходящего KeyPackage recoverable Welcome errors могли преждевременно завершать инициализацию.
 5. Глобальный ParticleField рендерился за всеми разделами приложения вместо области истории сообщений.
+
+## Исправление
+
+- sandbox billing links переведены на канонический `userId`, а старые `localUserId` snapshots нормализуются при загрузке;
+- после полного serialized `message:new`/`message:updated` сервер больше не дублирует событие `data:refresh`;
+- Client локально обновляет preview диалога и использует encrypted outbox без блокирующего bootstrap refresh;
+- image и voice автоматически проходят локальную проверку и расшифровку, обычные файлы остаются явным действием пользователя;
+- recoverable Welcome errors обрабатываются через scoped request/poll/claim без plaintext fallback;
+- проверенный локальный MLS state получает ограниченный fast path, а Welcome request активного устройства принудительно выполняет полный sync;
+- ParticleField монтируется только внутри message history и использует contained canvas/ResizeObserver.
 
 ## Regression-first покрытие
 
@@ -33,7 +45,7 @@
 - разделение local Windows build и signed production build;
 - тематические disabled controls и scrollbars Nexora Server.
 
-## Подтверждённый GitHub Actions run
+## Расширенная Windows-проверка
 
 **Run:** `29953309887`  
 **Workflow:** `CI`  
@@ -46,14 +58,29 @@
 | `schema8-soak` | success | schema 8 soak suite |
 | `linux-tests` | success | `npm test` |
 | `android-source` | success | Gradle `:app:assembleDebug` |
-| `finalize-3-2-5` | success | regression suite, check, unit, performance, security audit, `release:windows`, проверка наличия Client/Server installers |
+| `finalize-3-2-5` | success | regression suite, check, unit, performance, security audit, `release:windows`, проверка Client/Server installers |
 
 Windows runner подтвердил создание:
 
 - `release/client/Nexora-Client-Setup-3.2.5.exe`;
 - `release/server/Nexora-Server-Setup-3.2.5.exe`.
 
-Артефакты этого local build намеренно не публиковались и были удалены после проверки. Официальный release workflow сохраняет `release:signing-check` и не публикует updater assets без Authenticode secrets.
+Артефакты local build намеренно не публиковались и были удалены после проверки. Официальный release workflow сохраняет `release:signing-check` и блокирует updater assets без Authenticode secrets.
+
+## Финальная current-head проверка PR
+
+**Run:** `29953988948`  
+**Head:** `d9667f9fc4b0b1c59d97095491e54362b9da457f`
+
+| Job | Результат |
+|---|---|
+| `verify` | success |
+| `release-gate` | success |
+| `schema8-soak` | success |
+| `linux-tests` | success |
+| `android-source` | success |
+
+После успешного current-head CI PR `#25` был переведён из draft и squash-merged в `main`. Итоговый merge commit — `df671ce63e71c5736f13d2fa3d7db36466efc780`; тег `v3.2.5` указывает на линию версии 3.2.5.
 
 ## Совместимость
 
@@ -66,11 +93,11 @@ Windows runner подтвердил создание:
 ## Остаточные ограничения
 
 - проверенный local Windows build не заменяет installed E2E подписанного auto-update;
-- physical Android runtime matrix в этом run не выполнялась, подтверждена source build;
+- physical Android runtime matrix не выполнялась, подтверждена source build;
 - независимый криптографический и application-security аудит не выполнен;
 - устройство, уже входящее в MLS tree, но потерявшее локальный private state, требует безопасной повторной регистрации вместо восстановления identity с сервера;
 - metadata/traffic-analysis resistance не заявляется.
 
-## Решение по кандидату
+## Решение
 
-Кодовый кандидат `805a231...` прошёл заявленные автоматические проверки и локальную Windows-сборку. Документационные commits после кандидата не меняют runtime-код и должны пройти штатный current-head CI перед переводом PR `#25` из draft в ready-for-review.
+Nexora `3.2.5` принята в `main` как Source/PWA prerelease. Автоматические проверки и локальная Windows-сборка подтверждены. Перевод в signed stable Windows release требует отдельного installed-update E2E, действующей Authenticode-конфигурации и решения о promotion.
