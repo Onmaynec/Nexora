@@ -1,0 +1,84 @@
+name: Verify published Nexora 3.2.0 release
+
+on:
+  push:
+    branches: [agent/nexora-3.2.0-trust-core-mls]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify-release:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/nexora-3.2.0-trust-core-mls
+          fetch-depth: 0
+      - name: Wait for and validate published release
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 36); do
+            if gh release view v3.2.0 --repo Onmaynec/Nexora --json tagName,name,isDraft,isPrerelease,publishedAt,url,assets > release.json 2>/dev/null; then
+              if node <<'NODE'
+          const fs = require('node:fs');
+          const release = JSON.parse(fs.readFileSync('release.json', 'utf8'));
+          const names = release.assets.map((asset) => asset.name).sort();
+          const sourceRequired = [
+            'Nexora-3.2.0-source.zip',
+            'Nexora-PWA-3.2.0.zip',
+            'Nexora-3.2.0.spdx.json',
+            'SHA256SUMS.txt',
+          ];
+          const signedRequired = [
+            ...sourceRequired,
+            'Nexora-Client-Setup-3.2.0.exe',
+            'Nexora-Client-Setup-3.2.0.exe.blockmap',
+            'Nexora-Server-Setup-3.2.0.exe',
+            'latest.yml',
+          ];
+          const required = release.isPrerelease ? sourceRequired : signedRequired;
+          const unsafe = names.filter((name) => /\.(?:exe|blockmap)$/.test(name) || name === 'latest.yml');
+          const missing = required.filter((name) => !names.includes(name));
+          const invalidPrerelease = release.isPrerelease && unsafe.length > 0;
+          if (release.tagName !== 'v3.2.0' || release.isDraft || missing.length || invalidPrerelease) process.exit(1);
+          const result = {
+            verifiedAt: new Date().toISOString(),
+            tagName: release.tagName,
+            name: release.name,
+            url: release.url,
+            publishedAt: release.publishedAt,
+            isDraft: release.isDraft,
+            isPrerelease: release.isPrerelease,
+            classification: release.isPrerelease ? 'source-pwa-prerelease' : 'signed-stable',
+            assetCount: names.length,
+            assets: release.assets.map((asset) => ({ name: asset.name, size: asset.size, digest: asset.digest || null, downloadCount: asset.downloadCount })),
+            forbiddenUnsignedUpdaterAssetsAbsent: release.isPrerelease ? unsafe.length === 0 : null,
+            requiredAssetsPresent: missing.length === 0,
+          };
+          fs.writeFileSync('RELEASE_REMOTE_VERIFY_3.2.0.json', `${JSON.stringify(result, null, 2)}\n`);
+          NODE
+              then
+                break
+              fi
+            fi
+            if [ "$attempt" -eq 36 ]; then
+              echo "Release v3.2.0 was not published in a complete valid state" >&2
+              exit 1
+            fi
+            sleep 10
+          done
+      - name: Commit verification evidence
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add RELEASE_REMOTE_VERIFY_3.2.0.json
+          git commit -m "verification: record published v3.2.0 assets"
+          git push origin HEAD:agent/nexora-3.2.0-trust-core-mls
