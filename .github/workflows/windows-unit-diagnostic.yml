@@ -6,18 +6,18 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  issues: write
-  pull-requests: write
+  contents: write
 
 jobs:
   windows-unit-diagnostic:
+    if: github.actor != 'github-actions[bot]'
     runs-on: windows-latest
     timeout-minutes: 25
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: agent/nexora-3.2.0-trust-core-mls
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22.16.0
@@ -29,31 +29,14 @@ jobs:
           $ErrorActionPreference = "Continue"
           npm run test:unit *> windows-unit.log
           $code = $LASTEXITCODE
-          Get-Content windows-unit.log -Tail 240 | Set-Content windows-unit-tail.txt
-          "exit_code=$code" | Set-Content windows-unit-exit.txt
+          @("exit_code=$code", "", "--- TAP tail ---") + (Get-Content windows-unit.log -Tail 300) | Set-Content WINDOWS_UNIT_DIAGNOSTIC.txt
           exit 0
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows-unit-diagnostic
-          path: |
-            windows-unit.log
-            windows-unit-tail.txt
-            windows-unit-exit.txt
-          if-no-files-found: error
-      - name: Publish diagnostic tail to retained PR comment
+      - name: Commit diagnostic tail
         shell: pwsh
         run: |
-          $exitCode = Get-Content windows-unit-exit.txt -Raw
-          $tail = Get-Content windows-unit-tail.txt -Raw
-          @"
-          <!-- windows-unit-diagnostic -->
-          ## Windows unit diagnostic
-
-          `$exitCode
-
-          ```text
-          $tail
-          ```
-          "@ | Set-Content windows-unit-comment.md
-          $body = Get-Content windows-unit-comment.md -Raw
-          gh api repos/Onmaynec/Nexora/issues/comments/5039438783 -X PATCH -f body="$body"
+          $ErrorActionPreference = "Stop"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add WINDOWS_UNIT_DIAGNOSTIC.txt
+          git commit -m "diagnostic: capture Windows unit TAP"
+          git push origin HEAD:agent/nexora-3.2.0-trust-core-mls
