@@ -34,7 +34,27 @@ jobs:
           node-version: 22.16.0
           cache: npm
       - run: npm ci
-      - run: npm test
+      - name: Capture full regression suite
+        shell: bash
+        run: |
+          set +e
+          npm test > full-test.log 2>&1
+          code=$?
+          printf '%s\n' "$code" > full-test.exit
+          tail -n 180 full-test.log
+          exit 0
+      - name: Upload full regression diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: post-clock-regression
+          path: |
+            full-test.log
+            full-test.exit
+          retention-days: 1
+      - name: Enforce full test result
+        shell: bash
+        run: test "$(cat full-test.exit)" = "0"
 
   android-source:
     runs-on: ubuntu-latest
