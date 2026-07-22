@@ -1,117 +1,205 @@
-# Nexora 3.1.2 Release Checklist
+# Nexora 3.2.0 Release Checklist
 
-## Version и repository state
+## Release classification
 
-- [ ] `package.json`, `package-lock.json`, Android metadata, UI и release docs показывают `3.1.2`.
-- [ ] tag — `v3.1.2`, annotated/signed и указывает на проверенный release commit.
-- [ ] working tree чистый; release commit не содержит temporary patches, diagnostics или secrets.
-- [ ] `CHANGELOG.md`, `RELEASE_NOTES_3.1.2.md` и `RELEASE_VERIFICATION_3.1.2.md` актуальны.
-- [ ] документация не заявляет E2EE или другие 3.2.0 development capabilities как stable.
+- [ ] Intended classification is explicitly selected: Development, Source/PWA prerelease, or Stable signed release.
+- [ ] Documentation and GitHub Release text use the same classification.
+- [ ] `3.2.0` is not described as independently audited E2EE.
+- [ ] Stable signed promotion is blocked while any mandatory manual/signing/security gate remains incomplete.
 
-## Код, tests и данные
+## Version and repository state
 
-- [ ] schema 6 → 7 migration протестирована на копии 3.0.0 data.
-- [ ] pre-migration backup создаётся и проходит verification.
-- [ ] downgrade к schema 6 блокируется при persist/restore.
-- [ ] `PRAGMA integrity_check` возвращает `ok` до и после migration/restore.
+- [ ] `package.json` and `package-lock.json` show `3.2.0`.
+- [ ] Client handshake shows `3.2.0`.
+- [ ] Android `versionName` is `3.2.0` and `versionCode` is `30200`.
+- [ ] tag is `v3.2.0`, annotated/signed and points to the verified release commit.
+- [ ] release commit contains no temporary diagnostics, secrets, databases or generated user data.
+- [ ] `CHANGELOG.md`, `RELEASE_NOTES_3.2.0.md` and `RELEASE_VERIFICATION_3.2.0.md` are current.
+- [ ] README, Security Policy, Architecture and release status agree on version, schema and distribution state.
+
+## Automated release gate
+
 - [ ] `npm ci` — PASS.
 - [ ] `npm run check` — PASS.
-- [ ] `npm test` — PASS.
+- [ ] `npm run test:unit` — PASS.
+- [ ] `npm run test:performance` — PASS.
 - [ ] `npm run audit:security` — PASS.
 - [ ] `npm run release:check` — PASS.
-- [ ] soak не менее 60 минут — PASS; для production рекомендуется 24 часа.
-- [ ] Android `gradle -p android :app:assembleDebug --no-daemon` — PASS.
+- [ ] Linux `npm test` — PASS.
+- [ ] schema 8 soak — PASS.
+- [ ] `gradle -p android :app:assembleDebug --no-daemon` — PASS.
+- [ ] production dependency audit reports no high/critical vulnerability accepted without documented release decision.
 
-## Regression scope 3.1.2
+## Schema 8 migration and data
 
-- [ ] global voice dock X останавливает playback, очищает полный audio state/source и немедленно размонтирует dock.
-- [ ] следующий voice item не наследует предыдущие URL/name/time/duration/speed.
-- [ ] updater запускает initial check после `app.whenReady()`.
-- [ ] updater использует single-flight и не создаёт duplicate checks.
-- [ ] automatic interval равен шести часам, timers/listeners очищаются при quit.
-- [ ] missing signed `latest.yml`/installable assets возвращает `no_installable_update` без raw stack.
-- [ ] Local Pulse sandbox включается/выключается audited command.
-- [ ] test Plus grant выдаёт 400 Impulses только один раз на новую activation.
-- [ ] sandbox balance не становится отрицательным.
-- [ ] sandbox checkout заблокирован и production configuration отключает local sandbox.
-- [ ] grant/revoke operations записываются в audit/ledger без secret leakage.
+- [ ] schema 7 → 8 migration tested on a copy of supported data.
+- [ ] source `PRAGMA integrity_check` returns `ok`.
+- [ ] free-space calculation passes.
+- [ ] WAL checkpoint completes.
+- [ ] verified pre-migration backup is created.
+- [ ] migration is transactional and idempotent.
+- [ ] destination integrity check returns `ok`.
+- [ ] downgrade through persistence/restore is blocked.
+- [ ] existing 3.1.x messages/files remain readable and are not presented as retroactively encrypted.
+- [ ] restore-from-backup rollback procedure is tested.
 
-## Cloud Identity и Pulse 3.1.x
+## Trust devices
 
-- [ ] email verification, Cloud sessions, TOTP MFA и recovery-code one-time use проверены.
-- [ ] OAuth 2.1 Authorization Code + PKCE S256 использует exact redirect URI.
-- [ ] authorization code и refresh token вращаются/потребляются атомарно.
-- [ ] Local Account link attestation одноразовая и scope-bound.
-- [ ] unknown/replaced Ed25519 key ID отвергается.
-- [ ] envelope/entitlement signature, expiry и server/user/room/product scope проверяются.
-- [ ] provider event retry разрешён только с тем же payload hash.
-- [ ] checkout idempotency key нельзя повторно использовать в другом scope.
-- [ ] Cloud event delta/revoke применяется idempotently без restart.
-- [ ] Cloud outage не блокирует local messaging и не разрешает новые monetary writes.
+- [ ] device registration verifies Ed25519 proof of possession.
+- [ ] first-device bootstrap behavior is documented and tested.
+- [ ] later-device verification requires an active verified device and scoped one-time challenge.
+- [ ] revocation requires a scoped one-time challenge and valid signature.
+- [ ] revoked device loses Trust/MLS API access.
+- [ ] revoked device Socket.IO connection is disconnected immediately.
+- [ ] other account devices remain connected.
+- [ ] revoked Client wipes device identity, private MLS state, KeyPackages, decrypted cache and drafts.
+- [ ] fingerprint comparison UX is accessible and unambiguous.
 
-## Operational hardening 3.1.1
+## MLS secure messaging
 
-- [ ] `/healthz/live` и `/healthz/ready` проверены для Local Server и Pulse Cloud.
-- [ ] readiness становится `503` в drain mode.
-- [ ] `/metrics` требует Bearer token либо loopback source.
-- [ ] logs содержат request ID и redaction credentials/cookies/passwords/tokens/API keys/signatures.
-- [ ] graceful shutdown останавливает workers, HTTP/Socket.IO и SQLite в документированном порядке.
-- [ ] developer command registry не выполняет shell/eval.
-- [ ] mutating commands записываются в `integrationAudit` без secret argument values.
+- [ ] fixed ciphersuite is `MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519`.
+- [ ] KeyPackages are one-time, expiring and scope-bound.
+- [ ] Welcome delivery is user/device/conversation scoped.
+- [ ] epoch increments are monotonic.
+- [ ] stale, skipped and duplicate epochs are rejected.
+- [ ] ciphertext replay is rejected.
+- [ ] missed-commit recovery requires a contiguous chain.
+- [ ] unrecoverable local state loss fails explicitly.
+- [ ] secure Socket.IO sessions bind authenticated account and active verified device.
+- [ ] ciphertext is emitted only to active verified MLS-member device rooms.
+- [ ] Alice/Bob interoperability test passes.
 
-## UI/UX
+## Plaintext downgrade protection
 
-- [ ] avatars открывают profile во всех контекстах.
-- [ ] profile с `relationship: null` не вызывает blank screen.
-- [ ] zero badges скрыты.
-- [ ] reaction picker доступен mouse и keyboard.
-- [ ] message actions/dock/details не пересекают boundaries.
-- [ ] проверены 1920×1080, 1366×768 и narrow window.
-- [ ] `prefers-reduced-motion` отключает decorative motion.
-- [ ] offline cache/outbox/delta sync восстанавливаются после restart.
-- [ ] Cloud/Pulse states имеют loading/success/error/offline/disabled/misconfigured UI.
+After MLS activation, direct attempts are rejected for:
 
-## Windows
+- [ ] legacy send;
+- [ ] forward;
+- [ ] edit;
+- [ ] server draft;
+- [ ] scheduled message;
+- [ ] poll;
+- [ ] bot message;
+- [ ] multipart upload;
+- [ ] resumable upload;
+- [ ] mismatched or legacy Socket.IO device session.
 
-- [ ] clean install Client/Server на Windows 10 x64.
-- [ ] clean install Client/Server на Windows 11 x64.
-- [ ] upgrade с 3.0.0, 3.1.0 и 3.1.1 сохраняет Server data, schema 7 и trusted servers.
-- [ ] Authenticode обоих `.exe` действителен и timestamped.
-- [ ] SmartScreen/reputation проверены.
-- [ ] uninstall не удаляет Server data без явного выбора.
+- [ ] serializer exposes no secure-message plaintext.
+- [ ] UI does not silently offer legacy fallback after secure-path failure.
 
-## Сеть и платформы
+## Encrypted files, images and voice
 
-- [ ] localhost, LAN, Radmin VPN и public HTTPS FQDN работают.
-- [ ] certificate fingerprint совпадает; change требует confirmation.
-- [ ] browser/PWA `.crt` flow и microphone проверены.
-- [ ] Android отменяет TLS error и запрещает HTTP/mixed content.
-- [ ] firewall ограничен нужным interface/scope.
-- [ ] несовместимый Client получает stable HTTP 426 response.
-- [ ] PWA Service Worker не кэширует API/Socket.IO.
-- [ ] Android deep link принимает только HTTPS URL.
+- [ ] Client uses random AES-256-GCM key and IV per payload.
+- [ ] AAD binds conversation, attachment ID and media kind.
+- [ ] plaintext and ciphertext hashes are verified.
+- [ ] source filename, actual MIME, caption, duration and waveform remain inside MLS content.
+- [ ] Local Server stores generic opaque ciphertext metadata.
+- [ ] exact GCM size and SHA-256 are validated.
+- [ ] pending ciphertext is inaccessible before atomic message claim.
+- [ ] pending expiry and cancel cleanup work.
+- [ ] matching retry is idempotent.
+- [ ] scope/hash/size substitution is rejected.
+- [ ] attachment reuse is rejected.
+- [ ] Client supports progress and cancel.
+- [ ] Client verifies local decrypt before preview/playback/download.
+- [ ] ordinary outbox/cache do not retain plaintext attachment descriptor fields.
+- [ ] disabling any room class `files/images/voice` blocks the complete opaque media path fail-closed.
 
-## GitHub/update
+## Identity, rooms and application security
 
-- [x] public `Onmaynec/Nexora` существует.
-- [ ] `main` и release tags protected, CI required, 2FA включена.
-- [ ] Source/PWA prerelease содержит source ZIP, PWA ZIP, SPDX SBOM и checksums.
-- [ ] stable Windows release содержит signed Client/Server `.exe`, blockmap, `latest.yml`, source/PWA/SBOM/checksums.
-- [ ] stable release не помечен prerelease.
-- [ ] auto-update n-1 → 3.1.2 проверен на installed Client.
-- [ ] Source/PWA-only prerelease не воспринимается как installable Windows update.
-- [ ] published stable assets не заменяются повторным workflow run.
+- [ ] session, Origin and CSRF protections pass.
+- [ ] authorization, membership, role, ban and room-policy checks pass for direct API requests.
+- [ ] ownership transfer is atomic and produces audit/system records.
+- [ ] removed/banned users lose REST and realtime access.
+- [ ] invitation expiry, limit and concurrent final-use behavior pass.
+- [ ] local TOTP and one-time recovery codes pass.
+- [ ] bot token hash/scope/expiry and webhook HTTPS/SSRF/HMAC protections pass.
+- [ ] Electron context isolation, session isolation and certificate pinning pass.
+- [ ] Android rejects cleartext, mixed content and TLS errors.
 
-## Pulse production — только при включении
+## Pulse Cloud and Cloud Identity
 
-- [ ] provider sandbox и production полностью разделены.
-- [ ] Cloud URL HTTPS, service credentials scoped/rotatable.
-- [ ] signing private key находится только в secret manager.
-- [ ] Cloud database backup/restore и ledger invariant проверены.
-- [ ] webhook signatures, idempotency, reconciliation, refund/dispute/revocation протестированы.
-- [ ] transactional email и worker retry/lease behavior проверены.
-- [ ] OAuth redirect/client allowlist утверждён.
-- [ ] privacy, retention, offer, taxes/receipts и support/incident flow утверждены.
-- [ ] card data не хранится Nexora.
+- [ ] email verification and Cloud sessions pass.
+- [ ] Cloud MFA and one-time recovery code pass.
+- [ ] OAuth 2.1 Authorization Code + PKCE S256 uses exact redirect URI.
+- [ ] Local Account link attestation is one-time and scope-bound.
+- [ ] envelope/entitlement key ID, signature, expiry and scope checks pass.
+- [ ] provider event replay/payload substitution protection passes.
+- [ ] checkout idempotency cannot cross account/product scope.
+- [ ] Cloud event delta and entitlement revoke apply idempotently.
+- [ ] Cloud outage does not block local messaging or authorize new monetary writes.
+- [ ] sandbox creates no production signature/payment and cannot produce a negative balance.
 
-Если production Pulse checklist не завершён, stable release разворачивается с `NEXORA_PULSE_MODE=disabled`; QA/demo использует изолированный local sandbox.
+## Operational runtime
+
+- [ ] `/healthz/live` and `/healthz/ready` pass for Local Server and Pulse Cloud.
+- [ ] readiness becomes `503` during drain.
+- [ ] `/metrics` is Bearer-protected or loopback-only.
+- [ ] logs contain request IDs and redact credentials recursively.
+- [ ] graceful shutdown closes workers, HTTP/Socket.IO and SQLite in order.
+- [ ] developer-command registry has no shell/eval escape.
+- [ ] mutating commands are audited without secret argument values.
+- [ ] backup/restore and emergency read-only procedures are verified.
+
+## UI, accessibility and offline
+
+- [ ] profile opens from all supported contexts and handles null relationship state.
+- [ ] zero badges are hidden.
+- [ ] reaction picker and message actions support mouse and keyboard.
+- [ ] 1920×1080, 1366×768 and narrow layouts pass.
+- [ ] long names, filenames and counters do not break layout.
+- [ ] `prefers-reduced-motion` is respected.
+- [ ] offline cache, durable outbox and delta sync recover without duplicates.
+- [ ] secure cache/drafts persist encrypted and are wiped on revoke.
+- [ ] loading, success, error, offline, restricted and disabled states are visible.
+
+## Platform runtime gates
+
+### Windows
+
+- [ ] clean Client/Server install on Windows 10 x64.
+- [ ] clean Client/Server install on Windows 11 x64.
+- [ ] upgrade from supported baseline preserves data and trust settings.
+- [ ] packaged Trust/MLS and encrypted-media runtime E2E passes.
+- [ ] Authenticode for both installers is valid and timestamped.
+- [ ] SmartScreen/reputation has been reviewed.
+- [ ] uninstall preserves Server data unless explicitly removed.
+
+### PWA
+
+- [ ] installed PWA updates application shell correctly.
+- [ ] Service Worker does not cache API/Socket.IO.
+- [ ] offline authorized cache behavior passes.
+- [ ] Trust/MLS/encrypted-media runtime works after restart and reconnect.
+
+### Android
+
+- [ ] physical-device matrix passes.
+- [ ] HTTPS-only deep link passes.
+- [ ] changed/untrusted certificate is rejected.
+- [ ] file and microphone permission flows pass.
+- [ ] Trust/MLS/encrypted-media runtime passes.
+- [ ] signed APK/AAB and upgrade path are verified for stable promotion.
+
+## GitHub release and updater
+
+- [ ] `main` and release tags are protected; required CI and 2FA are enabled.
+- [ ] Source/PWA prerelease contains source ZIP, PWA ZIP, SPDX SBOM and checksums only.
+- [ ] no unsigned `.exe`, blockmap or `latest.yml` is published.
+- [ ] stable Windows release contains the complete signed asset set.
+- [ ] stable release is not marked prerelease.
+- [ ] updater n-1 → n passes on installed Client.
+- [ ] Source/PWA prerelease returns `no_installable_update`.
+- [ ] published stable assets are immutable.
+
+## Stable promotion review
+
+- [ ] metadata minimization and traffic-analysis review completed.
+- [ ] extended simultaneous-commit, revoke/re-add and corrupted-state matrix completed.
+- [ ] longer-duration load/soak and long-offline evidence completed.
+- [ ] independent cryptographic review completed.
+- [ ] independent application-security review completed.
+- [ ] no unresolved high/critical findings remain.
+- [ ] release owner records final signed production approval.
+
+Until all stable-promotion items are complete, `3.2.0` remains a clearly marked Source/PWA prerelease and must not be promoted through the Electron stable updater.
