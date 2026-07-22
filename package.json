@@ -1,6 +1,6 @@
 {
   "name": "nexora",
-  "version": "3.2.5",
+  "version": "3.3.0",
   "engines": {
     "node": ">=22.16.0"
   },
@@ -29,8 +29,8 @@
     "test": "npm run build:web && npm run test:unit && npm run test:performance",
     "test:unit": "node scripts/run-unit-tests.cjs",
     "test:performance": "node --test --test-concurrency=1 test/performance.test.cjs",
-    "test:cloud": "node --test test/pulse-cloud.test.cjs test/cloud-identity.test.cjs test/cloud-workers.test.cjs test/pulse-cloud-management.test.cjs",
-    "test:pulse-local": "node --test test/pulse-schema7.test.cjs test/pulse-local-repository.test.cjs test/pulse-cloud-client.test.cjs test/pulse-local-integration.test.cjs test/pulse-sync-worker.test.cjs",
+    "test:cloud": "node --test test/pulse-cloud.test.cjs test/cloud-identity.test.cjs test/cloud-workers.test.cjs test/pulse-cloud-management.test.cjs test/pulse-catalog-3.3.test.cjs",
+    "test:pulse-local": "node --test test/pulse-schema7.test.cjs test/pulse-local-repository.test.cjs test/pulse-cloud-client.test.cjs test/pulse-local-integration.test.cjs test/pulse-sync-worker.test.cjs test/pulse-sandbox-service.test.cjs",
     "test:soak": "node scripts/soak-test.cjs",
     "audit:security": "node scripts/security-audit.cjs",
     "release:sync-version": "node scripts/sync-release-metadata.cjs",
