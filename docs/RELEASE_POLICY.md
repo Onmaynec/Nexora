@@ -1,68 +1,54 @@
 # Политика выпусков Nexora
 
-## 1. Versioning
+## 1. Semantic Versioning
 
-Nexora использует Semantic Versioning:
+Nexora использует SemVer:
 
-- `MAJOR` — incompatible product, API или data-contract changes;
+- `MAJOR` — incompatible product/API/data-contract change;
 - `MINOR` — backward-compatible functionality;
-- `PATCH` — backward-compatible fixes и security/operational hardening.
+- `PATCH` — backward-compatible defect, security или operational hardening.
 
-Version metadata синхронизируется в `package.json`, lockfile, Client handshake, Android metadata, release notes, verification report и tag.
+Metadata синхронизируется в package, lockfile, Client handshake, Android, release notes, verification и tag.
 
 ## 2. Release classifications
 
 ### Development
 
-Implementation incomplete или имеет unresolved blockers. Development build не распространяется как product release.
+Implementation incomplete или имеет unresolved blockers. Не распространяется как product release.
 
 ### Source/PWA prerelease
 
-Проверены source, production web build и automated gates. Разрешённые artifacts:
+Verified source, production web build и automated gates. Допустимы:
 
 - source ZIP;
 - built PWA ZIP;
 - SPDX SBOM;
 - SHA-256 checksums.
 
-Классификация не означает:
+Не означает signed Windows installers, updater eligibility, packaged runtime E2E, external certification или high-risk production suitability.
 
-- signed Windows installers;
-- Electron updater eligibility;
-- packaged runtime E2E;
-- independent security certification;
-- production suitability для high-risk communications.
-
-### Stable signed release
+### Stable signed Windows
 
 Требует:
 
-- всех automated release gates;
+- full automated gates;
 - manual platform/runtime acceptance;
-- verified migration и rollback procedure;
+- verified migration/rollback;
 - valid Authenticode signatures;
-- complete updater metadata;
+- complete installer/blockmap/`latest.yml`;
+- updater n-1 → n;
 - no unresolved release blockers;
-- approved security/operational evidence;
-- explicit release-owner approval.
+- approved security/operations evidence.
 
 ### Security patch
 
-Security patch должен включать:
+Требует regression-first reproduction, root cause, correction, tests, compatibility statement, supported-version update и coordinated disclosure when applicable.
 
-1. проверку каждого finding по текущему source;
-2. regression-first evidence для подтверждённых gaps;
-3. исправление root cause;
-4. positive и negative regression coverage;
-5. compatibility/schema/API statement;
-6. updated Security Policy/Review/Verification при изменении boundaries;
-7. coordinated disclosure plan, если применимо.
+### Documentation-only release support
 
-Неэффективная рекомендация или уже реализованный control не заменяется косметическим изменением: решение документируется с техническим обоснованием.
+Documentation-only PR не меняет version metadata и не создаёт новый product release. Он должен пройти existing CI и не изменять runtime code, dependencies, migrations или workflows.
 
-## 3. Required automated gates
-
-Перед выпуском:
+## 3. Automated gates
 
 ```bash
 npm ci
@@ -70,128 +56,90 @@ npm run release:check
 gradle -p android :app:assembleDebug --no-daemon
 ```
 
-Release gate покрывает:
+Release gate includes syntax, builder config, production web build, unit/API/integration, performance, security invariants/dependency audit и metadata synchronization.
 
-- source syntax;
-- Electron Builder configuration;
-- production web build;
-- unit/API/integration tests;
-- isolated performance smoke;
-- security invariants и production dependency audit;
-- release metadata synchronization.
+Release-sensitive changes additionally run relevant soak, migration, Cloud, Pulse, Trust/MLS, updater и platform suites.
 
-Release-sensitive changes дополнительно требуют релевантные soak, migration, Cloud, Pulse, Trust/MLS, encrypted-media и platform-specific suites.
+## 4. Manual gates
 
-## 4. Regression-first security workflow
-
-Для подтверждённого security gap:
-
-1. создать тест, который падает на текущей реализации;
-2. сохранить CI evidence ожидаемого failure;
-3. исправить production code;
-4. подтвердить positive/negative scenarios;
-5. выполнить complete release gate;
-6. отдельно выполнить final documentation CI;
-7. записать root cause, correction и residual risk.
-
-Nexora `3.2.3` следует этому процессу: initial security candidate CI `#290` failed against `3.2.2`, затем implementation CI `#308` и final CI `#309` passed.
-
-## 5. Manual gates
-
-В зависимости от classification:
+Depending on classification:
 
 - clean install/upgrade Windows 10/11;
-- signed Client/Server installer verification;
+- signed Client/Server verification;
 - updater n-1 → n;
-- installed PWA runtime/offline behavior;
+- NSIS visual/runtime acceptance;
+- test-mode shortcut/log-tail acceptance;
+- installed PWA/offline behavior;
 - physical Android matrix;
-- backup/restore и migration rollback drill;
-- public HTTPS deployment smoke;
-- Pulse provider sandbox/webhook/reconciliation smoke;
-- Trust multi-device/recovery/revocation matrix;
-- resource-limit и rate-limit operational review;
-- accessibility/responsive UI review.
+- backup/restore/migration drill;
+- public HTTPS smoke;
+- Pulse provider sandbox/reconciliation;
+- multi-device MLS commit/Welcome/revoke/re-add/recovery;
+- accessibility/responsive review.
 
-## 6. Security claims
+## 5. Security claims
 
-Release documentation различает:
+Release documentation distinguishes:
 
-1. functionality present in source;
-2. automated test evidence;
+1. functionality in source;
+2. automated evidence;
 3. manual runtime evidence;
 4. signing/distribution evidence;
 5. independent review evidence.
 
-Термины «secure», «encrypted», «E2EE», «audited», «production-ready» и «stable» указываются только с конкретной version, path, threat boundary и evidence.
+“Stable”, “production-ready”, “audited”, “secure” и “E2EE” use requires exact version, feature path и completed evidence.
 
-## 7. Tag и artifact policy
+## 6. Tag и artifacts
 
-- release tags immutable и соответствуют SemVer;
-- package version совпадает с tag;
-- published stable assets не заменяются in-place;
-- correction использует новый PATCH version;
-- unsigned `.exe`, blockmap и `latest.yml` не публикуются;
-- Electron updater принимает только complete signed stable Windows set;
-- Source/PWA prerelease явно marked prerelease;
-- arbitrary untagged `main` не публикуется как release.
+- immutable SemVer tags;
+- package version equals tag;
+- published stable assets never replaced;
+- correction uses new patch version;
+- unsigned `.exe`, blockmap и `latest.yml` not published;
+- updater consumes only complete signed stable set;
+- prerelease explicitly marked;
+- release links point to official `Onmaynec/Nexora` tag.
 
-## 8. Database compatibility
+## 7. Database compatibility
 
-Каждое schema change требует:
+Schema change requires:
 
-- pre-migration integrity check;
+- source integrity;
 - verified backup;
+- free-space check;
 - transactional/idempotent migration;
-- post-migration integrity check;
-- documented rollback/restore;
+- destination integrity;
+- rollback/restore procedure;
 - downgrade protection;
-- tests с supported source schemas.
+- tests from supported source schemas.
 
-Patch `3.2.0–3.2.3` сохраняет schema 8. Upgrade внутри этой линии не требует database migration.
+3.2.4 keeps schema 8. Migration from 3.2.0–3.2.3 is not required.
 
-## 9. API compatibility
+## 8. Branch policy
 
-- Application API v3 сохраняется для линии 3.x;
-- Trust/MLS/encrypted-media API v4 сохраняется в `3.2.x`;
-- breaking contract требует соответствующий major release или explicit compatibility migration;
-- stable error codes и HTTP semantics являются частью operational contract;
-- `RATE_LIMITED` и `Retry-After` должны сохраняться для rate-limited routes.
+- `main` is only current product source;
+- development branch has explicit `BRANCH_STATUS.md`;
+- merged/superseded branch preserves provenance;
+- obsolete automation branch is not merged/tagged/published;
+- historical docs are not rewritten to imitate current release;
+- details: [Branch Documentation Policy](BRANCH_DOCUMENTATION_POLICY.md).
 
-## 10. Current release decision
+## 9. Current release decision
 
-### Nexora 3.2.3
+### 3.2.4
 
 - classification: Source/PWA prerelease;
-- type: security hardening patch;
-- automated release gate: passed;
+- automated multi-platform gate: passed;
 - schema: 8;
-- Application API: v3;
-- Trust/MLS/encrypted-media API: v4;
-- migration с 3.2.0–3.2.2: не требуется;
-- stable signed production promotion: не approved;
-- independent cryptographic/application-security review: не completed.
+- API: v3/v4;
+- database migration from 3.2.0–3.2.3: none;
+- signed stable Windows approval: not granted;
+- independent security review: not completed.
 
-Authoritative evidence:
+### 3.1.2
 
-- [Release Notes 3.2.3](../RELEASE_NOTES_3.2.3.md);
-- [Security Review 3.2.3](../SECURITY_REVIEW_3.2.3.md);
-- [Release Verification 3.2.3](../RELEASE_VERIFICATION_3.2.3.md).
-
-### Nexora 3.1.2
-
-- classification: signed production baseline;
+- classification: last confirmed signed production baseline;
 - schema: 7;
-- secure-message E2EE: не предоставляется.
+- secure-message E2EE from Local Server operator: not provided.
 
-## 11. Stable promotion blockers 3.2.3
-
-До stable signed promotion:
-
-1. packaged Windows runtime E2E;
-2. installed PWA и physical Android matrix;
-3. extended multi-device concurrency/revoke/re-add/corruption matrix;
-4. longer load/soak и long-offline evidence;
-5. metadata minimization/traffic-analysis review;
-6. Authenticode signing-machine и complete updater verification;
-7. independent cryptographic/application-security review;
-8. отсутствие unresolved high/critical findings.
+Authoritative evidence: [Release Verification 3.2.4](../RELEASE_VERIFICATION_3.2.4.md).
