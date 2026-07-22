@@ -18,26 +18,38 @@ function createSlidingWindowRateLimiter({ windowMs = 60_000, limit = 30, maxBuck
   const boundedBuckets = positiveInteger(maxBuckets, 10_000, "maxBuckets");
   const buckets = new Map();
 
-  function prune(now) {
+  function deleteOldest() {
+    const oldest = buckets.keys().next();
+    if (!oldest.done) buckets.delete(oldest.value);
+  }
+
+  function pruneExpired(now, budget = 64) {
+    let inspected = 0;
     for (const [key, bucket] of buckets) {
+      if (inspected >= budget) break;
+      inspected += 1;
       const recent = bucket.timestamps.filter((item) => now - item < boundedWindow);
       if (!recent.length) buckets.delete(key);
-      else if (recent.length !== bucket.timestamps.length) buckets.set(key, { timestamps: recent, lastSeenAt: bucket.lastSeenAt });
+      else if (recent.length !== bucket.timestamps.length) {
+        buckets.delete(key);
+        buckets.set(key, { timestamps: recent, lastSeenAt: bucket.lastSeenAt });
+      }
     }
-    if (buckets.size <= boundedBuckets) return;
-    const overflow = [...buckets.entries()]
-      .sort((first, second) => first[1].lastSeenAt - second[1].lastSeenAt)
-      .slice(0, buckets.size - boundedBuckets);
-    for (const [key] of overflow) buckets.delete(key);
+  }
+
+  function storeBucket(key, timestamps, now) {
+    buckets.delete(key);
+    while (buckets.size >= boundedBuckets) deleteOldest();
+    buckets.set(key, { timestamps, lastSeenAt: now });
   }
 
   function consume(rawKey) {
     const key = String(rawKey || "anonymous").slice(0, 256);
     const now = timestamp(clock);
-    prune(now);
+    pruneExpired(now);
     const recent = (buckets.get(key)?.timestamps || []).filter((item) => now - item < boundedWindow);
     if (recent.length >= boundedLimit) {
-      buckets.set(key, { timestamps: recent, lastSeenAt: now });
+      storeBucket(key, recent, now);
       return {
         allowed: false,
         remaining: 0,
@@ -45,8 +57,7 @@ function createSlidingWindowRateLimiter({ windowMs = 60_000, limit = 30, maxBuck
       };
     }
     recent.push(now);
-    buckets.set(key, { timestamps: recent, lastSeenAt: now });
-    prune(now);
+    storeBucket(key, recent, now);
     return {
       allowed: true,
       remaining: Math.max(0, boundedLimit - recent.length),
