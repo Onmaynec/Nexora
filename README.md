@@ -1,5 +1,6 @@
 # Nexora
 
+[![Website](https://img.shields.io/badge/website-open-c69cff)](https://onmaynec.github.io/Nexora/)
 [![CI](https://github.com/Onmaynec/Nexora/actions/workflows/ci.yml/badge.svg)](https://github.com/Onmaynec/Nexora/actions/workflows/ci.yml)
 ![Current version](https://img.shields.io/badge/current-3.2.4%20prerelease-c69cff)
 ![Stable signed baseline](https://img.shields.io/badge/stable%20signed-3.1.2-70e6b1)
@@ -9,6 +10,8 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **Nexora** — self-hosted платформа обмена сообщениями для Windows, браузера/PWA и Android. Система объединяет локальный сервер, многоплатформенный клиент, комнаты и модерацию, офлайн-синхронизацию, защищённые сообщения и медиа, эксплуатационные инструменты, а также отдельный коммерческий контур Nexora Pulse.
+
+**Сайт проекта:** [onmaynec.github.io/Nexora](https://onmaynec.github.io/Nexora/) — интерактивная презентация, архитектурные схемы, актуальные GitHub-метрики, документация и загрузки по версиям.
 
 ## Статус продукта
 
@@ -165,7 +168,7 @@ flowchart TB
 
 Local Server является источником истины для локальных аккаунтов, комнат, ролей, доступа, порядка доставки и хранения ciphertext. Pulse Cloud является отдельным authority для Cloud Identity, billing, ledger и production entitlements.
 
-Local Server не получает private MLS state, plaintext secure-message content или ключи secure attachments. При этом сервер видит service metadata: account/device identifiers, membership, conversation scope, timing, IP/network context, ciphertext size, attachment ID и delivery events. Nexora `3.2.3` не заявляет защиту от traffic analysis.
+Local Server не получает private MLS state, plaintext secure-message content или ключи secure attachments. При этом сервер видит service metadata: account/device identifiers, membership, conversation scope, timing, IP/network context, ciphertext size, attachment ID и delivery events. Nexora `3.2.4` не заявляет защиту от traffic analysis.
 
 Полное описание: [Architecture](docs/ARCHITECTURE.md), [Security Model](docs/SECURITY_MODEL.md) и [Project Index](PROJECT_INDEX.md).
 
@@ -228,8 +231,8 @@ Electron Client закрепляет fingerprint за Server ID. Для брау
 | Архитектура | [Architecture](docs/ARCHITECTURE.md), [Project Index](PROJECT_INDEX.md) |
 | Безопасность | [Security Policy](SECURITY.md), [Security Model](docs/SECURITY_MODEL.md), [Security Verification](SECURITY_AUDIT.md) |
 | Развёртывание | [Deployment](docs/DEPLOYMENT.md), [Administrator Guide](ADMIN_GUIDE.md), [Operations Runbook](docs/OPERATIONS_RUNBOOK.md) |
-| Тестирование | [Acceptance Test Guide](TESTER_GUIDE.md), [3.2.3 Verification](RELEASE_VERIFICATION_3.2.3.md) |
-| Trust / MLS | [Trust Core 3.2.0 foundation](docs/TRUST_CORE_3.2.0.md), [Security Review 3.2.3](SECURITY_REVIEW_3.2.3.md) |
+| Тестирование | [Acceptance Test Guide](TESTER_GUIDE.md), [3.2.4 Verification](RELEASE_VERIFICATION_3.2.4.md) |
+| Trust / MLS | [Trust Core 3.2.0 foundation](docs/TRUST_CORE_3.2.0.md), [Security Review 3.2.4](SECURITY_REVIEW_3.2.4.md) |
 | Миграция | [Schema 8 Migration](docs/MIGRATION_3.2.0.md) |
 | Plus / Pulse | [Pulse](docs/PULSE.md), [Pulse Cloud](docs/PULSE_CLOUD.md) |
 | Выпуски | [Release Policy](docs/RELEASE_POLICY.md), [Release Checklist](docs/RELEASE_CHECKLIST.md), [Changelog](CHANGELOG.md) |
