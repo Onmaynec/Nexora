@@ -126,6 +126,7 @@ npm run dist:windows
 | Раздел | Документ |
 |---|---|
 | Архитектура и карта кода | [ARCHITECTURE.md](docs/ARCHITECTURE.md), [PROJECT_INDEX.md](PROJECT_INDEX.md) |
+| Статус веток | [BRANCHES.md](BRANCHES.md) |
 | Администрирование | [ADMIN_GUIDE.md](ADMIN_GUIDE.md) |
 | Тестирование и верификация | [TESTER_GUIDE.md](TESTER_GUIDE.md), [RELEASE_VERIFICATION_3.1.2.md](RELEASE_VERIFICATION_3.1.2.md) |
 | Plus / Pulse | [PULSE.md](docs/PULSE.md), [RELEASE_3.1.0.md](docs/RELEASE_3.1.0.md) |
