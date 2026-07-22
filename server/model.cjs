@@ -58,7 +58,7 @@ function areContacts(state, firstUserId, secondUserId) {
 function canAccessConversation(state, conversation, userId) {
   if (!conversation) return false;
   if (conversation.type === "dm") return conversation.userIds.includes(userId);
-  return Boolean(roomRole(state, conversation.roomId, userId));
+  return Boolean(roomRole(state, conversation.roomId, userId)) && !isRoomBanned(state, conversation.roomId, userId);
 }
 
 function canModerateConversation(state, conversation, userId) {

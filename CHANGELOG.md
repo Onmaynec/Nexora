@@ -2,6 +2,27 @@
 
 Формат основан на Keep a Changelog. Версии следуют Semantic Versioning.
 
+## [3.2.3] — 2026-07-22
+
+### Security
+
+- Trust device registration validates that the MLS BasicCredential is exactly bound to the authenticated user and candidate device, and rejects reuse of one Ed25519 key for both identity proof and MLS signatures;
+- active Trust devices are limited to 16 per user; duplicate registration remains idempotent and revoked devices release capacity;
+- unclaimed MLS KeyPackage inventory is limited to 32 per device and 256 per user, with atomic enforcement and expired-row cleanup;
+- Trust directory, enrollment, KeyPackage and recovery endpoints use bounded shared sliding-window rate limits with stable `RATE_LIMITED` errors and `Retry-After`;
+- Trust audit metadata now uses an action-specific primitive allowlist instead of a shallow key blacklist;
+- room conversation access fails closed when an inconsistent active ban and stale membership coexist;
+- missed MLS commit recovery verifies group scope, contiguous epochs, ciphertext hash, duplicate hashes and every public-state hash before persisting state;
+- hourly maintenance removes expired sessions, login history older than 90 days and stale persistent rate-limit buckets.
+
+### Confirmed existing protections
+
+- CSRF and Origin validation, Socket.IO Origin rejection, AES-GCM sealed IndexedDB state, exact opaque attachment size/hash/quota checks and server-side MLS replay constraints were already present and remain covered by release security gates.
+
+### Compatibility
+
+- Local Server schema remains 8; API v3 and Trust/MLS API v4 remain compatible; no database migration is required.
+
 ## [3.2.2] — 2026-07-22
 
 ### Fixed

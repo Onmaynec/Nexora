@@ -16,6 +16,7 @@ import {
   stateMetadata,
   toBase64,
 } from "./mls-engine";
+import { replayMissedCommits } from "./mls-recovery.mjs";
 import { memberDirectory } from "./mls-members";
 import {
   cleanupKeyPackages,
@@ -291,16 +292,16 @@ function participantIds(conversation) {
 async function syncMissedCommits(local, remote, device) {
   if (!local || local.epoch >= remote.epoch) return local;
   const result = await trustApi(`/groups/${encodeURIComponent(remote.id)}/commits?after=${local.epoch}`, { deviceId: device.id });
-  let state = local.state;
-  let publicStateHash = local.publicStateHash;
-  for (const item of result.commits || []) {
-    const processed = await processCommitMessage({ state, commitBytes: fromBase64(item.commit), resolveDevice: resolveTrustedDevice });
-    state = processed.state;
-    publicStateHash = processed.publicStateHash;
-    if (processed.epoch !== Number(item.epoch)) throw Object.assign(new Error("MLS commit epoch mismatch."), { code: "MLS_EPOCH_CONFLICT" });
-  }
-  if (Number(state.groupContext.epoch) !== Number(remote.epoch)) throw Object.assign(new Error("Не удалось восстановить актуальную MLS epoch."), { code: "MLS_COMMIT_GAP" });
-  return persistGroup(remote.conversationId, remote.id, state, publicStateHash);
+  const replayed = await replayMissedCommits({
+    local,
+    remote,
+    result,
+    decodeCommit: fromBase64,
+    hashCommit: sha256Hex,
+    processCommit: ({ state, commitBytes, resolveDevice }) => processCommitMessage({ state, commitBytes, resolveDevice }),
+    resolveDevice: resolveTrustedDevice,
+  });
+  return persistGroup(remote.conversationId, remote.id, replayed.state, replayed.publicStateHash);
 }
 
 async function addMissingDevices(conversation, local, remote, device) {
