@@ -1,4 +1,4 @@
-name: Apply store queue repair
+name: Diagnose store queue repair
 
 on:
   pull_request:
@@ -8,7 +8,7 @@ permissions:
   contents: write
 
 jobs:
-  repair-store-queue:
+  diagnose-store-queue:
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 12
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -17,16 +17,33 @@ jobs:
         with:
           ref: agent/nexora-3.2.0-trust-core-mls
           fetch-depth: 0
-      - name: Repair serialized mutation queue
+      - name: Capture repair attempt
         shell: bash
         run: |
-          set -euo pipefail
-          test -f scripts/repair-store-queue.cjs
-          node scripts/repair-store-queue.cjs
-          rm scripts/repair-store-queue.cjs
-          git diff --check -- server/store.cjs
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add server/store.cjs scripts/repair-store-queue.cjs
-          git commit -m "fix(store): keep mutation queue healthy after rejection"
-          git push origin HEAD:agent/nexora-3.2.0-trust-core-mls
+          set +e
+          {
+            set -x
+            test -f scripts/repair-store-queue.cjs
+            node scripts/repair-store-queue.cjs
+            rm scripts/repair-store-queue.cjs
+            git diff --check -- server/store.cjs
+            git status --short
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add server/store.cjs scripts/repair-store-queue.cjs
+            git commit -m "fix(store): keep mutation queue healthy after rejection"
+            git push origin HEAD:agent/nexora-3.2.0-trust-core-mls
+          } > repair-store.log 2>&1
+          echo "$?" > repair-store.exit
+          cat repair-store.log
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: repair-store-queue-log
+          path: |
+            repair-store.log
+            repair-store.exit
+          retention-days: 1
+      - name: Enforce repair
+        shell: bash
+        run: test "$(cat repair-store.exit)" = "0"
