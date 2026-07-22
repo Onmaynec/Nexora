@@ -1,0 +1,69 @@
+name: Unit test diagnostic
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: unit-test-diagnostic-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - run: npm ci
+      - name: Run each unit file and report failures
+        id: diagnose
+        shell: bash
+        run: |
+          set +e
+          report=$(mktemp)
+          failures=0
+          {
+            echo '<!-- nexora-unit-diagnostic -->'
+            echo '## Unit test diagnostic'
+            echo
+            echo '| File | Result |'
+            echo '|---|---|'
+          } > "$report"
+          for file in $(find test -maxdepth 1 -name '*.test.cjs' -print | sort); do
+            log=$(mktemp)
+            node --test --test-concurrency=1 "$file" >"$log" 2>&1
+            status=$?
+            if [ "$status" -eq 0 ]; then
+              echo "| \`$file\` | PASS |" >> "$report"
+            else
+              failures=$((failures + 1))
+              echo "| \`$file\` | **FAIL** |" >> "$report"
+              echo >> "$report"
+              echo "<details><summary>$file failure tail</summary>" >> "$report"
+              echo >> "$report"
+              echo '```text' >> "$report"
+              tail -n 60 "$log" >> "$report"
+              echo '```' >> "$report"
+              echo '</details>' >> "$report"
+            fi
+            rm -f "$log"
+          done
+          echo >> "$report"
+          echo "Failures: $failures" >> "$report"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            gh pr comment "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --body-file "$report"
+          fi
+          cat "$report" >> "$GITHUB_STEP_SUMMARY"
+          rm -f "$report"
+          exit "$failures"
