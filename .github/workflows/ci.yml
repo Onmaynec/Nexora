@@ -27,6 +27,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node scripts/apply-3.2.1-fix.cjs
+      - run: node scripts/apply-3.2.1-trust-status-fix.cjs
       - run: npm ci
       - run: npm run release:check
       - name: Commit verified patch
@@ -43,6 +44,7 @@ jobs:
             client/src/App.jsx \
             electron/server-main.cjs \
             server/pulse-cloud-client.cjs \
+            server/trust-core.cjs \
             test/build-config.test.cjs \
             test/regression-3.2.1.test.cjs
           git diff --cached --check
