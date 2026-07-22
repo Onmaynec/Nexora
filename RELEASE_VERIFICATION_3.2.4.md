@@ -5,10 +5,10 @@
 - Version: `3.2.4`.
 - Base release: `3.2.3`.
 - Pull Request: `#21`.
-- Branch: `agent/nexora-3.2.4-updater-mls-recovery`.
-- Synchronized implementation head before this report: `b823426b583299c9507def33cc25806ac30e22a6`.
+- Merge commit: `ebfda9e401d352f6686f8d3bb337190ac9e6967f`.
+- Release tag: `v3.2.4`.
 - Date: `2026-07-22`.
-- Distribution classification: Source/PWA prerelease until signed Windows assets and runtime acceptance are available.
+- Distribution classification: Source/PWA prerelease until signed Windows assets and installed-runtime acceptance are available.
 
 ## Reported regressions
 
@@ -72,7 +72,7 @@ The patch was driven by the provided Windows screenshots and repository inspecti
 
 ## Automated evidence
 
-### Full multi-platform gate
+### Full implementation gate
 
 CI run `#334`, run ID `29942843275`, passed the core 3.2.4 implementation through:
 
@@ -91,9 +91,22 @@ Workflow run ID `29943138162` passed `npm run check`, `npm run test:unit` and `n
 
 ### Main synchronization and documentation gate
 
-Workflow run ID `29943715320` merged current `main`, applied the 3.2.4 documentation synchronization, then passed `npm run check`, `npm run test:unit` and `npm run audit:security` before committing the synchronized source.
+Workflow run ID `29943715320` merged the then-current `main`, applied the 3.2.4 documentation synchronization, then passed `npm run check`, `npm run test:unit` and `npm run audit:security` before committing the synchronized source.
 
-The pull request must still have a green current-head CI result before merge; branch protection and the release workflow remain authoritative.
+### Merge-head multi-platform gate
+
+CI run `#343`, run ID `29943869863`, completed successfully before merge:
+
+- Windows `npm run check` — passed;
+- Windows `npm run test:unit` — passed;
+- Windows `npm run test:performance` — passed on rerun without a code change after one timing-sensitive runner failure;
+- Windows `npm run audit:security` — passed;
+- Linux `npm test` — passed;
+- `npm run release:check` — passed;
+- schema 8 soak — passed;
+- Android `assembleDebug` — passed.
+
+PR #21 was merged by squash into `main` as `ebfda9e401d352f6686f8d3bb337190ac9e6967f`, and immutable tag `v3.2.4` points to version `3.2.4` source.
 
 ## Security review
 
