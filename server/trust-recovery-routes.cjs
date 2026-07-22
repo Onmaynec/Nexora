@@ -41,12 +41,18 @@ function mountTrustRecoveryRoutes({ app, trustCore, authRequired, requireConvers
   }));
 
   app.post("/api/v4/trust/conversations/:conversationId/welcome/claim", authRequired, asyncRoute(async (request, response) => {
-    requireConversation(request.trustAuth.user.id, request.params.conversationId);
+    const conversationId = String(request.params.conversationId || "");
+    requireConversation(request.trustAuth.user.id, conversationId);
     const requesterDeviceId = String(request.headers["x-nexora-device-id"] || "");
     if (!requesterDeviceId) throw new TrustCoreError("Укажите X-Nexora-Device-ID.", "TRUST_DEVICE_REQUIRED", 401);
-    enforceRateLimit(trustRateLimits.recovery, `welcome:${request.trustAuth.user.id}:${requesterDeviceId}`, response, "Слишком много запросов MLS recovery.");
+    enforceRateLimit(
+      trustRateLimits.recovery,
+      `welcome:${request.trustAuth.user.id}:${requesterDeviceId}:${conversationId}`,
+      response,
+      "Слишком много запросов MLS recovery.",
+    );
     const welcome = claimWelcomeForConversation(trustCore, {
-      conversationId: request.params.conversationId,
+      conversationId,
       requesterUserId: request.trustAuth.user.id,
       requesterDeviceId,
     });
@@ -56,7 +62,7 @@ function mountTrustRecoveryRoutes({ app, trustCore, authRequired, requireConvers
   app.get("/api/v4/trust/groups/:groupId/commits", authRequired, asyncRoute(async (request, response) => {
     const requesterDeviceId = String(request.headers["x-nexora-device-id"] || "");
     if (!requesterDeviceId) throw new TrustCoreError("Укажите X-Nexora-Device-ID.", "TRUST_DEVICE_REQUIRED", 401);
-    enforceRateLimit(trustRateLimits.recovery, `commits:${request.trustAuth.user.id}:${requesterDeviceId}`, response, "Слишком много запросов MLS recovery.");
+    enforceRateLimit(trustRateLimits.recovery, `commits:${request.trustAuth.user.id}:${requesterDeviceId}:${request.params.groupId}`, response, "Слишком много запросов MLS recovery.");
     const group = trustCore.db.prepare("SELECT conversation_id FROM mls_groups WHERE id=?").get(String(request.params.groupId || "").toLowerCase());
     if (!group) throw new TrustCoreError("MLS group не найден.", "MLS_GROUP_NOT_FOUND", 404);
     requireConversation(request.trustAuth.user.id, group.conversation_id);
