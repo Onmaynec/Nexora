@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   apply-docs:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, 'prepare verified 3.2.0 candidate documentation updates')
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -21,6 +21,7 @@ jobs:
       - name: Apply guarded documentation patch
         run: |
           set -euxo pipefail
+          test -f scripts/apply-3.2.0-candidate-docs.cjs
           node scripts/apply-3.2.0-candidate-docs.cjs
           rm scripts/apply-3.2.0-candidate-docs.cjs
           git diff --check
