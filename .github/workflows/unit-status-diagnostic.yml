@@ -1,0 +1,45 @@
+name: Unit failure status
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - run: npm ci
+      - name: Publish failing file contexts
+        shell: bash
+        run: |
+          set +e
+          failures=0
+          for file in $(find test -maxdepth 1 -name '*.test.cjs' -print | sort); do
+            node --test --test-concurrency=1 "$file" >/tmp/unit.log 2>&1
+            status=$?
+            if [ "$status" -ne 0 ]; then
+              failures=$((failures + 1))
+              base=$(basename "$file" .test.cjs | tr -c 'A-Za-z0-9_.-' '-')
+              description=$(grep -m1 '^not ok' /tmp/unit.log | sed 's/^not ok [0-9]* - //' | cut -c1-120)
+              [ -n "$description" ] || description="unit file failed"
+              gh api --method POST "repos/${{ github.repository }}/statuses/${{ github.event.pull_request.head.sha || github.sha }}" \
+                -f state=failure \
+                -f context="unit-file/$base" \
+                -f description="$description" \
+                -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            fi
+          done
+          exit "$failures"
