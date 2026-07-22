@@ -1,5 +1,6 @@
 "use strict";
 
+// One-shot release patcher; removed before merge.
 const fs = require("node:fs");
 const path = require("node:path");
 
