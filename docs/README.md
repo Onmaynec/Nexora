@@ -6,7 +6,7 @@
 
 | Параметр | Значение |
 |---|---|
-| Текущая версия репозитория | `3.2.3` |
+| Текущая версия репозитория | `3.2.4` |
 | Канал распространения | Source/PWA prerelease для контролируемого тестирования |
 | Последняя signed production baseline | `3.1.2` |
 | Application API | v3 |
@@ -15,7 +15,7 @@
 | Database migration с 3.2.0–3.2.2 | не требуется |
 | Независимый E2EE/security audit | не завершён |
 
-`3.2.3` включает Trust/MLS и encrypted-media foundation `3.2.0`, исправления lifecycle `3.2.1–3.2.2` и security hardening `3.2.3`. Документация различает реализованное поведение, автоматические доказательства, ручные release-gates и независимую проверку.
+`3.2.4` включает Trust/MLS и encrypted-media foundation `3.2.0`, lifecycle fixes `3.2.1–3.2.2`, security hardening `3.2.3` и recovery patch `3.2.4` для updater, Server console, MLS Welcome и Client diagnostics. Документация различает реализованное поведение, автоматические доказательства, ручные release-gates и независимую проверку.
 
 ## Быстрый выбор документа
 
@@ -33,10 +33,10 @@
 
 | Документ | Назначение | Статус |
 |---|---|---|
-| [Product Overview](PRODUCT_OVERVIEW.md) | назначение, платформы, функции, версии и ограничения | Current 3.2.3 |
-| [Architecture](ARCHITECTURE.md) | компоненты, data flow, storage, authorization и trust boundaries | Current 3.2.3 |
-| [Project Index](../PROJECT_INDEX.md) | карта entrypoints, модулей, API и тестов | Current 3.2.3 |
-| [Security Model](SECURITY_MODEL.md) | threat model, Trust/MLS, resource governance и residual risks | Current 3.2.3 |
+| [Product Overview](PRODUCT_OVERVIEW.md) | назначение, платформы, функции, версии и ограничения | Current through 3.2.4 |
+| [Architecture](ARCHITECTURE.md) | компоненты, data flow, storage, authorization и trust boundaries | Current through 3.2.4 |
+| [Project Index](../PROJECT_INDEX.md) | карта entrypoints, модулей, API и тестов | Current 3.2.4 |
+| [Security Model](SECURITY_MODEL.md) | threat model, Trust/MLS, resource governance и residual risks | Current through 3.2.4 |
 | [Pulse Cloud Boundary ADR](ADR_0001_PULSE_CLOUD_BOUNDARY.md) | разделение Local Server и Cloud authority | Current architecture decision |
 
 ## Безопасность
@@ -45,8 +45,10 @@
 |---|---|---|
 | [Security Policy](../SECURITY.md) | поддерживаемые версии и приватное раскрытие уязвимостей | Current |
 | [Security Verification Summary](../SECURITY_AUDIT.md) | автоматические проверки и остаточные риски | Current 3.2.3 |
-| [Security Review 3.2.3](../SECURITY_REVIEW_3.2.3.md) | подтверждённые findings и security patch decisions | Release-specific |
-| [Release Verification 3.2.3](../RELEASE_VERIFICATION_3.2.3.md) | CI evidence и compatibility boundary | Release-specific |
+| [Security Review 3.2.4](../SECURITY_REVIEW_3.2.4.md) | updater, console, Welcome recovery и test-mode security boundary | Current release-specific |
+| [Release Verification 3.2.4](../RELEASE_VERIFICATION_3.2.4.md) | CI evidence и compatibility boundary | Current release-specific |
+| [Security Review 3.2.3](../SECURITY_REVIEW_3.2.3.md) | resource-governance findings и security patch decisions | Historical release-specific |
+| [Release Verification 3.2.3](../RELEASE_VERIFICATION_3.2.3.md) | 3.2.3 CI evidence и compatibility boundary | Historical release-specific |
 | [Trust Core 3.2.0](TRUST_CORE_3.2.0.md) | исходная Trust/MLS foundation и protocol design | Historical foundation |
 | [Schema 8 Migration](MIGRATION_3.2.0.md) | migration, backup, downgrade protection и rollback | Current schema history |
 
@@ -75,8 +77,10 @@
 |---|---|
 | [Release Policy](RELEASE_POLICY.md) | Semantic Versioning, classifications и promotion gates |
 | [Changelog](../CHANGELOG.md) | хронология пользовательских и технических изменений |
-| [Release Notes 3.2.3](../RELEASE_NOTES_3.2.3.md) | текущий security hardening patch |
-| [Release Verification 3.2.3](../RELEASE_VERIFICATION_3.2.3.md) | авторитетное автоматическое evidence текущей версии |
+| [Release Notes 3.2.4](../RELEASE_NOTES_3.2.4.md) | текущий updater/console/Welcome recovery patch |
+| [Security Review 3.2.4](../SECURITY_REVIEW_3.2.4.md) | security boundaries текущего patch release |
+| [Release Verification 3.2.4](../RELEASE_VERIFICATION_3.2.4.md) | авторитетное автоматическое evidence текущей версии |
+| [Release Notes 3.2.3](../RELEASE_NOTES_3.2.3.md) | исторический security hardening patch |
 | [Branch Index](../BRANCHES.md) | назначение активных и исторических веток |
 | [Current Release Status](../BRANCH_STATUS.md) | текущая release classification и blockers |
 

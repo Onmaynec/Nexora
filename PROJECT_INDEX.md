@@ -4,7 +4,7 @@
 
 | Параметр | Значение |
 |---|---|
-| Repository version | `3.2.3` |
+| Repository version | `3.2.4` |
 | Distribution | Source/PWA prerelease |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
@@ -36,7 +36,8 @@
 | `server/schema7.cjs` | schema 6 → 7 migration и downgrade protection |
 | `server/trust-schema8.cjs` | schema 7 → 8 migration, backup/integrity и downgrade protection |
 | `server/trust-core.cjs` | device proof, BasicCredential binding, limits, KeyPackages, groups, epochs, Welcome, replay и audit |
-| `server/trust-routes.cjs` | Trust API v4 device/group/message routes и route limiting |
+| `server/trust-routes.cjs` | Trust API v4 device/group/message routes, MLS Welcome request и route limiting |
+| `server/mls-welcome-recovery.cjs` | verified requester validation и device-scoped Welcome recovery notification |
 | `server/trust-recovery.cjs` | targeted KeyPackage claim и contiguous commit recovery |
 | `server/trust-recovery-routes.cjs` | recovery scope, rate limit и response contract |
 | `server/mls-transport.cjs` | device-scoped ciphertext Socket.IO transport |
@@ -73,11 +74,11 @@ Pulse Cloud не хранит local message content, room history, local files, 
 | `client/src/components/MessagePane.jsx` | legacy messages, threads, polls, drafts и resumable upload |
 | `client/src/components/SecureMessagePane.jsx` | secure messaging, encrypted media, local decrypt/preview и fail-closed UI |
 | `client/src/components/TrustDevicesCard.jsx` | fingerprint, verify/revoke и self-wipe |
-| `client/src/components/SettingsPage.jsx` | profile, TOTP, Trust devices, sessions и preferences |
+| `client/src/components/SettingsPage.jsx` | profile, TOTP, Trust devices, sessions, preferences и observable Client update controls |
 | `client/src/crypto/mls-engine.js` | `ts-mls@1.6.2` adapter и MLS lifecycle |
 | `client/src/crypto/mls-members.js` | credential/member extraction |
 | `client/src/crypto/mls-recovery.mjs` | strict group scope, epoch, commit hash и public-state validation |
-| `client/src/crypto/trust-client.js` | device lifecycle, BasicCredential creation, KeyPackage pool и recovery orchestration |
+| `client/src/crypto/trust-client.js` | device lifecycle, BasicCredential creation, KeyPackage pool, commit recovery и automatic Welcome request/claim |
 | `client/src/crypto/trust-device-management.js` | signed verify/revoke и local scope cleanup |
 | `client/src/crypto/trust-store.js` | encrypted IndexedDB device/MLS/cache/draft records |
 | `client/src/outbox.js` | durable idempotent legacy и MLS ciphertext queue |
@@ -90,7 +91,8 @@ Pulse Cloud не хранит local message content, room history, local files, 
 | Файл | Ответственность |
 |---|---|
 | `electron/client-connection.cjs` | HTTPS URL, SAN, Server ID и PEM SHA-256 trust |
-| `electron/update-service.cjs` | signed updater, single-flight checks и stable diagnostics |
+| `electron/update-service.cjs` | GitHub signed updater, scheduled/single-flight checks, terminal fallback и stable diagnostics |
+| `electron/release-experience.cjs` | post-update summary state, official release link и Windows test-log console |
 | `electron/server-main.cjs` | single-flight stop/quit и stopped-state handling |
 | `android/` | Android source, deep link и strict TLS policy |
 | `electron-builder.client.yml` | Windows Client NSIS configuration |
@@ -123,13 +125,13 @@ Pulse Cloud не хранит local message content, room history, local files, 
 - bounded KeyPackage upload и scoped claim;
 - MLS group create/read;
 - commit create/recovery;
-- Welcome claim;
+- Welcome request from an active verified group device and one-time Welcome claim;
 - ciphertext message send/read;
 - opaque encrypted attachment upload, cancel, claim и download.
 
 Mutating browser requests требуют session, Origin и CSRF. Trust operations дополнительно требуют active device scope, credential/signature validation и route/resource limits.
 
-## Ключевые лимиты 3.2.3
+## Ключевые лимиты, действующие в 3.2.4
 
 | Ресурс | Лимит |
 |---|---|
@@ -147,6 +149,11 @@ Trust/recovery/E2EE routes используют bounded sliding-window limiter �
 | `test/regression-3.2.1.test.cjs` | bootstrap-before-Trust и Server shutdown/closed-state status |
 | `test/regression-3.2.2.test.cjs` | Trust layout ordering и safe pre-configuration draft read |
 | `test/security-hardening-3.2.3.test.cjs` | credential/key roles, limits, rate limiting, bans, cleanup и strict recovery |
+| `test/update-service.test.cjs` | GitHub provider, manual terminal fallback, scheduling и updater errors |
+| `test/client-update-ui.test.cjs` | progress, terminal result, retry и duplicate-check prevention |
+| `test/developer-commands.test.cjs` | registry execution, audit и copied placeholder normalization |
+| `test/mls-welcome-recovery.test.cjs` | verified pending-device request и redundant-request suppression |
+| `test/release-experience.test.cjs` | post-update dialog, dismissal, GitHub details link и test-mode switch |
 | `test/trust-schema8.test.cjs` | migration, idempotency и downgrade protection |
 | `test/trust-clock.test.cjs` | functional clock и challenge TTL |
 | `test/trust-core.test.cjs` | device proofs, KeyPackages, groups, epochs, replay и revocation |

@@ -6,7 +6,7 @@
 
 | Branch | Product state | Documentation policy |
 |---|---|---|
-| `main` | Nexora `3.2.3` Source/PWA prerelease; signed production baseline `3.1.2` | Единственный current source of truth для продукта, architecture, security и release documentation |
+| `main` | Nexora `3.2.4` Source/PWA prerelease; signed production baseline `3.1.2` | Единственный current source of truth для продукта, architecture, security и release documentation |
 
 Новая работа начинается от latest verified `main`, если approved stacked-branch plan явно не требует другого.
 
@@ -34,6 +34,7 @@
 | `agent/nexora-3.2.1-performance-gate-stabilization` | Warmed strict Windows performance boundary | Merged through PR #18 |
 | `agent/nexora-3.2.2-trust-bootstrap-race` | Trust layout/draft lifecycle correction | Merged through PR #19 |
 | `agent/nexora-3.2.3-security-hardening` | Trust resource limits, route controls, strict recovery и cleanup | Merged through PR #20 |
+| `agent/nexora-3.2.4-updater-mls-recovery` | Updater, Server console, automatic MLS Welcome, post-update UX и diagnostics | Merged through PR #21 |
 
 ## Merged documentation branches
 
@@ -71,11 +72,11 @@
 
 ## Current product boundary
 
-- current repository version: `3.2.3`;
+- current repository version: `3.2.4`;
 - distribution: Source/PWA prerelease;
 - signed production baseline: `3.1.2`;
 - Application API: v3;
 - Trust/MLS/encrypted-media API: v4;
 - Local Server database: schema 8;
-- migration from 3.2.0–3.2.2: not required;
+- migration from 3.2.0–3.2.3: not required;
 - independently audited E2EE claim: not granted.
