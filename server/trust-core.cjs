@@ -30,8 +30,26 @@ function hash(value) {
   return crypto.createHash("sha256").update(Buffer.isBuffer(value) ? value : String(value), Buffer.isBuffer(value) ? undefined : "utf8").digest("hex");
 }
 
+function clockDate(clock = Date) {
+  let value;
+  if (clock === Date) {
+    value = new Date();
+  } else if (typeof clock === "function") {
+    try { value = clock(); }
+    catch (callError) {
+      try { value = Reflect.construct(clock, []); }
+      catch { throw callError; }
+    }
+  } else {
+    value = clock;
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) throw new TypeError("TrustCore clock must return a valid Date or timestamp.");
+  return date;
+}
+
 function nowIso(clock = Date) {
-  return new clock().toISOString();
+  return clockDate(clock).toISOString();
 }
 
 function decodeBase64(value, { min = 1, max = MAX_MLS_MESSAGE_BYTES, field = "data" } = {}) {
@@ -160,7 +178,7 @@ class TrustCore {
     const id = crypto.randomUUID();
     const nonce = crypto.randomBytes(32).toString("base64url");
     const createdAt = this.timestamp();
-    const expiresAt = new this.clock(Date.parse(createdAt) + CHALLENGE_TTL_MS).toISOString();
+    const expiresAt = new Date(Date.parse(createdAt) + CHALLENGE_TTL_MS).toISOString();
     const normalizedTarget = targetDeviceId ? normalizeUuid(targetDeviceId, "targetDeviceId") : null;
     this.db.prepare(`INSERT INTO trust_challenges(id,user_id,purpose,target_device_id,nonce,context_hash,created_at,expires_at,consumed_at)
       VALUES(?,?,?,?,?,?,?,?,NULL)`).run(id, String(userId), purpose, normalizedTarget, nonce, hash(canonical(context)), createdAt, expiresAt);
@@ -325,7 +343,7 @@ class TrustCore {
         const ciphersuite = Number(item?.ciphersuite);
         if (ciphersuite !== MLS_CIPHERSUITE) throw new TrustCoreError("Поддерживается только обязательный MLS ciphersuite 1.", "MLS_CIPHERSUITE_UNSUPPORTED", 400);
         const bytes = decodeBase64(item?.keyPackage, { min: 64, max: MAX_KEY_PACKAGE_BYTES, field: "keyPackage" });
-        const expiresAt = new this.clock(String(item?.expiresAt || ""));
+        const expiresAt = new Date(String(item?.expiresAt || ""));
         const lifetime = expiresAt.getTime() - Date.parse(now);
         if (!Number.isFinite(expiresAt.getTime()) || lifetime < 60 * 60_000 || lifetime > 30 * 24 * 60 * 60_000) {
           throw new TrustCoreError("Срок KeyPackage должен быть от 1 часа до 30 дней.", "MLS_KEY_PACKAGE_EXPIRY_INVALID", 400);
@@ -480,7 +498,7 @@ class TrustCore {
         const welcomeBytes = decodeBase64(item?.welcome, { min: 32, max: MAX_MLS_MESSAGE_BYTES, field: "welcome" });
         const ratchetTree = item?.ratchetTree ? normalizedBase64(item.ratchetTree, { min: 1, max: MAX_MLS_MESSAGE_BYTES, field: "ratchetTree" }) : null;
         const welcomeHash = hash(welcomeBytes);
-        const expiresAt = new this.clock(Date.parse(now) + WELCOME_TTL_MS).toISOString();
+        const expiresAt = new Date(Date.parse(now) + WELCOME_TTL_MS).toISOString();
         this.db.prepare(`INSERT INTO mls_welcome_queue(id,group_id,target_user_id,target_device_id,epoch,welcome_hash,welcome_data,ratchet_tree_data,created_at,expires_at,claimed_at)
           VALUES(?,?,?,?,?,?,?,?,?,?,NULL)`).run(crypto.randomUUID(), id, target.userId, targetDeviceId, next, welcomeHash, welcomeBytes.toString("base64"), ratchetTree, now, expiresAt);
       }
@@ -538,7 +556,7 @@ class TrustCore {
     const bytes = decodeBase64(message, { min: 32, max: MAX_MLS_MESSAGE_BYTES, field: "message" });
     const messageHash = hash(bytes);
     const now = this.timestamp();
-    const expiresAt = new this.clock(Date.parse(now) + REPLAY_TTL_MS).toISOString();
+    const expiresAt = new Date(Date.parse(now) + REPLAY_TTL_MS).toISOString();
     this.db.exec("BEGIN IMMEDIATE");
     try {
       const group = this.db.prepare("SELECT * FROM mls_groups WHERE id=? AND conversation_id=? AND status='active'").get(groupId, String(conversationId));
