@@ -1,0 +1,75 @@
+{
+  "verifiedAt": "2026-07-22T15:19:41Z",
+  "releaseCommit": "23b21c78b8ff78f91bad21007b541f4b290b4358",
+  "tagTarget": "23b21c78b8ff78f91bad21007b541f4b290b4358",
+  "release": {
+    "assets": [
+      {
+        "apiUrl": "https://api.github.com/repos/Onmaynec/Nexora/releases/assets/486096379",
+        "contentType": "application/zip",
+        "createdAt": "2026-07-22T15:18:33Z",
+        "digest": "sha256:0058303ed868e8bc83e028cb647a1c9fd4ee8c14a805fbd7799dfef852aa2203",
+        "downloadCount": 0,
+        "id": "RA_kwDOTe-2_84c-T37",
+        "label": "",
+        "name": "Nexora-3.2.2-source.zip",
+        "size": 1357290,
+        "state": "uploaded",
+        "updatedAt": "2026-07-22T15:18:33Z",
+        "url": "https://github.com/Onmaynec/Nexora/releases/download/v3.2.2/Nexora-3.2.2-source.zip"
+      },
+      {
+        "apiUrl": "https://api.github.com/repos/Onmaynec/Nexora/releases/assets/486096377",
+        "contentType": "application/json",
+        "createdAt": "2026-07-22T15:18:33Z",
+        "digest": "sha256:5d6155fbbca9b86ee6fec10d09d13dcff6e4987af2b8bc3f1fcd0e5da5d4ef94",
+        "downloadCount": 0,
+        "id": "RA_kwDOTe-2_84c-T35",
+        "label": "",
+        "name": "Nexora-3.2.2.spdx.json",
+        "size": 138095,
+        "state": "uploaded",
+        "updatedAt": "2026-07-22T15:18:33Z",
+        "url": "https://github.com/Onmaynec/Nexora/releases/download/v3.2.2/Nexora-3.2.2.spdx.json"
+      },
+      {
+        "apiUrl": "https://api.github.com/repos/Onmaynec/Nexora/releases/assets/486096385",
+        "contentType": "application/zip",
+        "createdAt": "2026-07-22T15:18:33Z",
+        "digest": "sha256:0c94618860995dc9ab19fc206e0d8cea03770726a9257c4294b00ab3f8788f71",
+        "downloadCount": 0,
+        "id": "RA_kwDOTe-2_84c-T4B",
+        "label": "",
+        "name": "Nexora-PWA-3.2.2.zip",
+        "size": 1234477,
+        "state": "uploaded",
+        "updatedAt": "2026-07-22T15:18:33Z",
+        "url": "https://github.com/Onmaynec/Nexora/releases/download/v3.2.2/Nexora-PWA-3.2.2.zip"
+      },
+      {
+        "apiUrl": "https://api.github.com/repos/Onmaynec/Nexora/releases/assets/486096384",
+        "contentType": "text/plain; charset=utf-8",
+        "createdAt": "2026-07-22T15:18:33Z",
+        "digest": "sha256:b3fe6480ffcda830089cd67f3f94c57dbad23ce40650c937d8859f6e6b35b966",
+        "downloadCount": 0,
+        "id": "RA_kwDOTe-2_84c-T4A",
+        "label": "",
+        "name": "SHA256SUMS.txt",
+        "size": 269,
+        "state": "uploaded",
+        "updatedAt": "2026-07-22T15:18:33Z",
+        "url": "https://github.com/Onmaynec/Nexora/releases/download/v3.2.2/SHA256SUMS.txt"
+      }
+    ],
+    "isDraft": false,
+    "isPrerelease": true,
+    "name": "Nexora 3.2.2 — Source/PWA",
+    "publishedAt": "2026-07-22T15:18:33Z",
+    "tagName": "v3.2.2",
+    "targetCommitish": "main",
+    "url": "https://github.com/Onmaynec/Nexora/releases/tag/v3.2.2"
+  },
+  "requiredAssetsPresent": true,
+  "forbiddenUnsignedUpdaterAssetsAbsent": true,
+  "checksumFileVerified": true
+}
