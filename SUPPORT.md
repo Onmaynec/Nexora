@@ -1,48 +1,130 @@
-# Support
+# Nexora Support Policy
 
-Этот репозиторий использует разные каналы для ошибок, предложений, вопросов и уязвимостей. Выберите подходящий канал, чтобы обращение можно было обработать без утечки данных и лишней переписки.
+Nexora is an open-source project maintained through the public repository. Support is provided on a best-effort basis and does not include a guaranteed response or resolution SLA.
 
-## Ошибка продукта
+## Supported product lines
 
-Создайте [Bug report](https://github.com/Onmaynec/Nexora/issues/new?template=bug_report.yml), если проблема воспроизводится в Nexora Client, Server, PWA или Android.
+| Version | Support status |
+|---|---|
+| `3.2.0` Source/PWA prerelease | Controlled testing, defect reports and security fixes accepted |
+| `3.1.x` signed production baseline | Supported |
+| `3.0.x` and earlier | Unsupported except migration/security context |
 
-Перед отправкой:
+When reporting an issue, identify the exact Client, Server and Cloud versions. Do not describe `3.2.0` as a signed stable or independently audited release.
 
-- проверьте, что Client и Server используют совместимые версии;
-- повторите проблему на актуальном поддерживаемом релизе;
-- опишите минимальные шаги воспроизведения;
-- приложите только очищенные логи и скриншоты;
-- удалите cookies, токены, пароли, invite codes, IP-адреса частных сетей и пользовательские данные.
+## Product defects
 
-## Предложение функции
+Use the [Bug report](https://github.com/Onmaynec/Nexora/issues/new?template=bug_report.yml) for a reproducible problem in:
 
-Создайте [Feature request](https://github.com/Onmaynec/Nexora/issues/new?template=feature_request.yml). Опишите проблему пользователя, а не только желаемый интерфейс. Укажите предполагаемое влияние на сервер, клиент, хранение данных, безопасность и совместимость.
+- Windows Client or Server;
+- Browser/PWA;
+- Android;
+- Local Server API/Socket.IO;
+- Trust/MLS or encrypted media;
+- Pulse Cloud/Cloud Identity;
+- installer or updater;
+- documentation.
 
-## Документация
+Before submitting:
 
-Для неточности, устаревшей инструкции или неработающей ссылки используйте шаблон Documentation issue. Небольшие очевидные исправления можно отправлять сразу через Pull Request.
+- reproduce on a supported version;
+- verify Client/Server compatibility;
+- search existing Issues;
+- provide minimum steps and expected/actual result;
+- include platform, deployment type, time and request ID;
+- attach only sanitized logs/screenshots.
 
-## Установка и эксплуатация
+## Product proposals
 
-Перед созданием Issue проверьте:
+Use the [Feature request](https://github.com/Onmaynec/Nexora/issues/new?template=feature_request.yml).
+
+Describe:
+
+- user problem;
+- target users and scenario;
+- expected outcome;
+- Server, Client, storage and realtime impact;
+- security/privacy implications;
+- compatibility and migration implications;
+- acceptance criteria.
+
+A preferred visual design alone is not sufficient when the request changes authorization, data or business rules.
+
+## Documentation
+
+Use the Documentation issue template for:
+
+- stale version or release status;
+- incorrect installation/migration instruction;
+- broken link;
+- contradiction between documents;
+- unsupported product or security claim.
+
+Small unambiguous corrections may be submitted directly as a Pull Request.
+
+## Installation and operations
+
+Review first:
 
 - [README](README.md);
-- [Admin Guide](ADMIN_GUIDE.md);
+- [Documentation Portal](docs/README.md);
+- [Deployment Guide](docs/DEPLOYMENT.md);
+- [Administrator Guide](ADMIN_GUIDE.md);
 - [Tester Guide](TESTER_GUIDE.md);
-- [GitHub Release Guide](docs/GITHUB_RELEASE.md);
+- [Release Policy](docs/RELEASE_POLICY.md);
 - [Security Policy](SECURITY.md).
 
-При вопросе об установке укажите платформу, версию Nexora, способ запуска, используемый HTTPS-адрес и точный текст ошибки. Не публикуйте приватный ключ CA, production credentials, полную базу данных или пользовательские вложения.
+For installation questions provide:
 
-## Уязвимость
+- platform and OS;
+- Nexora version;
+- source/package/PWA channel;
+- Local Server schema;
+- deployment profile;
+- sanitized HTTPS address format;
+- exact error code/message;
+- live/ready status where available.
 
-Не создавайте публичный Issue. Используйте приватный GitHub Security Advisory по инструкции в [SECURITY.md](SECURITY.md).
+Maintainers do not guarantee individual configuration of third-party reverse proxies, firewalls, DNS, payment providers, mail providers or identity infrastructure.
 
-## Что не является каналом поддержки
+## Security vulnerabilities
 
-- Pull Request не предназначен для общих вопросов без изменения файлов;
-- security advisory не предназначен для обычной ошибки интерфейса;
-- публичные Issues не предназначены для передачи секретов, дампов базы или персональных данных;
-- maintainers не гарантируют индивидуальную настройку сторонней инфраструктуры, reverse proxy, firewall или платёжного провайдера.
+Do not create a public Issue. Follow [SECURITY.md](SECURITY.md) and use a private GitHub Security Advisory.
 
-Поддержка предоставляется наилучшим возможным образом и без гарантированного SLA.
+Examples requiring private reporting:
+
+- authorization or IDOR bypass;
+- plaintext downgrade in a secure conversation;
+- Trust device or MLS replay/scope bypass;
+- private-key, token or user-data disclosure;
+- updater signature bypass;
+- payment/ledger duplication or entitlement forgery.
+
+## Information that must not be published
+
+Do not include:
+
+- passwords or backup passphrases;
+- cookies, OAuth/API/bot/Pulse tokens;
+- TOTP seeds or recovery codes;
+- invite codes;
+- CA, signing or device private keys;
+- complete MLS private state;
+- production databases or user attachments;
+- real payment/customer data;
+- unredacted private IP/network inventory;
+- personal data not required for reproduction.
+
+## Channel boundaries
+
+- Pull Requests are for repository changes, not general support questions.
+- Security Advisories are for vulnerabilities, not ordinary UI defects.
+- Public Issues are not a secure file-transfer channel.
+- Discussions do not replace a reproducible bug report.
+- A prerelease limitation documented in release verification is not automatically a defect, but unsafe behavior outside that boundary may be one.
+
+## Response expectations
+
+Maintainers may request additional reproduction evidence, close unsupported-version reports, redirect a request to another template or defer proposals outside the current roadmap.
+
+Security response targets are documented separately in [SECURITY.md](SECURITY.md).
