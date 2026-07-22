@@ -10,10 +10,10 @@ function requestedDeviceId(socket) {
   return String(socket.handshake.auth?.deviceId || socket.request.headers["x-nexora-device-id"] || "").trim().toLowerCase();
 }
 
-function verifiedGroupDeviceIds(db, { conversationId = null, groupRecordId = null } = {}) {
+function verifiedGroupRecipients(db, { conversationId = null, groupRecordId = null } = {}) {
   if (!db || (!conversationId && !groupRecordId)) return [];
   const rows = db.prepare(`
-    SELECT DISTINCT gm.device_id
+    SELECT DISTINCT gm.user_id, gm.device_id
     FROM mls_group_members gm
     JOIN mls_groups g ON g.id=gm.group_id
     JOIN trust_devices d ON d.id=gm.device_id AND d.user_id=gm.user_id
@@ -23,20 +23,27 @@ function verifiedGroupDeviceIds(db, { conversationId = null, groupRecordId = nul
       AND d.trust_state='verified'
       AND (? IS NULL OR g.conversation_id=?)
       AND (? IS NULL OR g.id=?)
-    ORDER BY gm.device_id
+    ORDER BY gm.user_id, gm.device_id
   `).all(
     conversationId == null ? null : String(conversationId),
     conversationId == null ? null : String(conversationId),
     groupRecordId == null ? null : String(groupRecordId).toLowerCase(),
     groupRecordId == null ? null : String(groupRecordId).toLowerCase(),
   );
-  return rows.map((row) => String(row.device_id).toLowerCase());
+  return rows.map((row) => ({ userId: String(row.user_id), deviceId: String(row.device_id).toLowerCase() }));
+}
+
+function verifiedGroupDeviceIds(db, scope) {
+  return verifiedGroupRecipients(db, scope).map((item) => item.deviceId);
 }
 
 function emitToVerifiedGroupDevices(io, db, scope, event, payload) {
-  const deviceIds = verifiedGroupDeviceIds(db, scope);
-  for (const deviceId of deviceIds) io.to(trustDeviceRoom(deviceId)).emit(event, payload);
-  return deviceIds;
+  const recipients = verifiedGroupRecipients(db, scope);
+  for (const recipient of recipients) {
+    const value = typeof payload === "function" ? payload(recipient) : payload;
+    io.to(trustDeviceRoom(recipient.deviceId)).emit(event, value);
+  }
+  return recipients;
 }
 
 function disconnectTrustDevice(io, deviceId, payload = {}) {
@@ -89,4 +96,5 @@ module.exports = {
   requestedDeviceId,
   trustDeviceRoom,
   verifiedGroupDeviceIds,
+  verifiedGroupRecipients,
 };
