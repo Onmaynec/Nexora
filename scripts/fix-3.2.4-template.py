@@ -31,8 +31,13 @@ for before, after in replacements:
         source = source.replace(before, after)
         applied += 1
 
-if applied < 18:
-    raise SystemExit(f"Only {applied} template corrections applied; expected at least 18")
+noop_anchor = 'replace("client/src/crypto/trust-client.js", "async function claimWelcome(device, conversationId) {", "async function claimWelcome(device, conversationId) {", "claimWelcome anchor");\n'
+if noop_anchor in source:
+    source = source.replace(noop_anchor, "")
+    applied += 1
+
+if applied < 19:
+    raise SystemExit(f"Only {applied} patch corrections applied; expected at least 19")
 
 file.write_text(source, encoding="utf-8")
-print(f"Applied {applied} template corrections")
+print(f"Applied {applied} patch corrections")
