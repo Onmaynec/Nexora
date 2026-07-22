@@ -16,6 +16,13 @@ function mountPulseProductRoutes({ app, authRequired, client, repository, syncWo
     if (!/^[A-Za-z0-9_.:-]{12,128}$/.test(key)) throw new PulseRepositoryError("Idempotency-Key обязателен.", "IDEMPOTENCY_KEY_REQUIRED", 400);
     return key;
   };
+  const requireRoomOwner = (userId, roomId) => {
+    if (!roomId || !store) return null;
+    const room = store.read((state) => state.rooms.find((item) => item.id === roomId));
+    if (!room) throw new PulseRepositoryError("Комната не найдена.", "RESOURCE_NOT_FOUND", 404);
+    if (room.ownerId !== userId) throw new PulseRepositoryError("Покупки для комнаты доступны только владельцу.", "PERMISSION_DENIED", 403);
+    return room;
+  };
   const emitUser = (userId, eventType, payload) => {
     if (!io) return;
     io.to(`user:${userId}`).emit(eventType, payload);
@@ -40,12 +47,14 @@ function mountPulseProductRoutes({ app, authRequired, client, repository, syncWo
   app.get("/api/v3/pulse/catalog", authRequired, asyncRoute(async (request, response) => {
     const userId = request.pulseAuth.user.id;
     const roomId = String(request.query.roomId || "").trim() || null;
+    if (roomId) requireRoomOwner(userId, roomId);
     if (sandbox?.enabled()) {
       return response.json({ ok: true, requestId: request.pulseRequestId, cached: false, catalog: sandbox.catalog(userId, roomId) });
     }
     repository.requireLinked(userId);
-    const result = await client.catalog(userId, { roomId, requestId: request.pulseRequestId });
-    response.json({ ok: true, requestId: result.requestId, cached: false, catalog: result.catalog });
+    const query = roomId ? `?roomId=${encodeURIComponent(roomId)}` : "";
+    const result = await client.request(`/v1/servers/${encodeURIComponent(client.serverId)}/users/${encodeURIComponent(userId)}/catalog${query}`, { userId, roomId, requestId: request.pulseRequestId });
+    response.json({ ok: true, requestId: result.requestId, cached: false, catalog: result.payload.catalog || [] });
   }));
 
   app.post("/api/v3/pulse/purchases", authRequired, asyncRoute(async (request, response) => {
@@ -53,14 +62,23 @@ function mountPulseProductRoutes({ app, authRequired, client, repository, syncWo
     const productCode = String(request.body?.productCode || "").trim();
     const roomId = String(request.body?.roomId || "").trim() || null;
     const key = idempotency(request);
+    if (roomId) requireRoomOwner(userId, roomId);
     let result;
     let requestId = request.pulseRequestId;
     if (sandbox?.enabled()) {
       result = await sandbox.purchase(userId, productCode, { roomId, idempotencyKey: key, actor: userId });
     } else {
       repository.requireLinked(userId);
-      const cloud = await client.purchaseProduct(userId, { productCode, roomId, idempotencyKey: key, requestId });
-      result = cloud.result;
+      const cloud = await client.request(`/v1/servers/${encodeURIComponent(client.serverId)}/users/${encodeURIComponent(userId)}/purchases`, {
+        method: "POST",
+        body: { productCode, roomId },
+        idempotencyKey: key,
+        requestId,
+        userId,
+        roomId,
+        productCode,
+      });
+      result = cloud.payload;
       requestId = cloud.requestId;
       if (result?.entitlement) {
         await store?.mutate?.((state) => {
