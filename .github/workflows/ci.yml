@@ -11,7 +11,7 @@ jobs:
   apply-device-scoped-realtime:
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 12
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
         with:
@@ -21,13 +21,17 @@ jobs:
         with:
           node-version: 22.16.0
           cache: npm
-      - run: npm ci
-      - name: Apply guarded realtime patch and restore CI
-        shell: bash
+      - name: Install dependencies
+        run: npm ci
+      - name: Apply guarded realtime patch
         run: |
-          set -euo pipefail
+          set -euxo pipefail
           test -f scripts/apply-device-scoped-realtime.cjs
           node scripts/apply-device-scoped-realtime.cjs
+          git diff --check
+      - name: Remove patcher and restore standard CI
+        run: |
+          set -euxo pipefail
           rm scripts/apply-device-scoped-realtime.cjs
           cat > .github/workflows/ci.yml <<'YAML'
           name: CI
@@ -95,9 +99,14 @@ jobs:
                 - run: gradle -p android :app:assembleDebug --no-daemon
           YAML
           git diff --check
-          npm run check
+      - name: Verify patched production build
+        run: npm run check
+      - name: Commit and push patched branch
+        run: |
+          set -euxo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add server/trust-routes.cjs server/mls-transport.cjs client/src/crypto/trust-client.js client/src/App.jsx scripts/apply-device-scoped-realtime.cjs .github/workflows/ci.yml
+          git diff --cached --check
           git commit -m "feat(trust): scope secure realtime delivery to verified devices"
           git push origin HEAD:agent/nexora-3.2.0-trust-core-mls
