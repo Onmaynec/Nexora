@@ -23,6 +23,7 @@
 | `agent/nexora-3.1.2-bugfix` | Intermediate 3.1.2 regression fixes | Superseded by clean final branch |
 | `agent/nexora-3.1.2-final` | Verified 3.1.2 final branch | Merged through PR #10 |
 | `docs/sync-3.1.2` | Stable documentation synchronization | Merged through PR #13 |
+| `docs/branch-status-index` | Central branch-status index and README link | Merged through PR #14 |
 
 ## Obsolete automation branches
 
