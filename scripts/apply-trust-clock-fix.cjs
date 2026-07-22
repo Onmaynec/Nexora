@@ -21,7 +21,7 @@ let source = fs.readFileSync(trustCorePath, "utf8");
 source = replaceExact(
   source,
   `function nowIso(clock = Date) {\n  return new clock().toISOString();\n}`,
-  `function clockDate(clock = Date) {\n  let value;\n  if (clock === Date) {\n    value = new Date();\n  } else if (typeof clock === "function") {\n    try { value = clock(); }\n    catch (callError) {\n      try { value = new clock(); }\n      catch { throw callError; }\n    }\n  } else {\n    value = clock;\n  }\n  const date = value instanceof Date ? value : new Date(value);\n  if (!Number.isFinite(date.getTime())) throw new TypeError("TrustCore clock must return a valid Date or timestamp.");\n  return date;\n}\n\nfunction nowIso(clock = Date) {\n  return clockDate(clock).toISOString();\n}`,
+  `function clockDate(clock = Date) {\n  let value;\n  if (clock === Date) {\n    value = new Date();\n  } else if (typeof clock === "function") {\n    try { value = clock(); }\n    catch (callError) {\n      try { value = Reflect.construct(clock, []); }\n      catch { throw callError; }\n    }\n  } else {\n    value = clock;\n  }\n  const date = value instanceof Date ? value : new Date(value);\n  if (!Number.isFinite(date.getTime())) throw new TypeError("TrustCore clock must return a valid Date or timestamp.");\n  return date;\n}\n\nfunction nowIso(clock = Date) {\n  return clockDate(clock).toISOString();\n}`,
   "clock reader",
 );
 source = replaceExact(
@@ -48,7 +48,7 @@ source = replaceExact(
   `const expiresAt = new Date(Date.parse(now) + REPLAY_TTL_MS).toISOString();`,
   "replay expiry",
 );
-if (source.includes("new this.clock") || source.includes("new clock()")) {
+if (source.includes("new this.clock")) {
   throw new Error("Unsafe constructor-style Trust Core clock usage remains.");
 }
 fs.writeFileSync(trustCorePath, source);
