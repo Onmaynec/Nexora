@@ -16,6 +16,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  issues: write
 
 concurrency:
   group: pages
@@ -71,3 +72,22 @@ jobs:
           done
           echo "GitHub Pages did not expose redesign-20260722-2 within the verification window." >&2
           exit 1
+      - name: Record live verification
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          marker='<!-- nexora-pages-redesign-20260722-2 -->'
+          comments="$(gh api "repos/${GITHUB_REPOSITORY}/issues/28/comments" --paginate --jq '.[].body' || true)"
+          if grep -Fq "$marker" <<<"$comments"; then
+            echo "Live verification was already recorded."
+            exit 0
+          fi
+          printf -v body '%s\n\nLive GitHub Pages verification passed for `%s`.\n\nPublished URL: %s\nSource commit: `%s`' \
+            "$marker" \
+            'redesign-20260722-2' \
+            "$PAGE_URL" \
+            "$GITHUB_SHA"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/28/comments" -f body="$body"
