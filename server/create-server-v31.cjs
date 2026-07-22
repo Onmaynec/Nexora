@@ -101,7 +101,16 @@ async function createNexoraServer(options = {}) {
       log,
       intervalMs: options.pulseSyncIntervalMs ?? process.env.NEXORA_PULSE_SYNC_INTERVAL_MS,
     });
-    mountPulseProductRoutes({ app: instance.app, authRequired: pulseRoutes.authRequired, client, repository, syncWorker });
+    mountPulseProductRoutes({
+      app: instance.app,
+      authRequired: pulseRoutes.authRequired,
+      client,
+      repository,
+      syncWorker,
+      sandbox,
+      io: instance.io,
+      store: instance.store,
+    });
     const trustRoutes = mountTrustRoutes({ app: instance.app, store: instance.store, io: instance.io, trustCore, log });
     mountTrustRecoveryRoutes({ app: instance.app, trustCore, ...trustRoutes });
     const mlsTransport = mountMlsTransport({ io: instance.io, store: instance.store, trustCore, log });
