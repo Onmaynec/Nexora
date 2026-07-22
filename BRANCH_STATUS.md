@@ -1,9 +1,15 @@
 # Branch Status — `agent/nexora-3.1.2-bugfix`
 
-- Target: Nexora 3.1.2 regression fixes.
-- Historical Pull Request: `#9`.
-- Status: closed after a clean final branch was materialized in PR #10.
+| Field | Value |
+|---|---|
+| Classification | Superseded unmerged development provenance |
+| Branch-local target | Nexora `3.1.2` regression fixes |
+| Related Pull Request | PR `#9`, closed without merge |
+| Superseded by | `agent/nexora-3.1.2-final`, PR `#10` |
+| Current source of truth | `main`, Nexora `3.2.4` |
 
-This branch contains development history for the voice dock, updater and Local Pulse sandbox fixes. It is not the merged release source and may include intermediate commits or temporary materialization state.
+This branch contains intermediate work for the voice dock, updater lifecycle and Local Pulse sandbox corrections. It may include temporary materialization state and is not the merged release source.
 
-Use `main` for authoritative 3.1.2 documentation and `agent/nexora-3.1.2-final` only for historical final-branch comparison.
+Do not merge, tag, publish or resume work from this branch. Use branch-local documents only for historical investigation.
+
+Current product and release documentation is maintained on `main` through `docs/README.md`.
