@@ -8,7 +8,7 @@ const { test } = require("node:test");
 
 const root = path.resolve(__dirname, "..");
 
-test("релиз 3.2.5 собирает проверяемые артефакты без native SQLite", () => {
+test("релиз 3.3.0 собирает проверяемые артефакты без native SQLite", () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
   const lock = fs.readFileSync(path.join(root, "package-lock.json"), "utf8");
   const client = fs.readFileSync(path.join(root, "electron-builder.client.yml"), "utf8");
@@ -41,14 +41,22 @@ test("релиз 3.2.5 собирает проверяемые артефакт�
   assert.match(client, /releaseType:\s*draft/);
   assert.match(updater, /autoInstallOnAppQuit\s*=\s*automatic/);
   assert.match(updater, /owner:\s*"Onmaynec"/);
+
   assert.match(releaseWorkflow, /SHA256SUMS\.txt/);
   assert.match(releaseWorkflow, /Nexora-\$version-source\.zip/);
-  assert.match(releaseWorkflow, /sbom --omit=dev --sbom-format=spdx/);
+  assert.match(releaseWorkflow, /npm sbom --omit=dev --sbom-format=spdx/);
   assert.match(releaseWorkflow, /steps\.signing\.outputs\.available == 'true'/);
-  assert.match(releaseWorkflow, /Publish source and PWA prerelease/);
-  assert.match(releaseWorkflow, /--publish always/);
+  assert.match(releaseWorkflow, /Build signed Windows installers/);
+  assert.match(releaseWorkflow, /Build explicitly unsigned Windows test installers/);
+  assert.match(releaseWorkflow, /Nexora-Client-Setup-\$version-UNSIGNED-TEST\.exe/);
+  assert.match(releaseWorkflow, /Nexora-Server-Setup-\$version-UNSIGNED-TEST\.exe/);
+  assert.match(releaseWorkflow, /Nexora-Android-\$version-UNSIGNED-TEST\.apk/);
   assert.match(releaseWorkflow, /--publish never/);
-  assert.match(releaseWorkflow, /gh release edit \$tag[^\n]*--draft=false/);
+  assert.doesNotMatch(releaseWorkflow, /--publish always/);
+  assert.match(releaseWorkflow, /gh release create[\s\S]*--prerelease/);
+  assert.match(releaseWorkflow, /Unsigned release must not expose updater metadata/);
+  assert.match(releaseWorkflow, /\$names -contains "latest\.yml"/);
+  assert.match(releaseWorkflow, /\\\.blockmap\$/);
   assert.doesNotMatch(releaseWorkflow, /release upload .*--clobber/);
   assert.match(releaseWorkflow, /workflow_run:/);
   assert.match(releaseWorkflow, /startsWith\(github\.event\.workflow_run\.head_commit\.message, 'release:'\)/);

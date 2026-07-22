@@ -8,6 +8,7 @@ import "./styles.css";
 import "./secure-messaging.css";
 import "./trust-devices.css";
 import "./onboarding.css";
+import "./confirm-dialog.css";
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>

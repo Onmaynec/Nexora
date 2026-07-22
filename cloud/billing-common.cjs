@@ -4,6 +4,7 @@ const crypto = require("node:crypto");
 const path = require("node:path");
 const fs = require("node:fs");
 const { DatabaseSync } = require("node:sqlite");
+const { PULSE_CATALOG } = require("../shared/pulse-catalog.cjs");
 
 const IMPULSE_CURRENCY = "IMPULSE";
 const PLUS_PRODUCT = "nexora_plus";
@@ -91,6 +92,8 @@ class BillingBase {
   createSchema() {
     const schemaFile = path.join(__dirname, "schema.sql");
     this.db.exec(fs.readFileSync(schemaFile, "utf8"));
+    const catalogSchemaFile = path.join(__dirname, "schema-3.3.sql");
+    if (fs.existsSync(catalogSchemaFile)) this.db.exec(fs.readFileSync(catalogSchemaFile, "utf8"));
   }
 
   seedCatalog() {
@@ -102,11 +105,27 @@ class BillingBase {
         product_type=excluded.product_type,
         impulse_amount=excluded.impulse_amount,
         entitlement_duration_days=excluded.entitlement_duration_days,
+        active=excluded.active,
         metadata_json=excluded.metadata_json
     `);
     insert.run(PLUS_PRODUCT, "Nexora Plus", "subscription", 0, 30, JSON.stringify({ monthlyGrant: MONTHLY_PLUS_IMPULSES }));
     insert.run("impulse_pack_500", "500 Импульсов", "impulse_pack", 500, 0, "{}");
-    insert.run("room_reaction_pack", "Пакет реакций комнаты", "room_entitlement", 0, 30, "{}");
+    for (const product of PULSE_CATALOG) {
+      insert.run(
+        product.code,
+        product.displayName,
+        product.scope === "room" ? "room_entitlement" : "user_entitlement",
+        0,
+        product.durationDays,
+        JSON.stringify({
+          category: product.category,
+          scope: product.scope,
+          priceImpulses: product.priceImpulses,
+          description: product.description,
+          effect: product.effect,
+        }),
+      );
+    }
   }
 
   transaction(callback) {
@@ -129,6 +148,7 @@ module.exports = {
   IMPULSE_CURRENCY,
   MONTHLY_PLUS_IMPULSES,
   PLUS_PRODUCT,
+  nowIso,
   parseJson,
   requireId,
   requirePositiveInt,

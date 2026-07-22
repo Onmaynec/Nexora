@@ -1,75 +1,96 @@
-# Статус выпуска Nexora 3.2.5
+# Статус выпуска Nexora 3.3.0
 
 ## Классификация
 
 | Параметр | Значение |
 |---|---|
-| Repository branch | `main` |
-| Version | `3.2.5` |
-| Base version | `3.2.4` |
-| Source Pull Request | PR `#25` |
-| Merge commit | `df671ce63e71c5736f13d2fa3d7db36466efc780` |
-| Release tag | `v3.2.5` |
-| Distribution | Source/PWA prerelease |
-| Stable signed baseline | `3.1.2` |
-| Signed stable 3.2.5 approval | не предоставлен |
-| Independent E2EE audit | не выполнен |
+| Repository branch | `agent/nexora-3.3.0-full-release` |
+| Version | `3.3.0` |
+| Base version | `3.2.5` |
+| Source Pull Request | PR `#38` |
+| Runtime candidate | `32743436bbce99dc9632d28eeb44367d8554fbb7` |
+| Evidence head | release documentation commit after verified runtime candidate |
+| Release tag | `v3.3.0` after merge and main CI |
+| Distribution | signed release with Authenticode; otherwise complete `UNSIGNED-TEST` prerelease |
+| Stable signed baseline | `3.1.2` until a signed 3.3.0 publication exists |
+| Independent E2EE audit | not performed |
 
-Nexora `3.2.5` является текущей prerelease-линией в `main`. Версия предназначена для контролируемого Source/PWA-тестирования. Она не является подтверждённым подписанным Windows stable release и не должна описываться как independently audited E2EE.
+Nexora `3.3.0` remains a release candidate until PR merge, successful CI on the merge commit, immutable tag creation and GitHub Release asset verification.
 
-## Реализовано
+## Implemented
 
-- системный Windows-диалог изменений заменён на доступное окно внутри Nexora Client;
-- `plus grant`, `plus revoke` и `impulses grant|revoke` используют канонический `userId` и корректно сохраняются в SQLite;
-- старые sandbox-снимки с `localUserId` нормализуются без ручного изменения базы;
-- изображения автоматически расшифровываются локально и отображаются inline;
-- голосовые используют waveform-плеер с play/pause, перемоткой, длительностью и скоростью;
-- обычные файлы сохраняют явное локальное открытие и скачивание;
-- MLS group-creation race и временное отсутствие подходящего KeyPackage переходят в безопасный Welcome request/wait;
-- отправка сообщений и медиа больше не запускает полный bootstrap refresh;
-- realtime обновляет сообщение и превью чата локально;
-- строки сообщений мемоизированы, а автопрокрутка сохраняет позицию пользователя;
-- интерактивная сеть ограничена областью истории сообщений;
-- controls, disabled-состояния и scrollbars Nexora Server приведены к общей теме;
-- локальная `npm run release:windows` отделена от обязательной подписи, а production-публикация остаётся signed-only.
+### Trust and messages
 
-## Автоматические доказательства
+- `Welcome claim` limits are isolated per conversation;
+- Client coalescing and `Retry-After` eliminate the MLS recovery request storm;
+- old and new DMs/rooms no longer share one device recovery bucket;
+- no plaintext fallback was introduced;
+- regular and secure message deletion is confirmed inside the application;
+- the inert lock control was removed from the secure composer.
 
-Кодовый кандидат `805a231190883c406abf1c016a6241ca8bdd2a25` прошёл расширенный Windows workflow run `29953309887`:
+### Voice and media UX
 
+- waveform is calculated using RMS/peak and normalized for each recording;
+- the played segment changes color and animates;
+- seek, duration and playback rate remain available;
+- echo cancellation, noise suppression and auto gain are requested when supported.
+
+### Plus, Impulses and Pulse
+
+- a spendable catalog was added for profile, message, reaction and room customization;
+- debit and entitlement issuance are atomic and idempotent;
+- negative balance and duplicate charging are rejected;
+- room purchases require the owner role;
+- Sandbox independently serves catalog, receipts, goals, contributions, refunds and entitlements;
+- Cloud schema includes the additive `impulse_purchases` migration;
+- production entitlements are signed with Ed25519; Sandbox entitlements remain explicitly local.
+
+### Website and distribution
+
+- the website was redesigned for 3.3.0 with safe Cyrillic typography;
+- RU/EN and GitHub controls have corrected hit testing;
+- download cards resolve actual GitHub Release assets;
+- without Authenticode, Client/Server `.exe` and Android `.apk` are published with `UNSIGNED-TEST` suffixes;
+- the unsigned path publishes no `latest.yml` or `.blockmap`;
+- Source ZIP, PWA ZIP, SPDX SBOM and SHA-256 checksums are produced in both modes;
+- release publication is serialized and does not recursively start from its own newly created tag.
+
+## Verified release candidate
+
+Runtime candidate `32743436bbce99dc9632d28eeb44367d8554fbb7` passed:
+
+- CI `29966678997`;
 - `npm run check`;
 - `npm run test:unit`;
 - `npm run test:performance`;
 - `npm run audit:security`;
 - `npm run release:check`;
-- real-SQLite regression suite 3.2.5;
-- `npm run release:windows` и проверку наличия Client/Server installers;
 - Linux `npm test`;
 - schema 8 soak;
-- Android `assembleDebug`.
+- Android `assembleDebug`;
+- focused Nexora 3.3 regressions `29966678998`;
+- Project website gate `29966678986`.
 
-Финальный head PR с документацией прошёл current-head CI run `29953988948`: `verify`, `release-gate`, `schema8-soak`, `linux-tests` и `android-source` завершились успешно.
+The current branch head contains only subsequent release-evidence and release-pipeline hardening changes and is required to pass the same current-head checks before merge.
 
-Подробный отчёт: [RELEASE_VERIFICATION_3.2.5.md](RELEASE_VERIFICATION_3.2.5.md).
+## Compatibility
 
-## Совместимость
+- Local Server schema: `8`, without a new local migration;
+- Cloud DB: idempotent additive migration `cloud/schema-3.3.sql`;
+- Application API: v3, compatible extension;
+- Trust/MLS/encrypted-media API: v4, compatible recovery fix;
+- upgrade supported from Nexora `3.2.0–3.2.5`.
 
-- Local Server schema: `8`, без новой миграции;
-- Application API: v3, без breaking changes;
-- Trust/MLS/encrypted-media API: v4, совместимое исправление;
-- обновление поддерживается с Nexora `3.2.0–3.2.4`;
-- схема 7 → 8 по-прежнему требуется только для данных линии 3.1.x.
+## Security boundary
 
-## Граница безопасности
+Local Server does not receive plaintext secure messages, private MLS state, secure-attachment keys, source names, actual MIME, attachment signatures, voice duration or waveform. It sees service metadata: account/device identifiers, membership, conversation scope, timing, network context, ciphertext size and delivery events.
 
-Local Server не получает plaintext защищённых сообщений, private MLS state, ключи secure-вложений, исходные имена, фактический MIME, подписи, длительность голосового или waveform. Сервер продолжает видеть служебные метаданные: идентификаторы аккаунтов и устройств, membership, conversation scope, время, сетевой контекст, размер ciphertext и события доставки.
+Pulse catalog does not paywall communication and does not alter Trust permissions. Rights, scope and debit are checked server-side. Plaintext downgrade, client-defined price and direct room-scope bypass were not added.
 
-MLS fast path используется только для уже сохранённого локального state и не отключает серверные проверки доступа, epoch, commit и Welcome. Plaintext fallback не добавлен.
+## Real limitations
 
-## Ограничения выпуска
-
-- локально собранные Windows installers не являются подписанным production-релизом;
-- для stable Windows-публикации необходимы Authenticode secrets и installed auto-update E2E;
-- physical Android runtime matrix не заменяется source build;
-- независимый криптографический и application-security аудит не выполнен;
-- metadata/traffic-analysis resistance не заявляется.
+- without Authenticode and an Android release keystore, binaries are `UNSIGNED-TEST`, not production-signed;
+- Android test APK does not replace physical-device testing;
+- independent cryptographic and application-security audit has not been performed;
+- traffic-analysis resistance is not claimed;
+- voice/video calls and screen sharing are outside 3.3.0.

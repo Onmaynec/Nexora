@@ -88,7 +88,14 @@ const checks = [
   ["GitHub Releases client updater", /provider:\s*["']github["']/, read("electron/update-service.cjs")],
   ["Windows update signature verification", /verifyUpdateCodeSignature:\s*true/, read("electron-builder.client.yml")],
   ["GitHub update metadata publishing", /publishAutoUpdate:\s*true/, read("electron-builder.client.yml")],
-  ["Unsigned release excludes updater assets", /Publish source and PWA prerelease[\s\S]*sourceAssets[\s\S]*Explain Windows signing gate/, releaseWorkflow],
+  ["Unsigned release excludes updater assets", containsAll(releaseWorkflow, [
+    "Nexora-Client-Setup-$version-UNSIGNED-TEST.exe",
+    "Nexora-Server-Setup-$version-UNSIGNED-TEST.exe",
+    "Nexora-Android-$version-UNSIGNED-TEST.apk",
+    "Unsigned release must not expose updater metadata",
+    '$names -contains "latest.yml"',
+    "\\.blockmap$",
+  ]), "boolean"],
   ["No native SQLite dependency", !/better-sqlite3/.test(read("package.json")), "boolean"],
 ];
 let failed = false;
