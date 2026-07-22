@@ -7,6 +7,8 @@ const { promisify } = require("node:util");
 const { SqliteStore } = require("./store.cjs");
 
 const scrypt = promisify(crypto.scrypt);
+const SECURITY_HISTORY_RETENTION_MS = 90 * 24 * 60 * 60_000;
+const RATE_LIMIT_RETENTION_MS = 24 * 60 * 60_000;
 
 function safeTimestamp(value = new Date()) {
   return value.toISOString().replace(/[:.]/g, "-");
@@ -66,9 +68,13 @@ class MaintenanceService {
       fs.mkdir(this.backupsDir, { recursive: true }),
     ]);
     await this.cleanupFiles();
+    await this.cleanupSecurityState();
     await this.ensureAutomaticBackup();
     this.timer = setInterval(() => {
-      this.cleanupFiles().then(() => this.ensureAutomaticBackup()).catch((error) => this.log(`Фоновое обслуживание: ${error.message}`, "warn"));
+      this.cleanupFiles()
+        .then(() => this.cleanupSecurityState())
+        .then(() => this.ensureAutomaticBackup())
+        .catch((error) => this.log(`Фоновое обслуживание: ${error.message}`, "warn"));
     }, 60 * 60 * 1000);
     this.timer.unref?.();
     return this;
@@ -77,6 +83,32 @@ class MaintenanceService {
   stop() {
     clearInterval(this.timer);
     this.timer = null;
+  }
+
+  async cleanupSecurityState({ now = Date.now() } = {}) {
+    const securityCutoff = Number(now) - SECURITY_HISTORY_RETENTION_MS;
+    const rateLimitCutoff = Number(now) - RATE_LIMIT_RETENTION_MS;
+    let removed = { sessions: 0, loginAttempts: 0, rateLimits: 0 };
+    await this.store.mutate((state) => {
+      const sessions = Array.isArray(state.sessions) ? state.sessions : [];
+      const loginAttempts = Array.isArray(state.loginAttempts) ? state.loginAttempts : [];
+      const rateLimits = Array.isArray(state.rateLimits) ? state.rateLimits : [];
+      const nextSessions = sessions.filter((item) => Date.parse(item.expiresAt) > Number(now));
+      const nextLoginAttempts = loginAttempts.filter((item) => Date.parse(item.createdAt) >= securityCutoff);
+      const nextRateLimits = rateLimits.filter((item) => Date.parse(item.windowStartedAt) >= rateLimitCutoff);
+      removed = {
+        sessions: sessions.length - nextSessions.length,
+        loginAttempts: loginAttempts.length - nextLoginAttempts.length,
+        rateLimits: rateLimits.length - nextRateLimits.length,
+      };
+      state.sessions = nextSessions;
+      state.loginAttempts = nextLoginAttempts;
+      state.rateLimits = nextRateLimits;
+    });
+    if (removed.sessions || removed.loginAttempts || removed.rateLimits) {
+      this.log(`Очистка security state: сессий ${removed.sessions}, login history ${removed.loginAttempts}, rate-limit buckets ${removed.rateLimits}`);
+    }
+    return removed;
   }
 
   async cleanupFiles(options = {}) {

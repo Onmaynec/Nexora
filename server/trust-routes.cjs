@@ -15,6 +15,7 @@ const {
 } = require("./model.cjs");
 const { MLS_CIPHERSUITE, TrustCoreError, canonical, hash } = require("./trust-core.cjs");
 const { disconnectTrustDevice, emitToVerifiedGroupDevices } = require("./trust-socket.cjs");
+const { createSlidingWindowRateLimiter } = require("./rate-limit.cjs");
 
 function requestId(value) {
   const text = String(value || "");
@@ -31,6 +32,23 @@ function stableError(response, error, id) {
 
 function mountTrustRoutes({ app, store, io, trustCore, log = () => {} } = {}) {
   if (!app || !store || !io || !trustCore) throw new Error("Trust routes require app, store, io and trustCore.");
+
+  const trustRateLimits = Object.freeze({
+    directory: createSlidingWindowRateLimiter({ windowMs: 60 * 60_000, limit: 100, maxBuckets: 20_000 }),
+    registrationChallenge: createSlidingWindowRateLimiter({ windowMs: 60 * 60_000, limit: 20, maxBuckets: 20_000 }),
+    deviceRegistration: createSlidingWindowRateLimiter({ windowMs: 60 * 60_000, limit: 10, maxBuckets: 20_000 }),
+    keyPackageUpload: createSlidingWindowRateLimiter({ windowMs: 60 * 60_000, limit: 60, maxBuckets: 20_000 }),
+    keyPackageClaim: createSlidingWindowRateLimiter({ windowMs: 60 * 60_000, limit: 120, maxBuckets: 20_000 }),
+    recovery: createSlidingWindowRateLimiter({ windowMs: 60 * 60_000, limit: 240, maxBuckets: 20_000 }),
+  });
+
+  function enforceRateLimit(limiter, key, response, message = "Слишком много запросов к Trust Core.") {
+    const decision = limiter.consume(key);
+    if (decision.allowed) return decision;
+    const retryAfter = Math.max(1, Math.ceil(decision.retryAfterMs / 1000));
+    response.setHeader("Retry-After", String(retryAfter));
+    throw new TrustCoreError(message, "RATE_LIMITED", 429, { retryAfter });
+  }
 
   function context(request, response, next) {
     request.trustRequestId = requestId(request.headers["x-request-id"]);
@@ -124,6 +142,7 @@ function mountTrustRoutes({ app, store, io, trustCore, log = () => {} } = {}) {
   });
 
   app.get("/api/v4/trust/users/:userId/devices", asyncRoute(async (request, response) => {
+    enforceRateLimit(trustRateLimits.directory, String(request.ip || "unknown"), response, "Слишком много запросов каталога устройств.");
     if (!usersCanExchangeKeys(request.trustAuth.user.id, request.params.userId)) {
       throw new TrustCoreError("Устройства пользователя недоступны.", "PERMISSION_DENIED", 403);
     }
@@ -132,6 +151,14 @@ function mountTrustRoutes({ app, store, io, trustCore, log = () => {} } = {}) {
 
   app.post("/api/v4/trust/challenges", asyncRoute(async (request, response) => {
     const purpose = String(request.body?.purpose || "");
+    if (purpose === "register_device") {
+      enforceRateLimit(
+        trustRateLimits.registrationChallenge,
+        `${request.trustAuth.user.id}:${request.ip || "unknown"}`,
+        response,
+        "Слишком много запросов регистрации устройства.",
+      );
+    }
     const actorDeviceId = request.headers["x-nexora-device-id"] ? deviceId(request) : null;
     let targetDeviceId = request.body?.targetDeviceId || null;
     let challengeContext = request.body?.context || {};
@@ -166,6 +193,12 @@ function mountTrustRoutes({ app, store, io, trustCore, log = () => {} } = {}) {
   }));
 
   app.post("/api/v4/trust/devices", asyncRoute(async (request, response) => {
+    enforceRateLimit(
+      trustRateLimits.deviceRegistration,
+      `${request.trustAuth.user.id}:${request.ip || "unknown"}`,
+      response,
+      "Слишком много регистраций устройств.",
+    );
     const result = trustCore.registerDevice({
       userId: request.trustAuth.user.id,
       challengeId: request.body?.challengeId,
@@ -207,22 +240,36 @@ function mountTrustRoutes({ app, store, io, trustCore, log = () => {} } = {}) {
   }));
 
   app.post("/api/v4/trust/key-packages", asyncRoute(async (request, response) => {
+    const requesterDeviceId = deviceId(request);
+    enforceRateLimit(
+      trustRateLimits.keyPackageUpload,
+      `${request.trustAuth.user.id}:${requesterDeviceId}`,
+      response,
+      "Слишком много загрузок KeyPackage.",
+    );
     const packages = trustCore.uploadKeyPackages({
       userId: request.trustAuth.user.id,
-      deviceId: deviceId(request),
+      deviceId: requesterDeviceId,
       packages: request.body?.packages,
     });
     response.status(201).json({ ok: true, requestId: request.trustRequestId, packages });
   }));
 
   app.post("/api/v4/trust/users/:userId/key-packages/claim", asyncRoute(async (request, response) => {
+    const requesterDeviceId = deviceId(request);
+    enforceRateLimit(
+      trustRateLimits.keyPackageClaim,
+      `${request.trustAuth.user.id}:${requesterDeviceId}`,
+      response,
+      "Слишком много запросов KeyPackage.",
+    );
     if (!usersCanExchangeKeys(request.trustAuth.user.id, request.params.userId)) {
       throw new TrustCoreError("KeyPackage пользователя недоступен.", "PERMISSION_DENIED", 403);
     }
     const keyPackage = trustCore.claimKeyPackage({
       targetUserId: request.params.userId,
       requesterUserId: request.trustAuth.user.id,
-      requesterDeviceId: deviceId(request),
+      requesterDeviceId,
     });
     response.json({ ok: true, requestId: request.trustRequestId, keyPackage });
   }));
@@ -319,7 +366,7 @@ function mountTrustRoutes({ app, store, io, trustCore, log = () => {} } = {}) {
   });
 
   log("Trust Core API v4 mounted", "info");
-  return { authRequired, requireConversation, usersCanExchangeKeys };
+  return { authRequired, requireConversation, usersCanExchangeKeys, enforceRateLimit, trustRateLimits };
 }
 
 module.exports = { mountTrustRoutes, stableError };

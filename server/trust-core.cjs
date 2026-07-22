@@ -8,7 +8,21 @@ const WELCOME_TTL_MS = 14 * 24 * 60 * 60_000;
 const REPLAY_TTL_MS = 30 * 24 * 60 * 60_000;
 const MAX_KEY_PACKAGE_BYTES = 64 * 1024;
 const MAX_MLS_MESSAGE_BYTES = 256 * 1024;
+const MAX_ACTIVE_DEVICES_PER_USER = 16;
+const MAX_KEY_PACKAGES_PER_UPLOAD = 25;
+const MAX_ACTIVE_KEY_PACKAGES_PER_DEVICE = 32;
+const MAX_ACTIVE_KEY_PACKAGES_PER_USER = 256;
 const ED25519_SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
+const AUDIT_METADATA_FIELDS = Object.freeze({
+  "device.registered": ["trustState", "proofHash"],
+  "device.verified": ["proofHash"],
+  "device.revoked": ["proofHash"],
+  "mls.key_packages_uploaded": ["count"],
+  "mls.key_package_claimed": ["targetUserId"],
+  "mls.group_created": ["groupRecordId", "ciphersuite"],
+  "mls.commit_recorded": ["previousEpoch", "epoch", "commitHash", "added", "removed"],
+  "mls.welcome_claimed": ["conversationId", "epoch"],
+});
 
 class TrustCoreError extends Error {
   constructor(message, code, status = 400, details = {}) {
@@ -65,6 +79,21 @@ function decodeBase64(value, { min = 1, max = MAX_MLS_MESSAGE_BYTES, field = "da
 
 function normalizedBase64(value, options) {
   return decodeBase64(value, options).toString("base64");
+}
+
+function normalizeCredential(value, userId, deviceId) {
+  const bytes = decodeBase64(value, { min: 1, max: 1024, field: "credential" });
+  let credential;
+  try { credential = JSON.parse(bytes.toString("utf8")); }
+  catch { throw new TrustCoreError("MLS credential имеет неверный формат.", "TRUST_CREDENTIAL_INVALID", 400); }
+  const keys = credential && typeof credential === "object" && !Array.isArray(credential) ? Object.keys(credential).sort() : [];
+  if (keys.join(",") !== "deviceId,userId,version"
+    || credential.version !== 1
+    || String(credential.userId) !== String(userId)
+    || String(credential.deviceId).toLowerCase() !== String(deviceId).toLowerCase()) {
+    throw new TrustCoreError("MLS credential не соответствует пользователю или устройству.", "TRUST_CREDENTIAL_SCOPE_INVALID", 409);
+  }
+  return bytes.toString("base64");
 }
 
 function normalizeUuid(value, field = "id") {
@@ -141,6 +170,18 @@ function publicGroup(row) {
   };
 }
 
+function sanitizeAuditMetadata(action, metadata) {
+  const source = metadata && typeof metadata === "object" && !Array.isArray(metadata) ? metadata : {};
+  const result = {};
+  for (const key of AUDIT_METADATA_FIELDS[String(action)] || []) {
+    const value = source[key];
+    if (typeof value === "string") result[key] = value.slice(0, 256);
+    else if (typeof value === "number" && Number.isFinite(value)) result[key] = value;
+    else if (typeof value === "boolean" || value === null) result[key] = value;
+  }
+  return result;
+}
+
 class TrustCore {
   constructor({ store, clock = Date, log = () => {} } = {}) {
     if (!store?.db) throw new Error("TrustCore requires an initialized SQLite store.");
@@ -153,10 +194,7 @@ class TrustCore {
   timestamp() { return nowIso(this.clock); }
 
   audit({ userId = null, actorDeviceId = null, action, targetType, targetId = null, metadata = {} }) {
-    const safeMetadata = structuredClone(metadata || {});
-    for (const key of Object.keys(safeMetadata)) {
-      if (/key|signature|credential|package|welcome|ciphertext|token|secret/i.test(key)) delete safeMetadata[key];
-    }
+    const safeMetadata = sanitizeAuditMetadata(action, metadata);
     this.db.prepare(`INSERT INTO trust_audit(id,user_id,actor_device_id,action,target_type,target_id,created_at,metadata_json)
       VALUES(?,?,?,?,?,?,?,?)`).run(
       crypto.randomUUID(), userId, actorDeviceId, String(action), String(targetType), targetId, this.timestamp(), JSON.stringify(safeMetadata),
@@ -209,7 +247,8 @@ class TrustCore {
     const id = normalizeUuid(deviceId, "deviceId");
     const identity = rawEd25519Key(identityKey, "identityKey").base64;
     const signing = rawEd25519Key(signatureKey, "signatureKey").base64;
-    const normalizedCredential = normalizedBase64(credential, { min: 1, max: 1024, field: "credential" });
+    if (identity === signing) throw new TrustCoreError("Identity и MLS signature keys должны быть различными.", "TRUST_KEY_REUSE_FORBIDDEN", 409);
+    const normalizedCredential = normalizeCredential(credential, String(userId), id);
     const normalizedCapabilities = [...new Set((Array.isArray(capabilities) ? capabilities : []).map(String).filter((item) => /^[a-z0-9_.:-]{1,64}$/i.test(item)).slice(0, 32))].sort();
     const fingerprint = hash(canonical({ userId: String(userId), identityKey: identity, signatureKey: signing, credential: normalizedCredential }));
     const context = { deviceId: id, fingerprint };
@@ -233,6 +272,9 @@ class TrustCore {
         return { device: publicDevice(this.db.prepare("SELECT * FROM trust_devices WHERE id=?").get(existing.id)), duplicate: true };
       }
       const activeCount = Number(this.db.prepare("SELECT COUNT(*) AS count FROM trust_devices WHERE user_id=? AND status='active'").get(String(userId)).count || 0);
+      if (activeCount >= MAX_ACTIVE_DEVICES_PER_USER) {
+        throw new TrustCoreError("Достигнут лимит активных доверенных устройств.", "TRUST_DEVICE_LIMIT_REACHED", 409, { limit: MAX_ACTIVE_DEVICES_PER_USER });
+      }
       const trustState = activeCount === 0 ? "verified" : "unverified";
       this.db.prepare(`INSERT INTO trust_devices(
         id,user_id,display_name,identity_key,signature_key,credential,fingerprint,status,trust_state,
@@ -333,12 +375,18 @@ class TrustCore {
 
   uploadKeyPackages({ userId, deviceId, packages }) {
     const device = this.requireDevice(userId, deviceId, { verified: true });
-    const list = Array.isArray(packages) ? packages.slice(0, 25) : [];
+    const list = Array.isArray(packages) ? packages : [];
     if (!list.length) throw new TrustCoreError("KeyPackage не переданы.", "MLS_KEY_PACKAGE_REQUIRED", 400);
+    if (list.length > MAX_KEY_PACKAGES_PER_UPLOAD) {
+      throw new TrustCoreError("Слишком много KeyPackage в одном запросе.", "MLS_KEY_PACKAGE_BATCH_TOO_LARGE", 413, { limit: MAX_KEY_PACKAGES_PER_UPLOAD });
+    }
     const now = this.timestamp();
     const results = [];
     this.db.exec("BEGIN IMMEDIATE");
     try {
+      this.db.prepare("DELETE FROM mls_key_packages WHERE expires_at <= ? OR (claimed_at IS NOT NULL AND claimed_at < datetime(?, '-7 days'))").run(now, now);
+      let deviceAvailable = Number(this.db.prepare("SELECT COUNT(*) AS count FROM mls_key_packages WHERE device_id=? AND claimed_at IS NULL AND expires_at>?").get(device.id, now).count || 0);
+      let userAvailable = Number(this.db.prepare("SELECT COUNT(*) AS count FROM mls_key_packages WHERE user_id=? AND claimed_at IS NULL AND expires_at>?").get(String(userId), now).count || 0);
       for (const item of list) {
         const ciphersuite = Number(item?.ciphersuite);
         if (ciphersuite !== MLS_CIPHERSUITE) throw new TrustCoreError("Поддерживается только обязательный MLS ciphersuite 1.", "MLS_CIPHERSUITE_UNSUPPORTED", 400);
@@ -355,10 +403,18 @@ class TrustCore {
           results.push({ id: existing.id, packageHash, duplicate: true, expiresAt: existing.expires_at });
           continue;
         }
+        if (deviceAvailable >= MAX_ACTIVE_KEY_PACKAGES_PER_DEVICE || userAvailable >= MAX_ACTIVE_KEY_PACKAGES_PER_USER) {
+          throw new TrustCoreError("Достигнут лимит доступных MLS KeyPackage.", "MLS_KEY_PACKAGE_LIMIT_REACHED", 409, {
+            deviceLimit: MAX_ACTIVE_KEY_PACKAGES_PER_DEVICE,
+            userLimit: MAX_ACTIVE_KEY_PACKAGES_PER_USER,
+          });
+        }
         const id = crypto.randomUUID();
         this.db.prepare(`INSERT INTO mls_key_packages(
           id,user_id,device_id,ciphersuite,package_hash,package_data,created_at,expires_at,claimed_at,claimed_by_user_id,claimed_by_device_id
         ) VALUES(?,?,?,?,?,?,?,?,NULL,NULL,NULL)`).run(id, String(userId), device.id, ciphersuite, packageHash, bytes.toString("base64"), now, expiresAt.toISOString());
+        deviceAvailable += 1;
+        userAvailable += 1;
         results.push({ id, packageHash, duplicate: false, expiresAt: expiresAt.toISOString() });
       }
       this.audit({ userId: String(userId), actorDeviceId: device.id, action: "mls.key_packages_uploaded", targetType: "device", targetId: device.id, metadata: { count: results.length } });
@@ -623,6 +679,10 @@ class TrustCore {
 module.exports = {
   CHALLENGE_TTL_MS,
   MLS_CIPHERSUITE,
+  MAX_ACTIVE_DEVICES_PER_USER,
+  MAX_ACTIVE_KEY_PACKAGES_PER_DEVICE,
+  MAX_ACTIVE_KEY_PACKAGES_PER_USER,
+  MAX_KEY_PACKAGES_PER_UPLOAD,
   MAX_KEY_PACKAGE_BYTES,
   MAX_MLS_MESSAGE_BYTES,
   TrustCore,
@@ -632,5 +692,6 @@ module.exports = {
   proofPayload,
   publicDevice,
   publicGroup,
+  sanitizeAuditMetadata,
   verifyProof,
 };

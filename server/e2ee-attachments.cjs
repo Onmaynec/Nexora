@@ -13,6 +13,7 @@ const {
 } = require("./model.cjs");
 const { TrustCoreError } = require("./trust-core.cjs");
 const { stableError } = require("./trust-routes.cjs");
+const { createSlidingWindowRateLimiter } = require("./rate-limit.cjs");
 
 const E2EE_ATTACHMENT_TTL_MS = 24 * 60 * 60_000;
 const AES_GCM_TAG_BYTES = 16;
@@ -66,18 +67,6 @@ function encryptedMediaAllowed(state, conversation) {
   return room.allowFiles !== false && room.allowImages !== false && room.allowVoice !== false;
 }
 
-function createRateLimiter({ windowMs = 60_000, limit = 30 } = {}) {
-  const buckets = new Map();
-  return (key) => {
-    const now = Date.now();
-    const recent = (buckets.get(key) || []).filter((timestamp) => now - timestamp < windowMs);
-    if (recent.length >= limit) return false;
-    recent.push(now);
-    buckets.set(key, recent);
-    return true;
-  };
-}
-
 function mountE2eeAttachmentRoutes({
   app,
   store,
@@ -93,7 +82,7 @@ function mountE2eeAttachmentRoutes({
   const uploadsDir = path.join(dataDir, "uploads");
   const incomingDir = path.join(uploadsDir, ".incoming");
   const maxCiphertextBytes = Number(maxPlaintextBytes) + AES_GCM_TAG_BYTES;
-  const uploadRate = createRateLimiter({ windowMs: 60_000, limit: 20 });
+  const uploadRate = createSlidingWindowRateLimiter({ windowMs: 60_000, limit: 20, maxBuckets: 20_000 });
 
   async function cleanupExpired() {
     const now = Date.now();
@@ -117,7 +106,12 @@ function mountE2eeAttachmentRoutes({
       response.setHeader("Cache-Control", "no-store");
       try {
         const userId = request.trustAuth.user.id;
-        if (!uploadRate(userId)) throw new TrustCoreError("Слишком много E2EE upload-запросов.", "RATE_LIMITED", 429);
+        const rateDecision = uploadRate.consume(userId);
+        if (!rateDecision.allowed) {
+          const retryAfter = Math.max(1, Math.ceil(rateDecision.retryAfterMs / 1000));
+          response.setHeader("Retry-After", String(retryAfter));
+          throw new TrustCoreError("Слишком много E2EE upload-запросов.", "RATE_LIMITED", 429, { retryAfter });
+        }
         const attachmentId = String(request.headers["x-nexora-attachment-id"] || "").toLowerCase();
         const expectedHash = String(request.headers["x-nexora-ciphertext-sha256"] || "").toLowerCase();
         const plaintextSize = Number(request.headers["x-nexora-plaintext-size"]);

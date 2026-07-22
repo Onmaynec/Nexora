@@ -601,7 +601,7 @@ replaceOnce(
 - Trust device registration validates that the MLS BasicCredential is exactly bound to the authenticated user and candidate device, and rejects reuse of one Ed25519 key for both identity proof and MLS signatures;
 - active Trust devices are limited to 16 per user; duplicate registration remains idempotent and revoked devices release capacity;
 - unclaimed MLS KeyPackage inventory is limited to 32 per device and 256 per user, with atomic enforcement and expired-row cleanup;
-- Trust directory, enrollment, KeyPackage and recovery endpoints use bounded shared sliding-window rate limits with stable \\`RATE_LIMITED\\` errors and \\`Retry-After\\`;
+- Trust directory, enrollment, KeyPackage and recovery endpoints use bounded shared sliding-window rate limits with stable \`RATE_LIMITED\` errors and \`Retry-After\`;
 - Trust audit metadata now uses an action-specific primitive allowlist instead of a shallow key blacklist;
 - room conversation access fails closed when an inconsistent active ban and stale membership coexist;
 - missed MLS commit recovery verifies group scope, contiguous epochs, ciphertext hash, duplicate hashes and every public-state hash before persisting state;

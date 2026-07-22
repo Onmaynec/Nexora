@@ -3,7 +3,7 @@
 const { TrustCoreError } = require("./trust-core.cjs");
 const { claimKeyPackageForDevice, claimWelcomeForConversation, listCommits } = require("./trust-recovery.cjs");
 
-function mountTrustRecoveryRoutes({ app, trustCore, authRequired, requireConversation, usersCanExchangeKeys } = {}) {
+function mountTrustRecoveryRoutes({ app, trustCore, authRequired, requireConversation, usersCanExchangeKeys, enforceRateLimit, trustRateLimits } = {}) {
   if (!app || !trustCore || !authRequired || !requireConversation || !usersCanExchangeKeys) {
     throw new Error("Trust recovery routes require app, trustCore and shared Trust middleware.");
   }
@@ -30,6 +30,7 @@ function mountTrustRecoveryRoutes({ app, trustCore, authRequired, requireConvers
     }
     const requesterDeviceId = String(request.headers["x-nexora-device-id"] || "");
     if (!requesterDeviceId) throw new TrustCoreError("Укажите X-Nexora-Device-ID.", "TRUST_DEVICE_REQUIRED", 401);
+    enforceRateLimit(trustRateLimits.keyPackageClaim, `${request.trustAuth.user.id}:${requesterDeviceId}`, response, "Слишком много запросов KeyPackage.");
     const keyPackage = claimKeyPackageForDevice(trustCore, {
       targetUserId: request.params.userId,
       targetDeviceId: request.params.deviceId,
@@ -43,6 +44,7 @@ function mountTrustRecoveryRoutes({ app, trustCore, authRequired, requireConvers
     requireConversation(request.trustAuth.user.id, request.params.conversationId);
     const requesterDeviceId = String(request.headers["x-nexora-device-id"] || "");
     if (!requesterDeviceId) throw new TrustCoreError("Укажите X-Nexora-Device-ID.", "TRUST_DEVICE_REQUIRED", 401);
+    enforceRateLimit(trustRateLimits.recovery, `welcome:${request.trustAuth.user.id}:${requesterDeviceId}`, response, "Слишком много запросов MLS recovery.");
     const welcome = claimWelcomeForConversation(trustCore, {
       conversationId: request.params.conversationId,
       requesterUserId: request.trustAuth.user.id,
@@ -54,6 +56,7 @@ function mountTrustRecoveryRoutes({ app, trustCore, authRequired, requireConvers
   app.get("/api/v4/trust/groups/:groupId/commits", authRequired, asyncRoute(async (request, response) => {
     const requesterDeviceId = String(request.headers["x-nexora-device-id"] || "");
     if (!requesterDeviceId) throw new TrustCoreError("Укажите X-Nexora-Device-ID.", "TRUST_DEVICE_REQUIRED", 401);
+    enforceRateLimit(trustRateLimits.recovery, `commits:${request.trustAuth.user.id}:${requesterDeviceId}`, response, "Слишком много запросов MLS recovery.");
     const group = trustCore.db.prepare("SELECT conversation_id FROM mls_groups WHERE id=?").get(String(request.params.groupId || "").toLowerCase());
     if (!group) throw new TrustCoreError("MLS group не найден.", "MLS_GROUP_NOT_FOUND", 404);
     requireConversation(request.trustAuth.user.id, group.conversation_id);

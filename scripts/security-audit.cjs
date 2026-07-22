@@ -20,7 +20,10 @@ const appClient = read("client/src/App.jsx");
 const trustClient = read("client/src/crypto/trust-client.js");
 const trustDevices = read("client/src/crypto/trust-device-management.js");
 const trustStore = read("client/src/crypto/trust-store.js");
+const mlsRecovery = read("client/src/crypto/mls-recovery.mjs");
 const mlsEngine = read("client/src/crypto/mls-engine.js");
+const rateLimit = read("server/rate-limit.cjs");
+const maintenance = read("server/maintenance.cjs");
 const e2eeMedia = read("client/src/crypto/e2ee-media.js");
 const securePane = read("client/src/components/SecureMessagePane.jsx");
 const outbox = read("client/src/outbox.js");
@@ -49,6 +52,11 @@ const checks = [
   ["Webhook DNS pinning and HMAC", /lookup:[\s\S]*target\.address[\s\S]*createHmac\("sha256"/, v3],
   ["Trust challenges are one-time and expiring", containsAll(trustCore, ["consumed_at IS NULL", "expires_at", "UPDATE trust_challenges SET consumed_at="]), "boolean"],
   ["Trust device proofs use Ed25519 verification", containsAll(trustCore, ["verifyProof", "crypto.verify(null"]), "boolean"],
+  ["Trust credential is bound to user and device", containsAll(trustCore, ["normalizeCredential", "TRUST_CREDENTIAL_SCOPE_INVALID", "TRUST_KEY_REUSE_FORBIDDEN"]), "boolean"],
+  ["Trust active devices are bounded", containsAll(trustCore, ["MAX_ACTIVE_DEVICES_PER_USER", "TRUST_DEVICE_LIMIT_REACHED"]), "boolean"],
+  ["MLS KeyPackage inventory is bounded", containsAll(trustCore, ["MAX_ACTIVE_KEY_PACKAGES_PER_DEVICE", "MAX_ACTIVE_KEY_PACKAGES_PER_USER", "MLS_KEY_PACKAGE_LIMIT_REACHED"]), "boolean"],
+  ["Trust audit metadata uses an action allowlist", containsAll(trustCore, ["AUDIT_METADATA_FIELDS", "sanitizeAuditMetadata"]), "boolean"],
+  ["Trust endpoints use bounded shared rate limiting", containsAll(trustRoutes, ["trustRateLimits", "directory", "deviceRegistration", "keyPackageUpload"]) && containsAll(rateLimit, ["createSlidingWindowRateLimiter", "maxBuckets"]), "boolean"],
   ["Trust mutations require CSRF and a device identifier", server.includes("CSRF_INVALID") && trustRoutes.includes("TRUST_DEVICE_REQUIRED"), "boolean"],
   ["Client signs verify and revoke challenges", containsAll(trustDevices, ["verify_device", "revoke_device", "crypto.subtle.sign"]), "boolean"],
   ["Device identity private keys are non-extractable", containsAll(trustClient, ["importKey", "Ed25519", "false", "identityPrivateKey"]), "boolean"],
@@ -60,6 +68,9 @@ const checks = [
   ["Remote revocation wipes local Trust state and stops realtime", containsAll(appClient, ["handleTrustDeviceRevoked", "trust.device_revoked", "socket.disconnect()", "deviceId, clientVersion: CLIENT_VERSION"]) && containsAll(trustClient, ["handleTrustDeviceRevoked", "clearTrustScope", "conversationQueues.clear()"]), "boolean"],
   ["MLS mandatory ciphersuite is fixed to 1", /MLS_CIPHERSUITE_ID\s*=\s*1/, mlsEngine],
   ["MLS transport rejects ciphertext replay", trustCore.includes("MLS_MESSAGE_REPLAY") && trustCore.includes("mls_replay_cache") && mlsTransport.includes("trustCore.reserveMessage"), "boolean"],
+  ["MLS recovery validates scope, sequence, hashes and duplicate commits", containsAll(mlsRecovery, ["MLS_COMMIT_SCOPE_INVALID", "MLS_COMMIT_SEQUENCE_INVALID", "MLS_COMMIT_HASH_MISMATCH", "MLS_COMMIT_REPLAY"]), "boolean"],
+  ["Room access fails closed for active bans", model.includes("Boolean(roomRole(state, conversation.roomId, userId)) && !isRoomBanned"), "boolean"],
+  ["Expired sessions and security history are periodically removed", containsAll(maintenance, ["cleanupSecurityState", "SECURITY_HISTORY_RETENTION_MS", "RATE_LIMIT_RETENTION_MS"]), "boolean"],
   ["Secure serialization never exposes MLS plaintext", containsAll(model, ["message.mlsEnvelope", "text: deleted ? \"\"", "message.type === \"encrypted\" ? \"\""]), "boolean"],
   ["Legacy plaintext routes are guarded after MLS activation", containsAll(server, ["conversationUsesMls", "E2EE_REQUIRED", "E2EE_FORWARD_REQUIRED", "E2EE_ATTACHMENT_REQUIRED"]) && containsAll(v3, ["conversationUsesMls", "E2EE_DRAFT_LOCAL_ONLY", "E2EE_SCHEDULE_UNSUPPORTED", "E2EE_POLL_UNSUPPORTED", "E2EE_BOT_UNSUPPORTED"]) && attachmentGuardCount >= 3, "boolean"],
   ["Encrypted attachment upload validates exact GCM size and ciphertext hash", containsAll(e2eeAttachments, ["plaintextSize + AES_GCM_TAG_BYTES", "safeHashEqual", "timingSafeEqual", "E2EE_ATTACHMENT_HASH_MISMATCH"]), "boolean"],
