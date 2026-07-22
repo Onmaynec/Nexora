@@ -1,6 +1,6 @@
 # Nexora 3.2.0 Release Notes — Draft
 
-> **Release status:** not published. This document describes the current PR #12 implementation and its unresolved release blockers. It must not be used to claim independently audited E2EE.
+> **Release status:** not published. This document describes the current PR #12 implementation and unresolved release blockers. It must not be used to claim independently audited E2EE.
 
 ## Trust Core and MLS secure messaging
 
@@ -33,7 +33,27 @@ For a conversation with an active MLS group:
 - local search works over the encrypted decrypted-content cache;
 - legacy plaintext creation is rejected by the server.
 
-Plaintext guards cover legacy send, forward, edit, server draft, scheduled message, poll, bot message and upload paths after MLS activation.
+Plaintext guards cover legacy send, forward, edit, server draft, scheduled message, poll, bot message and upload paths after MLS activation. Runtime tests execute the direct REST and Socket.IO bypass attempts against a real schema 8 server.
+
+## Encrypted files, images and voice
+
+Secure conversations support development-stage encrypted media without using legacy plaintext upload:
+
+- each payload receives a random AES-256-GCM key and 96-bit IV;
+- AAD binds conversation ID, attachment ID and media kind;
+- plaintext and ciphertext SHA-256 are verified;
+- source filename, MIME, caption, voice duration and waveform are carried only inside MLS content;
+- Local Server stores generic `application/octet-stream` ciphertext with an opaque ID;
+- pending ciphertext is inaccessible before atomic MLS-message claim and expires after 24 hours;
+- duplicate upload with the same ID/scope/hash is idempotent;
+- payload substitution, hash mismatch, attachment reuse and scope mismatch are rejected;
+- Client UI provides progress, cancel, image preview, voice recording/playback and explicit verified download;
+- failed outbox entries retain only opaque attachment ID and MLS ciphertext for safe retry;
+- the ordinary offline cache removes the decrypted attachment descriptor.
+
+When any room file/image/voice class is disabled, the complete opaque media path fails closed because Local Server cannot safely classify encrypted content.
+
+Local Server still sees account/device/conversation scope, uploader, attachment ID, ciphertext size, timing, network context and delivery events. This release draft does not claim metadata or traffic-pattern confidentiality.
 
 ## Local Server schema 8
 
@@ -49,11 +69,15 @@ Migration behavior:
 - idempotent schema creation;
 - downgrade protection during normal persistence and restore.
 
-Rollback is restore-from-backup, not an in-place downgrade. See [MIGRATION_SCHEMA8.md](docs/MIGRATION_SCHEMA8.md).
+Rollback is restore-from-backup, not an in-place downgrade. See [docs/MIGRATION_3.2.0.md](docs/MIGRATION_3.2.0.md).
+
+## Reliability fixes found during media testing
+
+A rejected `SqliteStore.mutate()` operation previously left the internal serialized queue rejected. The original caller received the correct error, but later `flush()` or shutdown could rethrow the already handled failure. The queue now stores a handled continuation while the operation Promise remains rejected for its caller. A regression test verifies rollback, successful flush and subsequent mutation.
 
 ## Security gate additions
 
-The release security audit now checks:
+The release security audit checks:
 
 - one-time/expiring Trust challenges;
 - Ed25519 device-proof verification;
@@ -62,10 +86,13 @@ The release security audit now checks:
 - non-extractable device identity keys;
 - AES-GCM client-state wrapping;
 - complete Trust scope wipe on self-revoke;
-- fixed MLS ciphersuite;
-- replay rejection;
-- ciphertext-only serialization;
-- server-side legacy plaintext guards.
+- fixed MLS ciphersuite and replay rejection;
+- ciphertext-only serialization and server-side legacy plaintext guards;
+- exact GCM attachment size and timing-safe ciphertext hash;
+- opaque server metadata and one-time attachment claim;
+- fail-closed room media policy;
+- client AAD binding and post-download integrity;
+- upload progress/cancel and descriptor isolation from ordinary outbox/cache.
 
 ## Compatibility
 
@@ -74,12 +101,12 @@ The release security audit now checks:
 - browser/Windows/Android Client handshake: `3.2.0`;
 - stable 3.1.2 remains the production baseline until this release is approved;
 - 3.1.x clients are not supported for conversations that have activated the secure 3.2.0 path;
-- existing 3.1.x message history is not retroactively encrypted.
+- existing 3.1.x message history/files are not retroactively encrypted.
 
-## Current test coverage
+## Current automated coverage
 
-- schema 7 → 8 migration and idempotency;
-- functional clock regression;
+- schema 7 → 8 migration, idempotency and downgrade protection;
+- functional clock and rejected mutation queue regressions;
 - device registration, verification and revocation;
 - challenge scope/single-use;
 - KeyPackage atomic one-time claim;
@@ -87,24 +114,23 @@ The release security audit now checks:
 - commit epoch and replay enforcement;
 - revoked-device delivery denial;
 - missed-commit recovery;
-- server plaintext downgrade attempts;
+- direct server plaintext downgrade attempts;
+- attachment upload/idempotency/hash/pending/delete/fail-closed policy;
+- real `mls:message` attachment claim, idempotent retry, reuse rejection and replay-reservation release;
 - Alice/Bob KeyPackage → Add → Welcome → join → encrypt/decrypt interoperability;
 - Pulse schema 8 compatibility;
 - Windows production build/unit/security gate;
-- Linux full test suite;
+- Linux full test and release-check jobs;
 - Android source build.
 
 ## Unresolved blockers
 
 This draft is not releasable until the following are completed:
 
-- encrypted attachments, images and voice with authenticated metadata;
 - metadata minimization/traffic-analysis review;
 - expanded multi-device simultaneous commit, revoke/re-add and corrupted-state matrix;
 - runtime E2E on Electron, PWA and Android;
 - load/soak and long-offline recovery testing;
-- final administrator/tester documents and release verification report;
+- final release verification report;
 - signing-machine checks and signed installers;
 - independent cryptographic and application-security review.
-
-The secure pane intentionally disables attachments instead of falling back to an unencrypted upload.
