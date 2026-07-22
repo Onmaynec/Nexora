@@ -1,4 +1,4 @@
-name: Apply store queue patch
+name: Diagnose direct store queue patch
 
 on:
   pull_request:
@@ -8,7 +8,7 @@ permissions:
   contents: write
 
 jobs:
-  patch-store-queue:
+  diagnose-store-queue:
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 12
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -17,16 +17,20 @@ jobs:
         with:
           ref: agent/nexora-3.2.0-trust-core-mls
           fetch-depth: 0
-      - name: Patch and verify SqliteStore queue
+      - name: Capture direct patch attempt
         shell: bash
         run: |
-          set -euo pipefail
-          python - <<'PY'
+          set +e
+          {
+            set -x
+            python - <<'PY'
           from pathlib import Path
           path = Path("server/store.cjs")
           source = path.read_text(encoding="utf-8")
           before = "    this.queue = operation;\n    return operation;"
           after = "    this.queue = operation.catch(() => {});\n    return operation;"
+          print("before_count", source.count(before))
+          print("after_count", source.count(after))
           if source.count(before) != 1:
               raise SystemExit(f"expected one queue assignment, found {source.count(before)}")
           updated = source.replace(before, after, 1)
@@ -34,15 +38,26 @@ jobs:
               raise SystemExit("queue patch postcondition failed")
           path.write_text(updated, encoding="utf-8")
           PY
-          grep -F 'this.queue = operation.catch(() => {});' server/store.cjs
-          if git diff --quiet -- server/store.cjs; then
-            echo "store.cjs did not change" >&2
-            exit 1
-          fi
-          git diff --check -- server/store.cjs
-          git diff -- server/store.cjs
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add server/store.cjs
-          git commit -m "fix(store): keep mutation queue healthy after rejection"
-          git push origin HEAD:agent/nexora-3.2.0-trust-core-mls
+            grep -F 'this.queue = operation.catch(() => {});' server/store.cjs
+            git diff --stat -- server/store.cjs
+            git diff --check -- server/store.cjs
+            git status --short
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add server/store.cjs
+            git commit -m "fix(store): keep mutation queue healthy after rejection"
+            git push origin HEAD:agent/nexora-3.2.0-trust-core-mls
+          } > direct-store-patch.log 2>&1
+          echo "$?" > direct-store-patch.exit
+          cat direct-store-patch.log
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: direct-store-patch-log
+          path: |
+            direct-store-patch.log
+            direct-store-patch.exit
+          retention-days: 1
+      - name: Enforce patch
+        shell: bash
+        run: test "$(cat direct-store-patch.exit)" = "0"
