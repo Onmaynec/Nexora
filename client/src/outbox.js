@@ -52,6 +52,8 @@ export function enqueueEncryptedMessage(userId, prepared) {
   if (!prepared?.id || prepared.kind !== "mls-message" || !prepared.payload?.message) {
     throw new Error("MLS_OUTBOX_ENTRY_INVALID");
   }
+  const attachmentId = prepared.payload.attachmentId == null ? null : String(prepared.payload.attachmentId);
+  if (attachmentId && !/^[0-9a-f-]{36}$/i.test(attachmentId)) throw new Error("MLS_OUTBOX_ATTACHMENT_INVALID");
   const entry = {
     id: String(prepared.id),
     kind: "mls-message",
@@ -68,6 +70,7 @@ export function enqueueEncryptedMessage(userId, prepared) {
       epoch: Number(prepared.payload.epoch),
       generation: prepared.payload.generation == null ? null : Number(prepared.payload.generation),
       contentType: String(prepared.payload.contentType || "text"),
+      attachmentId,
       message: String(prepared.payload.message),
       authenticatedDataHash: prepared.payload.authenticatedDataHash || null,
       silent: Boolean(prepared.payload.silent),
