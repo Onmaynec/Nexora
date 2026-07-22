@@ -14,6 +14,7 @@ const {
   roomRole,
 } = require("./model.cjs");
 const { MLS_CIPHERSUITE, TrustCoreError, canonical, hash } = require("./trust-core.cjs");
+const { disconnectTrustDevice, emitToVerifiedGroupDevices } = require("./trust-socket.cjs");
 
 function requestId(value) {
   const text = String(value || "");
@@ -108,8 +109,8 @@ function mountTrustRoutes({ app, store, io, trustCore, log = () => {} } = {}) {
   }
 
   function emitConversation(conversationId, type, payload) {
-    io.to(`conversation:${conversationId}`).emit(type, payload);
-    io.to(`conversation:${conversationId}`).emit("trust:event", { type, payload });
+    emitToVerifiedGroupDevices(io, store.db, { conversationId }, type, payload);
+    emitToVerifiedGroupDevices(io, store.db, { conversationId }, "trust:event", { type, payload });
   }
 
   app.use("/api/v4/trust", context, authRequired);
@@ -201,6 +202,7 @@ function mountTrustRoutes({ app, store, io, trustCore, log = () => {} } = {}) {
       proofSignature: request.body?.proofSignature,
     });
     emitUser(request.trustAuth.user.id, "trust.device_revoked", device);
+    disconnectTrustDevice(io, device.id, { reason: "revoked", revokedAt: device.revokedAt });
     response.json({ ok: true, requestId: request.trustRequestId, device });
   }));
 

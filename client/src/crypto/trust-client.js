@@ -19,6 +19,7 @@ import {
 import { memberDirectory } from "./mls-members";
 import {
   cleanupKeyPackages,
+  clearTrustScope,
   deleteGroupState,
   deleteKeyPackage,
   listKeyPackages,
@@ -113,6 +114,18 @@ export function configureTrust({ serverId, user }) {
 
 export function trustConfigured() {
   return Boolean(configuration?.serverId && configuration?.userId);
+}
+
+export async function handleTrustDeviceRevoked(deviceId) {
+  const { serverId, userId } = current();
+  const local = await loadDevice(serverId, userId);
+  if (!local || String(local.id) !== String(deviceId)) return false;
+  await clearTrustScope(serverId, userId);
+  devicePromise = null;
+  refillPromise = null;
+  deviceDirectory.clear();
+  conversationQueues.clear();
+  return true;
 }
 
 export async function resolveTrustedDevice(userId, deviceId) {

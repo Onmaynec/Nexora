@@ -16,6 +16,7 @@ const {
   serializeMessage,
 } = require("./model.cjs");
 const { TrustCoreError } = require("./trust-core.cjs");
+const { emitToVerifiedGroupDevices, trustDeviceRoom } = require("./trust-socket.cjs");
 
 function userRoom(userId) { return `user:${userId}`; }
 
@@ -81,11 +82,12 @@ function mountMlsTransport({ io, store, trustCore, dispatchEvent = () => {}, log
 
   function emitMessage(result, eventName = "message:new") {
     const state = store.read();
-    const recipients = usersForConversation(state, result.conversation);
-    for (const participantId of recipients) {
-      io.to(userRoom(participantId)).emit(eventName, serializeMessage(state, result.message, participantId));
-      io.to(userRoom(participantId)).emit("data:refresh");
-    }
+    const scope = {
+      conversationId: result.conversation.id,
+      groupRecordId: result.message.mlsEnvelope?.groupRecordId || null,
+    };
+    const recipients = emitToVerifiedGroupDevices(io, store.db, scope, eventName, ({ userId }) => serializeMessage(state, result.message, userId));
+    for (const recipient of recipients) io.to(trustDeviceRoom(recipient.deviceId)).emit("data:refresh");
   }
 
   io.on("connection", (socket) => {
@@ -97,6 +99,10 @@ function mountMlsTransport({ io, store, trustCore, dispatchEvent = () => {}, log
       const conversationId = cleanId(payload?.conversationId);
       const clientId = cleanId(payload?.clientId);
       const deviceId = cleanId(payload?.deviceId);
+      const socketDevice = socket.data.trustDevice;
+      if (!socketDevice || socketDevice.id !== deviceId || socketDevice.userId !== user.id || socketDevice.trustState !== "verified") {
+        return acknowledge({ ok: false, code: "TRUST_SOCKET_DEVICE_MISMATCH", error: "Secure Socket.IO session не привязан к подтверждённому устройству." });
+      }
       const contentType = String(payload?.contentType || "text");
       const attachmentId = payload?.attachmentId ? cleanId(payload.attachmentId) : null;
       const attachmentShapeValid = contentType === "attachment" ? Boolean(attachmentId) : contentType === "text" && !attachmentId;
@@ -201,6 +207,10 @@ function mountMlsTransport({ io, store, trustCore, dispatchEvent = () => {}, log
     socket.on("mls:message-edit", async (payload, acknowledge = () => {}) => {
       const messageId = cleanId(payload?.messageId);
       const deviceId = cleanId(payload?.deviceId);
+      const socketDevice = socket.data.trustDevice;
+      if (!socketDevice || socketDevice.id !== deviceId || socketDevice.userId !== user.id || socketDevice.trustState !== "verified") {
+        return acknowledge({ ok: false, code: "TRUST_SOCKET_DEVICE_MISMATCH", error: "Secure Socket.IO session не привязан к подтверждённому устройству." });
+      }
       if (!messageId || !deviceId || String(payload?.contentType || "text") !== "text") return acknowledge({ ok: false, code: "MLS_ENVELOPE_INVALID", error: "MLS edit envelope недействителен." });
       const snapshot = store.read();
       const target = snapshot.messages.find((item) => item.id === messageId && item.senderId === user.id && item.type === "encrypted" && !item.deletedAt && !item.fileId);
