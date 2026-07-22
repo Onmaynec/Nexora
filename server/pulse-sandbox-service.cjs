@@ -73,10 +73,10 @@ class PulseSandboxService {
         && item.status === "active"
         && Date.parse(item.expiresAt) > current,
       );
-      const balance = state.billingLinks.find((item) => item.localUserId === user.id)?.walletBalance || 0;
+      const balance = state.billingLinks.find((item) => (item.userId || item.localUserId) === user.id)?.walletBalance || 0;
       return {
         sandbox: true,
-        account: { id: `sandbox:${user.id}`, localUserId: user.id, status: "linked", testMode: true },
+        account: { id: `sandbox:${user.id}`, userId: user.id, status: "linked", testMode: true },
         wallet: { balance, currency: "IMPULSE" },
         subscription: plus ? {
           id: plus.id,
@@ -118,9 +118,9 @@ class PulseSandboxService {
         state.billingEntitlements.push(entitlement);
       }
       Object.assign(entitlement, { status: "active", startsAt, expiresAt, issuedBy: actor, revokedAt: null, updatedAt: startsAt });
-      let link = state.billingLinks.find((item) => item.localUserId === user.id);
+      let link = state.billingLinks.find((item) => (item.userId || item.localUserId) === user.id);
       if (!link) {
-        link = { id: crypto.randomUUID(), localUserId: user.id, cloudAccountId: `sandbox:${user.id}`, linkedAt: startsAt, walletBalance: 0, status: "linked", source: "local_sandbox" };
+        link = { id: crypto.randomUUID(), userId: user.id, cloudAccountId: `sandbox:${user.id}`, linkedAt: startsAt, walletBalance: 0, status: "linked", source: "local_sandbox" };
         state.billingLinks.push(link);
       }
       link.status = "linked";
@@ -164,9 +164,9 @@ class PulseSandboxService {
     const result = await this.store.mutate((state) => {
       const user = resolveUser(state, userReference);
       const timestamp = nowIso(this.clock);
-      let link = state.billingLinks.find((item) => item.localUserId === user.id);
+      let link = state.billingLinks.find((item) => (item.userId || item.localUserId) === user.id);
       if (!link) {
-        link = { id: crypto.randomUUID(), localUserId: user.id, cloudAccountId: `sandbox:${user.id}`, linkedAt: timestamp, walletBalance: 0, status: "linked", source: "local_sandbox" };
+        link = { id: crypto.randomUUID(), userId: user.id, cloudAccountId: `sandbox:${user.id}`, linkedAt: timestamp, walletBalance: 0, status: "linked", source: "local_sandbox" };
         state.billingLinks.push(link);
       }
       const before = Number(link.walletBalance) || 0;

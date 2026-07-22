@@ -86,8 +86,10 @@ function mountMlsTransport({ io, store, trustCore, dispatchEvent = () => {}, log
       conversationId: result.conversation.id,
       groupRecordId: result.message.mlsEnvelope?.groupRecordId || null,
     };
-    const recipients = emitToVerifiedGroupDevices(io, store.db, scope, eventName, ({ userId }) => serializeMessage(state, result.message, userId));
-    for (const recipient of recipients) io.to(trustDeviceRoom(recipient.deviceId)).emit("data:refresh");
+    // The message event already contains the complete serialized payload. A second
+    // data:refresh forced every Client to download bootstrap and rebuilt the whole
+    // workspace after each send, producing visible jumps and avoidable latency.
+    emitToVerifiedGroupDevices(io, store.db, scope, eventName, ({ userId }) => serializeMessage(state, result.message, userId));
   }
 
   io.on("connection", (socket) => {

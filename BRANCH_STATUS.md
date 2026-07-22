@@ -1,86 +1,66 @@
-# Статус выпуска Nexora 3.2.4
+# Статус ветки `agent/nexora-3.2.5-ui-console-performance`
 
 ## Классификация
 
 | Параметр | Значение |
 |---|---|
-| Repository branch | `main` |
-| Version | `3.2.4` |
-| Base version | `3.2.3` |
-| Source Pull Request | PR #21 |
-| Distribution | Source/PWA prerelease |
-| Signed production baseline | `3.1.2` |
-| Stable signed 3.2.4 approval | не предоставлен |
-| Independent security review | не завершён |
+| Версия-кандидат | Nexora `3.2.5` |
+| Базовая версия | Nexora `3.2.4` |
+| Pull Request | PR `#25` |
+| Состояние | Проверенный release candidate, ожидает финальный current-head CI и merge |
+| Код кандидата | `805a231190883c406abf1c016a6241ca8bdd2a25` |
+| Подтверждающий CI | GitHub Actions run `29953309887` |
+| Текущий источник истины продукта | `main`, Nexora `3.2.4`, до merge PR `#25` |
+| Последняя подтверждённая signed baseline | Nexora `3.1.2` |
+| Независимый аудит E2EE | Не выполнен |
 
-Nexora `3.2.4` разрешена для контролируемого Source/PWA prerelease testing. Она не является подписанным stable Windows release и не должна описываться как independently audited E2EE.
+## Реализовано в 3.2.5
 
-## Patch lineage
+- системный Windows-диалог обновления заменён на доступное окно внутри Nexora Client;
+- `plus grant`, `plus revoke` и `impulses grant|revoke` используют канонический `userId` и корректно сохраняются в SQLite;
+- старые sandbox-снимки с `localUserId` нормализуются без ручного редактирования базы;
+- изображения автоматически расшифровываются локально и отображаются inline;
+- голосовые используют компактный waveform-плеер с play/pause, перемоткой, длительностью и скоростью;
+- обычные файлы сохраняют явное локальное открытие и скачивание;
+- MLS group-creation race и временное отсутствие подходящего KeyPackage переходят в безопасный Welcome request/wait;
+- отправка сообщений и медиа больше не запускает полный bootstrap refresh;
+- realtime обновляет сообщение и превью чата локально;
+- строки сообщений мемоизированы, а автопрокрутка не сбрасывает позицию пользователя;
+- интерактивная сеть ограничена областью истории сообщений;
+- элементы управления, disabled-состояния и scrollbars Nexora Server приведены к общей теме;
+- локальная `npm run release:windows` отделена от обязательной подписи; production-публикация остаётся signed-only.
 
-| Версия | Основное изменение |
-|---|---|
-| `3.2.0` | Trust Core, MLS secure messaging, encrypted media и schema 8 |
-| `3.2.1` | Authentication bootstrap ordering и serialized Server shutdown |
-| `3.2.2` | Trust configuration lifecycle race и safe encrypted-draft read |
-| `3.2.3` | Resource governance, route limiting, strict recovery и stale security-state cleanup |
-| `3.2.4` | GitHub updater recovery, Server console fixes, automatic MLS Welcome и Windows diagnostics |
+## Автоматические доказательства
 
-## Реализовано в 3.2.4
-
-- packaged Client использует официальный GitHub Releases channel и scheduled automatic checks;
-- ручная проверка имеет checking/progress/terminal/error states и retry;
-- signed-update, no-downgrade и Authenticode gates сохранены;
-- audited Server console возвращает stable codes и нормализует copied help placeholders;
-- verified pending device запрашивает MLS Welcome у active group devices и повторяет one-time claim;
-- text, encrypted media и voice остаются на общем fail-closed MLS path;
-- после обновления показывается release summary с GitHub details link и per-version dismissal;
-- opt-in Windows test mode открывает live PowerShell tail локального Client log;
-- NSIS installer использует Nexora icon, branded sidebar и Russian language.
-
-## Automated evidence
-
-Авторитетный отчёт: [RELEASE_VERIFICATION_3.2.4.md](RELEASE_VERIFICATION_3.2.4.md).
-
-Проверяемые gates:
+Run `29953309887` подтвердил на кодовом кандидате `805a231...`:
 
 - Windows `npm run check`;
 - Windows `npm run test:unit`;
 - Windows `npm run test:performance`;
 - Windows `npm run audit:security`;
-- Linux `npm test`;
 - dedicated `npm run release:check`;
+- real-SQLite regression suite 3.2.5;
+- локальную сборку и наличие установщиков Client/Server через `npm run release:windows`;
+- Linux `npm test`;
 - schema 8 soak;
 - Android `assembleDebug`.
 
-## Compatibility
+Подробный отчёт: [RELEASE_VERIFICATION_3.2.5.md](RELEASE_VERIFICATION_3.2.5.md).
 
-- Local Server schema: 8, unchanged;
-- Application API: v3, unchanged;
-- Trust/MLS/encrypted-media API: v4, compatible extension;
-- database migration from `3.2.0–3.2.3`: not required;
-- schema 7 → 8 migration остаётся необходимой для 3.1.x data.
+## Совместимость
 
-## Distribution decision
+- Local Server schema: `8`, без новой миграции;
+- Application API: v3, без breaking changes;
+- Trust/MLS/encrypted-media API: v4, совместимое исправление;
+- обновление поддерживается с Nexora `3.2.0–3.2.4`;
+- схема 7 → 8 по-прежнему требуется только для данных линии 3.1.x.
 
-Без обоих Authenticode secrets release workflow публикует только source ZIP, built PWA ZIP, SPDX SBOM и SHA-256 checksums. Unsigned `.exe`, `.blockmap` и `latest.yml` не публикуются, поэтому end-to-end Windows auto-update требует signed release assets.
+## Граница безопасности
 
-## Remaining stable-promotion gates
+Local Server не получает plaintext защищённых сообщений, private MLS state, ключи secure-вложений, исходные имена, фактический MIME, подписи, длительность голосового или waveform. Сервер продолжает видеть служебные метаданные: идентификаторы аккаунтов и устройств, membership, conversation scope, время, сетевой контекст, размер ciphertext и события доставки.
 
-1. packaged Windows Client/Server runtime E2E, включая installed auto-update;
-2. installed PWA и physical Android runtime matrix;
-3. extended multi-device simultaneous Welcome/commit/revoke/re-add/corrupted-state scenarios;
-4. longer load/soak и long-offline field evidence;
-5. metadata minimization/traffic-analysis review;
-6. Authenticode signing-machine и complete updater verification;
-7. independent cryptographic/application-security review;
-8. отсутствие unresolved high/critical findings.
+Fast path используется только для уже сохранённого локального MLS state и не отключает серверные проверки доступа, epoch, commit и Welcome. Plaintext fallback не добавлен.
 
-## Security boundary
+## Ограничения выпуска
 
-Local Server не получает secure-message plaintext, private MLS state, secure-attachment key, original filename, actual MIME, caption, voice duration или waveform. Welcome recovery передаёт только scoped device/group identifiers and timing; RFC 9420 Welcome создаёт active verified Client.
-
-Local Server всё ещё видит account/device identifiers, membership, conversation scope, ciphertext size, timing, IP/network context и delivery events. Traffic-analysis resistance не заявляется.
-
-## Usage restriction
-
-Source/PWA prerelease предназначена для controlled testing с disposable accounts/data. Она не должна использоваться как единственная защита high-risk communications или распространяться как signed/stable Windows release.
+До merge PR `#25` версия `3.2.5` не является текущей версией `main`. Локально собранные Windows-установщики не считаются подписанным production-релизом. Для stable Windows-публикации всё ещё необходимы Authenticode secrets, проверка установленного auto-update path и отдельное решение о выпуске. Независимый криптографический аудит не заявляется.

@@ -66,6 +66,28 @@ export default function App() {
     toastTimer.current = setTimeout(() => setToast(null), 3_000);
   }, []);
 
+  const applyMessagePreview = useCallback((message) => {
+    if (!message?.conversationId) return;
+    setBootstrap((current) => {
+      if (!current) return current;
+      let changed = false;
+      const conversations = (current.conversations || []).map((conversation) => {
+        if (conversation.id !== message.conversationId) return conversation;
+        changed = true;
+        return {
+          ...conversation,
+          lastMessage: message,
+          updatedAt: message.createdAt || conversation.updatedAt,
+        };
+      });
+      if (!changed) return current;
+      const next = { ...current, conversations };
+      bootstrapRef.current = next;
+      cacheBootstrap(next).catch(() => {});
+      return next;
+    });
+  }, []);
+
   const refresh = useCallback(async () => {
     if (!me?.id) return null;
     try {
@@ -172,7 +194,7 @@ export default function App() {
     };
     const onPresence = (ids) => setOnlineUserIds(new Set(ids));
     const onMessage = (message) => {
-      scheduleRefresh();
+      applyMessagePreview(message);
       if (message.sender.id === me.id || document.visibilityState === "visible") return;
       if (localStorage.getItem("nexora:notifications") === "off") return;
       const snapshot = bootstrapRef.current;
@@ -249,6 +271,7 @@ export default function App() {
 
     socket.on("data:refresh", scheduleRefresh);
     socket.on("message:new", onMessage);
+    socket.on("message:updated", applyMessagePreview);
     socket.on("mls.commit", onMlsCommit);
     socket.on("mls.welcome_requested", onWelcomeRequested);
     socket.on("presence:update", onPresence);
@@ -260,6 +283,7 @@ export default function App() {
       clearTimeout(refreshTimer.current);
       socket.off("data:refresh", scheduleRefresh);
       socket.off("message:new", onMessage);
+      socket.off("message:updated", applyMessagePreview);
       socket.off("mls.commit", onMlsCommit);
       socket.off("mls.welcome_requested", onWelcomeRequested);
       socket.off("presence:update", onPresence);
@@ -268,7 +292,7 @@ export default function App() {
       socket.off("connect_error", onConnectError);
       socket.off("trust.device_revoked", onTrustDeviceRevoked);
     };
-  }, [me?.id, me?.mustChangePassword, refresh, socket, showToast, trustState.device?.id]);
+  }, [applyMessagePreview, me?.id, me?.mustChangePassword, refresh, socket, showToast, trustState.device?.id]);
 
   async function authenticated(result) {
     setMe(result.user);

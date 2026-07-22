@@ -2,7 +2,7 @@
 
 [![Website](https://img.shields.io/badge/website-open-c69cff)](https://onmaynec.github.io/Nexora/)
 [![CI](https://github.com/Onmaynec/Nexora/actions/workflows/ci.yml/badge.svg)](https://github.com/Onmaynec/Nexora/actions/workflows/ci.yml)
-![Current version](https://img.shields.io/badge/current-3.2.4%20prerelease-c69cff)
+![Current version](https://img.shields.io/badge/current-3.2.5%20prerelease-c69cff)
 ![Stable signed baseline](https://img.shields.io/badge/stable%20signed-3.1.2-70e6b1)
 ![API](https://img.shields.io/badge/API-v3%20%2B%20Trust%20v4-70e6b1)
 ![Database](https://img.shields.io/badge/SQLite-schema%208-70e6b1)
@@ -17,14 +17,14 @@
 
 | Линия | Назначение | Статус распространения |
 |---|---|---|
-| `3.2.4` | Windows updater recovery, Server console fixes, automatic MLS Welcome delivery и Client diagnostics | Source/PWA prerelease для контролируемого тестирования |
+| `3.2.5` | Плавная отправка сообщений, восстановленный media UX, Pulse/SQLite fix и in-app release experience | Source/PWA prerelease для контролируемого тестирования |
 | `3.1.2` | Основной messaging-контур, Pulse Cloud и production hardening | Последняя подтверждённая signed production baseline |
 
-`3.2.4` прошла автоматические build-, unit-, API-, integration-, performance-, security-, soak- и Android source-gates. Она не является подписанным стабильным Windows-релизом и не заявляется как независимо аудированная E2EE-система. Авторитетные документы текущей линии:
+`3.2.5` проходит автоматические build-, unit-, API-, integration-, performance-, security-, soak- и Android source-gates. Она не является подписанным стабильным Windows-релизом и не заявляется как независимо аудированная E2EE-система. Авторитетные документы текущей линии:
 
-- [Release Notes 3.2.4](RELEASE_NOTES_3.2.4.md);
-- [Security Review 3.2.4](SECURITY_REVIEW_3.2.4.md);
-- [Release Verification 3.2.4](RELEASE_VERIFICATION_3.2.4.md).
+- [Release Notes 3.2.5](RELEASE_NOTES_3.2.5.md);
+- [Security Review 3.2.5](SECURITY_REVIEW_3.2.5.md);
+- [Release Verification 3.2.5](RELEASE_VERIFICATION_3.2.5.md).
 
 ## Возможности
 
@@ -79,16 +79,16 @@
 
 Фиксированный MLS profile: `MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519`.
 
-### Patch release 3.2.4
+### Patch release 3.2.5
 
-- автоматическая проверка GitHub Releases после запуска и по расписанию;
-- наблюдаемая ручная проверка с progress, terminal state, retry и понятными ошибками;
-- стабильные коды ошибок audited Server console без Electron IPC wrapper text;
-- безопасная нормализация `<user>` и `[days]`, скопированных из help;
-- автоматический запрос MLS Welcome для verified устройства и повтор claim без plaintext downgrade;
-- краткое окно изменений после обновления со ссылкой на GitHub release;
-- opt-in Windows test mode с live PowerShell tail локального Client log;
-- branded Russian NSIS installer и отдельный Start Menu shortcut тестового режима.
+- окно обновления внутри приложения, русские release notes и сохранённый signed-update gate;
+- быстрый encrypted outbox без полного reload истории после каждого сообщения;
+- исправленные Plus/Impulse команды с real-SQLite regression-тестом;
+- inline preview изображений и waveform-плеер голосовых после локальной расшифровки;
+- фоновое MLS Welcome recovery для гонки создания группы без plaintext downgrade;
+- memoized message rows, условная автопрокрутка и стабильный composer;
+- интерактивная сеть только внутри истории чата;
+- отдельные local и signed Windows build-команды.
 
 ### Security hardening 3.2.3
 

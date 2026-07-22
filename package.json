@@ -1,6 +1,6 @@
 {
   "name": "nexora",
-  "version": "3.2.4",
+  "version": "3.2.5",
   "engines": {
     "node": ">=22.16.0"
   },
@@ -42,8 +42,9 @@
     "dist:client": "npm run build:web && electron-builder --config electron-builder.client.yml --win nsis",
     "dist:server": "npm run build:web && electron-builder --config electron-builder.server.yml --win nsis",
     "dist:windows": "npm run dist:client && npm run dist:server",
-    "release:windows": "npm run release:check && npm run release:signing-check && npm run dist:windows",
-    "client:test-mode": "electron electron/client-main.cjs --test-mode"
+    "release:windows": "npm run release:check && npm run dist:windows",
+    "client:test-mode": "electron electron/client-main.cjs --test-mode",
+    "release:windows:signed": "npm run release:check && npm run release:signing-check && npm run dist:windows"
   },
   "dependencies": {
     "cookie": "^1.0.2",
