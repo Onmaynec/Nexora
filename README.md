@@ -2,7 +2,7 @@
 
 [![Website](https://img.shields.io/badge/website-open-c69cff)](https://onmaynec.github.io/Nexora/)
 [![CI](https://github.com/Onmaynec/Nexora/actions/workflows/ci.yml/badge.svg)](https://github.com/Onmaynec/Nexora/actions/workflows/ci.yml)
-![Current version](https://img.shields.io/badge/current-3.2.5%20prerelease-c69cff)
+![Current version](https://img.shields.io/badge/current-3.3.0%20prerelease-c69cff)
 ![Stable signed baseline](https://img.shields.io/badge/stable%20signed-3.1.2-70e6b1)
 ![API](https://img.shields.io/badge/API-v3%20%2B%20Trust%20v4-70e6b1)
 ![Database](https://img.shields.io/badge/SQLite-schema%208-70e6b1)
@@ -17,14 +17,14 @@
 
 | Линия | Назначение | Статус распространения |
 |---|---|---|
-| `3.2.5` | Плавная отправка сообщений, восстановленный media UX, Pulse/SQLite fix и in-app release experience | Source/PWA prerelease для контролируемого тестирования |
+| `3.3.0` | Trust recovery, расходуемые Импульсы, обновлённый Client UX, сайт и полный artifact pipeline | Signed release при наличии ключей или явно маркированный UNSIGNED-TEST prerelease |
 | `3.1.2` | Основной messaging-контур, Pulse Cloud и production hardening | Последняя подтверждённая signed production baseline |
 
-`3.2.5` прошла автоматические build-, unit-, API-, integration-, performance-, security-, soak- и Android source-gates. Она не является подписанным стабильным Windows-релизом и не заявляется как независимо аудированная E2EE-система. Авторитетные документы текущей линии:
+`3.3.0` проходит build-, unit-, API-, integration-, performance-, security-, soak-, Android-, website- и Windows artifact-gates. При отсутствии сертификатов Windows/Android binaries публикуются только как явно маркированные `UNSIGNED-TEST` assets и не подключаются к production updater. Независимый E2EE-аудит не заявляется. Авторитетные документы текущей линии:
 
-- [Release Notes 3.2.5](RELEASE_NOTES_3.2.5.md);
-- [Security Review 3.2.5](SECURITY_REVIEW_3.2.5.md);
-- [Release Verification 3.2.5](RELEASE_VERIFICATION_3.2.5.md).
+- [Release Notes 3.3.0](RELEASE_NOTES_3.3.0.md);
+- [Security Review 3.3.0](SECURITY_REVIEW_3.3.0.md);
+- [Release Verification 3.3.0](RELEASE_VERIFICATION_3.3.0.md).
 
 ## Возможности
 
@@ -79,16 +79,16 @@
 
 Фиксированный MLS profile: `MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519`.
 
-### Patch release 3.2.5
+### Release 3.3.0
 
-- окно обновления внутри приложения, русские release notes и сохранённый signed-update gate;
-- быстрый encrypted outbox без полного reload истории после каждого сообщения;
-- исправленные Plus/Impulse команды с real-SQLite regression-тестом;
-- inline preview изображений и waveform-плеер голосовых после локальной расшифровки;
-- фоновое MLS Welcome recovery для гонки создания группы без plaintext downgrade;
-- memoized message rows, условная автопрокрутка и стабильный composer;
-- интерактивная сеть только внутри истории чата;
-- отдельные local и signed Windows build-команды.
+- conversation-scoped MLS Welcome limiting, Client coalescing, backoff и Retry-After;
+- расходуемый Impulse catalog с atomic ledger purchases и signed/local entitlements;
+- самостоятельные Sandbox goals, contributions и refunds без Cloud 503/409;
+- in-app confirmation dialogs для обычных и защищённых сообщений;
+- RMS/peak voice waveform с played color, animation, seek и playback rate;
+- исправленные Pulse overflow и account fallback states;
+- переработанный bilingual website с direct GitHub Release downloads;
+- signed production artifacts или явно маркированные UNSIGNED TEST installers без updater metadata.
 
 ### Security hardening 3.2.3
 
@@ -104,7 +104,8 @@
 ### Nexora Plus и Pulse
 
 - отдельная Cloud Identity с email verification, MFA и OAuth 2.1 Authorization Code + PKCE;
-- Nexora Plus, Impulse double-entry ledger, receipts, billing portal и room goals;
+- Nexora Plus, Impulse double-entry ledger, receipts, billing portal, room goals и расходуемый catalog;
+- персональные и room-scoped entitlements с server-defined price и idempotent purchase;
 - signed Local Account ↔ Cloud Account linking;
 - production entitlements только от отдельного Pulse Cloud;
 - локальный sandbox для QA/demo без реальных платежей и production signatures.
@@ -168,7 +169,7 @@ flowchart TB
 
 Local Server является источником истины для локальных аккаунтов, комнат, ролей, доступа, порядка доставки и хранения ciphertext. Pulse Cloud является отдельным authority для Cloud Identity, billing, ledger и production entitlements.
 
-Local Server не получает private MLS state, plaintext secure-message content или ключи secure attachments. При этом сервер видит service metadata: account/device identifiers, membership, conversation scope, timing, IP/network context, ciphertext size, attachment ID и delivery events. Nexora `3.2.5` не заявляет защиту от traffic analysis.
+Local Server не получает private MLS state, plaintext secure-message content или ключи secure attachments. При этом сервер видит service metadata: account/device identifiers, membership, conversation scope, timing, IP/network context, ciphertext size, attachment ID и delivery events. Nexora `3.3.0` не заявляет защиту от traffic analysis.
 
 Полное описание: [Architecture](docs/ARCHITECTURE.md), [Security Model](docs/SECURITY_MODEL.md) и [Project Index](PROJECT_INDEX.md).
 

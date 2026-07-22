@@ -2,6 +2,42 @@
 
 Формат основан на Keep a Changelog. Версии следуют Semantic Versioning.
 
+## [3.3.0] — 2026-07-23
+
+### Добавлено
+
+- серверный каталог Импульсов для оформления профиля, сообщений, реакций и возможностей комнат;
+- атомарные Cloud/Sandbox purchases с double-entry ledger, idempotency и entitlements;
+- самостоятельные Sandbox goals, contributions, refunds и receipts без обращения к отключённому Cloud;
+- доступные in-app confirmation dialogs для удаления обычных и защищённых сообщений;
+- полный release pipeline для signed builds или явно маркированных Client/Server/Android UNSIGNED TEST artifacts;
+- переработанный сайт 3.3.0 с live GitHub data, direct downloads, signature labels и RU/EN.
+
+### Исправлено
+
+- MLS Welcome recovery больше не исчерпывает общий device bucket при открытии личных диалогов и комнат;
+- Client объединяет параллельные recovery requests, соблюдает backoff и Retry-After;
+- Sandbox endpoints больше не создают 409 для receipts и 503 для room goals;
+- Cloud Account fallback не показывает undefined, а LOCAL TEST MODE не выходит за границы;
+- voice waveform нормализуется по RMS/peak, отображает разную высоту и played-state;
+- инертная иконка замка удалена из secure composer;
+- website headings не пересекаются на кириллице, language/GitHub controls доступны для pointer и keyboard;
+- Stripe webhook raw body не изменяется JSON middleware.
+
+### Безопасность
+
+- room purchases проверяют owner role, membership и ban на сервере;
+- отрицательный баланс, client-defined price и повторное списание запрещены;
+- unsigned test binaries не публикуют latest.yml или blockmap и недоступны production updater;
+- plaintext downgrade и paywall для базового общения не добавлены.
+
+### Совместимость
+
+- Local Server schema 8 сохранена;
+- Cloud DB получает additive migration impulse_purchases;
+- API v3 и Trust/MLS API v4 расширены совместимо;
+- обновление поддерживается с 3.2.0–3.2.5.
+
 ## [3.2.5] — 2026-07-22
 
 ### Исправлено
