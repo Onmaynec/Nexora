@@ -562,11 +562,17 @@ export function redactDecryptedForCache(messages) {
 }
 
 export function saveE2eeDraft(conversationId, text) {
-  return saveEncryptedDraft(current().serverId, current().userId, conversationId, text);
+  if (!trustConfigured()) {
+    return Promise.reject(Object.assign(new Error("Trust Core ещё не настроен для этого пользователя."), { code: "TRUST_NOT_CONFIGURED" }));
+  }
+  const { serverId, userId } = current();
+  return saveEncryptedDraft(serverId, userId, conversationId, text);
 }
 
 export function loadE2eeDraft(conversationId) {
-  return loadEncryptedDraft(current().serverId, current().userId, conversationId);
+  if (!trustConfigured()) return Promise.resolve("");
+  const { serverId, userId } = current();
+  return loadEncryptedDraft(serverId, userId, conversationId);
 }
 
 export async function trustStatus() {
