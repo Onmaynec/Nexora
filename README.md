@@ -20,7 +20,7 @@
 | `3.2.5` | Плавная отправка сообщений, восстановленный media UX, Pulse/SQLite fix и in-app release experience | Source/PWA prerelease для контролируемого тестирования |
 | `3.1.2` | Основной messaging-контур, Pulse Cloud и production hardening | Последняя подтверждённая signed production baseline |
 
-`3.2.5` проходит автоматические build-, unit-, API-, integration-, performance-, security-, soak- и Android source-gates. Она не является подписанным стабильным Windows-релизом и не заявляется как независимо аудированная E2EE-система. Авторитетные документы текущей линии:
+`3.2.5` прошла автоматические build-, unit-, API-, integration-, performance-, security-, soak- и Android source-gates. Она не является подписанным стабильным Windows-релизом и не заявляется как независимо аудированная E2EE-система. Авторитетные документы текущей линии:
 
 - [Release Notes 3.2.5](RELEASE_NOTES_3.2.5.md);
 - [Security Review 3.2.5](SECURITY_REVIEW_3.2.5.md);
@@ -168,7 +168,7 @@ flowchart TB
 
 Local Server является источником истины для локальных аккаунтов, комнат, ролей, доступа, порядка доставки и хранения ciphertext. Pulse Cloud является отдельным authority для Cloud Identity, billing, ledger и production entitlements.
 
-Local Server не получает private MLS state, plaintext secure-message content или ключи secure attachments. При этом сервер видит service metadata: account/device identifiers, membership, conversation scope, timing, IP/network context, ciphertext size, attachment ID и delivery events. Nexora `3.2.4` не заявляет защиту от traffic analysis.
+Local Server не получает private MLS state, plaintext secure-message content или ключи secure attachments. При этом сервер видит service metadata: account/device identifiers, membership, conversation scope, timing, IP/network context, ciphertext size, attachment ID и delivery events. Nexora `3.2.5` не заявляет защиту от traffic analysis.
 
 Полное описание: [Architecture](docs/ARCHITECTURE.md), [Security Model](docs/SECURITY_MODEL.md) и [Project Index](PROJECT_INDEX.md).
 
@@ -205,7 +205,8 @@ gradle -p android :app:assembleDebug --no-daemon
 | `npm run audit:security` | security invariants и dependency audit |
 | `npm run test:soak` | долговременная проверка состояния, backup и SQLite integrity |
 | `npm run dist:windows` | локальные тестовые NSIS Client/Server builds |
-| `npm run release:windows` | release gate, signing gate и Windows installers |
+| `npm run release:windows` | release gate и локальные Windows installers без обязательной подписи |
+| `npm run release:windows:signed` | release gate, signing gate и подписанные production installers |
 
 ## Развёртывание
 
@@ -231,8 +232,8 @@ Electron Client закрепляет fingerprint за Server ID. Для брау
 | Архитектура | [Architecture](docs/ARCHITECTURE.md), [Project Index](PROJECT_INDEX.md) |
 | Безопасность | [Security Policy](SECURITY.md), [Security Model](docs/SECURITY_MODEL.md), [Security Verification](SECURITY_AUDIT.md) |
 | Развёртывание | [Deployment](docs/DEPLOYMENT.md), [Administrator Guide](ADMIN_GUIDE.md), [Operations Runbook](docs/OPERATIONS_RUNBOOK.md) |
-| Тестирование | [Acceptance Test Guide](TESTER_GUIDE.md), [3.2.4 Verification](RELEASE_VERIFICATION_3.2.4.md) |
-| Trust / MLS | [Trust Core 3.2.0 foundation](docs/TRUST_CORE_3.2.0.md), [Security Review 3.2.4](SECURITY_REVIEW_3.2.4.md) |
+| Тестирование | [Acceptance Test Guide](TESTER_GUIDE.md), [3.2.5 Verification](RELEASE_VERIFICATION_3.2.5.md) |
+| Trust / MLS | [Trust Core 3.2.0 foundation](docs/TRUST_CORE_3.2.0.md), [Security Review 3.2.5](SECURITY_REVIEW_3.2.5.md) |
 | Миграция | [Schema 8 Migration](docs/MIGRATION_3.2.0.md) |
 | Plus / Pulse | [Pulse](docs/PULSE.md), [Pulse Cloud](docs/PULSE_CLOUD.md) |
 | Выпуски | [Release Policy](docs/RELEASE_POLICY.md), [Release Checklist](docs/RELEASE_CHECKLIST.md), [Changelog](CHANGELOG.md) |
