@@ -1,6 +1,6 @@
-# Nexora 3.2.0 Release Notes — Draft
+# Nexora 3.2.0 Release Notes — Source/PWA Prerelease Candidate
 
-> **Release status:** not published. This document describes the current PR #12 implementation and unresolved release blockers. It must not be used to claim independently audited E2EE.
+> **Release classification:** controlled-testing prerelease candidate. The automated source/build/test/security gates pass. Stable signed Windows distribution and independently audited E2EE are not claimed.
 
 ## Trust Core and MLS secure messaging
 
@@ -10,7 +10,7 @@ Implemented behavior:
 
 - Ed25519 device identity with proof-of-possession registration;
 - bootstrap verification for the first device and signed approval for subsequent devices;
-- signed device revocation with immediate delivery denial;
+- signed device revocation with immediate targeted Socket.IO disconnect;
 - Trusted Devices settings UI with fingerprint comparison, approval, revocation and local self-wipe;
 - one-time, expiring MLS KeyPackages;
 - device/conversation-scoped Welcome delivery;
@@ -20,6 +20,20 @@ Implemented behavior:
 - explicit failure when local private group state is lost.
 
 The fixed MLS profile is `MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519`.
+
+## Device-scoped secure realtime
+
+Secure Socket.IO delivery is no longer account-wide:
+
+- the client connects with the active Trust `deviceId` and Client version;
+- the server resolves that device against the authenticated account;
+- `mls:message` and encrypted edit payloads must use the same active, verified device bound to the socket;
+- ciphertext events are emitted only to active, verified devices that are active members of the relevant MLS group;
+- legacy, unverified and mismatched-device sockets neither send nor receive secure-message ciphertext;
+- revocation sends a targeted event, disconnects the revoked device immediately and leaves other account devices connected;
+- the revoked client clears its local Trust scope, private MLS state, KeyPackages, decrypted cache and drafts before any future enrollment.
+
+A runtime integration test exercises all of these boundaries against a real schema 8 server.
 
 ## Ciphertext-only secure path
 
@@ -33,11 +47,11 @@ For a conversation with an active MLS group:
 - local search works over the encrypted decrypted-content cache;
 - legacy plaintext creation is rejected by the server.
 
-Plaintext guards cover legacy send, forward, edit, server draft, scheduled message, poll, bot message and upload paths after MLS activation. Runtime tests execute the direct REST and Socket.IO bypass attempts against a real schema 8 server.
+Plaintext guards cover legacy send, forward, edit, server draft, scheduled message, poll, bot message and upload paths after MLS activation. Runtime tests execute direct REST and Socket.IO bypass attempts against a real schema 8 server.
 
 ## Encrypted files, images and voice
 
-Secure conversations support development-stage encrypted media without using legacy plaintext upload:
+Secure conversations support encrypted media without using legacy plaintext upload:
 
 - each payload receives a random AES-256-GCM key and 96-bit IV;
 - AAD binds conversation ID, attachment ID and media kind;
@@ -53,7 +67,7 @@ Secure conversations support development-stage encrypted media without using leg
 
 When any room file/image/voice class is disabled, the complete opaque media path fails closed because Local Server cannot safely classify encrypted content.
 
-Local Server still sees account/device/conversation scope, uploader, attachment ID, ciphertext size, timing, network context and delivery events. This release draft does not claim metadata or traffic-pattern confidentiality.
+Local Server still sees account/device/conversation scope, uploader, attachment ID, ciphertext size, timing, network context and delivery events. Nexora 3.2.0 does not claim metadata or traffic-pattern confidentiality.
 
 ## Local Server schema 8
 
@@ -71,9 +85,11 @@ Migration behavior:
 
 Rollback is restore-from-backup, not an in-place downgrade. See [docs/MIGRATION_3.2.0.md](docs/MIGRATION_3.2.0.md).
 
-## Reliability fixes found during media testing
+## Reliability fixes
 
-A rejected `SqliteStore.mutate()` operation previously left the internal serialized queue rejected. The original caller received the correct error, but later `flush()` or shutdown could rethrow the already handled failure. The queue now stores a handled continuation while the operation Promise remains rejected for its caller. A regression test verifies rollback, successful flush and subsequent mutation.
+A rejected `SqliteStore.mutate()` operation previously left the internal serialized queue rejected. The caller received the correct error, but later `flush()` or shutdown could rethrow the already handled failure. The queue now stores a handled continuation while the caller retains the rejected operation Promise. Regression coverage verifies rollback, successful flush and subsequent mutation.
+
+The release candidate also runs a schema 8 soak job with repeated state mutations, backup creation and SQLite integrity verification.
 
 ## Security gate additions
 
@@ -85,52 +101,59 @@ The release security audit checks:
 - signed verify/revoke client flow;
 - non-extractable device identity keys;
 - AES-GCM client-state wrapping;
-- complete Trust scope wipe on self-revoke;
+- complete Trust scope wipe on revocation;
+- socket-to-device binding and verified-device-only MLS delivery;
+- targeted disconnect after device revocation;
 - fixed MLS ciphersuite and replay rejection;
 - ciphertext-only serialization and server-side legacy plaintext guards;
 - exact GCM attachment size and timing-safe ciphertext hash;
 - opaque server metadata and one-time attachment claim;
 - fail-closed room media policy;
 - client AAD binding and post-download integrity;
-- upload progress/cancel and descriptor isolation from ordinary outbox/cache.
+- upload progress/cancel and descriptor isolation from ordinary outbox/cache;
+- production dependency audit with no high or critical vulnerabilities.
+
+## Automated candidate evidence
+
+GitHub Actions CI run `#222` (`29919641225`) passed on commit `927ae6300392d161f987acb057435f5d0e6ca2f9`:
+
+- Windows `npm run check`;
+- Windows `npm run test:unit`;
+- Windows `npm run audit:security`;
+- Linux `npm test`;
+- dedicated `npm run release:check`;
+- one-minute schema 8 soak;
+- Android `gradle -p android :app:assembleDebug --no-daemon`.
+
+The final documentation-only candidate head is verified separately in [RELEASE_VERIFICATION_3.2.0.md](RELEASE_VERIFICATION_3.2.0.md).
 
 ## Compatibility
 
 - target version: `3.2.0`;
 - Local Server database: schema 8;
 - browser/Windows/Android Client handshake: `3.2.0`;
-- stable 3.1.2 remains the production baseline until this release is approved;
-- 3.1.x clients are not supported for conversations that have activated the secure 3.2.0 path;
+- stable 3.1.2 remains the signed production baseline until stable promotion is approved;
+- 3.1.x clients are not supported for conversations that activate the secure 3.2.0 path;
 - existing 3.1.x message history/files are not retroactively encrypted.
 
-## Current automated coverage
+## Distribution policy
 
-- schema 7 → 8 migration, idempotency and downgrade protection;
-- functional clock and rejected mutation queue regressions;
-- device registration, verification and revocation;
-- challenge scope/single-use;
-- KeyPackage atomic one-time claim;
-- Welcome conversation scoping;
-- commit epoch and replay enforcement;
-- revoked-device delivery denial;
-- missed-commit recovery;
-- direct server plaintext downgrade attempts;
-- attachment upload/idempotency/hash/pending/delete/fail-closed policy;
-- real `mls:message` attachment claim, idempotent retry, reuse rejection and replay-reservation release;
-- Alice/Bob KeyPackage → Add → Welcome → join → encrypt/decrypt interoperability;
-- Pulse schema 8 compatibility;
-- Windows production build/unit/security gate;
-- Linux full test and release-check jobs;
-- Android source build.
+When Windows Authenticode secrets are unavailable, the repository release workflow publishes only:
 
-## Unresolved blockers
+- source ZIP;
+- built PWA ZIP;
+- SPDX SBOM;
+- SHA-256 checksums.
 
-This draft is not releasable until the following are completed:
+It intentionally withholds unsigned `.exe`, `latest.yml` and blockmap assets, so Electron auto-update cannot consume an unsigned build.
 
-- metadata minimization/traffic-analysis review;
-- expanded multi-device simultaneous commit, revoke/re-add and corrupted-state matrix;
-- runtime E2E on Electron, PWA and Android;
-- load/soak and long-offline recovery testing;
-- final release verification report;
-- signing-machine checks and signed installers;
-- independent cryptographic and application-security review.
+## Remaining stable-promotion gates
+
+The following do not block a clearly marked source/PWA prerelease, but remain mandatory before stable production promotion:
+
+- metadata minimization and traffic-analysis review beyond the documented boundary;
+- broader simultaneous-commit, revoke/re-add and corrupted local-state platform matrix;
+- packaged Windows Electron, installed PWA and physical Android runtime E2E;
+- longer-duration load/soak and extended offline field evidence;
+- Authenticode signing-machine checks and signed updater artifacts;
+- independent cryptographic and application-security review with no unresolved high/critical findings.
