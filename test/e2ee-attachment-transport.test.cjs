@@ -147,7 +147,11 @@ test("mls:message atomically claims an opaque attachment and releases failed res
     .send(fixture.ciphertext)
     .expect(201);
 
-  socket = createSocket(baseUrl, { transports: ["websocket"], extraHeaders: { Cookie: cookie } });
+  socket = createSocket(baseUrl, {
+    transports: ["websocket"],
+    extraHeaders: { Cookie: cookie },
+    auth: { deviceId, clientVersion: "3.2.0" },
+  });
   await once(socket, "connect");
 
   const firstCiphertext = crypto.randomBytes(96);
