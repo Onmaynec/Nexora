@@ -1,10 +1,14 @@
 # Branch Status — `docs/community-standards`
 
-- Purpose: repository Community Standards and documentation cleanup.
-- Historical Pull Request: `#2`.
-- Status: merged into `main` and superseded.
-- Current stable documentation: `main`, Nexora 3.1.2.
+| Field | Value |
+|---|---|
+| Classification | Merged documentation provenance |
+| Purpose | Community Standards and repository documentation cleanup |
+| Related Pull Request | PR `#2` |
+| Current source of truth | `main`, Nexora `3.2.4` |
 
-This branch is retained only as historical review context. Its README/version references reflect the repository state at the time of PR #2 and must not be used as current release documentation.
+This branch reflects the repository state at the time Community Standards, license, support policy and templates were added. It is not current product documentation.
 
-Do not add product features or fixes here. New documentation changes should start from the current `main` branch.
+Do not add product or documentation work here, tag the branch, or use its version statements as current release guidance.
+
+New documentation changes start from latest `main`. Current documentation portal: `docs/README.md`; branch rules: `docs/BRANCH_DOCUMENTATION_POLICY.md`.
