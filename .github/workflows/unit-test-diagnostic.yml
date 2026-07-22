@@ -50,10 +50,14 @@ jobs:
               failures=$((failures + 1))
               echo "| \`$file\` | **FAIL** |" >> "$report"
               echo >> "$report"
-              echo "<details><summary>$file failure tail</summary>" >> "$report"
+              echo "<details><summary>$file failing subtests</summary>" >> "$report"
               echo >> "$report"
               echo '```text' >> "$report"
-              tail -n 60 "$log" >> "$report"
+              awk '
+                /^not ok [0-9]+ - / { capture=1; remaining=42 }
+                capture { print; remaining-- }
+                capture && remaining <= 0 { capture=0 }
+              ' "$log" >> "$report"
               echo '```' >> "$report"
               echo '</details>' >> "$report"
             fi
