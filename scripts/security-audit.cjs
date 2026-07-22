@@ -48,7 +48,7 @@ const checks = [
   ["Private MLS state uses local AES-GCM wrapping", containsAll(trustStore, ["AES-GCM", "additionalData", "tagLength: 128"]), "boolean"],
   ["Self-revoke clears all Trust stores", trustDevices.includes("clearTrustScope") && containsAll(trustStore, ["STORES.devices", "STORES.groups", "STORES.messages", "STORES.drafts"]), "boolean"],
   ["MLS mandatory ciphersuite is fixed to 1", /MLS_CIPHERSUITE_ID\s*=\s*1/, mlsEngine],
-  ["MLS transport rejects ciphertext replay", trustCore.includes("MLS_CIPHERTEXT_REPLAYED") && mlsTransport.includes("trustCore.reserveMessage"), "boolean"],
+  ["MLS transport rejects ciphertext replay", trustCore.includes("MLS_MESSAGE_REPLAY") && trustCore.includes("mls_replay_cache") && mlsTransport.includes("trustCore.reserveMessage"), "boolean"],
   ["Secure serialization never exposes MLS plaintext", containsAll(model, ["message.mlsEnvelope", "text: deleted ? \"\"", "message.type === \"encrypted\" ? \"\""]), "boolean"],
   ["Legacy plaintext routes are guarded after MLS activation", containsAll(server, ["conversationUsesMls", "E2EE_REQUIRED", "E2EE_FORWARD_REQUIRED", "E2EE_ATTACHMENT_REQUIRED"]) && containsAll(v3, ["conversationUsesMls", "E2EE_DRAFT_LOCAL_ONLY", "E2EE_SCHEDULE_UNSUPPORTED", "E2EE_POLL_UNSUPPORTED", "E2EE_BOT_UNSUPPORTED"]) && attachmentGuardCount >= 3, "boolean"],
   ["Android cleartext disabled", /usesCleartextTraffic="false"/, androidManifest],
