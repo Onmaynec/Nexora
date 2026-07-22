@@ -6,15 +6,24 @@ const { spawnSync } = require("node:child_process");
 
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+const server = read("server/create-server.cjs");
 const v3 = read("server/v3-features.cjs");
+const model = read("server/model.cjs");
+const trustCore = read("server/trust-core.cjs");
+const trustRoutes = read("server/trust-routes.cjs");
+const mlsTransport = read("server/mls-transport.cjs");
+const trustClient = read("client/src/crypto/trust-client.js");
+const trustDevices = read("client/src/crypto/trust-device-management.js");
+const trustStore = read("client/src/crypto/trust-store.js");
+const mlsEngine = read("client/src/crypto/mls-engine.js");
 const android = read("android/app/src/main/java/com/nexora/mobile/MainActivity.kt");
 const androidManifest = read("android/app/src/main/AndroidManifest.xml");
 const releaseWorkflow = read(".github/workflows/release.yml");
 const checks = [
-  ["CSRF token verification", /CSRF_INVALID/, read("server/create-server.cjs")],
-  ["Origin verification", /ORIGIN_REJECTED/, read("server/create-server.cjs")],
+  ["CSRF token verification", /CSRF_INVALID/, server],
+  ["Origin verification", /ORIGIN_REJECTED/, server],
   ["Persistent login rate limits", /rateLimits/, read("server/store.cjs")],
-  ["Temporary password lock", /LOGIN_LOCKED/, read("server/create-server.cjs")],
+  ["Temporary password lock", /LOGIN_LOCKED/, server],
   ["Encrypted backups", /aes-256-gcm/, read("server/maintenance.cjs")],
   ["Encrypted TOTP secrets", /aes-256-gcm/, read("server/totp.cjs")],
   ["Timing-safe TOTP verification", /timingSafeEqual/, read("server/totp.cjs")],
@@ -29,6 +38,17 @@ const checks = [
   ["Hashed scoped bot tokens", /tokenHash:\s*hashToken\(raw\)/, v3],
   ["Webhook HTTPS and private-address rejection", /WEBHOOK_HTTPS_REQUIRED[\s\S]*WEBHOOK_PRIVATE_TARGET/, v3],
   ["Webhook DNS pinning and HMAC", /lookup:[\s\S]*target\.address[\s\S]*createHmac\("sha256"/, v3],
+  ["Trust challenges are one-time and expiring", /used_at IS NULL[\s\S]*expires_at>[\s\S]*UPDATE trust_challenges SET used_at=/, trustCore],
+  ["Trust device proofs use Ed25519 verification", /verifySignature[\s\S]*crypto\.verify\(null/, trustCore],
+  ["Trust mutations require CSRF and a device identifier", /CSRF_INVALID[\s\S]*TRUST_DEVICE_REQUIRED/, trustRoutes],
+  ["Client signs verify and revoke challenges", /verify_device[\s\S]*revoke_device[\s\S]*crypto\.subtle\.sign/, trustDevices],
+  ["Device identity private keys are non-extractable", /generateKey\([\s\S]*Ed25519[\s\S]*false,\s*\["sign"\]/, trustClient],
+  ["Private MLS state uses local AES-GCM wrapping", /AES-GCM[\s\S]*additionalData[\s\S]*tagLength:\s*128/, trustStore],
+  ["Self-revoke clears all Trust stores", /clearTrustScope[\s\S]*STORES\.devices[\s\S]*STORES\.groups[\s\S]*STORES\.messages[\s\S]*STORES\.drafts/, trustStore],
+  ["MLS mandatory ciphersuite is fixed to 1", /MLS_CIPHERSUITE_ID\s*=\s*1/, mlsEngine],
+  ["MLS transport rejects ciphertext replay", /MLS_CIPHERTEXT_REPLAYED/, mlsTransport],
+  ["Secure serialization never exposes MLS plaintext", /message\.mlsEnvelope[\s\S]*text:\s*""/, model],
+  ["Legacy plaintext routes are guarded after MLS activation", /E2EE_PLAINTEXT_FORBIDDEN[\s\S]*conversationUsesMls/, server + v3],
   ["Android cleartext disabled", /usesCleartextTraffic="false"/, androidManifest],
   ["Android TLS errors are cancelled", /onReceivedSslError[\s\S]*handler\.cancel\(\)/, android],
   ["Android never bypasses TLS errors", !/handler\.proceed\(\)/.test(android), "boolean"],
