@@ -22,7 +22,28 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run test:unit
-      - run: npm run audit:security
+      - name: Capture security audit
+        shell: pwsh
+        run: |
+          npm run audit:security *> security-audit.log
+          $code = $LASTEXITCODE
+          Get-Content security-audit.log
+          Set-Content -Path security-audit.exit -Value $code
+          exit 0
+      - name: Upload security audit diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trust-security-audit
+          path: |
+            security-audit.log
+            security-audit.exit
+          retention-days: 1
+      - name: Enforce security audit
+        shell: pwsh
+        run: |
+          $code = [int](Get-Content security-audit.exit)
+          exit $code
 
   linux-tests:
     runs-on: ubuntu-latest
