@@ -51,7 +51,7 @@ test("personal catalog purchase is atomic, signed and idempotent", (t) => {
   assert.equal(database.getBalance(account.id), 1880);
   assert.equal(database.db.prepare("SELECT COUNT(*) AS count FROM impulse_purchases").get().count, 1);
   assert.equal(database.db.prepare("SELECT COUNT(*) AS count FROM ledger_transactions WHERE operation_type='impulse_product_purchase'").get().count, 1);
-  const payload = verifySignedEnvelope(first.entitlement, { "catalog-key": publicKey }, {
+  const payload = verifySignedEnvelope(first.entitlement.envelope, { "catalog-key": publicKey }, {
     serverId: "server-main",
     productCode: "avatar_frame_neon",
     now: "2026-07-23T00:00:01.000Z",
@@ -70,7 +70,7 @@ test("room catalog purchase is scoped to one room", (t) => {
     idempotencyKey: "catalog-purchase-room-0001",
   });
   assert.equal(database.getBalance(account.id), 1350);
-  const payload = verifySignedEnvelope(result.entitlement, { "catalog-key": publicKey }, {
+  const payload = verifySignedEnvelope(result.entitlement.envelope, { "catalog-key": publicKey }, {
     serverId: "server-main",
     roomId: "room-main",
     productCode: "room_theme_midnight",
