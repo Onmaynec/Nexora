@@ -66,7 +66,7 @@ test("unsigned test binaries are downloadable but excluded from updater metadata
   assert.ok(workflow.includes("\\.blockmap$"));
   assert.ok(site.includes("function signatureState"));
   assert.ok(site.includes("unsigned|test-build|test\\.exe"));
-  assert.ok(site.includes("data-signature"));
+  assert.ok(site.includes("dataset.signature"));
 });
 
 test("website 3.3 typography prevents overlapping headings and keeps controls clickable", () => {
