@@ -1,6 +1,7 @@
 "use strict";
 
 const crypto = require("node:crypto");
+const { claimE2eeAttachment } = require("./e2ee-attachments.cjs");
 const { addNotification, appendEvent } = require("./events.cjs");
 const {
   canAccessConversation,
@@ -96,14 +97,22 @@ function mountMlsTransport({ io, store, trustCore, dispatchEvent = () => {}, log
       const conversationId = cleanId(payload?.conversationId);
       const clientId = cleanId(payload?.clientId);
       const deviceId = cleanId(payload?.deviceId);
-      if (!conversationId || !clientId || !deviceId) return acknowledge({ ok: false, code: "MLS_ENVELOPE_INVALID", error: "MLS envelope содержит неверные идентификаторы." });
+      const contentType = String(payload?.contentType || "text");
+      const attachmentId = payload?.attachmentId ? cleanId(payload.attachmentId) : null;
+      const attachmentShapeValid = contentType === "attachment" ? Boolean(attachmentId) : contentType === "text" && !attachmentId;
+      if (!conversationId || !clientId || !deviceId || !attachmentShapeValid) {
+        return acknowledge({ ok: false, code: "MLS_ENVELOPE_INVALID", error: "MLS envelope содержит неверные идентификаторы или attachment binding." });
+      }
 
       const initial = store.read();
       const conversation = findConversation(initial, conversationId);
       const posting = postingError(initial, conversation, user.id);
       if (posting) return acknowledge({ ok: false, ...posting, error: posting.message });
       const existing = initial.messages.find((message) => message.senderId === user.id && message.clientId === clientId);
-      if (existing) return acknowledge({ ok: true, duplicate: true, message: serializeMessage(initial, existing, user.id) });
+      if (existing) {
+        if ((existing.fileId || null) !== (attachmentId || null)) return acknowledge({ ok: false, code: "MLS_CLIENT_ID_CONFLICT", error: "Client ID уже связан с другим attachment." });
+        return acknowledge({ ok: true, duplicate: true, message: serializeMessage(initial, existing, user.id) });
+      }
 
       let reservation;
       try {
@@ -122,16 +131,27 @@ function mountMlsTransport({ io, store, trustCore, dispatchEvent = () => {}, log
           const freshPosting = postingError(state, freshConversation, user.id);
           if (freshPosting) throw Object.assign(new Error(freshPosting.message), freshPosting);
           const duplicate = state.messages.find((message) => message.senderId === user.id && message.clientId === clientId);
-          if (duplicate) return { message: duplicate, conversation: freshConversation, duplicate: true, event: null };
+          if (duplicate) {
+            if ((duplicate.fileId || null) !== (attachmentId || null)) throw Object.assign(new Error("Client ID уже связан с другим attachment."), { code: "MLS_CLIENT_ID_CONFLICT", status: 409 });
+            return { message: duplicate, conversation: freshConversation, duplicate: true, event: null };
+          }
           const createdAt = new Date().toISOString();
+          const messageId = crypto.randomUUID();
+          const file = attachmentId ? claimE2eeAttachment(state, {
+            attachmentId,
+            conversationId,
+            uploaderId: user.id,
+            messageId,
+            claimedAt: createdAt,
+          }) : null;
           const message = {
-            id: crypto.randomUUID(),
+            id: messageId,
             conversationId,
             senderId: user.id,
             type: "encrypted",
-            encryptedContentType: String(payload?.contentType || "text").slice(0, 32),
+            encryptedContentType: contentType,
             text: "",
-            fileId: null,
+            fileId: file?.id || null,
             replyToId: null,
             threadRootId: null,
             forwardedFromId: null,
@@ -151,7 +171,7 @@ function mountMlsTransport({ io, store, trustCore, dispatchEvent = () => {}, log
           const recipients = usersForConversation(state, freshConversation);
           if (!message.silent) {
             for (const recipientId of recipients.filter((id) => id !== user.id)) {
-              addNotification(state, recipientId, "message.encrypted", { conversationId, messageId: message.id, senderId: user.id });
+              addNotification(state, recipientId, "message.encrypted", { conversationId, messageId: message.id, senderId: user.id, hasAttachment: Boolean(file) });
             }
           }
           const event = appendEvent(state, {
@@ -159,7 +179,7 @@ function mountMlsTransport({ io, store, trustCore, dispatchEvent = () => {}, log
             actorId: user.id,
             conversationId,
             roomId: freshConversation.roomId,
-            payload: { messageId: message.id, type: "encrypted", epoch: reservation.epoch, messageHash: reservation.messageHash },
+            payload: { messageId: message.id, type: "encrypted", epoch: reservation.epoch, messageHash: reservation.messageHash, attachmentId: file?.id || null },
           });
           return { message, conversation: freshConversation, duplicate: false, event };
         });
@@ -181,9 +201,9 @@ function mountMlsTransport({ io, store, trustCore, dispatchEvent = () => {}, log
     socket.on("mls:message-edit", async (payload, acknowledge = () => {}) => {
       const messageId = cleanId(payload?.messageId);
       const deviceId = cleanId(payload?.deviceId);
-      if (!messageId || !deviceId) return acknowledge({ ok: false, code: "MLS_ENVELOPE_INVALID", error: "MLS edit envelope недействителен." });
+      if (!messageId || !deviceId || String(payload?.contentType || "text") !== "text") return acknowledge({ ok: false, code: "MLS_ENVELOPE_INVALID", error: "MLS edit envelope недействителен." });
       const snapshot = store.read();
-      const target = snapshot.messages.find((item) => item.id === messageId && item.senderId === user.id && item.type === "encrypted" && !item.deletedAt);
+      const target = snapshot.messages.find((item) => item.id === messageId && item.senderId === user.id && item.type === "encrypted" && !item.deletedAt && !item.fileId);
       const conversation = findConversation(snapshot, target?.conversationId);
       if (!target || !conversation || !canAccessConversation(snapshot, conversation, user.id)) return acknowledge({ ok: false, code: "FORBIDDEN", error: "Редактирование недоступно." });
 
@@ -200,14 +220,14 @@ function mountMlsTransport({ io, store, trustCore, dispatchEvent = () => {}, log
           generation: payload?.generation,
         });
         const result = await store.mutate((state) => {
-          const candidate = state.messages.find((item) => item.id === messageId && item.senderId === user.id && item.type === "encrypted" && !item.deletedAt);
+          const candidate = state.messages.find((item) => item.id === messageId && item.senderId === user.id && item.type === "encrypted" && !item.deletedAt && !item.fileId);
           if (!candidate) throw Object.assign(new Error("Редактирование недоступно."), { code: "FORBIDDEN" });
           state.messageEdits.push({
             id: crypto.randomUUID(), messageId: candidate.id, editorId: user.id,
             previousText: "", previousMlsEnvelope: candidate.mlsEnvelope, createdAt: new Date().toISOString(),
           });
           candidate.mlsEnvelope = reservation;
-          candidate.encryptedContentType = String(payload?.contentType || candidate.encryptedContentType || "text").slice(0, 32);
+          candidate.encryptedContentType = "text";
           candidate.updatedAt = new Date().toISOString();
           const currentConversation = findConversation(state, candidate.conversationId);
           const event = appendEvent(state, {
