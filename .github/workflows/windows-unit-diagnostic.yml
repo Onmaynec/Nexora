@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
   pull-requests: write
 
 jobs:
@@ -39,7 +40,7 @@ jobs:
             windows-unit-tail.txt
             windows-unit-exit.txt
           if-no-files-found: error
-      - name: Publish diagnostic tail to PR
+      - name: Publish diagnostic tail to retained PR comment
         shell: pwsh
         run: |
           $exitCode = Get-Content windows-unit-exit.txt -Raw
@@ -54,4 +55,5 @@ jobs:
           $tail
           ```
           "@ | Set-Content windows-unit-comment.md
-          gh pr comment 12 --body-file windows-unit-comment.md
+          $body = Get-Content windows-unit-comment.md -Raw
+          gh api repos/Onmaynec/Nexora/issues/comments/5039438783 -X PATCH -f body="$body"
