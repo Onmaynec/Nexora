@@ -22,7 +22,7 @@ jobs:
           node-version: 22.16.0
           cache: npm
       - run: npm ci
-      - name: Publish failing file contexts
+      - name: Publish failing subtest contexts
         shell: bash
         run: |
           set +e
@@ -32,12 +32,14 @@ jobs:
             status=$?
             if [ "$status" -ne 0 ]; then
               failures=$((failures + 1))
-              base=$(basename "$file" .test.cjs | tr -c 'A-Za-z0-9_.-' '-')
+              file_base=$(basename "$file" .test.cjs | tr -c 'A-Za-z0-9_.-' '-')
               description=$(grep -m1 '^not ok' /tmp/unit.log | sed 's/^not ok [0-9]* - //' | cut -c1-120)
               [ -n "$description" ] || description="unit file failed"
+              subtest=$(printf '%s' "$description" | iconv -c -t ascii//TRANSLIT 2>/dev/null | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9_.-' '-' | sed 's/^-*//;s/-*$//;s/--*/-/g' | cut -c1-65)
+              [ -n "$subtest" ] || subtest="failed"
               gh api --method POST "repos/${{ github.repository }}/statuses/${{ github.event.pull_request.head.sha || github.sha }}" \
                 -f state=failure \
-                -f context="unit-file/$base" \
+                -f context="unit-failure/$file_base/$subtest" \
                 -f description="$description" \
                 -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             fi
