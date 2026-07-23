@@ -4,12 +4,15 @@ on:
   push:
     branches:
       - release/3.4.0-stable-core
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
 
 concurrency:
-  group: stable-core-diagnostics
+  group: stable-core-diagnostics-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
