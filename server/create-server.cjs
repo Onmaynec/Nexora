@@ -413,7 +413,7 @@ async function createNexoraServer(options = {}) {
   async function createTextMessage({ senderId, conversationId, text: rawText, replyToId = null, clientId = null, silent = false, threadRootId = null }) {
     const normalizedConversationId = cleanLine(conversationId, 64);
     if (conversationUsesMls(normalizedConversationId)) {
-      throw Object.assign(new Error("Диалог защищён MLS. Используйте E2EE transport."), { code: "LEGACY_READ_ONLY", status: 409 });
+      throw Object.assign(new Error("Legacy secure history доступна только для чтения."), { code: "LEGACY_READ_ONLY", status: 410 });
     }
     const text = cleanText(rawText);
     if (!text) throw Object.assign(new Error("Сообщение пустое."), { code: "MESSAGE_EMPTY" });
@@ -832,7 +832,7 @@ async function createNexoraServer(options = {}) {
         quietHoursStart: request.nexora.user.quietHoursStart ?? "",
         quietHoursEnd: request.nexora.user.quietHoursEnd ?? "",
       },
-      conversations: conversationList(state, viewerId, online),
+      conversations: conversationList(state, viewerId, online).map((conversation) => ({ ...conversation, legacySecure: conversationUsesMls(conversation.id) })),
       rooms: state.rooms
         .filter((room) => room.privacy === "public" || roomRole(state, room.id, viewerId))
         .map((room) => roomView(state, room, viewerId, online)),
