@@ -6,12 +6,14 @@ on:
       - release/3.3.3
     paths:
       - release-patches/3.3.3/apply.py
+      - release-patches/3.3.3/fixups.py
       - .github/workflows/apply-release-3.3.3.yml
   pull_request:
     branches:
       - main
     paths:
       - release-patches/3.3.3/apply.py
+      - release-patches/3.3.3/fixups.py
       - .github/workflows/apply-release-3.3.3.yml
 
 permissions:
@@ -44,12 +46,17 @@ jobs:
               "'    applyEffect(state, product, scopeId);\\n    reconcilePulseEffects(state, timestamp.getTime());\\n    return entitlement;'",
               "'  applyEffect(state, product, scopeId);\\n  reconcilePulseEffects(state, timestamp.getTime());\\n  return entitlement;'",
           )
+          start = text.index("# Collective goal API validation, moderator authorization and administrative/system events.")
+          end = text.index("# Idempotency keys are generated", start)
+          text = text[:start] + text[end:]
           path.write_text(text, encoding="utf-8")
           PY
       - name: Apply source migration
         id: migration
         continue-on-error: true
-        run: python3 release-patches/3.3.3/apply.py > nexora-3.3.3-migration.log 2>&1
+        run: |
+          python3 release-patches/3.3.3/apply.py > nexora-3.3.3-migration.log 2>&1
+          python3 release-patches/3.3.3/fixups.py >> nexora-3.3.3-migration.log 2>&1
       - name: Upload migration diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -78,6 +85,7 @@ jobs:
       - name: Remove one-shot migration files
         run: |
           rm -f release-patches/3.3.3/apply.py
+          rm -f release-patches/3.3.3/fixups.py
           rm -f nexora-3.3.3-migration.log
           rmdir release-patches/3.3.3 2>/dev/null || true
           rmdir release-patches 2>/dev/null || true
