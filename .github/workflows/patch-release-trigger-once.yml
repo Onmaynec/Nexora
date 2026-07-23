@@ -9,6 +9,7 @@ on:
 permissions:
   contents: write
 
+# One-shot workflow intentionally refreshed through a reviewed merge.
 jobs:
   patch:
     runs-on: ubuntu-latest
