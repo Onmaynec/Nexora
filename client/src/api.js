@@ -8,7 +8,7 @@ export class ApiError extends Error {
   }
 }
 
-export const CLIENT_VERSION = "3.3.0";
+export const CLIENT_VERSION = "3.3.1";
 let csrfToken = sessionStorage.getItem("nexora:csrf") || "";
 const recoveryRequests = new Map();
 const WELCOME_CLAIM_MIN_INTERVAL_MS = 2_000;
