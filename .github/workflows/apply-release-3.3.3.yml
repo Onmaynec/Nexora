@@ -111,12 +111,29 @@ jobs:
         run: |
           cat nexora-3.3.3-validation.log
           exit 1
-      - name: Run unit and regression tests
-        run: npm run test:unit
-      - name: Run performance tests
-        run: npm run test:performance
-      - name: Verify release consistency
-        run: npm run release:consistency
+      - name: Run release tests
+        id: tests
+        continue-on-error: true
+        run: |
+          set +e
+          npm run test:unit > nexora-3.3.3-tests.log 2>&1
+          status=$?
+          if [ "$status" -eq 0 ]; then npm run test:performance >> nexora-3.3.3-tests.log 2>&1; status=$?; fi
+          if [ "$status" -eq 0 ]; then npm run release:consistency >> nexora-3.3.3-tests.log 2>&1; status=$?; fi
+          exit "$status"
+      - name: Upload test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexora-3.3.3-tests-log
+          path: nexora-3.3.3-tests.log
+          if-no-files-found: error
+          retention-days: 2
+      - name: Stop on test failure
+        if: steps.tests.outcome == 'failure'
+        run: |
+          tail -n 300 nexora-3.3.3-tests.log
+          exit 1
       - name: Remove one-shot migration files
         run: |
           rm -f release-patches/3.3.3/apply.py
@@ -125,6 +142,7 @@ jobs:
           rm -f release-patches/3.3.3/trust-route-fixups.py
           rm -f nexora-3.3.3-migration.log
           rm -f nexora-3.3.3-validation.log
+          rm -f nexora-3.3.3-tests.log
           rmdir release-patches/3.3.3 2>/dev/null || true
           rmdir release-patches 2>/dev/null || true
           rm -f .github/workflows/apply-release-3.3.3.yml
