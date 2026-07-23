@@ -1,0 +1,37 @@
+name: Restrict Nexora release trigger once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/patch-release-trigger-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+      - name: Restrict automatic release trigger
+        run: node scripts/patch-release-trigger-once.cjs
+      - name: Commit guard and remove one-shot files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm scripts/patch-release-trigger-once.cjs
+          git rm .github/workflows/patch-release-trigger-once.yml
+          git add .github/workflows/release.yml
+          git commit -m "ci(release): restrict automatic publication to canonical release commits [skip ci]"
+          git pull --rebase origin main
+          git push origin HEAD:main
