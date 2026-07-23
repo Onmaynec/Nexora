@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: stable-core-migration
+  cancel-in-progress: true
+
 jobs:
   migrate:
     if: github.actor != 'github-actions[bot]'
