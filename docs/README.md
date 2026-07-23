@@ -2,134 +2,101 @@
 
 Официальная точка входа в product, architecture, security, operations, testing и release documentation.
 
-## 1. Current status
+## Current status
 
 | Параметр | Значение |
 |---|---|
-| Current repository version | `3.3.3` |
-| Distribution | Published `UNSIGNED-TEST` prerelease |
+| Current repository version | `3.4.0` |
+| Classification | Stable Core release candidate |
+| Publication | Blocked — verified `v3.3.4`, Authenticode/Windows acceptance and independent review are mandatory |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
-| Trust/MLS/encrypted-media API | v4 |
+| Legacy Trust/MLS runtime | removed; compatibility history is read-only |
 | Local Server database | SQLite schema 8 |
-| Local Server migration from 3.2.0–3.3.1 | не требуется |
-| Independent E2EE/security audit | не завершён |
+| Migration | schema 8 is retained; migration is transactional/idempotent and future schemas are rejected |
 
-3.3.2 является текущим исправляющим выпуском Release Consistency: runtime 3.3.1 не меняется, а package/lock/Android/current docs/release evidence синхронизируются и защищаются CI gate. Security boundary, schema 8, API v3 и Trust/MLS API v4 не изменены.
+`3.4.0` retires executable Trust/MLS paths and restores ordinary server-readable messaging as the sole writable core. Legacy ciphertext is preserved without server-side decryption or plaintext conversion. This branch is not a published release until every blocker in `RELEASE_VERIFICATION_3.4.0.md` is closed.
 
-## 2. Быстрый выбор
+## Quick navigation
 
 | Задача | Документ |
 |---|---|
 | Понять продукт | [Product Overview](PRODUCT_OVERVIEW.md) |
+| Изучить модули и API | [Project Index](../PROJECT_INDEX.md) |
+| Понять архитектуру | [Architecture](ARCHITECTURE.md) |
+| Проверить security boundary | [Security Model](SECURITY_MODEL.md) |
 | Запустить development environment | [Repository README](../README.md#быстрый-старт-для-разработки) |
 | Развернуть Local Server | [Deployment Guide](DEPLOYMENT.md) |
 | Администрировать | [Administrator Guide](../ADMIN_GUIDE.md) |
 | Выполнять maintenance/backup/incidents | [Operations Runbook](OPERATIONS_RUNBOOK.md) |
 | Провести acceptance | [Tester Guide](../TESTER_GUIDE.md) |
-| Проверить security boundary | [Security Model](SECURITY_MODEL.md) |
-| Выпустить версию | [Release Policy](RELEASE_POLICY.md) и [Checklist](RELEASE_CHECKLIST.md) |
-| Понять статус ветки | [Branch Index](../BRANCHES.md) и [Branch Documentation Policy](BRANCH_DOCUMENTATION_POLICY.md) |
+| Выпустить версию | [Release Policy](RELEASE_POLICY.md), [GitHub Release](GITHUB_RELEASE.md), [Checklist](RELEASE_CHECKLIST.md) |
 | Получить поддержку | [Support Policy](../SUPPORT.md) |
 
-## 3. Product и architecture
+## Stable Core documents
 
 | Документ | Scope | Status |
 |---|---|---|
-| [Product Overview](PRODUCT_OVERVIEW.md) | purpose, platforms, capabilities, boundaries | Current through 3.3.2 |
-| [Architecture](ARCHITECTURE.md) | components, data flow, storage, updater, Trust/MLS | Current through 3.3.2 |
-| [Project Index](../PROJECT_INDEX.md) | entrypoints, modules, API, tests | Current through 3.3.2 |
-| [Security Model](SECURITY_MODEL.md) | threat model, controls, metadata, residual risk | Current through 3.3.2 |
-| [Pulse Cloud Boundary ADR](ADR_0001_PULSE_CLOUD_BOUNDARY.md) | Local Server / Cloud authority separation | Current decision |
+| [Release Notes 3.4.0](../RELEASE_NOTES_3.4.0.md) | user-visible changes, compatibility and limitations | Release candidate |
+| [Release Verification 3.4.0](../RELEASE_VERIFICATION_3.4.0.md) | code, tests, CI, signing and publication evidence | In progress |
+| [Security Review 3.4.0](../SECURITY_REVIEW_3.4.0.md) | reviewed scope, findings and external review gate | External review pending |
+| [Architecture](ARCHITECTURE.md) | server-readable core, legacy boundary, devices, updater and storage | Current through 3.4.0 RC |
+| [Security Model](SECURITY_MODEL.md) | threats, controls and residual risks | Current through 3.4.0 RC |
+| [Operations Runbook](OPERATIONS_RUNBOOK.md) | rollout, backup/restore, corrupt DB, updater and emergency stop | Current through 3.4.0 RC |
+| [Project Index](../PROJECT_INDEX.md) | entrypoints, modules, API and tests | Current through 3.4.0 RC |
 
-## 4. Security
+## Stable Core contract summary
 
-| Документ | Назначение | Status |
-|---|---|---|
-| [Security Policy](../SECURITY.md) | supported versions and private disclosure | Current through 3.3.2 |
-| [Security Verification Summary](../SECURITY_AUDIT.md) | automated verification and residual risk | Current through 3.3.2 |
-| [Security Review 3.3.0](../SECURITY_REVIEW_3.3.0.md) | current security boundary inherited unchanged by 3.3.2 | Release-specific current |
-| [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.3.md) | test-first regression, CI, release and asset evidence | Release-specific current |
-| [Security Review 3.2.3](../SECURITY_REVIEW_3.2.3.md) | resource governance hardening | Historical release-specific |
-| [Trust Core 3.2.0](TRUST_CORE_3.2.0.md) | original Trust/MLS foundation | Historical foundation |
-| [Schema 8 Migration](MIGRATION_3.2.0.md) | schema 7 → 8 and rollback | Current schema history |
+### Writable authority
 
-## 5. Deployment и operations
+Local Server is authoritative for ordinary messages, memberships, roles, bans, policies, uploads, sessions, audit and realtime visibility. Browser guards are UX only; server-side checks remain mandatory.
 
-| Документ | Назначение |
-|---|---|
-| [Deployment Guide](DEPLOYMENT.md) | topology, TLS, database, release channels |
-| [Administrator Guide](../ADMIN_GUIDE.md) | users, rooms, Trust, Pulse, updates |
-| [Operations Runbook](OPERATIONS_RUNBOOK.md) | startup, monitoring, backup, restore, incidents |
-| [GitHub Release Guide](GITHUB_RELEASE.md) | tags, signing, assets, updater |
-| [Release Checklist](RELEASE_CHECKLIST.md) | automated/manual gates |
+### Legacy secure history
 
-## 6. Testing
+- Trust Core, MLS background work, route handlers, Socket.IO transport and encrypted-upload write runtime are removed;
+- schema 8 tables preserve IDs, timestamps, ciphertext and provenance;
+- legacy viewer/export never server-decrypts ciphertext;
+- previously decrypted IndexedDB records may be read locally without writes;
+- all legacy mutations return `410/LEGACY_READ_ONLY`.
 
-- [Acceptance Test Guide](../TESTER_GUIDE.md);
-- [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.3.md);
-- [Security Verification Summary](../SECURITY_AUDIT.md);
+### Sessions and devices
+
+The device inventory is built from active sessions. Revoking a device removes its sessions, emits `session.revoked`, disconnects its Socket.IO room and refreshes `device.updated`. The current device cannot be revoked through the remote-device endpoint.
+
+### Backup and migration
+
+Before schema mutation, the server checks source integrity, WAL checkpoint, free space and verified backup. Restore uses staged DB/files with rollback. Verification can be executed without restore through the admin API.
+
+### Signed updater
+
+Client and Server use separate signed metadata channels. Stable assets require Authenticode signer identity, timestamp, checksums, no-downgrade behavior and a complete asset set. Unsigned test builds use a distinct prerelease tag and never publish updater metadata.
+
+## Verification
+
+- `npm run check`;
+- `npm run test:unit`;
+- `npm run test:performance`;
+- `npm run audit:security`;
 - `npm run release:check`;
 - `npm run test:soak`;
-- Android `assembleDebug`.
+- Android `assembleDebug`;
+- signed Windows n-1→n installed smoke when external credentials and environments are available.
 
-## 7. Pulse и Cloud Identity
+## Release blockers
 
-| Документ | Назначение |
-|---|---|
-| [Pulse Product Boundary](PULSE.md) | product modes and authority |
-| [Pulse Cloud](PULSE_CLOUD.md) | Cloud service, billing, ledger, provider |
-| [Cloud Identity](CLOUD_IDENTITY.md) | email, MFA, OAuth PKCE |
-| [Local Pulse Integration](LOCAL_PULSE_INTEGRATION.md) | signed Local/Cloud contract and cache |
+A merge, official tag or stable GitHub Release is prohibited while any of the following remains:
 
-## 8. Releases
+- published verified stable `v3.3.4` is absent;
+- Authenticode credentials/expected signer identity are unavailable;
+- Windows 10/11 installed acceptance is incomplete;
+- independent review has not closed all high/critical findings;
+- CI, migration, restore, security or release evidence is incomplete.
 
-| Документ | Назначение |
-|---|---|
-| [Release Notes 3.3.2](../RELEASE_NOTES_3.3.3.md) | current release consistency scope |
-| [Security Review 3.3.0](../SECURITY_REVIEW_3.3.0.md) | security boundary inherited unchanged by 3.3.2 |
-| [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.3.md) | authoritative test and publication evidence |
-| [Release History](../RELEASE_HISTORY.md) | pointer to the canonical [Changelog](../CHANGELOG.md) |
-| [Release Policy](RELEASE_POLICY.md) | SemVer/classifications/gates |
-| [GitHub Release Guide](GITHUB_RELEASE.md) | tags/assets/updater |
-| [Current Release Status](../BRANCH_STATUS.md) | current classification/blockers |
+## Documentation status vocabulary
 
-## 9. Platforms и integrations
-
-- [Android](../android/README.md);
-- [Automations](AUTOMATIONS.md);
-- [Project website](../website/README.md).
-
-## 10. Branch documentation
-
-`main` — единственный current product source of truth.
-
-Каждая сохраняемая non-main branch должна иметь `BRANCH_STATUS.md` и одну из classifications:
-
-- Active development;
-- Merged provenance;
-- Superseded;
-- Obsolete automation.
-
-Historical branch documentation describes that branch only. It is not updated to claim current 3.3.2 behavior. Complete rules: [Branch Documentation Policy](BRANCH_DOCUMENTATION_POLICY.md). Central lifecycle index: [BRANCHES.md](../BRANCHES.md).
-
-## 11. Document status vocabulary
-
-- **Current** — matches current `main`.
-- **Release-specific** — fixed evidence for one release; not rewritten.
+- **Current** — matches the referenced branch/commit.
+- **Release candidate** — implementation is under validation and is not published.
 - **Stable baseline** — last confirmed signed production line.
-- **Prerelease** — implementation/automated gates complete, full signing/manual/external review incomplete.
-- **Historical foundation** — architecture/migration/provenance record.
-- **Superseded** — replaced by later branch/release.
-- **Draft** — incomplete development, not product guarantee.
-
-## 12. Documentation standard
-
-1. State version, branch and classification.
-2. Separate implementation, automated evidence, manual evidence and planned work.
-3. Scope security claims precisely.
-4. Preserve release/branch provenance.
-5. Use relative links.
-6. Never include secrets, private keys, databases, backups or real user data.
-7. Update guides, policy, notes, verification and changelog when behavior changes.
-8. Documentation-only work must not modify runtime code, dependencies, migrations or workflows.
+- **Release-specific** — immutable evidence for one version.
+- **Historical** — architecture/migration/provenance record; not a current guarantee.
+- **Blocked** — publication is explicitly prohibited until listed prerequisites are satisfied.
