@@ -18,21 +18,11 @@ function verifyReleaseIcons() {
   console.log(`Release icons OK: ICO ${ico.readUInt16LE(4)} images, PNG ${png.readUInt32BE(16)}×${png.readUInt32BE(20)}`);
 }
 
-function configuredFilePatterns(config) {
-  return (Array.isArray(config.files) ? config.files : [])
-    .map((entry) => {
-      if (typeof entry === "string") return entry;
-      if (entry && typeof entry === "object" && typeof entry.from === "string") return entry.from;
-      return "";
-    })
-    .map((entry) => entry.replaceAll("\\", "/").replace(/^\.\//, ""));
-}
-
-function verifyServerRuntimePayload(configFile, config) {
+function verifyServerRuntimePayload(configFile) {
   if (configFile !== "electron-builder.server.yml") return;
 
-  const patterns = configuredFilePatterns(config);
-  if (!patterns.includes("shared/**/*")) {
+  const manifest = fs.readFileSync(path.resolve(configFile), "utf8");
+  if (!/^\s*-\s+shared\/\*\*\/\*\s*$/m.test(manifest)) {
     throw new Error("electron-builder.server.yml должен включать shared/**/*: server runtime импортирует ../shared/pulse-catalog.cjs");
   }
 
@@ -53,7 +43,7 @@ function verifyServerRuntimePayload(configFile, config) {
   for (const configFile of configFiles) {
     const config = await getConfig(process.cwd(), path.resolve(configFile));
     await validateConfiguration(config, process.cwd());
-    verifyServerRuntimePayload(configFile, config);
+    verifyServerRuntimePayload(configFile);
     console.log(`Electron Builder config OK: ${configFile}`);
   }
   verifyReleaseIcons();
