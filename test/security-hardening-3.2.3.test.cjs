@@ -313,7 +313,7 @@ test("shared sliding-window limiter reports retry timing and bounds memory", () 
   assert.equal(limiter.consume("first").allowed, true);
 });
 
-test("Trust device enrollment API returns stable RATE_LIMITED with Retry-After", async (t) => {
+test("retired Trust API is terminal LEGACY_READ_ONLY and never consumes enrollment rate limits", async (t) => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "nexora-security-api-"));
   const instance = await createNexoraServer({
     dataDir: directory,
@@ -332,7 +332,8 @@ test("Trust device enrollment API returns stable RATE_LIMITED with Retry-After",
   });
 
   const registered = await agent.post("/api/auth/register")
-    .set("X-Nexora-Client-Version", "3.2.3")
+    .set("X-Nexora-Client-Version", "3.4.0")
+    .set("X-Nexora-Device-ID", "retired-trust-api-device")
     .send({
       displayName: "Security API",
       username: `security_api_${crypto.randomBytes(4).toString("hex")}`,
@@ -341,23 +342,17 @@ test("Trust device enrollment API returns stable RATE_LIMITED with Retry-After",
     .expect(201);
   const csrf = registered.body.csrfToken;
 
-  for (let index = 0; index < 10; index += 1) {
+  for (let index = 0; index < 12; index += 1) {
     const response = await agent.post("/api/v4/trust/devices")
-      .set("X-Nexora-Client-Version", "3.2.3")
+      .set("X-Nexora-Client-Version", "3.4.0")
       .set("X-Nexora-CSRF", csrf)
       .send({})
-      .expect(400);
-    assert.notEqual(response.body.code, "RATE_LIMITED");
+      .expect(410);
+    assert.equal(response.body.code, "LEGACY_READ_ONLY");
+    assert.match(response.body.requestId, /^[A-Za-z0-9_.:-]{8,128}$/);
+    assert.equal(response.headers["retry-after"], undefined);
   }
-
-  const limited = await agent.post("/api/v4/trust/devices")
-    .set("X-Nexora-Client-Version", "3.2.3")
-    .set("X-Nexora-CSRF", csrf)
-    .send({})
-    .expect(429);
-  assert.equal(limited.body.code, "RATE_LIMITED");
-  assert.match(String(limited.headers["retry-after"] || ""), /^\d+$/);
-  assert.ok(Number(limited.body.details.retryAfter) >= 1);
+  assert.equal(instance.status().stableCore.trustRuntime, "retired");
 });
 
 test("maintenance removes expired sessions and 90-day security history", async () => {

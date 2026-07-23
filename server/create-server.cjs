@@ -1961,7 +1961,7 @@ async function createNexoraServer(options = {}) {
     }
     if (conversationUsesMls(conversation.id)) {
       await fs.unlink(request.file.path).catch(() => {});
-      return apiError(response, 409, "Вложения в legacy secure dialogе должны быть зашифрованы на клиенте.", "LEGACY_READ_ONLY");
+      return apiError(response, 410, "Вложения в legacy secure dialogе должны быть зашифрованы на клиенте.", "LEGACY_READ_ONLY");
     }
     if (conversation.type === "dm" && isBlockedEither(state, viewerId, dmPeer(state, conversation, viewerId)?.id)) {
       await fs.unlink(request.file.path).catch(() => {});
