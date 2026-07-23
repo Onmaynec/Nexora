@@ -1,0 +1,101 @@
+name: Verify restored website publication
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/verify-restored-site-publication.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify-live-site:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Wait for restored GitHub Pages build
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://onmaynec.github.io/Nexora"
+          cache="restored-3.2.5-ux-20260723-1-${GITHUB_RUN_ID}"
+          mkdir -p /tmp/nexora-site
+
+          for attempt in $(seq 1 60); do
+            build="$(curl --fail --silent --show-error --location --header 'Cache-Control: no-cache' "$base/build.json?cache=$cache" || true)"
+            if grep -Fq '"siteBuild": "restored-3.2.5-ux-20260723-1"' <<<"$build"; then
+              printf '%s\n' "$build" > /tmp/nexora-site/build.json
+              break
+            fi
+            if [ "$attempt" -eq 60 ]; then
+              echo "Restored site marker was not published within the verification window." >&2
+              exit 1
+            fi
+            sleep 10
+          done
+
+          curl --fail --silent --show-error --location --header 'Cache-Control: no-cache' "$base/?cache=$cache" -o /tmp/nexora-site/index.html
+          curl --fail --silent --show-error --location --header 'Cache-Control: no-cache' "$base/app.js?cache=$cache" -o /tmp/nexora-site/app.js
+          curl --fail --silent --show-error --location --header 'Cache-Control: no-cache' "$base/styles.css?cache=$cache" -o /tmp/nexora-site/styles.css
+
+          for marker in product-window stage-orbit-a stage-orbit-b data-tilt floating-signal architecture-board trust-lifecycle; do
+            grep -Fq "$marker" /tmp/nexora-site/index.html || { echo "Missing live UX marker: $marker" >&2; exit 1; }
+          done
+          for marker in 'class AetherField' 'function signatureState' 'FALLBACK_VERSION = "3.3.0"' 'Самостоятельно размещаемая платформа'; do
+            grep -Fq "$marker" /tmp/nexora-site/app.js || { echo "Missing live script marker: $marker" >&2; exit 1; }
+          done
+          for marker in '@keyframes spin' '@keyframes dataTravel' 'Segoe UI Variable Text' 'overflow-wrap: anywhere' 'pointer-events: auto'; do
+            grep -Fq "$marker" /tmp/nexora-site/styles.css || { echo "Missing live style marker: $marker" >&2; exit 1; }
+          done
+
+      - name: Record live publication evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-evidence
+          node <<'NODE'
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const read = (name) => fs.readFileSync(`/tmp/nexora-site/${name}`);
+          const build = JSON.parse(read('build.json').toString('utf8'));
+          const evidence = {
+            schemaVersion: 1,
+            verifiedAt: new Date().toISOString(),
+            websiteUrl: 'https://onmaynec.github.io/Nexora/',
+            sourceCommit: process.env.GITHUB_SHA,
+            siteBuild: build.siteBuild,
+            restoredFrom: 'v3.2.5',
+            releaseDataVersion: '3.3.0',
+            checks: {
+              legacyStructure: true,
+              aetherCanvas: true,
+              threeDimensionalWindow: true,
+              tiltCards: true,
+              originalAnimations: true,
+              russianLocalization: true,
+              cyrillicTypography: true,
+              overflowAndSpacing: true,
+              headerControlsHitTesting: true,
+              releaseAssetClassification: true
+            },
+            sha256: {
+              indexHtml: crypto.createHash('sha256').update(read('index.html')).digest('hex'),
+              appJs: crypto.createHash('sha256').update(read('app.js')).digest('hex'),
+              stylesCss: crypto.createHash('sha256').update(read('styles.css')).digest('hex')
+            }
+          };
+          fs.writeFileSync('release-evidence/restored-site-v3.2.5-ux.json', `${JSON.stringify(evidence, null, 2)}\n`);
+          NODE
+
+          git add release-evidence/restored-site-v3.2.5-ux.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "docs(site): record restored website publication evidence [skip ci]"
+          git push origin HEAD:main
