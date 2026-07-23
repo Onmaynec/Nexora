@@ -80,6 +80,19 @@ Merge commit `a46c080e12b9081b448dad6426bf7c44156114cd` passed:
 - `updaterMetadataPublished` is `false`;
 - all seven required assets have GitHub SHA-256 digests.
 
+### Post-release main gate
+
+Source `3f080592c1c2a2a574803db91542b585f0a870ef` passed workflow `29969806669`:
+
+- `npm run release:check`;
+- full Linux `npm test` product suite;
+- schema 8 soak;
+- Android build with Gradle `8.13`;
+- website syntax and validation;
+- machine-readable published-release evidence validation.
+
+Evidence: `release-evidence/post-release-main-gate.json`.
+
 ## Published assets
 
 - `Nexora-Client-Setup-3.3.0-UNSIGNED-TEST.exe`;
