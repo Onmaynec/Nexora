@@ -12,68 +12,6 @@
   <meta property="og:image" content="assets/nexora-icon.png" />
   <link rel="icon" href="assets/nexora-icon.png" type="image/png" />
   <link rel="stylesheet" href="styles.css" />
-  <style>
-    .header-game {
-      display: inline-flex;
-      align-items: center;
-      gap: .42rem;
-      padding: .63rem .72rem;
-      border: 1px solid var(--line);
-      border-radius: .68rem;
-      color: var(--text-soft);
-      background: #0c0911;
-      text-decoration: none;
-      font-size: .7rem;
-      font-weight: 750;
-      white-space: nowrap;
-      transition: .2s;
-    }
-    .header-game:hover {
-      color: #fff;
-      border-color: var(--line-strong);
-      background: rgba(169,104,255,.09);
-      transform: translateY(-1px);
-    }
-    .header-game svg {
-      width: 15px;
-      height: 15px;
-      fill: none;
-      stroke: currentColor;
-      stroke-width: 1.65;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-    .game-label-en { display: none; }
-    html[lang="en"] .game-label-ru { display: none; }
-    html[lang="en"] .game-label-en { display: inline; }
-    .header-star {
-      display: inline-flex;
-      align-items: center;
-      gap: .28rem;
-      margin-left: .08rem;
-      padding-left: .48rem;
-      border-left: 1px solid var(--line-soft);
-      color: var(--violet-pale);
-      font-variant-numeric: tabular-nums;
-    }
-    .header-star svg {
-      width: 13px;
-      height: 13px;
-      fill: currentColor;
-      stroke: currentColor;
-    }
-    @media (max-width: 1180px) {
-      .header-game .game-label-ru,
-      .header-game .game-label-en { display: none; }
-      .header-game { padding-inline: .66rem; }
-    }
-    @media (max-width: 520px) {
-      .header-github > svg:first-of-type { display: none; }
-      .header-github { gap: .3rem; padding-inline: .62rem; }
-      .header-github-label { display: none; }
-      .header-star { margin-left: 0; padding-left: 0; border-left: 0; }
-    }
-  </style>
   <title>Nexora — self-hosted messenger</title>
 </head>
 <body>
@@ -107,16 +45,8 @@
         <button type="button" data-lang="ru" class="active">RU</button>
         <button type="button" data-lang="en">EN</button>
       </div>
-      <a class="header-game" href="game/" data-game-link>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 9h8a5 5 0 0 1 4.7 6.7l-.7 2a2 2 0 0 1-3.4.7L14.8 16H9.2l-1.8 2.4a2 2 0 0 1-3.4-.7l-.7-2A5 5 0 0 1 8 9Z"/><path d="M8 12v4M6 14h4M16.5 13.5h.01M18.5 15.5h.01"/></svg>
-        <span class="game-label-ru">Игра</span><span class="game-label-en">Play</span>
-      </a>
       <a class="header-github" href="https://github.com/Onmaynec/Nexora" target="_blank" rel="noreferrer">
-        <span class="header-github-label">GitHub</span>
-        <span class="header-star" data-header-stars title="GitHub Stars">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2.7 2.85 5.78 6.38.93-4.62 4.5 1.09 6.35L12 17.26l-5.7 3 1.09-6.35-4.62-4.5 6.38-.93L12 2.7Z"/></svg>
-          <span data-header-stars-value>—</span>
-        </span>
+        GitHub
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg>
       </a>
     </div>
@@ -529,27 +459,5 @@
 
   <div class="toast" role="status" aria-live="polite" data-toast></div>
   <script src="app.js" defer></script>
-  <script>
-    (() => {
-      "use strict";
-      const source = document.querySelector("[data-stat-stars]");
-      const value = document.querySelector("[data-header-stars-value]");
-      const badge = document.querySelector("[data-header-stars]");
-      if (!source || !value || !badge) return;
-
-      const sync = () => {
-        const next = source.textContent?.trim() || "—";
-        value.textContent = next;
-        const label = document.documentElement.lang === "en" ? "GitHub stars" : "Звёзды GitHub";
-        badge.setAttribute("aria-label", `${label}: ${next}`);
-      };
-
-      const observer = new MutationObserver(sync);
-      observer.observe(source, { childList: true, subtree: true, characterData: true });
-      const languageObserver = new MutationObserver(sync);
-      languageObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });
-      sync();
-    })();
-  </script>
 </body>
 </html>
