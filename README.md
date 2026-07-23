@@ -1,6 +1,7 @@
 # Nexora
 
 [![Website](https://img.shields.io/badge/website-open-c69cff)](https://onmaynec.github.io/Nexora/)
+[![Advanced docs](https://img.shields.io/badge/advanced%20docs-open-9b5cff)](https://onmaynec.github.io/Nexora/advanced/)
 [![CI](https://github.com/Onmaynec/Nexora/actions/workflows/ci.yml/badge.svg)](https://github.com/Onmaynec/Nexora/actions/workflows/ci.yml)
 ![Current version](https://img.shields.io/badge/current-3.3.1%20UNSIGNED--TEST-c69cff)
 ![Stable signed baseline](https://img.shields.io/badge/stable%20signed-3.1.2-70e6b1)
@@ -12,6 +13,8 @@
 **Nexora** — self-hosted платформа обмена сообщениями для Windows, браузера/PWA и Android. Система объединяет локальный сервер, многоплатформенный клиент, комнаты и модерацию, офлайн-синхронизацию, защищённые сообщения и медиа, эксплуатационные инструменты, а также отдельный коммерческий контур Nexora Pulse.
 
 **Сайт проекта:** [onmaynec.github.io/Nexora](https://onmaynec.github.io/Nexora/) — интерактивная презентация, архитектурные схемы, актуальные GitHub-метрики, документация и загрузки по версиям.
+
+**Продвинутая документация:** [onmaynec.github.io/Nexora/advanced](https://onmaynec.github.io/Nexora/advanced/) — двуязычный инженерный портал с архитектурой, развёртыванием, Trust/MLS, API v3/v4, Socket.IO, автоматически сформированным OpenAPI 3.1, эксплуатацией и contributor reference.
 
 ## Статус продукта
 
@@ -231,6 +234,8 @@ gradle -p android :app:assembleDebug --no-daemon
 | `npm run test:performance` | изолированный performance smoke |
 | `npm run audit:security` | security invariants и dependency audit |
 | `npm run test:soak` | долговременная проверка состояния, backup и SQLite integrity |
+| `npm run test:advanced` | source extraction, navigation contracts и advanced documentation validation |
+| `npm run build:advanced` | production build портала в `/Nexora/advanced/` и generated OpenAPI 3.1 |
 | `npm run dist:windows` | локальные тестовые NSIS Client/Server builds |
 | `npm run release:windows` | release gate и локальные Windows installers без обязательной подписи |
 | `npm run release:windows:signed` | release gate, signing gate и подписанные production installers |
@@ -245,17 +250,17 @@ gradle -p android :app:assembleDebug --no-daemon
 2. Server ID;
 3. SHA-256 certificate fingerprint.
 
-
 Electron Client закрепляет fingerprint за Server ID. Для браузера/PWA и Android Local CA необходимо установить в доверенное хранилище операционной системы. TLS errors не должны обходиться.
 
 Инструкции: [Deployment Guide](docs/DEPLOYMENT.md), [Administrator Guide](ADMIN_GUIDE.md) и [Operations Runbook](docs/OPERATIONS_RUNBOOK.md).
 
 ## Документация
 
-Центральный каталог: **[Nexora Documentation](docs/README.md)**.
+Центральный каталог: **[Nexora Documentation](docs/README.md)**. Интерактивный инженерный портал: **[Nexora Advanced Documentation](https://onmaynec.github.io/Nexora/advanced/)**.
 
 | Раздел | Документы |
 |---|---|
+| Продвинутый портал | [Advanced Documentation Guide](docs/ADVANCED_DOCUMENTATION.md), [Live portal](https://onmaynec.github.io/Nexora/advanced/) |
 | Продукт | [Product Overview](docs/PRODUCT_OVERVIEW.md), [Current Release Status](BRANCH_STATUS.md) |
 | Архитектура | [Architecture](docs/ARCHITECTURE.md), [Project Index](PROJECT_INDEX.md) |
 | Безопасность | [Security Policy](SECURITY.md), [Security Model](docs/SECURITY_MODEL.md), [Security Verification](SECURITY_AUDIT.md) |
