@@ -1,0 +1,44 @@
+name: Capture PR51 failures once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/capture-pr51-failures-once.yml"
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Extract failed assertions
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-evidence
+          gh run view 30005636416 --repo "${{ github.repository }}" --log-failed > /tmp/pr51-failed.log
+          awk '
+            /not ok|ERR_TEST_FAILURE|Release consistency:|expected .* got|# fail / { start=NR-12; end=NR+28 }
+            NR>=start && NR<=end { print }
+          ' /tmp/pr51-failed.log | awk '!seen[$0]++' > release-evidence/pr51-failed-assertions.txt
+      - name: Commit diagnostic and remove workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/capture-pr51-failures-once.yml
+          git add release-evidence/pr51-failed-assertions.txt
+          git commit -m "docs(release): capture PR51 failed assertions [skip ci]"
+          git pull --rebase origin main
+          git push origin HEAD:main
