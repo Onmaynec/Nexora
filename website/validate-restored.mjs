@@ -50,6 +50,11 @@ for (const marker of [
   "pointer-events: auto",
   'html[lang="ru"] .hero h1',
   ".signature-badge",
+  "Mobile cascade guard",
+  "grid-template-columns: minmax(0, 1fr)",
+  "overflow-x: clip",
+  "word-break: normal",
+  "hyphens: none",
 ]) {
   if (!fixesCss.includes(marker)) throw new Error(`Targeted CSS fix is missing: ${marker}`);
 }
@@ -72,6 +77,11 @@ if (/\.tilt-card\s*\{[^}]*display\s*:\s*none/is.test(fixesCss)) {
 if (/animation\s*:\s*none\s*!important/is.test(fixesCss)) {
   throw new Error("Targeted fixes must not globally disable original animations");
 }
+
+const broadHeroRule = fixesCss.lastIndexOf("grid-template-columns: minmax(0, .95fr) minmax(480px, 1.05fr)");
+const narrowHeroRule = fixesCss.lastIndexOf("grid-template-columns: minmax(0, 1fr)");
+if (narrowHeroRule <= broadHeroRule) throw new Error("Mobile single-column hero override must follow the broad compatibility rule");
+if (!fixesCss.includes('@media (max-width: 520px)') || !fixesCss.includes('width: min(calc(100% - 1rem), var(--max))')) throw new Error("Narrow mobile width guard is missing");
 
 const buildData = JSON.parse(build);
 if (!String(buildData.siteBuild || "").startsWith("restored-3.2.5-ux-")) {

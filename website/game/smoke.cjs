@@ -200,6 +200,23 @@ assert.equal(engine.particles.length, 220, "Default particle count must be deter
 assert.equal("planets" in engine, false, "Planet subsystem must remain removed");
 assert.equal(engine.blackHoles.length, 0, "Black holes must not spawn manually at startup");
 
+assert.equal(engine.settings.speed, 0.75, "Default speed must match the calm Aether drift profile");
+assert.equal(engine.settings.linkStrength, 0.0001, "Default spring force must remain subtle");
+assert.equal(engine.settings.maxLinks, 2, "Default links must not form a dense energetic mesh");
+assert.equal(engine.settings.pulse, false, "Default particles must not pulse like an action effect");
+assert.ok(source.includes("nexora-aether-settings-v3"), "Calm defaults must use a fresh settings generation");
+
+engine.pointer.x = null;
+engine.pointer.y = null;
+engine.setTool("cursor");
+let peakIdleVelocity = 0;
+for (let frame = 0; frame < 1200; frame += 1) {
+  engine.updatePhysicalLinks(1);
+  engine.updateParticles(1);
+  for (const particle of engine.particles) peakIdleVelocity = Math.max(peakIdleVelocity, Math.hypot(particle.vx, particle.vy));
+}
+assert.ok(peakIdleVelocity <= 0.36, `Idle field accumulated excessive velocity: ${peakIdleVelocity}`);
+
 // Source-like boundary reflection.
 const boundaryParticle = engine.particles[0];
 boundaryParticle.x = engine.width - .1;
@@ -277,7 +294,7 @@ assert.equal(
 engine.particles.length = engine.settings.particleCount - 2;
 engine.regenerationAccumulator = 0;
 const beforeRegeneration = engine.particles.length;
-engine.updateRegeneration(1);
+engine.updateRegeneration(1.25);
 assert.equal(engine.particles.length, beforeRegeneration + 1, "Regeneration must restore particles gradually");
 
 // Automatic quality reduction must affect active workload, not only the slider value.
