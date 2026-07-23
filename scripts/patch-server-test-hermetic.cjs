@@ -3,6 +3,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
+// One-shot materializer; CI removes this file after applying and verifying the test-only patch.
 const root = path.resolve(__dirname, "..");
 const file = path.join(root, "test/server.test.cjs");
 const source = fs.readFileSync(file, "utf8");
