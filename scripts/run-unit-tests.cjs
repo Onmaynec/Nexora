@@ -24,11 +24,17 @@ for (const file of testFiles) {
     shell: false,
   });
   if (result.status !== 0 || result.error) {
+    const combined = `${result.stdout || ""}\n${result.stderr || ""}`;
+    const diagnostic = combined
+      .split(/\r?\n/)
+      .filter((line) => /not ok|assert|error|expected|actual|failure|ERR_|at .+\(.+\)|testCodeFailure/i.test(line))
+      .slice(-80)
+      .join("\n");
     console.error(`DIAGNOSTIC UNIT FAILURE: ${file}`);
-    if (result.stdout) console.error(result.stdout);
-    if (result.stderr) console.error(result.stderr);
+    console.error(diagnostic || combined.split(/\r?\n/).slice(-40).join("\n"));
     if (result.error) console.error(result.error.stack || result.error.message);
     process.exit(result.status ?? 1);
   }
-  console.log(`DIAGNOSTIC UNIT PASS: ${file}`);
 }
+
+console.log(`DIAGNOSTIC UNIT PASS: ${testFiles.length} files`);
