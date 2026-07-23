@@ -121,6 +121,7 @@ html[lang="ru"] .doc-link h3 {
 
 .download-meta {
   min-width: 0;
+  flex-wrap: wrap;
 }
 
 .download-meta b,
@@ -135,7 +136,7 @@ html[lang="ru"] .doc-link h3 {
   display: inline-flex;
   align-items: center;
   width: fit-content;
-  margin-top: .45rem;
+  margin-top: .25rem;
   padding: .28rem .45rem;
   border: 1px solid rgba(241, 198, 102, .24);
   border-radius: .4rem;
@@ -145,6 +146,11 @@ html[lang="ru"] .doc-link h3 {
   font-weight: 800;
   letter-spacing: .05em;
   line-height: 1.25;
+}
+
+.download-meta .signature-badge {
+  flex: 0 0 100%;
+  max-width: 100%;
 }
 
 .download-card[data-signature="signed"] .signature-badge {
