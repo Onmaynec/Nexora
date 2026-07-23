@@ -6,12 +6,12 @@ Nexora — open-source project, поддерживаемый через публ
 
 | Версия | Статус поддержки |
 |---|---|
-| `3.3.1` published `UNSIGNED-TEST` prerelease | Текущая prerelease-линия; defect и security reports принимаются |
-| `3.2.0–3.3.0` | Superseded prereleases; обновитесь до `3.3.1` перед обычной диагностикой |
+| `3.3.2` published `UNSIGNED-TEST` prerelease | Текущая prerelease-линия; defect и security reports принимаются |
+| `3.2.0–3.3.1` | Superseded prereleases; обновитесь до `3.3.2` перед обычной диагностикой |
 | `3.1.x` signed production baseline | Поддерживается как последняя подтверждённая signed production line |
 | `3.0.x` и старше | Не поддерживаются, кроме migration/security context |
 
-В обращении укажите точные Client, Server и Pulse Cloud versions, release channel и commit/tag. `3.3.1` опубликована как unsigned test prerelease, не является signed stable Windows release и не заявляется как independently audited E2EE.
+В обращении укажите точные Client, Server и Pulse Cloud versions, release channel и commit/tag. `3.3.2` опубликована как unsigned test prerelease, не является signed stable Windows release и не заявляется как independently audited E2EE.
 
 ## 2. Product defects
 
@@ -33,7 +33,7 @@ Nexora — open-source project, поддерживаемый через публ
 
 Перед отправкой:
 
-- воспроизведите на `3.2.4`, если это возможно;
+- воспроизведите на `3.3.2`, если это возможно;
 - проверьте Client/Server compatibility;
 - найдите существующие Issues;
 - приведите minimum reproduction;

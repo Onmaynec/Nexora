@@ -25,7 +25,7 @@ Required controls:
 
 Current status:
 
-- `3.3.1` — published `UNSIGNED-TEST` prerelease without `latest.yml` or `.blockmap`;
+- `3.3.2` — published `UNSIGNED-TEST` prerelease without `latest.yml` or `.blockmap`;
 - `3.1.2` — last confirmed signed production baseline.
 
 ## 3. Secrets
@@ -45,7 +45,8 @@ The following must match:
 - `package-lock.json`;
 - Client handshake;
 - Android version metadata;
-- release notes/security review/verification;
+- README, Project Index, Architecture, Security Model and operational current documents;
+- release notes/security review/verification and current release evidence;
 - release tag.
 
 ```bash
@@ -56,12 +57,12 @@ npm run release:check
 gradle -p android :app:assembleDebug --no-daemon
 ```
 
-Current tag: `v3.2.4`.
+Current tag: `v3.3.2`.
 
 ```bash
-git tag -s v3.2.4 -m "Nexora 3.2.4"
+git tag -s v3.3.2 -m "Nexora 3.3.2"
 git push origin main
-git push origin v3.2.4
+git push origin v3.3.2
 ```
 
 When signed Git tag unavailable, use annotated tag rather than lightweight.
@@ -77,7 +78,7 @@ When signed Git tag unavailable, use annotated tag rather than lightweight.
 5. evaluates Authenticode secrets;
 6. builds/verifies signed Client/Server assets when available;
 7. publishes stable only for complete signed asset set;
-8. otherwise publishes explicit Source/PWA prerelease without updater assets.
+8. otherwise publishes explicit `UNSIGNED-TEST` prerelease without updater metadata.
 
 Arbitrary untagged state must not be published as release.
 
@@ -94,7 +95,7 @@ Arbitrary untagged state must not be published as release.
 
 Missing/unsigned installer metadata makes release non-installable.
 
-## 7. Packaged Client updater 3.2.4
+## 7. Packaged Client updater 3.3.0+
 
 - service initializes before renderer IPC;
 - default provider is GitHub Releases for `Onmaynec/Nexora`;
@@ -131,7 +132,7 @@ HTTP is rejected. Private feed does not bypass signature/no-downgrade policy.
 ## 9. Updater acceptance
 
 1. install previous signed stable Client;
-2. publish complete signed 3.2.4 asset set;
+2. publish complete signed 3.3.2 asset set;
 3. verify initial check;
 4. verify single-flight manual/automatic checks;
 5. verify progress and terminal state;
@@ -145,7 +146,7 @@ HTTP is rejected. Private feed does not bypass signature/no-downgrade policy.
 
 ## 10. Post-update notes
 
-3.2.4 displays:
+3.3.2 displays:
 
 - “Подробнее” — exact official tag;
 - “Закрыть”;
@@ -197,11 +198,11 @@ Schema 8 rollback is restore-based. Never run unsupported old binary against sch
 
 ## 14. Release evidence
 
-3.2.4 evidence is recorded in:
+3.3.2 evidence is recorded in:
 
-- [Release Notes](../RELEASE_NOTES_3.2.4.md);
-- [Security Review](../SECURITY_REVIEW_3.2.4.md);
-- [Release Verification](../RELEASE_VERIFICATION_3.2.4.md);
+- [Release Notes](../RELEASE_NOTES_3.3.2.md);
+- [Security Review](../SECURITY_REVIEW_3.3.0.md);
+- [Release Verification](../RELEASE_VERIFICATION_3.3.2.md);
 - [Release Checklist](RELEASE_CHECKLIST.md).
 
 Source/PWA prerelease remains non-updater-eligible until signed installed-runtime acceptance completes.

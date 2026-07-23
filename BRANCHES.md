@@ -6,7 +6,7 @@
 
 | Branch | Product state | Documentation policy |
 |---|---|---|
-| `main` | Nexora `3.2.4` Source/PWA prerelease; signed production baseline `3.1.2` | Единственный current source of truth |
+| `main` | Nexora `3.3.2` published `UNSIGNED-TEST` prerelease; signed production baseline `3.1.2` | Единственный current source of truth |
 
 New work starts from latest verified `main`, если approved stacked-branch plan явно не требует другого.
 
@@ -15,9 +15,9 @@ New work starts from latest verified `main`, если approved stacked-branch pl
 | Branch | Purpose | Status |
 |---|---|---|
 | `agent/nexora-3.2.5-ui-console-performance` | Planned 3.2.5 UX, Pulse persistence, MLS Welcome and Windows-build corrections | Active draft PR #25; not release-approved |
-| `agent/nexora-3.2.0-trust-core` | Early Rust/OpenMLS Trust Core foundation | Draft PR #11; superseded by current implementation; release prohibited |
+| `agent/nexora-3.2.0-trust-core` | Early Rust/OpenMLS Trust Core foundation | Closed PR #11; superseded by current `ts-mls` implementation; release prohibited |
 
-The 3.2.5 branch is active development, not current product documentation. The early Trust Core branch remains open only as historical provenance and must not merge, tag or publish without a new explicit rebase/review decision.
+The 3.2.5 branch is historical development, not current product documentation. The early Rust/OpenMLS branch remains only as historical provenance and must not merge, tag or publish without a new RFC, rebase and security review.
 
 ## 3. Merged release branches
 
@@ -53,7 +53,8 @@ The 3.2.5 branch is active development, not current product documentation. The e
 | `docs/branch-status-index` | Initial central branch index | Merged through PR #14 |
 | `docs/official-product-documentation-3.2.0` | Product documentation foundation | Merged through PR #17 |
 | `docs/official-product-documentation-3.2.3` | Security/operations documentation for 3.2.3 | Merged through PR #23 |
-| `docs/reconcile-all-branches-3.2.4` | Current 3.2.4 documentation and all-branch status reconciliation | Merged through PR #27 |
+| `docs/reconcile-all-branches-3.2.4` | Historical 3.2.4 documentation and branch reconciliation | Merged through PR #27 |
+| `agent/release-3.3.2-consistency` | Release metadata, documentation and evidence consistency | Merged through PR #42 |
 
 ## 6. Closed synchronization helper
 
@@ -65,8 +66,8 @@ The 3.2.5 branch is active development, not current product documentation. The e
 
 | Branch | Historical purpose | Required handling |
 |---|---|---|
-| `automation/nexora-3.1.0-tag` | Historical tag automation attempt | Open obsolete PR #6; do not merge/tag/publish |
-| `automation/nexora-3.1.0-finalize` | Historical finalization attempt | Open obsolete PR #7; do not merge/tag/publish |
+| `automation/nexora-3.1.0-tag` | Historical tag automation attempt | Closed obsolete PR #6; do not merge/tag/publish |
+| `automation/nexora-3.1.0-finalize` | Historical finalization attempt | Closed obsolete PR #7; do not merge/tag/publish |
 
 These branches should be closed/deleted after required provenance is preserved. Their branch-local documentation identifies them as obsolete.
 
@@ -99,11 +100,11 @@ Current product documents are not copied into historical branches. Historical do
 
 ## 10. Current product boundary
 
-- version: `3.2.4`;
-- distribution: Source/PWA prerelease;
+- version: `3.3.2`;
+- distribution: published `UNSIGNED-TEST` prerelease;
 - signed production baseline: `3.1.2`;
 - Application API: v3;
 - Trust/MLS/encrypted-media API: v4;
 - Local Server database: schema 8;
-- migration from 3.2.0–3.2.3: not required;
+- migration from 3.2.0–3.3.1: not required;
 - independently audited E2EE claim: not granted.

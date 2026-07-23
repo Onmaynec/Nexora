@@ -8,19 +8,21 @@
 
 - version metadata, current documentation и release evidence приведены к одному источнику истины;
 - current-ссылки на устаревшую Release Verification 3.2.4 заменены актуальными;
-- Architecture, Security Model, Android README и Project Index больше не содержат противоречивых current claims.
+- Architecture, Security Model, Android README, Project Index, Security/Support policies, Admin/Tester/Deployment/Operations guides, Product Overview, Release Policy/Checklist, branch index, issue template и публичный сайт больше не содержат противоречивых current claims;
+- current feature baselines, ранее ошибочно обозначенные как текущая версия 3.2.4, нормализованы как линия 3.3.0+ при сохранении исторических release-specific документов.
 
 ### CI и выпуск
 
-- добавлен release consistency gate для package, lockfile, Android, README, Project Index, Architecture, Security Model и evidence;
-- добавлена негативная регрессия, подтверждающая отказ при Android version drift;
+- добавлен release consistency gate для package, lockfile, Android metadata, Client handshake, 24 current documentation surfaces, website fallbacks и release evidence;
+- добавлены негативные регрессии для Android version drift, stale Security Policy и устаревшей current verification-ссылки;
 - release evidence workflow скачивает опубликованные Client, Server, Android и PWA assets, проверяет SHA-256, PE/ZIP integrity и обязательное содержимое;
-- CHANGELOG закреплён как единственный канонический release history.
+- `CHANGELOG.md` закреплён как единственный канонический release history, а `RELEASE_HISTORY.md` оставлен указателем.
 
 ### Организационная очистка
 
 - конфликтующие устаревшие PR #30 и #31 закрыты;
-- экспериментальный Rust/OpenMLS PR #11 закрыт как superseded отдельным текущим Trust/MLS-контуром.
+- obsolete automation PR #6 и #7 закрыты;
+- экспериментальный Rust/OpenMLS PR #11 закрыт как superseded отдельным текущим JavaScript/`ts-mls` Trust/MLS-контуром.
 
 ### Совместимость
 

@@ -2,7 +2,7 @@
 
 ## 1. Область
 
-Документ относится к Nexora `3.3.1`:
+Документ относится к Nexora `3.3.2`:
 
 - published `UNSIGNED-TEST` prerelease;
 - signed production baseline `3.1.2`;
@@ -17,7 +17,7 @@
 | Local development | development/tests | localhost, Node.js 22.16+, npm |
 | Private LAN/VPN | private installation | HTTPS, firewall, fingerprint verification |
 | Public HTTPS | internet access | reverse proxy, public certificate, exact `allowedOrigins`, monitoring, backups |
-| Controlled 3.3.1 prerelease | Trust/MLS/updater validation | disposable data, compatible clients, documented limitations |
+| Controlled 3.3.2 prerelease | Trust/MLS/updater validation | disposable data, compatible clients, documented limitations |
 | Pulse production | commercial Cloud integration | separate Cloud, provider, mail, key management, legal controls |
 
 Direct port forwarding Local Server без reverse proxy, monitoring и firewall не является supported production topology.
@@ -82,7 +82,7 @@ Electron pins fingerprint to Server ID. Browser/PWA/Android use OS trust store. 
 
 Current Local Server database — schema 8.
 
-### 3.1.x / schema 7 → 3.2.4
+### 3.1.x / schema 7 → 3.3.2
 
 - source integrity;
 - free-space calculation;
@@ -92,7 +92,7 @@ Current Local Server database — schema 8.
 - destination integrity;
 - downgrade protection.
 
-### 3.2.0–3.2.3 → 3.2.4
+### 3.2.0–3.3.1 → 3.3.2
 
 No database migration. Schema/API compatibility preserved.
 
@@ -137,7 +137,7 @@ Monitor:
 
 Secure conversation requires:
 
-- compatible 3.2.x clients;
+- compatible 3.3.x clients;
 - active verified devices;
 - available one-time KeyPackages;
 - valid group/epoch state;
@@ -153,7 +153,7 @@ Resource limits:
 
 Treat `429 RATE_LIMITED` according to `Retry-After`; do not create retry storms.
 
-## 11. Welcome recovery 3.2.4
+## 11. Welcome recovery 3.3.0+
 
 Recovery depends on at least one active verified group device online. Server only emits a scoped request; active Client creates Welcome.
 

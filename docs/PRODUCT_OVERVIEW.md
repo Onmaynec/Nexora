@@ -17,13 +17,13 @@ Nexora — self-hosted платформа обмена сообщениями д
 
 | Параметр | Значение |
 |---|---|
-| Current repository version | `3.3.1` |
+| Current repository version | `3.3.2` |
 | Distribution | Published `UNSIGNED-TEST` prerelease |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
 | Trust/MLS/encrypted-media API | v4 |
 | Local Server database | SQLite schema 8 |
-| Local Server migration from 3.2.0–3.3.0 | не требуется |
+| Local Server migration from 3.2.0–3.3.1 | не требуется |
 | Independent E2EE/security approval | не завершён |
 
 Patch lineage:
@@ -35,7 +35,8 @@ Patch lineage:
 - `3.2.4` — Windows updater lifecycle, audited Server console, automatic MLS Welcome recovery, post-update UX и test-mode diagnostics;
 - `3.2.5` — messaging/media regressions, developer commands и encrypted outbox corrections;
 - `3.3.0` — Trust recovery, spendable Impulses/Pulse, voice waveform UX, website и complete artifact pipeline;
-- `3.3.1` — packaged Windows Server startup correction: `shared/**/*` включён в `app.asar` и защищён release gate.
+- `3.3.1` — packaged Windows Server startup correction: `shared/**/*` включён в `app.asar` и защищён release gate;
+- `3.3.2` — release metadata, current documentation, release history и published-asset smoke приведены к одному проверяемому состоянию.
 
 ## 3. Модель развёртывания
 
@@ -117,7 +118,7 @@ Public installation требует HTTPS, firewall, exact `allowedOrigins`, moni
 
 Fixed profile: `MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519`.
 
-## 8. MLS Welcome recovery 3.2.4
+## 8. MLS Welcome recovery 3.3.0+
 
 Verified device без local group state может запросить Welcome:
 
@@ -145,7 +146,7 @@ Local Server не хранит card data, Cloud password, Cloud MFA secret, Clou
 
 ## 10. Updates и Windows experience
 
-3.2.4 включает:
+3.3.0+ включает:
 
 - default official GitHub Releases provider для packaged Client;
 - automatic startup/scheduled checks;
@@ -160,7 +161,7 @@ Unsigned updater assets не публикуются и не становятся
 
 ## 11. Platforms
 
-| Platform | Technology | 3.2.4 status |
+| Platform | Technology | 3.3.2 status |
 |---|---|---|
 | Windows Client | Electron + React | source/build verified; installed signed updater acceptance pending |
 | Windows Server | Electron shell + Node.js | source/build verified; signed installer runtime acceptance pending |
@@ -182,7 +183,7 @@ Unsigned updater assets не публикуются и не становятся
 
 ## 13. Product boundaries
 
-Nexora 3.2.4 не заявляет:
+Nexora 3.3.2 не заявляет:
 
 - independent cryptographic/application-security certification;
 - traffic-analysis resistance;
@@ -206,4 +207,4 @@ Nexora 3.2.4 не заявляет:
 7. independent cryptographic/application-security review;
 8. отсутствие unresolved high/critical findings.
 
-Текущий release evidence: [Release Verification 3.2.4](../RELEASE_VERIFICATION_3.2.4.md).
+Текущий release evidence: [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.2.md).

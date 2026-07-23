@@ -4,14 +4,14 @@
 
 | Параметр | Значение |
 |---|---|
-| Repository version | `3.3.1` |
+| Repository version | `3.3.2` |
 | Distribution | Published `UNSIGNED-TEST` prerelease |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
 | Trust/MLS/encrypted-media API | v4 |
 | Local Server database | SQLite schema 8 |
 
-`3.3.1` опубликована как controlled `UNSIGNED-TEST` prerelease. Signed production deployment должен использовать подтверждённую signed release classification и полный набор updater assets.
+`3.3.2` опубликована как controlled `UNSIGNED-TEST` prerelease. Signed production deployment должен использовать подтверждённую signed release classification и полный набор updater assets.
 
 ## 2. Deployment requirements
 
@@ -124,7 +124,7 @@ Upgrade 7 → 8 выполняет:
 - destination integrity;
 - downgrade protection.
 
-Upgrade 3.2.0–3.2.3 → 3.2.4 не требует migration.
+Upgrade 3.2.0–3.3.1 → 3.3.2 не требует migration.
 
 Rollback schema 8 — restore verified backup. In-place downgrade не поддерживается.
 
@@ -159,7 +159,7 @@ Limit responses используют stable code; route throttling возвра�
 
 Target socket disconnects immediately. Client wipes identity, MLS state, KeyPackages, decrypted cache и drafts before reenrollment.
 
-## 10. MLS Welcome recovery 3.2.4
+## 10. MLS Welcome recovery 3.3.0+
 
 Verified device в `MLS_WELCOME_PENDING` может request recovery. Server:
 
@@ -173,7 +173,7 @@ Operator should verify:
 
 - at least one active verified group device online;
 - same conversation/group scope;
-- compatible 3.2.4 Client;
+- compatible 3.3.0+ Client;
 - no `RATE_LIMITED` retry before `Retry-After`;
 - no repeated concurrent manual recovery attempts.
 
