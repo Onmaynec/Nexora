@@ -98,9 +98,15 @@ html[lang="ru"] .doc-link h3 {
 .language-switch button,
 .header-github,
 .menu-button {
-  position: relative;
   z-index: 2;
   pointer-events: auto;
+}
+
+.header-actions,
+.language-switch,
+.language-switch button,
+.header-github {
+  position: relative;
 }
 
 .header-actions {
@@ -171,7 +177,6 @@ html[lang="ru"] .doc-link h3 {
   }
 
   .header-actions {
-    position: relative;
     z-index: 130;
   }
 }
