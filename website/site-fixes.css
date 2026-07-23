@@ -226,3 +226,142 @@ html[lang="ru"] .doc-link h3 {
     font-size: 1.35rem;
   }
 }
+
+
+/* Mobile cascade guard: site-fixes.css is appended after styles.css in Pages builds.
+   Restate the narrow layout after the broad 1240px rule so mobile content cannot
+   be squeezed into a desktop column. */
+@media (max-width: 1040px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2rem;
+  }
+
+  .hero-copy,
+  .hero-stage,
+  .product-window,
+  .section,
+  main {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 760px) {
+  html,
+  body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    overflow-x: clip;
+  }
+
+  .site-header {
+    width: 100%;
+    max-width: 100%;
+    gap: .55rem;
+    padding-inline: .75rem;
+  }
+
+  .header-actions {
+    min-width: 0;
+    gap: .4rem;
+    padding-right: 47px;
+  }
+
+  .language-switch button {
+    padding: .4rem .45rem;
+  }
+
+  .menu-button {
+    right: .75rem;
+  }
+
+  .hero {
+    width: min(calc(100% - 1.5rem), var(--max));
+    padding-top: calc(var(--header) + 54px);
+  }
+
+  .hero-copy {
+    width: 100%;
+    max-width: none;
+  }
+
+  html[lang="ru"] .hero h1,
+  .hero h1,
+  html[lang="ru"] .section-heading h2,
+  html[lang="ru"] .final-cta h2,
+  .section-heading h2,
+  .final-cta h2 {
+    max-width: 100%;
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
+    text-wrap: balance;
+  }
+
+  .hero h1 span,
+  .hero h1 em {
+    width: 100%;
+  }
+
+  .hero-status {
+    width: fit-content;
+    max-width: 100%;
+  }
+
+  .hero-stage {
+    width: 100%;
+    min-height: 460px;
+  }
+
+  .product-window,
+  .section-heading,
+  .final-cta,
+  .live-panel,
+  .activity-card,
+  .architecture-board,
+  .trust-lifecycle,
+  .data-path,
+  .release-selector,
+  .assessment-card,
+  .doc-link {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .section,
+  .hero,
+  .site-footer {
+    width: min(calc(100% - 1rem), var(--max));
+  }
+
+  html[lang="ru"] .hero h1,
+  .hero h1 {
+    font-size: clamp(2.55rem, 13.5vw, 3.65rem);
+    line-height: .96;
+    letter-spacing: -.04em;
+  }
+
+  .hero-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hero-actions .button {
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
+  }
+
+  .hero-stage {
+    min-height: 420px;
+  }
+
+  .product-window {
+    width: 100%;
+    height: 380px;
+  }
+}

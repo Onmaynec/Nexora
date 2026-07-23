@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const STORAGE_KEY = "nexora-aether-settings-v2";
+  const STORAGE_KEY = "nexora-aether-settings-v3";
   const LANGUAGE_KEY = "nexora-site-language";
   const TAU = Math.PI * 2;
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -15,19 +15,19 @@
 
   const defaults = Object.freeze({
     particleCount: 220,
-    particleSize: 1.8,
-    speed: 0.62,
-    regenerationRate: 1.25,
+    particleSize: 1.7,
+    speed: 0.75,
+    regenerationRate: 0.8,
     cursorRadius: 200,
     cursorForce: 5,
     cursorGlow: true,
-    connectionDistance: 132,
-    lineOpacity: 0.26,
-    linkStrength: 0.0025,
-    maxLinks: 3,
-    separation: 0.45,
-    impulseForce: 4.2,
-    vortexForce: 2.2,
+    connectionDistance: 138,
+    lineOpacity: 0.23,
+    linkStrength: 0.0001,
+    maxLinks: 2,
+    separation: 0.1,
+    impulseForce: 2.2,
+    vortexForce: 1.4,
     collapseThreshold: 100,
     collapseRadius: 110,
     collapseHold: 3.5,
@@ -43,9 +43,9 @@
     lineColor: "#c896ff",
     cursorColor: "#ead7ff",
     trails: false,
-    pulse: true,
+    pulse: false,
     showGrid: true,
-    glowStrength: 10,
+    glowStrength: 6,
     quality: "auto",
     fpsLimit: "60",
     autoReduce: true,
@@ -393,9 +393,18 @@
       this.x = Number.isFinite(options.x) ? options.x : random(4, Math.max(5, engine.width - 4));
       this.y = Number.isFinite(options.y) ? options.y : random(4, Math.max(5, engine.height - 4));
       const angle = Number.isFinite(options.angle) ? options.angle : Math.random() * TAU;
-      const baseSpeed = Number.isFinite(options.velocity) ? options.velocity : random(.08, .28);
-      this.vx = Number.isFinite(options.vx) ? options.vx : Math.cos(angle) * baseSpeed;
-      this.vy = Number.isFinite(options.vy) ? options.vy : Math.sin(angle) * baseSpeed;
+      if (Number.isFinite(options.vx) || Number.isFinite(options.vy)) {
+        this.vx = Number.isFinite(options.vx) ? options.vx : 0;
+        this.vy = Number.isFinite(options.vy) ? options.vy : 0;
+      } else if (Number.isFinite(options.velocity)) {
+        this.vx = Math.cos(angle) * options.velocity;
+        this.vy = Math.sin(angle) * options.velocity;
+      } else {
+        this.vx = random(-.2, .2);
+        this.vy = random(-.2, .2);
+      }
+      this.driftVx = clamp(this.vx, -.2, .2);
+      this.driftVy = clamp(this.vy, -.2, .2);
     }
   }
 
@@ -842,15 +851,15 @@
         if (distance <= .001 || distance >= radius + this.settings.particleSize) continue;
         const force = (radius - distance) / radius;
         const displacement = force * this.settings.cursorForce * delta;
+        // Match the original component: move particles away without storing
+        // cursor energy in their velocity.
         particle.x -= dx / distance * displacement;
         particle.y -= dy / distance * displacement;
-        particle.vx -= dx / distance * force * .018 * this.settings.cursorForce;
-        particle.vy -= dy / distance * force * .018 * this.settings.cursorForce;
       }
     }
 
     applyMagnet(delta, seconds) {
-      const radius = this.settings.cursorRadius * 1.35;
+      const radius = Math.max(this.settings.cursorRadius * 2.25, this.settings.collapseRadius * 3.4);
       const coreRadius = this.settings.collapseRadius;
       let density = 0;
 
@@ -861,11 +870,12 @@
         if (distance <= coreRadius) density += 1;
         if (distance > radius) continue;
         const normalized = 1 - distance / radius;
-        const force = normalized * this.settings.cursorForce * .065 * delta;
-        const trailX = this.pointer.velocityX * .0045 * normalized;
-        const trailY = this.pointer.velocityY * .0045 * normalized;
-        particle.vx += dx / distance * force - dy / distance * force * .16 + trailX;
-        particle.vy += dy / distance * force + dx / distance * force * .16 + trailY;
+        const damping = Math.max(.82, 1 - normalized * .075 * delta);
+        const force = normalized * this.settings.cursorForce * .014 * delta;
+        const trailX = this.pointer.velocityX * .0025 * normalized;
+        const trailY = this.pointer.velocityY * .0025 * normalized;
+        particle.vx = particle.vx * damping + dx / distance * force - dy / distance * force * .1 + trailX;
+        particle.vy = particle.vy * damping + dy / distance * force + dx / distance * force * .1 + trailY;
       }
 
       this.collapseDensity = density;
@@ -1172,9 +1182,16 @@
 
     updateParticles(delta) {
       const movementScale = this.settings.speed * delta;
+      const calmField = this.tool === "cursor" && this.predators.length === 0 && this.blackHoles.length === 0;
       for (const particle of this.particles) {
+        if (calmField) {
+          const relaxation = Math.min(.045, .012 * delta);
+          particle.vx += (particle.driftVx - particle.vx) * relaxation;
+          particle.vy += (particle.driftVy - particle.vy) * relaxation;
+        }
+
         const velocity = Math.hypot(particle.vx, particle.vy);
-        const maxVelocity = 6 + this.settings.speed * 3;
+        const maxVelocity = calmField ? Math.max(.3, this.settings.speed * .46) : 6 + this.settings.speed * 3;
         if (velocity > maxVelocity) {
           particle.vx = particle.vx / velocity * maxVelocity;
           particle.vy = particle.vy / velocity * maxVelocity;
@@ -1182,23 +1199,28 @@
 
         particle.x += particle.vx * movementScale;
         particle.y += particle.vy * movementScale;
-        particle.vx *= .997;
-        particle.vy *= .997;
+        const damping = calmField ? .9995 : .997;
+        particle.vx *= damping;
+        particle.vy *= damping;
 
         const radius = this.settings.particleSize * (1 + particle.seed * .35);
         if (particle.x > this.width - radius) {
           particle.x = this.width - radius;
           particle.vx = -Math.abs(particle.vx);
+          particle.driftVx = -Math.abs(particle.driftVx);
         } else if (particle.x < radius) {
           particle.x = radius;
           particle.vx = Math.abs(particle.vx);
+          particle.driftVx = Math.abs(particle.driftVx);
         }
         if (particle.y > this.height - radius) {
           particle.y = this.height - radius;
           particle.vy = -Math.abs(particle.vy);
+          particle.driftVy = -Math.abs(particle.driftVy);
         } else if (particle.y < radius) {
           particle.y = radius;
           particle.vy = Math.abs(particle.vy);
+          particle.driftVy = Math.abs(particle.driftVy);
         }
       }
     }
