@@ -1,0 +1,61 @@
+name: Diagnose Nexora 3.3.2 release once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/diagnose-release-3.3.2-once.yml"
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Capture release and workflow state
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-evidence
+          gh run list --repo "${{ github.repository }}" --limit 30 --json databaseId,workflowName,status,conclusion,event,headSha,headBranch,displayTitle,url,createdAt,updatedAt > /tmp/runs.json
+          if gh release view v3.3.2 --repo "${{ github.repository }}" --json tagName,name,isDraft,isPrerelease,url,createdAt,publishedAt,assets > /tmp/release.json 2>/dev/null; then
+            release_status=published
+          else
+            release_status=missing
+            printf 'null\n' > /tmp/release.json
+          fi
+          RELEASE_STATUS="$release_status" node <<'NODE'
+          const fs = require('node:fs');
+          const runs = JSON.parse(fs.readFileSync('/tmp/runs.json', 'utf8'));
+          const release = JSON.parse(fs.readFileSync('/tmp/release.json', 'utf8'));
+          const output = {
+            schemaVersion: 1,
+            capturedAt: new Date().toISOString(),
+            releaseStatus: process.env.RELEASE_STATUS,
+            release,
+            runs,
+          };
+          fs.writeFileSync('release-evidence/release-runs-diagnostic.json', `${JSON.stringify(output, null, 2)}\n`, 'utf8');
+          NODE
+
+      - name: Commit diagnostic and remove workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/diagnose-release-3.3.2-once.yml
+          git add release-evidence/release-runs-diagnostic.json
+          git commit -m "docs(release): record 3.3.2 publication diagnostic [skip ci]"
+          git pull --rebase origin main
+          git push origin HEAD:main
