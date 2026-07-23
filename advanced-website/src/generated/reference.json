@@ -1,0 +1,25 @@
+{
+  "currentVersion": "3.3.2",
+  "routes": [
+    {"method":"GET","path":"/healthz/live","source":"PROJECT_INDEX.md","line":121,"group":"operations"},
+    {"method":"GET","path":"/healthz/ready","source":"PROJECT_INDEX.md","line":121,"group":"operations"},
+    {"method":"GET","path":"/api/v4/trust/status","source":"server/trust-routes.cjs","line":140,"group":"trust-v4"},
+    {"method":"GET","path":"/api/v4/trust/devices","source":"server/trust-routes.cjs","line":144,"group":"trust-v4"},
+    {"method":"POST","path":"/api/v4/trust/challenges","source":"server/trust-routes.cjs","line":156,"group":"trust-v4"},
+    {"method":"POST","path":"/api/v4/trust/devices","source":"server/trust-routes.cjs","line":199,"group":"trust-v4"},
+    {"method":"POST","path":"/api/v4/trust/key-packages","source":"server/trust-routes.cjs","line":246,"group":"trust-v4"},
+    {"method":"POST","path":"/api/v4/trust/conversations/:conversationId/welcome/request","source":"server/trust-routes.cjs","line":280,"group":"trust-v4"},
+    {"method":"GET","path":"/api/v4/trust/conversations/:conversationId/group","source":"server/trust-routes.cjs","line":294,"group":"trust-v4"},
+    {"method":"POST","path":"/api/v4/trust/groups/:groupId/commits","source":"server/trust-routes.cjs","line":316,"group":"trust-v4"}
+  ],
+  "events": [
+    {"direction":"emit","name":"mls.welcome_requested","source":"server/trust-routes.cjs","line":289},
+    {"direction":"emit","name":"mls.group_created","source":"server/trust-routes.cjs","line":312},
+    {"direction":"emit","name":"mls.commit","source":"server/trust-routes.cjs","line":362},
+    {"direction":"emit","name":"trust.device_registered","source":"server/trust-routes.cjs","line":217},
+    {"direction":"emit","name":"trust.device_verified","source":"server/trust-routes.cjs","line":229},
+    {"direction":"emit","name":"trust.device_revoked","source":"server/trust-routes.cjs","line":241}
+  ],
+  "stats": {"routeCount":10,"eventCount":6,"sourceFiles":2},
+  "generatedFromSource": false
+}
