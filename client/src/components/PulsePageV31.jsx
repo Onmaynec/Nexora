@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { api } from "../api";
 import ConfirmDialog from "./ConfirmDialog";
+import GoalDialog from "./GoalDialog";
 import "../pulse-v31.css";
 import "../pulse-v33.css";
 
@@ -27,15 +28,18 @@ const CATEGORY_LABELS = {
 };
 
 function call(path, method = "GET", body, idempotencyKey) {
+  const payload = body === undefined ? undefined : (idempotencyKey && body && typeof body === "object" && !Array.isArray(body) ? { ...body, idempotencyKey } : body);
   return api(path, {
     method,
     headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: payload === undefined ? undefined : JSON.stringify(payload),
   });
 }
 
 function requestKey(scope, userId) {
-  return `${scope}:${userId}:${globalThis.crypto.randomUUID()}`;
+  const entropy = globalThis.crypto?.randomUUID?.()
+    || `${Date.now().toString(36)}.${Math.random().toString(36).slice(2)}.${Math.random().toString(36).slice(2)}`;
+  return `${scope}:${userId}:${entropy}`.replace(/[^A-Za-z0-9_.:-]/g, "").slice(0, 128);
 }
 
 function decodeBase64UrlJson(value) {
@@ -99,6 +103,7 @@ export default function PulsePageV31({ initialOverview = null, rooms = [], me, o
   const [goals, setGoals] = useState([]);
   const [catalog, setCatalog] = useState([]);
   const [purchaseTarget, setPurchaseTarget] = useState(null);
+  const [goalDialogOpen, setGoalDialogOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [sectionBusy, setSectionBusy] = useState(false);
   const [callbackHandled, setCallbackHandled] = useState(false);
@@ -274,29 +279,15 @@ export default function PulsePageV31({ initialOverview = null, rooms = [], me, o
     finally { setBusy(false); }
   }
 
-  async function createGoal() {
-    if (selectedRoom?.viewerRole !== "owner") return;
-    const title = window.prompt("Название цели", "Новые реакции комнаты");
-    if (!title) return;
-    const targetAmount = Number(window.prompt("Сколько Импульсов собрать?", "400"));
-    if (!Number.isSafeInteger(targetAmount) || targetAmount < 400 || targetAmount > 1_000_000) {
-      showToast("Введите целое число от 400 до 1 000 000.", "error");
-      return;
-    }
-    const description = window.prompt("Описание цели", "Откроет расширенные реакции для всей комнаты на 30 дней") || "";
+  async function createGoal(input) {
+    if (!["owner", "moderator"].includes(selectedRoom?.viewerRole)) return;
     setBusy(true);
     try {
-      await call(`/api/v3/rooms/${encodeURIComponent(selectedRoom.id)}/pulse/goals`, "POST", {
-        productCode: "room_reaction_pack",
-        title,
-        description,
-        targetAmount,
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60_000).toISOString(),
-        entitlementDurationDays: 30,
-      }, requestKey("goal:create", me.id));
-      await loadGoals(selectedRoom.id);
+      await call(`/api/v3/rooms/${encodeURIComponent(selectedRoom.id)}/pulse/goals`, "POST", input, requestKey("goal:create", me.id));
+      setGoalDialogOpen(false);
+      await Promise.all([loadGoals(selectedRoom.id), onRefresh?.()]);
       showToast("Цель комнаты создана");
-    } catch (error) { showToast(error.message, "error"); }
+    } catch (error) { showToast(error.message, "error"); throw error; }
     finally { setBusy(false); }
   }
 
@@ -406,13 +397,13 @@ export default function PulsePageV31({ initialOverview = null, rooms = [], me, o
 
     {tab === "rooms" && <main className="pulse31-content">
       <header className="pulse31-section-head"><div><span>COLLECTIVE GOALS</span><h2>Цели комнат</h2><p>Участники совместно открывают возможности комнаты.</p></div><label className="pulse31-room-select"><span>Комната</span><select value={selectedRoomId} onChange={(event) => setSelectedRoomId(event.target.value)}><option value="">Выберите комнату</option>{rooms.filter((room) => room.joined).map((room) => <option key={room.id} value={room.id}>{room.name}</option>)}</select></label></header>
-      {selectedRoom?.viewerRole === "owner" && <button type="button" className="pulse31-create-goal" onClick={createGoal} disabled={busy || !linked}><Target size={17} /> Создать цель</button>}
+      {["owner", "moderator"].includes(selectedRoom?.viewerRole) && <button type="button" className="pulse31-create-goal" onClick={() => setGoalDialogOpen(true)} disabled={busy || !linked || goals.some((goal) => goal.status === "active")}><Target size={17} /> Создать цель</button>}
       {sectionBusy ? <div className="pulse31-loader"><LoaderCircle className="spin" /> Загружаем цели</div> : goals.length ? <div className="pulse31-goals">{goals.map((goal) => {
         const current = Number(field(goal, "currentAmount", "current_amount", 0));
         const target = Number(field(goal, "targetAmount", "target_amount", 1));
         const progress = Math.min(100, Math.round(current / target * 100));
-        return <article key={goal.id}><header><span><Target size={17} /> {goal.status === "funded" ? "ЦЕЛЬ ДОСТИГНУТА" : goal.status === "refunded" ? "ВОЗВРАЩЕНА" : `${progress}%`}</span><b>{goal.status}</b></header><h3>{goal.title}</h3><p>{goal.description}</p><div className="pulse31-progress" role="progressbar" aria-valuemin="0" aria-valuemax={target} aria-valuenow={current}><i style={{ width: `${progress}%` }} /></div><div className="pulse31-goal-numbers"><strong>{current} / {target} ◈</strong><span>{field(goal, "contributionCount", "contribution_count", 0)} вкладов</span></div>{goal.status === "active" && <footer>{[10, 50, 100].map((amount) => <button type="button" key={amount} disabled={busy || Number(wallet.balance || 0) < Math.min(amount, target - current)} onClick={() => contribute(goal, amount)}>+{amount}</button>)}{selectedRoom?.viewerRole === "owner" && <button type="button" className="danger" onClick={() => cancelGoal(goal)}>Отменить</button>}</footer>}</article>;
-      })}</div> : <Empty icon={Target} title={selectedRoomId ? "Активных целей нет" : "Выберите комнату"} detail={selectedRoomId ? "Владелец может создать коллективную цель." : "Доступны комнаты, в которых вы состоите."} />}
+        return <article key={goal.id}><header><span><Target size={17} /> {goal.status === "funded" ? "ЦЕЛЬ ДОСТИГНУТА" : goal.status === "refunded" ? "ВОЗВРАЩЕНА" : `${progress}%`}</span><b>{goal.status}</b></header><h3>{goal.title}</h3><p>{goal.description}</p><div className="pulse31-progress" role="progressbar" aria-valuemin="0" aria-valuemax={target} aria-valuenow={current}><i style={{ width: `${progress}%` }} /></div><div className="pulse31-goal-numbers"><strong>{current} / {target} ◈</strong><span>{field(goal, "contributionCount", "contribution_count", 0)} вкладов</span></div>{goal.status === "active" && <footer>{[10, 50, 100].map((amount) => <button type="button" key={amount} disabled={busy || Number(wallet.balance || 0) < Math.min(amount, target - current)} onClick={() => contribute(goal, amount)}>+{amount}</button>)}{(selectedRoom?.viewerRole === "owner" || (selectedRoom?.viewerRole === "moderator" && goal.createdBy === me.id)) && <button type="button" className="danger" onClick={() => cancelGoal(goal)}>Отменить</button>}</footer>}</article>;
+      })}</div> : <Empty icon={Target} title={selectedRoomId ? "Активных целей нет" : "Выберите комнату"} detail={selectedRoomId ? "Владелец или модератор может создать коллективную цель." : "Доступны комнаты, в которых вы состоите."} />}
     </main>}
 
     {tab === "security" && <main className="pulse31-content">
@@ -421,6 +412,7 @@ export default function PulsePageV31({ initialOverview = null, rooms = [], me, o
       <div className="pulse31-security-list"><article><ShieldCheck size={19} /><div><strong>OAuth 2.1 + PKCE</strong><p>Одноразовый authorization code и S256 challenge.</p></div></article><article><KeyRound size={19} /><div><strong>Ed25519</strong><p>Проверяются Server ID, Local User ID, link ID и nonce.</p></div></article><article><LogOut size={19} /><div><strong>Отзыв связи</strong><p>Отвязывание требует текущий пароль Local Account.</p></div></article></div>
     </main>}
 
+    <GoalDialog open={goalDialogOpen} room={selectedRoom} busy={busy} onCancel={() => !busy && setGoalDialogOpen(false)} onSubmit={createGoal} />
     <ConfirmDialog
       open={Boolean(purchaseTarget)}
       title={`Активировать «${purchaseTarget?.displayName || ""}»?`}

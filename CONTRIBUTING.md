@@ -8,7 +8,7 @@
 
 | Параметр | Значение |
 |---|---|
-| Repository version | `3.3.2` |
+| Repository version | `3.3.3` |
 | Distribution | Published `UNSIGNED-TEST` prerelease |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |

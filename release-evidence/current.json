@@ -1,99 +1,27 @@
 {
   "schemaVersion": 1,
-  "version": "3.3.2",
-  "status": "published",
-  "verifiedAt": "2026-07-23T11:51:22.826Z",
+  "version": "3.3.3",
+  "status": "candidate",
+  "verifiedAt": null,
   "repository": "Onmaynec/Nexora",
-  "tag": "v3.3.2",
-  "tagSha": "82af775fb39515bd219078fec368cc259441c288",
-  "releaseName": "Nexora 3.3.2 — UNSIGNED TEST BUILDS",
-  "releaseUrl": "https://github.com/Onmaynec/Nexora/releases/tag/v3.3.2",
-  "draft": false,
+  "tag": "v3.3.3",
+  "tagSha": null,
+  "releaseName": "Nexora 3.3.3 — UNSIGNED TEST BUILDS",
+  "releaseUrl": "https://github.com/Onmaynec/Nexora/releases/tag/v3.3.3",
+  "draft": true,
   "prerelease": true,
   "distribution": "unsigned-test",
   "updaterMetadataPublished": false,
   "requiredAssets": [
-    "Nexora-Android-3.3.2-UNSIGNED-TEST.apk",
-    "Nexora-3.3.2-source.zip",
-    "Nexora-PWA-3.3.2.zip",
-    "Nexora-3.3.2.spdx.json",
+    "Nexora-3.3.3-source.zip",
+    "Nexora-PWA-3.3.3.zip",
+    "Nexora-3.3.3.spdx.json",
     "SHA256SUMS.txt",
-    "Nexora-Client-Setup-3.3.2-UNSIGNED-TEST.exe",
-    "Nexora-Server-Setup-3.3.2-UNSIGNED-TEST.exe"
+    "Nexora-Client-Setup-3.3.3-UNSIGNED-TEST.exe",
+    "Nexora-Server-Setup-3.3.3-UNSIGNED-TEST.exe"
   ],
   "smoke": {
-    "status": "pass",
-    "checksums": "pass",
-    "client": {
-      "name": "Nexora-Client-Setup-3.3.2-UNSIGNED-TEST.exe",
-      "peHeader": "MZ",
-      "minimumSize": "pass"
-    },
-    "server": {
-      "name": "Nexora-Server-Setup-3.3.2-UNSIGNED-TEST.exe",
-      "peHeader": "MZ",
-      "minimumSize": "pass"
-    },
-    "android": {
-      "name": "Nexora-Android-3.3.2-UNSIGNED-TEST.apk",
-      "zipIntegrity": "pass",
-      "manifest": "pass"
-    },
-    "pwa": {
-      "name": "Nexora-PWA-3.3.2.zip",
-      "zipIntegrity": "pass",
-      "indexHtml": "pass"
-    }
+    "status": "pending"
   },
-  "assets": [
-    {
-      "name": "Nexora-3.3.2-source.zip",
-      "size": 1829966,
-      "url": "https://github.com/Onmaynec/Nexora/releases/download/v3.3.2/Nexora-3.3.2-source.zip",
-      "contentType": "application/zip",
-      "digest": "sha256:2fd1fdc5663314d8250d5abcf22723910966ac58ea77f785e8fbcb38a7a2b5c1"
-    },
-    {
-      "name": "Nexora-3.3.2.spdx.json",
-      "size": 134461,
-      "url": "https://github.com/Onmaynec/Nexora/releases/download/v3.3.2/Nexora-3.3.2.spdx.json",
-      "contentType": "application/json",
-      "digest": "sha256:0deef0b6cac8310dd6cbafac8283823901a1fa8af40f85ad665ba2ec005bae28"
-    },
-    {
-      "name": "Nexora-Android-3.3.2-UNSIGNED-TEST.apk",
-      "size": 848686,
-      "url": "https://github.com/Onmaynec/Nexora/releases/download/v3.3.2/Nexora-Android-3.3.2-UNSIGNED-TEST.apk",
-      "contentType": "application/vnd.android.package-archive",
-      "digest": "sha256:284ace120bef286b3b802b009e654a700b204a29bde16ad502d20dcc581e754d"
-    },
-    {
-      "name": "Nexora-Client-Setup-3.3.2-UNSIGNED-TEST.exe",
-      "size": 105352992,
-      "url": "https://github.com/Onmaynec/Nexora/releases/download/v3.3.2/Nexora-Client-Setup-3.3.2-UNSIGNED-TEST.exe",
-      "contentType": "application/x-msdownload",
-      "digest": "sha256:14b624513518b39cd8e7b65c4299658f753865fcde5952eede5973a41a5ae99d"
-    },
-    {
-      "name": "Nexora-PWA-3.3.2.zip",
-      "size": 1258672,
-      "url": "https://github.com/Onmaynec/Nexora/releases/download/v3.3.2/Nexora-PWA-3.3.2.zip",
-      "contentType": "application/zip",
-      "digest": "sha256:41de27bb62446bbaf206c723010074fbc6f307876de2427157120c669f185c4a"
-    },
-    {
-      "name": "Nexora-Server-Setup-3.3.2-UNSIGNED-TEST.exe",
-      "size": 106523913,
-      "url": "https://github.com/Onmaynec/Nexora/releases/download/v3.3.2/Nexora-Server-Setup-3.3.2-UNSIGNED-TEST.exe",
-      "contentType": "application/x-msdownload",
-      "digest": "sha256:3f5e356fda763e038ec84e7582ab26afe584575c625c30ec6526784b8ff04ebf"
-    },
-    {
-      "name": "SHA256SUMS.txt",
-      "size": 597,
-      "url": "https://github.com/Onmaynec/Nexora/releases/download/v3.3.2/SHA256SUMS.txt",
-      "contentType": "text/plain; charset=utf-8",
-      "digest": "sha256:2a7693656b5befc3afc60421ec235112b2e82f6fe2c4032a61df9b8e9a97a2e6"
-    }
-  ]
+  "assets": []
 }

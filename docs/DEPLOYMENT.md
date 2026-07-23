@@ -2,7 +2,7 @@
 
 ## 1. Область
 
-Документ относится к Nexora `3.3.2`:
+Документ относится к Nexora `3.3.3`:
 
 - published `UNSIGNED-TEST` prerelease;
 - signed production baseline `3.1.2`;

@@ -2,7 +2,7 @@
 
 ## 1. Область проверки
 
-- current version: `3.3.2` published `UNSIGNED-TEST` prerelease;
+- current version: `3.3.3` published `UNSIGNED-TEST` prerelease;
 - signed production baseline: `3.1.2`;
 - Windows Client/Server, Browser/PWA и Android;
 - Application API v3;
@@ -375,7 +375,7 @@ npm run test:soak
 gradle -p android :app:assembleDebug --no-daemon
 ```
 
-Authoritative evidence: [Release Verification 3.3.2](RELEASE_VERIFICATION_3.3.2.md).
+Authoritative evidence: [Release Verification 3.3.2](RELEASE_VERIFICATION_3.3.3.md).
 
 ## 25. Defect report
 

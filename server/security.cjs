@@ -74,6 +74,8 @@ function publicUser(user) {
     avatarUrl: user.avatarFileId ? `/api/avatars/${user.avatarFileId}` : null,
     avatarFrame: user.avatarFrame ?? "none",
     profileColor: user.profileColor ?? "violet",
+    messageStyle: user.messageStyle ?? "default",
+    stickerPack: user.stickerPack ?? "default",
     plusBadgeVisible: user.plusBadgeVisible !== false,
     role: user.role,
     isBot: Boolean(user.isBot),

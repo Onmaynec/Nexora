@@ -6,7 +6,7 @@
 
 | Branch | Product state | Documentation policy |
 |---|---|---|
-| `main` | Nexora `3.3.2` published `UNSIGNED-TEST` prerelease; signed production baseline `3.1.2` | Единственный current source of truth |
+| `main` | Nexora `3.3.3` published `UNSIGNED-TEST` prerelease; signed production baseline `3.1.2` | Единственный current source of truth |
 
 New work starts from latest verified `main`, если approved stacked-branch plan явно не требует другого.
 

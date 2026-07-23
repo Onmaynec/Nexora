@@ -2,7 +2,7 @@
 
 [![Website](https://img.shields.io/badge/website-open-c69cff)](https://onmaynec.github.io/Nexora/)
 [![CI](https://github.com/Onmaynec/Nexora/actions/workflows/ci.yml/badge.svg)](https://github.com/Onmaynec/Nexora/actions/workflows/ci.yml)
-![Current version](https://img.shields.io/badge/current-3.3.2%20UNSIGNED--TEST-c69cff)
+![Current version](https://img.shields.io/badge/current-3.3.3%20UNSIGNED--TEST-c69cff)
 ![Stable signed baseline](https://img.shields.io/badge/stable%20signed-3.1.2-70e6b1)
 ![API](https://img.shields.io/badge/API-v3%20%2B%20Trust%20v4-70e6b1)
 ![Database](https://img.shields.io/badge/SQLite-schema%208-70e6b1)
@@ -17,15 +17,16 @@
 
 | Линия | Назначение | Статус распространения |
 |---|---|---|
+| `3.3.3` | Goal workflow, Telegram-style voice UX, effective Pulse purchases and safe MLS recovery | Опубликованный UNSIGNED-TEST prerelease без updater metadata |
 | `3.3.2` | Release Consistency: единая версия, current docs, release evidence и asset smoke gate | Опубликованный UNSIGNED-TEST prerelease без updater metadata |
 | `3.3.1` | Исправление запуска Windows Server: shared Pulse runtime включён в installer и проверяется release gate | Заменён 3.3.2 |
 | `3.3.0` | Trust recovery, расходуемые Импульсы, обновлённый Client UX, сайт и полный artifact pipeline | Заменён 3.3.1: Server installer не содержал обязательный shared runtime module |
 | `3.1.2` | Основной messaging-контур, Pulse Cloud и production hardening | Последняя подтверждённая signed production baseline |
 
-`3.3.2` сохраняет runtime и security boundary 3.3.1, синхронизирует release metadata и current documentation, а также добавляет обязательную post-publication smoke-проверку Client, Server, Android и PWA assets. Windows Client/Server и Android публикуются как явно маркированные `UNSIGNED-TEST` assets; `latest.yml` и `.blockmap` отсутствуют, поэтому production updater их не принимает. Независимый E2EE-аудит не заявляется. Авторитетные документы текущей линии:
+`3.3.3` исправляет создание коллективных целей, голосовые сообщения, применение Pulse-покупок, idempotent purchase flow и восстановление MLS-состояния. Windows Client/Server публикуются как явно маркированные `UNSIGNED-TEST` assets; updater metadata отсутствует. Авторитетные документы текущей линии:
 
-- [Release Notes 3.3.2](RELEASE_NOTES_3.3.2.md);
-- [Release Verification 3.3.2](RELEASE_VERIFICATION_3.3.2.md);
+- [Release Notes 3.3.3](RELEASE_NOTES_3.3.3.md);
+- [Release Verification 3.3.3](RELEASE_VERIFICATION_3.3.3.md);
 - [Security Review 3.3.0](SECURITY_REVIEW_3.3.0.md) — security boundary не изменён.
 
 ## Возможности
@@ -80,6 +81,14 @@
 - server-side guards против plaintext downgrade через legacy send/edit/forward/draft/scheduled/poll/bot/upload paths.
 
 Фиксированный MLS profile: `MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519`.
+
+### Release 3.3.3
+
+- owner и moderator создают валидируемые коллективные цели; одновременно активна только одна цель комнаты;
+- voice waveform реагирует на микрофон, сохраняется в MLS media descriptor и анимируется при playback;
+- покупки Pulse применяют server-owned profile, message, reaction и room effects;
+- purchase requests защищены стабильным Idempotency-Key и повторное выполнение не списывает баланс дважды;
+- MLS open path принудительно сверяет epoch и безопасно запрашивает fresh Welcome без plaintext fallback.
 
 ### Release 3.3.2
 
@@ -269,7 +278,7 @@ Electron Client закрепляет fingerprint за Server ID. Для брау
 | Архитектура | [Architecture](docs/ARCHITECTURE.md), [Project Index](PROJECT_INDEX.md) |
 | Безопасность | [Security Policy](SECURITY.md), [Security Model](docs/SECURITY_MODEL.md), [Security Verification](SECURITY_AUDIT.md) |
 | Развёртывание | [Deployment](docs/DEPLOYMENT.md), [Administrator Guide](ADMIN_GUIDE.md), [Operations Runbook](docs/OPERATIONS_RUNBOOK.md) |
-| Тестирование | [Acceptance Test Guide](TESTER_GUIDE.md), [3.3.2 Verification](RELEASE_VERIFICATION_3.3.2.md) |
+| Тестирование | [Acceptance Test Guide](TESTER_GUIDE.md), [3.3.2 Verification](RELEASE_VERIFICATION_3.3.3.md) |
 | Trust / MLS | [Trust Core 3.2.0 foundation](docs/TRUST_CORE_3.2.0.md), [Security Review 3.3.0](SECURITY_REVIEW_3.3.0.md) |
 | Миграция | [Schema 8 Migration](docs/MIGRATION_3.2.0.md) |
 | Plus / Pulse | [Pulse](docs/PULSE.md), [Pulse Cloud](docs/PULSE_CLOUD.md) |

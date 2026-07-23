@@ -1,4 +1,4 @@
-# Nexora 3.3.2 Release Checklist
+# Nexora 3.3.3 Release Checklist
 
 ## 1. Classification и repository state
 

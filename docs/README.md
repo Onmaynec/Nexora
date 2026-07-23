@@ -6,7 +6,7 @@
 
 | Параметр | Значение |
 |---|---|
-| Current repository version | `3.3.2` |
+| Current repository version | `3.3.3` |
 | Distribution | Published `UNSIGNED-TEST` prerelease |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
@@ -49,7 +49,7 @@
 | [Security Policy](../SECURITY.md) | supported versions and private disclosure | Current through 3.3.2 |
 | [Security Verification Summary](../SECURITY_AUDIT.md) | automated verification and residual risk | Current through 3.3.2 |
 | [Security Review 3.3.0](../SECURITY_REVIEW_3.3.0.md) | current security boundary inherited unchanged by 3.3.2 | Release-specific current |
-| [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.2.md) | test-first regression, CI, release and asset evidence | Release-specific current |
+| [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.3.md) | test-first regression, CI, release and asset evidence | Release-specific current |
 | [Security Review 3.2.3](../SECURITY_REVIEW_3.2.3.md) | resource governance hardening | Historical release-specific |
 | [Trust Core 3.2.0](TRUST_CORE_3.2.0.md) | original Trust/MLS foundation | Historical foundation |
 | [Schema 8 Migration](MIGRATION_3.2.0.md) | schema 7 → 8 and rollback | Current schema history |
@@ -67,7 +67,7 @@
 ## 6. Testing
 
 - [Acceptance Test Guide](../TESTER_GUIDE.md);
-- [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.2.md);
+- [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.3.md);
 - [Security Verification Summary](../SECURITY_AUDIT.md);
 - `npm run release:check`;
 - `npm run test:soak`;
@@ -86,9 +86,9 @@
 
 | Документ | Назначение |
 |---|---|
-| [Release Notes 3.3.2](../RELEASE_NOTES_3.3.2.md) | current release consistency scope |
+| [Release Notes 3.3.2](../RELEASE_NOTES_3.3.3.md) | current release consistency scope |
 | [Security Review 3.3.0](../SECURITY_REVIEW_3.3.0.md) | security boundary inherited unchanged by 3.3.2 |
-| [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.2.md) | authoritative test and publication evidence |
+| [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.3.md) | authoritative test and publication evidence |
 | [Release History](../RELEASE_HISTORY.md) | pointer to the canonical [Changelog](../CHANGELOG.md) |
 | [Release Policy](RELEASE_POLICY.md) | SemVer/classifications/gates |
 | [GitHub Release Guide](GITHUB_RELEASE.md) | tags/assets/updater |

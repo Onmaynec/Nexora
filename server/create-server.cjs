@@ -50,6 +50,7 @@ const {
 const { MaintenanceService } = require("./maintenance.cjs");
 const { addNotification, appendEvent, mentionedUsers } = require("./events.cjs");
 const { MAX_ACTIVE_GOALS, ROOM_CATALOG, PulseError, activeEntitlement, createPulseService } = require("./pulse.cjs");
+const { reconcilePulseEffects } = require("./pulse-effects.cjs");
 const { SqliteStore } = require("./store.cjs");
 const { createTotpService } = require("./totp.cjs");
 const { activeRoomInvite, mountV3Features, sniffMime } = require("./v3-features.cjs");
@@ -174,6 +175,7 @@ async function createNexoraServer(options = {}) {
   store.on("log", (entry) => events.emit("log", entry));
   store.on("changed", () => events.emit("stats", store.stats()));
   await store.init();
+  await store.mutate((state) => reconcilePulseEffects(state));
   const totp = await createTotpService({ keyFile: path.join(secretsDir, "local-secrets.key"), issuer: "Nexora" });
   const totpChallenges = new Map();
   const pendingTotp = new Map();
@@ -2239,7 +2241,10 @@ async function createNexoraServer(options = {}) {
           const message = state.messages.find((item) => item.id === payload?.messageId && !item.deletedAt);
           const conversation = findConversation(state, message?.conversationId);
           if (!message || !canAccessConversation(state, conversation, user.id)) throw new Error("FORBIDDEN");
-          const plusAllowed = Boolean(activeEntitlement(state, "user", user.id, "nexora_plus"));
+          const currentUser = state.users.find((item) => item.id === user.id);
+          const plusAllowed = Boolean(activeEntitlement(state, "user", user.id, "nexora_plus"))
+            || Boolean(activeEntitlement(state, "user", user.id, "sticker_pack_nova"))
+            || currentUser?.stickerPack === "nova";
           const roomPackAllowed = conversation?.type === "room" && Boolean(activeEntitlement(state, "room", conversation.roomId, "room_reaction_pack"));
           if (PLUS_REACTIONS.has(emoji) && !plusAllowed && !roomPackAllowed) throw new Error("PLUS_REQUIRED");
           const index = state.reactions.findIndex((reaction) => reaction.messageId === message.id && reaction.userId === user.id && reaction.emoji === emoji);

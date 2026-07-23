@@ -1,7 +1,9 @@
 "use strict";
 
 const crypto = require("node:crypto");
+const { catalogItem } = require("../shared/pulse-catalog.cjs");
 const { PulseRepositoryError } = require("./pulse-local-repository.cjs");
+const { applyPulseEntitlementEffect, reconcilePulseEffects } = require("./pulse-effects.cjs");
 
 function mountPulseProductRoutes({ app, authRequired, client, repository, syncWorker, sandbox = null, io = null, store = null }) {
   if (!app || !authRequired || !client || !repository) throw new Error("Pulse product routes require app, auth middleware, client and repository.");
@@ -12,7 +14,7 @@ function mountPulseProductRoutes({ app, authRequired, client, repository, syncWo
     }
   };
   const idempotency = (request) => {
-    const key = String(request.headers["idempotency-key"] || request.body?.idempotencyKey || "");
+    const key = String(request.headers["idempotency-key"] || request.body?.idempotencyKey || "").trim();
     if (!/^[A-Za-z0-9_.:-]{12,128}$/.test(key)) throw new PulseRepositoryError("Idempotency-Key обязателен.", "IDEMPOTENCY_KEY_REQUIRED", 400);
     return key;
   };
@@ -60,9 +62,12 @@ function mountPulseProductRoutes({ app, authRequired, client, repository, syncWo
   app.post("/api/v3/pulse/purchases", authRequired, asyncRoute(async (request, response) => {
     const userId = request.pulseAuth.user.id;
     const productCode = String(request.body?.productCode || "").trim();
+    const product = catalogItem(productCode);
+    if (!product) throw new PulseRepositoryError("Товар недоступен.", "PRODUCT_UNAVAILABLE", 404);
     const roomId = String(request.body?.roomId || "").trim() || null;
     const key = idempotency(request);
-    if (roomId) requireRoomOwner(userId, roomId);
+    if (product.scope === "room") requireRoomOwner(userId, roomId);
+    if (product.scope === "user" && roomId) throw new PulseRepositoryError("Персональный товар нельзя применить к комнате.", "PULSE_SCOPE_MISMATCH", 409);
     let result;
     let requestId = request.pulseRequestId;
     if (sandbox?.enabled()) {
@@ -81,10 +86,21 @@ function mountPulseProductRoutes({ app, authRequired, client, repository, syncWo
       result = cloud.payload;
       requestId = cloud.requestId;
       if (result?.entitlement) {
+        const normalized = {
+          ...result.entitlement,
+          productCode,
+          scopeType: product.scope,
+          scopeId: product.scope === "room" ? roomId : userId,
+          roomId: product.scope === "room" ? roomId : null,
+          source: "pulse_cloud",
+        };
+        result.entitlement = normalized;
         await store?.mutate?.((state) => {
-          const existing = state.billingEntitlements.find((item) => item.id === result.entitlement.id || item.jti === result.entitlement.jti);
-          if (existing) Object.assign(existing, result.entitlement, { source: "pulse_cloud" });
-          else state.billingEntitlements.push({ ...result.entitlement, source: "pulse_cloud" });
+          const existing = state.billingEntitlements.find((item) => item.id === normalized.id || (item.jti && item.jti === normalized.jti));
+          if (existing) Object.assign(existing, normalized);
+          else state.billingEntitlements.push(normalized);
+          applyPulseEntitlementEffect(state, normalized, { userId, roomId, productCode });
+          reconcilePulseEffects(state);
         });
       }
     }

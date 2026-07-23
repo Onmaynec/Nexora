@@ -18,20 +18,26 @@ import { cacheMessages, readCachedMessages } from "../offline-store";
 import { emitAck } from "../socket";
 import ConfirmDialog from "./ConfirmDialog";
 import ParticleField from "./ParticleField";
+import SecureVoicePlayer from "./SecureVoicePlayer";
+import { normalizeVoiceWaveform, waveformLevel } from "../utils/voice-waveform";
 import { Avatar, EmptyState, formatTime, InlineLoader } from "./ui";
 
-const reactions = ["👍", "❤️", "🔥", "😂", "👀", "🎉"];
+const BASE_REACTIONS = ["👍", "❤️", "🔥", "😂", "👀", "🎉"];
+const PLUS_REACTIONS = ["✨", "💜", "⚡", "🫡", "🤝", "🚀"];
+
+function normalizeWaveform(values, target = 48) {
+  const source = (Array.isArray(values) ? values : []).map(Number).filter((value) => Number.isFinite(value) && value >= 0);
+  const sumSquares = source.reduce((sum, value) => sum + value * value, 0);
+  const rms = source.length ? Math.sqrt(sumSquares / source.length) : 0;
+  const scaled = source.length ? source.map((value) => Math.max(value, rms * 0.12)) : source;
+  return normalizeVoiceWaveform(scaled, target);
+}
 
 function formatBytes(value) {
   const bytes = Number(value || 0);
   if (bytes < 1024) return `${bytes} Б`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} КБ`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`;
-}
-
-function formatDuration(value) {
-  const seconds = Math.max(0, Math.round(Number(value) || 0));
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
 function hydrated(message) { return decodeAttachmentContent(message); }
@@ -65,67 +71,6 @@ function TrustGate({ trustState }) {
   };
   const [Icon, title, detail] = labels[trustState.status] || labels.initializing;
   return <div className="secure-trust-gate"><Icon className={trustState.status === "initializing" ? "spin" : ""} size={30} /><div><strong>{title}</strong><p>{detail}</p></div></div>;
-}
-
-function normalizeWaveform(values, target = 48) {
-  const source = (Array.isArray(values) ? values : []).map(Number).filter(Number.isFinite);
-  if (!source.length) return Array.from({ length: target }, (_, index) => 18 + ((index * 29) % 67));
-  const resampled = Array.from({ length: target }, (_, index) => source[Math.min(source.length - 1, Math.floor(index / target * source.length))]);
-  const sorted = [...resampled].sort((a, b) => a - b);
-  const floor = sorted[Math.floor(sorted.length * .1)] || 0;
-  const ceiling = Math.max(floor + 1, sorted[Math.floor(sorted.length * .92)] || 1);
-  return resampled.map((value, index) => {
-    const normalized = Math.max(0, Math.min(1, (value - floor) / (ceiling - floor)));
-    const previous = index ? resampled[index - 1] : value;
-    const next = index < resampled.length - 1 ? resampled[index + 1] : value;
-    const local = (previous + value * 2 + next) / 4;
-    const localNormalized = Math.max(0, Math.min(1, (local - floor) / (ceiling - floor)));
-    return Math.round(14 + Math.sqrt((normalized + localNormalized) / 2) * 86);
-  });
-}
-
-function SecureVoicePlayer({ resource, waveform = [], duration = 0 }) {
-  const audioRef = useRef(null);
-  const [playing, setPlaying] = useState(false);
-  const [current, setCurrent] = useState(0);
-  const [total, setTotal] = useState(Number(duration) || 0);
-  const [rate, setRate] = useState(1);
-  const bars = useMemo(() => normalizeWaveform(waveform), [waveform]);
-  const progress = total > 0 ? current / total : 0;
-
-  async function toggle() {
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (audio.paused) await audio.play(); else audio.pause();
-  }
-  function seek(event) {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / Math.max(1, rect.width)));
-    audio.currentTime = ratio * Math.max(total, 0);
-  }
-  function cycleRate() {
-    const next = rate === 1 ? 1.5 : rate === 1.5 ? 2 : 1;
-    setRate(next);
-    if (audioRef.current) audioRef.current.playbackRate = next;
-  }
-
-  return <div className={`secure-voice-message${playing ? " playing" : ""}`}>
-    <audio ref={audioRef} src={resource.url} preload="metadata"
-      onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
-      onEnded={() => { setPlaying(false); setCurrent(0); }}
-      onLoadedMetadata={(event) => setTotal(Number(event.currentTarget.duration) || Number(duration) || 0)}
-      onTimeUpdate={(event) => setCurrent(event.currentTarget.currentTime)} />
-    <button type="button" className="secure-voice-play" onClick={toggle} aria-label={playing ? "Пауза" : "Воспроизвести"}>{playing ? <Pause size={17} fill="currentColor" /> : <Play size={17} fill="currentColor" />}</button>
-    <div className="secure-voice-wave-wrap">
-      <button type="button" className="secure-voice-wave" onClick={seek} aria-label="Перемотать голосовое">
-        {bars.map((height, index) => <i key={index} className={index / bars.length <= progress ? "played" : ""} style={{ height: `${height}%`, animationDelay: `${(index % 8) * 45}ms` }} />)}
-      </button>
-      <span>{formatDuration(current)} / {formatDuration(total)}</span>
-    </div>
-    <button type="button" className="secure-voice-rate" onClick={cycleRate}>{rate}×</button>
-  </div>;
 }
 
 function SecureAttachment({ message, showToast }) {
@@ -164,12 +109,12 @@ function SecureAttachment({ message, showToast }) {
   </div>;
 }
 
-const SecureMessage = memo(function SecureMessage({ message, onReply, onEdit, onDelete, onReact, onBookmark, onCopy, onRetry, onDiscard, showToast }) {
+const SecureMessage = memo(function SecureMessage({ message, availableReactions, onReply, onEdit, onDelete, onReact, onBookmark, onCopy, onRetry, onDiscard, showToast }) {
   const [showReactions, setShowReactions] = useState(false);
   const deleted = message.type === "deleted";
   const pending = Boolean(message.deliveryState);
-  return <article className={`message-row secure-message${message.isOwn ? " own" : ""}${pending ? " pending" : ""}`} id={`message-${message.id}`}>
-    {!message.isOwn && <Avatar user={message.sender} size="small" />}
+  return <article className={`message-row secure-message${message.isOwn ? " own" : ""}${pending ? " pending" : ""}${message.system ? " system-message" : ""}${message.sender?.messageStyle === "prism" ? " message-style-prism" : ""}`} id={`message-${message.id}`}>
+    {!message.isOwn && !message.system && <Avatar user={message.sender} size="small" />}
     <div className="message-stack">
       <div className="message-meta">{!message.isOwn && <strong>{message.sender?.displayName}</strong>}<time>{formatTime(message.createdAt)}</time>{message.updatedAt && !deleted && <span>изменено</span>}{!pending && <ShieldCheck size={12} title="MLS E2EE" />}</div>
       <div className="message-bubble-wrap">
@@ -177,10 +122,10 @@ const SecureMessage = memo(function SecureMessage({ message, onReply, onEdit, on
           {message.reply && <button type="button" className="reply-preview"><strong>{message.reply.senderName}</strong><span>{message.reply.text || "Защищённое сообщение"}</span></button>}
           {deleted ? <em className="deleted-copy">Сообщение удалено</em> : message.decryptionError ? <div className="secure-decryption-error"><ShieldAlert size={16} /><span>{message.text}</span></div> : message.attachment ? <><SecureAttachment message={message} showToast={showToast} />{message.text && <p className="secure-attachment-caption">{message.text}</p>}</> : <p>{message.text}</p>}
         </div>
-        {!deleted && !pending && <div className="message-actions secure-message-actions">
+        {!deleted && !pending && !message.system && <div className="message-actions secure-message-actions">
           <button type="button" onClick={() => onReply(message)} title="Ответить"><Reply size={15} /></button>
           {message.text && <button type="button" onClick={() => onCopy(message)} title="Копировать"><Copy size={15} /></button>}
-          <div className="reaction-picker-wrap"><button type="button" onClick={() => setShowReactions((value) => !value)} title="Реакция"><SmilePlus size={15} /></button>{showReactions && <div className="reaction-picker">{reactions.map((emoji) => <button type="button" key={emoji} onClick={() => { onReact(message, emoji); setShowReactions(false); }}>{emoji}</button>)}</div>}</div>
+          <div className="reaction-picker-wrap"><button type="button" onClick={() => setShowReactions((value) => !value)} title="Реакция"><SmilePlus size={15} /></button>{showReactions && <div className="reaction-picker">{availableReactions.map((emoji) => <button type="button" key={emoji} onClick={() => { onReact(message, emoji); setShowReactions(false); }}>{emoji}</button>)}</div>}</div>
           <button type="button" className={message.bookmarkedByMe ? "active" : ""} onClick={() => onBookmark(message)} title="Сохранить"><Bookmark size={15} /></button>
           {message.canEdit && <button type="button" onClick={() => onEdit(message)} title="Редактировать"><Pencil size={15} /></button>}
           {message.canDelete && <button type="button" className="danger" onClick={() => onDelete(message)} title="Удалить"><Trash2 size={15} /></button>}
@@ -226,6 +171,7 @@ export default function SecureMessagePane({ conversation, me, socket, onlineUser
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [groupState, setGroupState] = useState("idle");
+  const [groupError, setGroupError] = useState(null);
   const [text, setText] = useState("");
   const [replyingTo, setReplyingTo] = useState(null);
   const [editing, setEditing] = useState(null);
@@ -265,14 +211,14 @@ export default function SecureMessagePane({ conversation, me, socket, onlineUser
   useEffect(() => () => {
     uploadAbort.current?.abort(); clearInterval(recordingTimer.current);
     const active = recorderRef.current;
-    if (active) { active.cancelled = true; if (active.recorder.state !== "inactive") active.recorder.stop(); active.stream.getTracks().forEach((track) => track.stop()); }
+    if (active) { active.cancelled = true; cancelAnimationFrame(active.animationFrame || 0); active.source?.disconnect?.(); active.analyser?.disconnect?.(); active.audioContext?.close?.().catch(() => {}); if (active.recorder.state !== "inactive") active.recorder.stop(); active.stream.getTracks().forEach((track) => track.stop()); }
   }, []);
 
   const initializeGroup = useCallback(async () => {
     if (!ready || !socket.connected) return null;
-    setGroupState("initializing");
-    try { const result = await ensureConversationGroup(conversationRef.current); setGroupState("ready"); return result; }
-    catch (error) { setGroupState(error.code || "error"); throw error; }
+    setGroupState("initializing"); setGroupError(null);
+    try { const result = await ensureConversationGroup(conversationRef.current, { forceSync: true }); setGroupState("ready"); return result; }
+    catch (error) { setGroupError(error); setGroupState(error.code || "error"); throw error; }
   }, [activeConversationId, ready, socket.connected]);
 
   const loadMessages = useCallback(async () => {
@@ -292,7 +238,7 @@ export default function SecureMessagePane({ conversation, me, socket, onlineUser
   }, [activeConversationId, initializeGroup, me.id, ready, showToast, socket]);
 
   useEffect(() => {
-    setMessages([]); setReplyingTo(null); setEditing(null); setDeleteTarget(null); setGroupState("idle"); setMediaState(null); uploadAbort.current?.abort();
+    setMessages([]); setReplyingTo(null); setEditing(null); setDeleteTarget(null); setGroupState("idle"); setGroupError(null); setMediaState(null); uploadAbort.current?.abort();
     if (ready) loadMessages(); else setLoading(false);
   }, [activeConversationId, loadMessages, ready]);
   useEffect(() => {
@@ -387,10 +333,26 @@ export default function SecureMessagePane({ conversation, me, socket, onlineUser
       const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"];
       const mimeType = candidates.find((value) => MediaRecorder.isTypeSupported(value)) || "";
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-      const active = { recorder, stream, chunks: [], startedAt: Date.now(), cancelled: false, mimeType: recorder.mimeType || mimeType || "audio/webm" };
+      const liveWaveform = Array.from({ length: 48 }, () => 12);
+      let audioContext = null; let analyser = null; let sourceNode = null;
+      try {
+        const Context = globalThis.AudioContext || globalThis.webkitAudioContext;
+        if (Context) {
+          audioContext = new Context(); analyser = audioContext.createAnalyser(); analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.72;
+          sourceNode = audioContext.createMediaStreamSource(stream); sourceNode.connect(analyser);
+        }
+      } catch { audioContext = null; analyser = null; sourceNode = null; }
+      const active = { recorder, stream, chunks: [], startedAt: Date.now(), cancelled: false, mimeType: recorder.mimeType || mimeType || "audio/webm", liveWaveform, audioContext, analyser, source: sourceNode, animationFrame: 0 };
+      const samples = analyser ? new Uint8Array(analyser.fftSize) : null;
+      const draw = () => {
+        if (recorderRef.current !== active || active.cancelled) return;
+        if (analyser && samples) { analyser.getByteTimeDomainData(samples); liveWaveform.shift(); liveWaveform.push(Math.max(8, waveformLevel(samples))); }
+        setRecording({ seconds: Math.min(300, Math.floor((Date.now() - active.startedAt) / 1000)), waveform: [...liveWaveform] });
+        active.animationFrame = requestAnimationFrame(draw);
+      };
       recorder.ondataavailable = (event) => { if (event.data?.size) active.chunks.push(event.data); };
-      recorderRef.current = active; recorder.start(250); setRecording({ seconds: 0 });
-      recordingTimer.current = setInterval(() => setRecording({ seconds: Math.min(300, Math.floor((Date.now() - active.startedAt) / 1000)) }), 500);
+      recorderRef.current = active; recorder.start(250); setRecording({ seconds: 0, waveform: [...liveWaveform] }); active.animationFrame = requestAnimationFrame(draw);
+      recordingTimer.current = setInterval(() => setRecording((current) => ({ seconds: Math.min(300, Math.floor((Date.now() - active.startedAt) / 1000)), waveform: current?.waveform || [...liveWaveform] })), 500);
       setTimeout(() => { if (recorderRef.current === active && recorder.state === "recording") void stopVoiceRecording(); }, 300_000);
     } catch (error) { showToast(error.name === "NotAllowedError" ? "Нет разрешения на микрофон." : `Не удалось начать запись: ${error.message}`, "error"); }
   }
@@ -400,12 +362,13 @@ export default function SecureMessagePane({ conversation, me, socket, onlineUser
     clearInterval(recordingTimer.current); setRecording(null);
     await new Promise((resolve) => {
       active.recorder.onstop = async () => {
-        active.stream.getTracks().forEach((track) => track.stop()); recorderRef.current = null;
+        cancelAnimationFrame(active.animationFrame || 0); active.source?.disconnect?.(); active.analyser?.disconnect?.(); await active.audioContext?.close?.().catch(() => {}); active.stream.getTracks().forEach((track) => track.stop()); recorderRef.current = null;
         if (!active.cancelled) {
           const duration = Math.max(1, Math.min(300, Math.round((Date.now() - active.startedAt) / 1000)));
           const blob = new Blob(active.chunks, { type: active.mimeType });
           if (blob.size) {
-            const waveform = await voiceWaveform(blob);
+            const decodedWaveform = await voiceWaveform(blob);
+            const waveform = decodedWaveform.length ? decodedWaveform : normalizeVoiceWaveform(active.liveWaveform);
             const extension = active.mimeType.includes("ogg") ? "ogg" : "webm";
             await sendAttachment(new File([blob], `voice-${new Date().toISOString().replace(/[:.]/g, "-")}.${extension}`, { type: active.mimeType }), "voice", { duration, waveform });
           }
@@ -417,7 +380,7 @@ export default function SecureMessagePane({ conversation, me, socket, onlineUser
   }
   function cancelVoiceRecording() {
     const active = recorderRef.current; if (!active) return; active.cancelled = true; clearInterval(recordingTimer.current); setRecording(null);
-    active.stream.getTracks().forEach((track) => track.stop()); if (active.recorder.state !== "inactive") active.recorder.stop(); recorderRef.current = null;
+    cancelAnimationFrame(active.animationFrame || 0); active.source?.disconnect?.(); active.analyser?.disconnect?.(); active.audioContext?.close?.().catch(() => {}); active.stream.getTracks().forEach((track) => track.stop()); if (active.recorder.state !== "inactive") active.recorder.stop(); recorderRef.current = null;
   }
   function onInput(event) {
     const value = event.target.value; setText(value); if (!editing) persistDraft(value); if (!socket.connected) return;
@@ -448,23 +411,26 @@ export default function SecureMessagePane({ conversation, me, socket, onlineUser
   const typingNames = [...typingUsers.values()];
   const cannotPost = conversation.type === "room" && (conversation.permissions?.readOnly || conversation.permissions?.announcementOnly) && !conversation.permissions?.canBypassPosting;
   const busy = sending || Boolean(mediaState) || Boolean(recording) || groupState !== "ready";
+  const availableReactions = useMemo(() => [...BASE_REACTIONS, ...((me.stickerPack === "nova" || conversation.reactionPack === "expanded") ? PLUS_REACTIONS : [])], [conversation.reactionPack, me.stickerPack]);
+  const paneEffects = `${conversation.theme === "midnight" ? " room-theme-midnight" : ""}`;
   if (!ready) return <section className="message-pane secure-message-pane"><TrustGate trustState={trustState} /></section>;
 
-  return <section className="message-pane secure-message-pane">
+  return <section className={`message-pane secure-message-pane${paneEffects}`}>
     <header className="conversation-header secure-conversation-header">
       <div className="conversation-identity"><Avatar user={conversation.peer || conversation} online={titleOnline} /><div><h2>{conversation.title}</h2><span>{conversation.type === "dm" ? (titleOnline ? "в сети" : conversation.peer?.status || conversation.subtitle) : `${conversation.members?.length || 0} участников`}</span></div></div>
       <div className="secure-header-state"><ShieldCheck size={17} /><span><strong>MLS E2EE</strong><small>{groupState === "ready" ? "epoch синхронизирована" : groupState === "initializing" ? "синхронизация…" : "Trust Core"}</small></span></div>
       <div className="conversation-tools"><button type="button" className={searchOpen ? "active" : ""} onClick={() => setSearchOpen((value) => !value)} title="Локальный поиск"><Search size={18} /></button><button type="button" className={conversation.notificationSettings?.muted ? "active" : ""} onClick={toggleMute}>{conversation.notificationSettings?.muted ? <VolumeX size={18} /> : <Volume2 size={18} />}</button><button type="button" onClick={onDetails}><Info size={19} /></button></div>
     </header>
+    {conversation.bannerStyle === "aurora" && <div className="secure-room-banner-aurora"><strong>AURORA ROOM</strong><span>Активный баннер комнаты · Pulse</span></div>}
     {searchOpen && <div className="chat-search-bar secure-local-search"><Search size={17} /><input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Локальный поиск по расшифрованным сообщениям" autoFocus /><button type="button" onClick={() => { setSearchOpen(false); setSearchQuery(""); }}><X size={16} /></button></div>}
     <div className="secure-policy-banner"><LockKeyhole size={16} /><span><strong>Сервер получает только MLS ciphertext и opaque media.</strong> Ключи, имена, MIME и подписи вложений находятся внутри MLS. Опросы и отложенная отправка остаются отключены.</span></div>
     {!mediaAllowed && <div className="secure-policy-banner warning"><ShieldAlert size={16} /><span>В комнате ограничен один или несколько типов медиа. Поскольку сервер не видит тип зашифрованного файла, весь E2EE media path заблокирован fail-closed.</span></div>}
-    <div className="message-list secure-message-history" ref={listRef}><ParticleField contained className="chat-particle-field" />{loading ? <div className="messages-loading"><InlineLoader label="Проверяем ключи и расшифровываем" /></div> : displayMessages.length === 0 ? <EmptyState icon={LockKeyhole} title="Защищённый диалог готов" description="Первое сообщение создаст или синхронизирует MLS-группу для всех подтверждённых устройств участников." /> : displayMessages.map((message) => <SecureMessage key={message.id} message={message} onReply={(item) => { setReplyingTo(item); setEditing(null); }} onEdit={(item) => { setEditing(item); setReplyingTo(null); setText(item.text); }} onDelete={setDeleteTarget} onReact={(item, emoji) => action("message:react", { messageId: item.id, emoji })} onBookmark={toggleBookmark} onCopy={copyMessage} onRetry={retryPending} onDiscard={discardPending} showToast={showToast} />)}</div>
+    <div className="message-list secure-message-history" ref={listRef}><ParticleField contained className="chat-particle-field" />{loading ? <div className="messages-loading"><InlineLoader label="Проверяем ключи и расшифровываем" /></div> : groupState !== "ready" ? <div className="secure-mls-recovery"><ShieldAlert size={24} /><strong>MLS-сессия не синхронизирована</strong><p>{groupError?.message || "Клиент безопасно запрашивает актуальный epoch и Welcome. Отправка остаётся заблокированной без fallback на plaintext."}</p><button type="button" onClick={loadMessages}><RefreshCcw size={15} /> Повторить синхронизацию</button></div> : displayMessages.length === 0 ? <EmptyState icon={LockKeyhole} title="Защищённый диалог готов" description="Первое сообщение создаст или синхронизирует MLS-группу для всех подтверждённых устройств участников." /> : displayMessages.map((message) => <SecureMessage key={message.id} message={message} availableReactions={availableReactions} onReply={(item) => { setReplyingTo(item); setEditing(null); }} onEdit={(item) => { setEditing(item); setReplyingTo(null); setText(item.text); }} onDelete={setDeleteTarget} onReact={(item, emoji) => action("message:react", { messageId: item.id, emoji })} onBookmark={toggleBookmark} onCopy={copyMessage} onRetry={retryPending} onDiscard={discardPending} showToast={showToast} />)}</div>
     <footer className="composer-zone secure-composer-zone">
       <div className="typing-line">{cannotPost ? "Комната работает только для чтения" : typingNames.length ? `${typingNames.slice(0, 2).join(" и ")} печатает…` : !socket.connected ? "Офлайн · текст хранится только в sealed draft" : groupState === "initializing" ? "Синхронизируем MLS epoch…" : "MLS 1.0 · ciphersuite 1"}</div>
       {(replyingTo || editing) && <div className="composer-context">{editing ? <Pencil size={16} /> : <Reply size={16} />}<div><strong>{editing ? "E2EE-редактирование" : `Ответ для ${replyingTo.sender?.displayName}`}</strong><span>{editing?.text || replyingTo?.text || replyingTo?.attachment?.name || "Защищённое сообщение"}</span></div><button type="button" onClick={() => { setReplyingTo(null); setEditing(null); loadE2eeDraft(activeConversationId).then(setText); }}><X size={16} /></button></div>}
       {mediaState && <div className="secure-media-progress" aria-live="polite"><div><LoaderCircle className="spin" size={16} /><span>{mediaState.phase === "reading" ? "Читаем локальный файл" : mediaState.phase === "encrypting" ? "Шифруем AES-256-GCM" : mediaState.phase === "uploading" ? "Загружаем ciphertext" : mediaState.phase === "verifying" ? "Проверяем SHA-256" : mediaState.phase === "sealing" ? "Запечатываем descriptor в MLS" : "Отправляем MLS envelope"}</span><b>{mediaState.progress}%</b><button type="button" onClick={() => uploadAbort.current?.abort()} title="Отменить загрузку"><X size={15} /></button></div><span>{mediaState.name}</span><progress max="100" value={mediaState.progress} /></div>}
-      {recording && <div className="secure-recording" aria-live="polite"><span className="recording-dot" /><strong>Запись {recording.seconds} сек.</strong><button type="button" onClick={stopVoiceRecording}><Square size={15} /> Завершить и отправить</button><button type="button" className="danger" onClick={cancelVoiceRecording}><X size={15} /> Отменить</button></div>}
+      {recording && <div className="secure-recording" aria-live="polite"><span className="recording-dot" /><strong>Запись {recording.seconds} сек.</strong><div className="secure-recording-wave" aria-hidden="true">{normalizeVoiceWaveform(recording.waveform || []).map((height, index) => <i key={index} style={{ height: `${height}%` }} />)}</div><button type="button" onClick={stopVoiceRecording}><Square size={15} /> Завершить и отправить</button><button type="button" className="danger" onClick={cancelVoiceRecording}><X size={15} /> Отменить</button></div>}
       <form className="composer secure-composer" onSubmit={submit}>
         <input ref={fileInputRef} className="visually-hidden" type="file" onChange={chooseFile} disabled={cannotPost || busy || !socket.connected || !mediaAllowed || editing} />
         <button type="button" className="secure-media-button" onClick={() => fileInputRef.current?.click()} disabled={cannotPost || busy || !socket.connected || !mediaAllowed || editing} title="Зашифровать файл или изображение"><Paperclip size={18} /></button>

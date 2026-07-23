@@ -2,7 +2,7 @@
 
 ## 1. Область
 
-Документ описывает `main` версии `3.3.2`:
+Документ описывает `main` версии `3.3.3`:
 
 - Application API: v3;
 - Trust/MLS/encrypted-media API: v4;

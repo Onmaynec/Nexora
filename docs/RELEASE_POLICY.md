@@ -126,6 +126,10 @@ Schema change requires:
 
 ## 9. Current release decision
 
+### 3.3.3
+
+Patch release: goals, voice UX, Pulse entitlements, idempotent purchases and MLS recovery. Distribution remains UNSIGNED-TEST without updater metadata.
+
 ### 3.3.2
 
 - classification: Published `UNSIGNED-TEST` prerelease;
@@ -142,4 +146,4 @@ Schema change requires:
 - schema: 7;
 - secure-message E2EE from Local Server operator: not provided.
 
-Authoritative evidence: [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.2.md).
+Authoritative evidence: [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.3.md).

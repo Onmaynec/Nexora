@@ -17,7 +17,7 @@ Nexora — self-hosted платформа обмена сообщениями д
 
 | Параметр | Значение |
 |---|---|
-| Current repository version | `3.3.2` |
+| Current repository version | `3.3.3` |
 | Distribution | Published `UNSIGNED-TEST` prerelease |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
@@ -207,4 +207,4 @@ Nexora 3.3.2 не заявляет:
 7. independent cryptographic/application-security review;
 8. отсутствие unresolved high/critical findings.
 
-Текущий release evidence: [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.2.md).
+Текущий release evidence: [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.3.md).

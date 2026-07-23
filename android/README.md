@@ -4,7 +4,7 @@
 
 | Параметр | Значение |
 |---|---|
-| Current version | `3.3.2` |
+| Current version | `3.3.3` |
 | Distribution | Published `UNSIGNED-TEST` APK prerelease |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
@@ -93,7 +93,7 @@ No plaintext fallback is permitted.
 - CI `assembleDebug` passes;
 - release build in controlled signing environment;
 - clean install/upgrade preserves saved servers and authorized state;
-- version metadata equals `3.3.2`.
+- version metadata equals `3.3.3`.
 
 ### Connection
 
@@ -146,4 +146,4 @@ No plaintext fallback is permitted.
 
 Nexora 3.3.0+ does not claim traffic-analysis resistance or independent certification. Existing 3.1.x data is not retroactively encrypted. 3.1.x Client cannot participate in an active secure 3.3.x conversation.
 
-See [Documentation Portal](../docs/README.md), [Security Model](../docs/SECURITY_MODEL.md), [Security Policy](../SECURITY.md) and [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.2.md).
+See [Documentation Portal](../docs/README.md), [Security Model](../docs/SECURITY_MODEL.md), [Security Policy](../SECURITY.md) and [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.3.md).
