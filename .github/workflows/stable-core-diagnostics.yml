@@ -16,9 +16,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  unit-summary:
+  discover:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    outputs:
+      files: ${{ steps.files.outputs.files }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: files
+        shell: bash
+        run: |
+          files=$(find test -maxdepth 1 -name '*.test.cjs' ! -name 'performance.test.cjs' -printf '%f\n' | sort | node -e 'const fs=require("node:fs");const values=fs.readFileSync(0,"utf8").trim().split(/\n+/).filter(Boolean);process.stdout.write(JSON.stringify(values));')
+          echo "files=$files" >> "$GITHUB_OUTPUT"
+
+  test-file:
+    needs: discover
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        file: ${{ fromJson(needs.discover.outputs.files) }}
+    name: unit / ${{ matrix.file }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -26,25 +45,4 @@ jobs:
           node-version: 22.16.0
           cache: npm
       - run: npm ci
-      - name: Run each unit file and print failing output
-        shell: bash
-        run: |
-          set +e
-          failed=0
-          for file in test/*.test.cjs; do
-            if [ "$file" = "test/performance.test.cjs" ]; then
-              continue
-            fi
-            log="$(basename "$file").log"
-            node --test "$file" > "$log" 2>&1
-            status=$?
-            if [ "$status" -ne 0 ]; then
-              failed=1
-              echo "=== FAILED: $file ==="
-              cat "$log"
-            fi
-          done
-          if [ "$failed" -eq 0 ]; then
-            echo "All unit files passed individually."
-          fi
-          exit "$failed"
+      - run: node --test test/${{ matrix.file }}
