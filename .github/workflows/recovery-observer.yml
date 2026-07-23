@@ -1,0 +1,52 @@
+name: Observe Nexora 3.3.0 recovery
+
+on:
+  workflow_run:
+    workflows: ["Recover Nexora 3.3.0 release"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Record recovery result
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-evidence
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            run_id="${{ github.event.workflow_run.id }}"
+          else
+            run_id=$(gh api "repos/${{ github.repository }}/actions/workflows/recover-v3.3.0-release.yml/runs?per_page=1" --jq '.workflow_runs[0].id')
+          fi
+          gh api "repos/${{ github.repository }}/actions/runs/${run_id}" \
+            --jq '{capturedAt: (now | todate), id, name, event, status, conclusion, run_number, created_at, updated_at, html_url, head_sha, head_branch}' \
+            > release-evidence/v3.3.0-recovery-run.json
+          conclusion=$(jq -r '.conclusion' release-evidence/v3.3.0-recovery-run.json)
+          if [ "$conclusion" != "success" ]; then
+            gh run view "$run_id" --repo "${{ github.repository }}" --log-failed > release-evidence/v3.3.0-recovery-failure.log 2>&1 || true
+          else
+            rm -f release-evidence/v3.3.0-recovery-failure.log
+          fi
+      - name: Commit recovery evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -A release-evidence
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "docs(release): record v3.3.0 recovery result"
+          git push origin HEAD:main
