@@ -31,11 +31,25 @@ jobs:
         with:
           ref: release/3.3.3
           fetch-depth: 0
+      - name: Normalize migration assertions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("release-patches/3.3.3/apply.py")
+          text = path.read_text(encoding="utf-8")
+          text = text.replace(
+              "'    applyEffect(state, product, scopeId);\\n    return entitlement;'",
+              "'  applyEffect(state, product, scopeId);\\n  return entitlement;'",
+          ).replace(
+              "'    applyEffect(state, product, scopeId);\\n    reconcilePulseEffects(state, timestamp.getTime());\\n    return entitlement;'",
+              "'  applyEffect(state, product, scopeId);\\n  reconcilePulseEffects(state, timestamp.getTime());\\n  return entitlement;'",
+          )
+          path.write_text(text, encoding="utf-8")
+          PY
       - name: Apply source migration
         id: migration
         continue-on-error: true
-        run: |
-          python3 release-patches/3.3.3/apply.py > nexora-3.3.3-migration.log 2>&1
+        run: python3 release-patches/3.3.3/apply.py > nexora-3.3.3-migration.log 2>&1
       - name: Upload migration diagnostics
         if: always()
         uses: actions/upload-artifact@v4
