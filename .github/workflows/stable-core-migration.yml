@@ -34,7 +34,6 @@ jobs:
           : > migration-error.log
           status=0
           for command in \
-            "node scripts/apply-stable-core-error-contracts.cjs" \
             "node scripts/apply-stable-core-bootstrap.cjs" \
             "node scripts/apply-stable-core-client-retirement.cjs" \
             "node scripts/apply-stable-core-runtime-retirement.cjs" \
