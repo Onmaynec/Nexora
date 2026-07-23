@@ -172,7 +172,6 @@ jobs:
           set -euo pipefail
           immutable="release-evidence/${RELEASE_TAG}.json"
           current="release-evidence/current.json"
-          git pull --rebase origin main
           git add "$immutable" "$current"
           if git diff --cached --quiet; then
             echo "Evidence is already current."
@@ -181,4 +180,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "docs(release): record ${RELEASE_TAG} publication evidence"
+          git pull --rebase origin main
           git push origin HEAD:main
