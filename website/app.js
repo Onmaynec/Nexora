@@ -4,7 +4,7 @@
   const REPO = "Onmaynec/Nexora";
   const API = `https://api.github.com/repos/${REPO}`;
   const RAW_PACKAGE = `https://raw.githubusercontent.com/${REPO}/main/package.json`;
-  const FALLBACK_VERSION = "3.3.2";
+  const FALLBACK_VERSION = "3.3.3";
   const FALLBACK_RELEASE_URL = `https://github.com/${REPO}/releases`;
   const safeStorage = {
     get(key) {

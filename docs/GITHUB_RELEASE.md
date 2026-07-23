@@ -25,7 +25,7 @@ Required controls:
 
 Current status:
 
-- `3.3.2` — published `UNSIGNED-TEST` prerelease without `latest.yml` or `.blockmap`;
+- `3.3.3` — published `UNSIGNED-TEST` prerelease without `latest.yml` or `.blockmap`;
 - `3.1.2` — last confirmed signed production baseline.
 
 ## 3. Secrets
@@ -57,7 +57,7 @@ npm run release:check
 gradle -p android :app:assembleDebug --no-daemon
 ```
 
-Current tag: `v3.3.2`.
+Current tag: `v3.3.3`.
 
 ```bash
 git tag -s v3.3.2 -m "Nexora 3.3.2"
@@ -200,9 +200,9 @@ Schema 8 rollback is restore-based. Never run unsupported old binary against sch
 
 3.3.2 evidence is recorded in:
 
-- [Release Notes](../RELEASE_NOTES_3.3.2.md);
+- [Release Notes](../RELEASE_NOTES_3.3.3.md);
 - [Security Review](../SECURITY_REVIEW_3.3.0.md);
-- [Release Verification](../RELEASE_VERIFICATION_3.3.2.md);
+- [Release Verification](../RELEASE_VERIFICATION_3.3.3.md);
 - [Release Checklist](RELEASE_CHECKLIST.md).
 
 Source/PWA prerelease remains non-updater-eligible until signed installed-runtime acceptance completes.

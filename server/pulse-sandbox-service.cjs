@@ -2,6 +2,7 @@
 
 const crypto = require("node:crypto");
 const { catalogItem, publicCatalog } = require("../shared/pulse-catalog.cjs");
+const { applyPulseEntitlementEffect, reconcilePulseEffects } = require("./pulse-effects.cjs");
 
 class PulseSandboxError extends Error {
   constructor(message, code = "PULSE_SANDBOX_ERROR", status = 400, details = {}) {
@@ -30,7 +31,7 @@ function requireIdempotencyKey(value) {
   return key;
 }
 
-function requireRoom(state, roomId, userId, { owner = false } = {}) {
+function requireRoom(state, roomId, userId, { owner = false, roles = null } = {}) {
   const room = state.rooms.find((item) => item.id === String(roomId || ""));
   if (!room) throw new PulseSandboxError("Комната не найдена.", "RESOURCE_NOT_FOUND", 404);
   const member = state.roomMembers.find((item) => item.roomId === room.id && item.userId === userId);
@@ -39,6 +40,7 @@ function requireRoom(state, roomId, userId, { owner = false } = {}) {
     throw new PulseSandboxError("Пользователь заблокирован в комнате.", "ROOM_BANNED", 403);
   }
   if (owner && room.ownerId !== userId) throw new PulseSandboxError("Операция доступна только владельцу комнаты.", "PERMISSION_DENIED", 403);
+  if (Array.isArray(roles) && !roles.includes(member.role)) throw new PulseSandboxError("Недостаточно прав для операции с целью.", "PERMISSION_DENIED", 403);
   return room;
 }
 
@@ -64,13 +66,14 @@ function activeEntitlement(state, { scopeType, scopeId, productCode, clock }) {
 }
 
 function applyEffect(state, product, scopeId) {
-  if (product.scope === "user") {
-    const user = state.users.find((item) => item.id === scopeId);
-    if (user) Object.assign(user, product.effect);
-    return;
-  }
-  const room = state.rooms.find((item) => item.id === scopeId);
-  if (room) Object.assign(room, product.effect);
+  applyPulseEntitlementEffect(state, {
+    productCode: product.code,
+    scopeType: product.scope,
+    scopeId,
+    status: "active",
+    startsAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + product.durationDays * 86_400_000).toISOString(),
+  });
 }
 
 function issueEntitlement(state, product, scopeId, actor, clock) {
@@ -84,6 +87,7 @@ function issueEntitlement(state, product, scopeId, actor, clock) {
   }
   Object.assign(entitlement, { status: "active", startsAt, expiresAt, issuedBy: actor, revokedAt: null, updatedAt: startsAt, sandbox: true });
   applyEffect(state, product, scopeId);
+  reconcilePulseEffects(state, timestamp.getTime());
   return entitlement;
 }
 
@@ -217,14 +221,18 @@ class PulseSandboxService {
     if (!Number.isSafeInteger(targetAmount) || targetAmount < product.priceImpulses || targetAmount > 1_000_000) throw new PulseSandboxError(`Цель должна быть не меньше ${product.priceImpulses} Импульсов.`, "VALIDATION_FAILED", 400);
     return this.store.mutate((state) => {
       const user = resolveUser(state, userReference);
-      requireRoom(state, roomId, user.id, { owner: true });
+      requireRoom(state, roomId, user.id, { roles: ["owner", "moderator"] });
       const duplicate = state.pulseGoals.find((item) => item.createdBy === user.id && item.idempotencyKey === key);
       if (duplicate) return { goal: structuredClone(duplicate), duplicate: true };
+      if (state.pulseGoals.some((item) => item.roomId === roomId && item.status === "active")) throw new PulseSandboxError("В комнате уже есть активная цель.", "GOAL_EXISTS", 409);
+      const title = String(input.title || "").trim();
+      const description = String(input.description || "").trim();
+      if (title.length < 3 || title.length > 120 || description.length < 3 || description.length > 1000) throw new PulseSandboxError("Название и описание цели обязательны.", "VALIDATION_FAILED", 400);
       const expiresAt = new Date(input.expiresAt);
       if (!Number.isFinite(expiresAt.getTime()) || expiresAt.getTime() <= this.clock().getTime()) throw new PulseSandboxError("Срок цели должен быть в будущем.", "VALIDATION_FAILED", 400);
       const goal = {
-        id: crypto.randomUUID(), roomId, productCode: product.code, title: String(input.title || product.displayName).trim().slice(0, 120),
-        description: String(input.description || product.description).trim().slice(0, 1000), targetAmount, currentAmount: 0,
+        id: crypto.randomUUID(), roomId, productCode: product.code, title,
+        description, targetAmount, currentAmount: 0,
         status: "active", createdBy: user.id, createdAt: nowIso(this.clock), expiresAt: expiresAt.toISOString(),
         entitlementDurationDays: product.durationDays, idempotencyKey: key, source: "local_sandbox", actor,
       };
@@ -273,9 +281,10 @@ class PulseSandboxService {
     const key = requireIdempotencyKey(idempotencyKey);
     return this.store.mutate((state) => {
       const user = resolveUser(state, userReference);
-      requireRoom(state, roomId, user.id, { owner: true });
+      const room = requireRoom(state, roomId, user.id, { roles: ["owner", "moderator"] });
       const goal = state.pulseGoals.find((item) => item.id === goalId && item.roomId === roomId);
       if (!goal) throw new PulseSandboxError("Цель не найдена.", "GOAL_NOT_FOUND", 404);
+      if (room.ownerId !== user.id && goal.createdBy !== user.id) throw new PulseSandboxError("Модератор может отменить только созданную им цель.", "PERMISSION_DENIED", 403);
       if (goal.cancelIdempotencyKey === key) return { goal: structuredClone(goal), refundedPulse: Number(goal.refundedPulse) || 0, duplicate: true };
       if (goal.status !== "active") throw new PulseSandboxError("Активную цель уже нельзя отменить.", "GOAL_CLOSED", 409);
       let refundedPulse = 0;

@@ -1,4 +1,4 @@
-# Модель безопасности Nexora 3.3.2
+# Модель безопасности Nexora 3.3.3
 
 ## 1. Область документа
 
@@ -6,7 +6,7 @@
 
 | Параметр | Значение |
 |---|---|
-| Version | `3.3.2` |
+| Version | `3.3.3` |
 | Distribution | Published `UNSIGNED-TEST` prerelease |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
@@ -296,6 +296,6 @@ Traffic-analysis resistance не заявляется.
 
 ## 17. Verification и reporting
 
-См. [Security Policy](../SECURITY.md), [Security Verification Summary](../SECURITY_AUDIT.md), [Security Review 3.3.0](../SECURITY_REVIEW_3.3.0.md) и [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.2.md).
+См. [Security Policy](../SECURITY.md), [Security Verification Summary](../SECURITY_AUDIT.md), [Security Review 3.3.0](../SECURITY_REVIEW_3.3.0.md) и [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.3.md).
 
 Branch-local security claims регулируются [Branch Documentation Policy](BRANCH_DOCUMENTATION_POLICY.md).

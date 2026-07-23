@@ -6,7 +6,7 @@ Nexora — open-source project, поддерживаемый через публ
 
 | Версия | Статус поддержки |
 |---|---|
-| `3.3.2` published `UNSIGNED-TEST` prerelease | Текущая prerelease-линия; defect и security reports принимаются |
+| `3.3.3` published `UNSIGNED-TEST` prerelease | Текущая prerelease-линия; defect и security reports принимаются |
 | `3.2.0–3.3.1` | Superseded prereleases; обновитесь до `3.3.2` перед обычной диагностикой |
 | `3.1.x` signed production baseline | Поддерживается как последняя подтверждённая signed production line |
 | `3.0.x` и старше | Не поддерживаются, кроме migration/security context |

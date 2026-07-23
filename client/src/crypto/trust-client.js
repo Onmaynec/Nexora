@@ -301,8 +301,8 @@ async function claimWelcomeSafely(device, conversationId) {
   }
 }
 
-async function requestWelcomeAndWait(device, conversationId) {
-  await trustApi("/conversations/" + encodeURIComponent(conversationId) + "/welcome/request", { method: "POST", deviceId: device.id, body: {} });
+async function requestWelcomeAndWait(device, conversationId, { forceRejoin = false } = {}) {
+  await trustApi("/conversations/" + encodeURIComponent(conversationId) + "/welcome/request", { method: "POST", deviceId: device.id, body: { forceRejoin } });
   const deadline = Date.now() + WELCOME_POLL_TIMEOUT_MS;
   while (Date.now() < deadline) {
     await delay(WELCOME_POLL_INTERVAL_MS);
@@ -431,15 +431,27 @@ async function ensureConversationGroupInternal(conversation, { forceSync = false
       local = await persistGroup(conversation.id, remote.id, initial.state, initial.publicStateHash);
     }
   } else if (!local) {
+    const activeMember = (remote.members || []).find((item) => item.deviceId === device.id && item.status === "active");
     const joined = await claimWelcomeSafely(device, conversation.id);
-    local = joined || await loadLocalGroup(conversation.id) || await requestWelcomeAndWait(device, conversation.id);
+    local = joined || await loadLocalGroup(conversation.id);
+    if (!local) local = await requestWelcomeAndWait(device, conversation.id, { forceRejoin: Boolean(activeMember) });
     if (!local) {
-      const member = (remote.members || []).find((item) => item.deviceId === device.id && item.status === "active");
-      throw Object.assign(new Error(member ? "Локальное MLS-состояние утрачено. Отзовите это устройство и подключите новое." : "Устройство ожидает MLS Welcome от активного участника."), { code: member ? "MLS_STATE_LOST" : "MLS_WELCOME_PENDING" });
+      throw Object.assign(new Error(activeMember
+        ? "Безопасное восстановление MLS запрошено. Нужен другой активный участник или подтверждённое устройство для выдачи нового Welcome."
+        : "Устройство ожидает MLS Welcome от активного участника."), { code: activeMember ? "MLS_RECOVERY_PENDING" : "MLS_WELCOME_PENDING" });
     }
   }
 
-  local = await syncMissedCommits(local, remote, device);
+  try {
+    local = await syncMissedCommits(local, remote, device);
+  } catch (error) {
+    const recoverable = new Set(["MLS_COMMIT_GAP", "MLS_COMMIT_LOG_INVALID", "MLS_PUBLIC_STATE_HASH_MISMATCH", "MLS_EPOCH_CONFLICT", "MLS_STATE_LOST"]);
+    if (!recoverable.has(error?.code || error?.message)) throw error;
+    const recovered = await requestWelcomeAndWait(device, conversation.id, { forceRejoin: true });
+    if (!recovered) throw Object.assign(new Error("Безопасное восстановление MLS ожидает Welcome от другого активного участника."), { code: "MLS_RECOVERY_PENDING" });
+    local = recovered;
+    remote = (await trustApi(`/conversations/${encodeURIComponent(conversation.id)}/group`, { deviceId: device.id })).group;
+  }
   remote = (await trustApi(`/conversations/${encodeURIComponent(conversation.id)}/group`, { deviceId: device.id })).group;
   local = await addMissingDevices(conversation, local, remote, device);
   const synchronizedRemote = (await trustApi(`/conversations/${encodeURIComponent(conversation.id)}/group`, { deviceId: device.id })).group;
@@ -467,7 +479,7 @@ export async function handleWelcomeRequest(conversation) {
     await ensureConversationGroup(conversation, { forceSync: true });
     return true;
   } catch (error) {
-    if (["MLS_WELCOME_PENDING", "MLS_STATE_LOST"].includes(error.code)) return false;
+    if (["MLS_WELCOME_PENDING", "MLS_STATE_LOST", "MLS_RECOVERY_PENDING"].includes(error.code)) return false;
     throw error;
   }
 }

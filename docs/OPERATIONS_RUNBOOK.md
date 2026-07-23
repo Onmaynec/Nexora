@@ -2,7 +2,7 @@
 
 ## 1. Область
 
-Runbook относится к Nexora `3.3.2`:
+Runbook относится к Nexora `3.3.3`:
 
 - Local Server schema 8;
 - Application API v3;

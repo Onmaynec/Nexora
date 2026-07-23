@@ -112,6 +112,8 @@ function normalizeState(value) {
     bio: "",
     profileColor: "violet",
     avatarFrame: "none",
+    messageStyle: "default",
+    stickerPack: "default",
     plusBadgeVisible: true,
     notificationMode: "all",
     quietHoursStart: "",
@@ -144,6 +146,9 @@ function normalizeState(value) {
     announcementOnly: false,
     preapproveMessages: false,
     allowImages: true,
+    reactionPack: "default",
+    theme: "default",
+    bannerStyle: "default",
     ...room,
   }));
   normalized.roomMembers = normalized.roomMembers.map((member) => ({

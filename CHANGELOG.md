@@ -2,6 +2,19 @@
 
 Формат основан на Keep a Changelog. Версии следуют Semantic Versioning.
 
+## [3.3.3] - 2026-07-23
+
+### Fixed
+- Collective room goals now use a validated accessible dialog, support owner/moderator creation, enforce one active goal, and preserve atomic contributions/refunds.
+- Voice messages now have live microphone-level waveforms, persistent waveform metadata, animated playback progress, drag/keyboard seeking, finite duration handling, and 1×/1.5×/2× speed.
+- Pulse catalog entitlements now apply visible profile, message, reaction and room effects after Sandbox or Cloud purchases.
+- Purchase requests now carry a stable Idempotency-Key in both the header and compatibility body, preventing the failed confirmation flow and duplicate debits.
+- MLS conversations force a remote epoch check on open and can safely rejoin through a fresh Welcome without plaintext fallback.
+
+### Security
+- Pulse effects are resolved only from the server-owned catalog allowlist; client-provided effects are ignored.
+- MLS state recovery removes only the authenticated current device from the group and requires another verified active peer before rejoining.
+
 ## [3.3.2] — 2026-07-23
 
 ### Исправлено

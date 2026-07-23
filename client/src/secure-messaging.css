@@ -39,3 +39,10 @@
 @keyframes secure-wave-active{from{transform:scaleY(.82)}to{transform:scaleY(1)}}
 @media(max-width:640px){.secure-media-inline,.secure-voice-message{min-width:0;max-width:74vw}.secure-voice-message{grid-template-columns:auto minmax(120px,1fr) auto}.secure-media-download-float{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){.secure-voice-wave i.played{animation:none}}
+
+/* 3.3.3 voice playback compatibility contract. */
+.secure-message-pane { --secure-wave-active: #c69cff; }
+.secure-voice-wave i.played {
+  background: var(--secure-wave-active);
+  opacity: 1;
+}

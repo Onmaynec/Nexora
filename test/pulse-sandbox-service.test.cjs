@@ -10,11 +10,13 @@ function fixture() {
     users: [
       { id: "u1", username: "netrox", displayName: "Netrox" },
       { id: "u2", username: "member", displayName: "Member" },
+      { id: "u3", username: "moderator", displayName: "Moderator" },
     ],
     rooms: [{ id: "room-1", name: "Private Club", ownerId: "u1" }],
     roomMembers: [
       { roomId: "room-1", userId: "u1", role: "owner" },
       { roomId: "room-1", userId: "u2", role: "member" },
+      { roomId: "room-1", userId: "u3", role: "moderator" },
     ],
     roomBans: [],
     billingEntitlements: [],
@@ -110,6 +112,7 @@ test("Sandbox room goals spend impulses, issue entitlement and refund active goa
   const second = await service.createGoal("netrox", "room-1", {
     productCode: "room_banner_aurora",
     title: "Баннер",
+    description: "Динамический баннер комнаты",
     targetAmount: 500,
     expiresAt: "2026-08-20T20:00:00.000Z",
     idempotencyKey: "goal:create:test:0002",
@@ -119,6 +122,21 @@ test("Sandbox room goals spend impulses, issue entitlement and refund active goa
   assert.equal(cancelled.refundedPulse, 50);
   assert.equal(service.overview("member").wallet.balance, 200);
   assert.equal(service.receipts("netrox").length, 0);
+});
+
+test("moderator can create one validated goal but cannot cancel owner's goal", async () => {
+  const { service } = fixture();
+  await service.setEnabled(true, "test");
+  const created = await service.createGoal("moderator", "room-1", {
+    productCode: "room_reaction_pack", title: "Общая цель", description: "Расширенные реакции",
+    targetAmount: 400, expiresAt: "2026-08-20T20:00:00.000Z", idempotencyKey: "goal:moderator:test:0001",
+  });
+  assert.equal(created.goal.createdBy, "u3");
+  await assert.rejects(service.createGoal("netrox", "room-1", {
+    productCode: "room_banner_aurora", title: "Вторая цель", description: "Не должна создаться",
+    targetAmount: 500, expiresAt: "2026-08-20T20:00:00.000Z", idempotencyKey: "goal:owner:test:0003",
+  }), (error) => error.code === "GOAL_EXISTS");
+  await service.cancelGoal("moderator", "room-1", created.goal.id, "goal:moderator:cancel:1");
 });
 
 test("production mode refuses local sandbox activation", async () => {

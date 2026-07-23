@@ -286,6 +286,7 @@ function mountTrustRoutes({ app, store, io, trustCore, log = () => {} } = {}) {
       deviceId: requesterDeviceId,
       conversationId: conversation.id,
       emit: (payload) => emitConversation(conversation.id, "mls.welcome_requested", payload),
+      forceRejoin: Boolean(request.body?.forceRejoin),
     });
     response.status(result.requested ? 202 : 200).json({ ok: true, requestId: request.trustRequestId, ...result });
   }));

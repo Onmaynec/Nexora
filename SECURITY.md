@@ -4,7 +4,7 @@
 
 | Версия | Канал | Security status |
 |---|---|---|
-| `3.3.2` | Published `UNSIGNED-TEST` prerelease | Текущая поддерживаемая prerelease-линия; security fixes принимаются |
+| `3.3.3` | Published `UNSIGNED-TEST` prerelease | Текущая поддерживаемая prerelease-линия; security fixes принимаются |
 | `3.2.0–3.3.1` | Superseded prereleases | Обновитесь до `3.3.2`; отчёты принимаются для regression/impact analysis |
 | `3.1.x` | Signed production baseline | Поддерживается |
 | `3.0.x` и старше | Historical | Не поддерживается |
@@ -105,7 +105,7 @@ Direct form: <https://github.com/Onmaynec/Nexora/security/advisories/new>.
 - audited Server console без shell/eval;
 - startup/hourly cleanup expired sessions, old login history и stale rate-limit buckets.
 
-Подробности: [Security Model](docs/SECURITY_MODEL.md), [Security Review 3.3.0](SECURITY_REVIEW_3.3.0.md), [Release Verification 3.3.2](RELEASE_VERIFICATION_3.3.2.md).
+Подробности: [Security Model](docs/SECURITY_MODEL.md), [Security Review 3.3.0](SECURITY_REVIEW_3.3.0.md), [Release Verification 3.3.2](RELEASE_VERIFICATION_3.3.3.md).
 
 ## 6. Trusted computing base
 
