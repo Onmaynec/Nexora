@@ -1,0 +1,238 @@
+verify	Run npm run test:unit	2026-07-23T12:07:03.5123532Z not ok 2 - релиз 3.3.2 собирает проверяемые артефакты без native SQLite
+verify	Run npm run test:unit	2026-07-23T12:07:03.5124431Z   ---
+verify	Run npm run test:unit	2026-07-23T12:07:03.5125270Z   duration_ms: 13.6953
+verify	Run npm run test:unit	2026-07-23T12:07:03.5125773Z   type: 'test'
+verify	Run npm run test:unit	2026-07-23T12:07:03.5126464Z   location: 'D:\\a\\Nexora\\Nexora\\test\\build-config.test.cjs:11:1'
+verify	Run npm run test:unit	2026-07-23T12:07:03.5127262Z   failureType: 'testCodeFailure'
+verify	Run npm run test:unit	2026-07-23T12:07:03.5127820Z   error: |-
+verify	Run npm run test:unit	2026-07-23T12:07:03.5128913Z     The input did not match the regular expression /startsWith\(github\.event\.workflow_run\.head_commit\.message, 'release:'\)/. Input:
+verify	Run npm run test:unit	2026-07-23T12:07:03.5130085Z     
+verify	Run npm run test:unit	2026-07-23T12:07:03.5130555Z     'name: Nexora 3 release\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:03.5131083Z       '\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:03.5131512Z       'on:\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:03.5131973Z       '  workflow_run:\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:03.5132532Z       '    workflows: ["CI"]\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:03.5133108Z       '    types: [completed]\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:03.5134037Z       '  workflow_dispatch:\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:03.5141023Z       '    inputs:\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:03.5142841Z       '      release_tag:\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:03.5143748Z       '        description: Existing release tag, for example v3.3.0\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:03.5144539Z       '        required: true\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:03.5145606Z       '        type: string\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:03.5146025Z       '\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:03.5146341Z       'permissions:\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:03.5147037Z       '  contents: write\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:03.5147448Z       '\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:03.5147756Z       'concurrency:\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:03.5148280Z       '  group: nexora-release-${{ github.repository }}\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:03.5148884Z       '  cancel-in-progress: false\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:03.5149310Z       '\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:26.9240419Z not ok 103 - website keeps the 3.2.5 UX and applies only typography, localization and hit-testing fixes
+verify	Run npm run test:unit	2026-07-23T12:07:26.9241207Z   ---
+verify	Run npm run test:unit	2026-07-23T12:07:26.9241501Z   duration_ms: 2.8258
+verify	Run npm run test:unit	2026-07-23T12:07:26.9241839Z   type: 'test'
+verify	Run npm run test:unit	2026-07-23T12:07:26.9242438Z   location: 'D:\\a\\Nexora\\Nexora\\test\\release-3.3.0-regressions.test.cjs:74:1'
+verify	Run npm run test:unit	2026-07-23T12:07:26.9243158Z   failureType: 'testCodeFailure'
+verify	Run npm run test:unit	2026-07-23T12:07:26.9243537Z   error: |-
+verify	Run npm run test:unit	2026-07-23T12:07:26.9244160Z     The input did not match the regular expression /FALLBACK_VERSION = "3\.3\.0"/. Input:
+verify	Run npm run test:unit	2026-07-23T12:07:26.9245180Z     
+verify	Run npm run test:unit	2026-07-23T12:07:26.9245454Z     '(() => {\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:26.9245781Z       '  "use strict";\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:26.9246139Z       '\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:26.9246492Z       '  const FALLBACK_VERSION = "3.3.2";\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:26.9246940Z       '\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:26.9247284Z       '  const ruCorrections = {\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:26.9249037Z       '    heroLead: "Самостоятельно размещаемая платформа для частных серверов, команд и сообществ. Единый интерфейс для Windows, PWA и Android, локальный сервер как источник полномочий и отдельный контур Pulse.",\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:26.9250492Z       '    membersSecure: "8 участников · защищённый разговор",\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:26.9251475Z       '    mockOne: "Локальный сервер остаётся источником истины для комнат, ролей и доставки зашифрованных данных.",\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:26.9252675Z       '    mockTwo: "Облачная учётная запись и производственные права Pulse изолированы от локального обмена сообщениями.",\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:26.9253744Z       '    mockThree: "Принято. Публикуем документацию и результаты проверки релиза.",\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:26.9254517Z       '    deviceVerified: "Устройство проверено",\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:26.9255144Z       '    outboxDelivered: "Очередь отправлена",\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:26.9255888Z       '    metricVersionHint: "основная ветка / метаданные пакета",\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:26.9256648Z       '    liveValue: "актуальное значение",\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:26.9257498Z       '    fromGithub: "данные GitHub API",\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:26.9259124Z       '    productLead: "Nexora объединяет сообщения, комнаты, медиа, автономную работу, эксплуатационные инструменты, Trust Core и отдельный облачный контур, не требуя передавать локальные сообщения в централизованное облако.",\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:26.9261233Z       '    messagingText: "Ответы, ветки, реакции, упоминания, опросы, история изменений, тихая и отложенная отправка, черновики, закладки и надёжная очередь исходящих сообщений.",\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:26.9262952Z       '    trustCardTitle: "Защищённые сообщения с привязкой к устройству",\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:26.9264435Z       '    trustCardText: "Идентичность Ed25519, проверенные устройства, эпохи MLS, защита от повторов, хранение только шифротекста и зашифрованное локальное состояние.",\n' +
+verify	Run npm run test:unit	2026-07-23T12:07:42.9727311Z # fail 2
+verify	Run npm run test:unit	2026-07-23T12:07:42.9727603Z # cancelled 0
+verify	Run npm run test:unit	2026-07-23T12:07:42.9727917Z # skipped 0
+verify	Run npm run test:unit	2026-07-23T12:07:42.9728230Z # todo 0
+verify	Run npm run test:unit	2026-07-23T12:07:42.9728562Z # duration_ms 39721.5433
+verify	Run npm run test:unit	2026-07-23T12:07:43.0260285Z ##[error]Process completed with exit code 1.
+linux-tests	Run npm test	﻿2026-07-23T12:06:12.5874044Z ##[group]Run npm test
+linux-tests	Run npm test	2026-07-23T12:06:12.5874485Z ^[[36;1mnpm test^[[0m
+linux-tests	Run npm test	2026-07-23T12:06:12.5955521Z shell: /usr/bin/bash -e {0}
+linux-tests	Run npm test	2026-07-23T12:06:12.5955935Z ##[endgroup]
+linux-tests	Run npm test	2026-07-23T12:06:12.7047394Z 
+linux-tests	Run npm test	2026-07-23T12:06:12.7048137Z > nexora@3.3.2 test
+linux-tests	Run npm test	2026-07-23T12:06:12.7049073Z > npm run build:web && npm run test:unit && npm run test:performance
+linux-tests	Run npm test	2026-07-23T12:06:12.7049604Z 
+linux-tests	Run npm test	2026-07-23T12:06:12.8236197Z 
+linux-tests	Run npm test	2026-07-23T12:06:12.8236935Z > nexora@3.3.2 build:web
+linux-tests	Run npm test	2026-07-23T12:06:12.8237786Z > vite build --config client/vite.config.mjs
+linux-tests	Run npm test	2026-07-23T12:06:12.8238440Z 
+linux-tests	Run npm test	2026-07-23T12:06:13.0852114Z ^[[36mvite v7.3.6 ^[[32mbuilding client environment for production...^[[36m^[[39m
+linux-tests	Run npm test	2026-07-23T12:06:13.1477998Z transforming...
+linux-tests	Run npm test	2026-07-23T12:06:15.3037456Z ^[[33m[plugin vite:resolve] Module "crypto" has been externalized for browser compatibility, imported by "/home/runner/work/Nexora/Nexora/node_modules/@hpke/common/esm/src/algorithm.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.^[[39m
+linux-tests	Run npm test	2026-07-23T12:06:15.3118127Z ^[[33m[plugin vite:resolve] Module "crypto" has been externalized for browser compatibility, imported by "/home/runner/work/Nexora/Nexora/node_modules/@hpke/common/esm/src/utils/misc.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.^[[39m
+linux-tests	Run npm test	2026-07-23T12:06:15.3123756Z ^[[33m[plugin vite:resolve] Module "crypto" has been externalized for browser compatibility, imported by "/home/runner/work/Nexora/Nexora/node_modules/@hpke/common/esm/src/utils/misc.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.^[[39m
+linux-tests	Run npm test	2026-07-23T12:06:15.3142512Z ^[[33mnode_modules/@hpke/common/esm/src/utils/noble.js (82:20): A comment
+linux-tests	Run npm test	2026-07-23T12:06:15.3143109Z 
+linux-tests	Run npm test	2026-07-23T12:06:15.3143355Z "/* @__PURE__ */"
+linux-tests	Run npm test	2026-07-23T12:06:15.3143607Z 
+linux-tests	Run npm test	2026-07-23T12:06:15.3145423Z in "node_modules/@hpke/common/esm/src/utils/noble.js" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.^[[39m
+linux-tests	Run npm test	2026-07-23T12:06:15.3147460Z ^[[33mnode_modules/@hpke/common/esm/src/utils/noble.js (122:22): A comment
+linux-tests	Run npm test	2026-07-23T12:06:17.7301424Z not ok 2 - релиз 3.3.2 собирает проверяемые артефакты без native SQLite
+linux-tests	Run npm test	2026-07-23T12:06:17.7311334Z   ---
+linux-tests	Run npm test	2026-07-23T12:06:17.7340961Z   duration_ms: 12.864894
+linux-tests	Run npm test	2026-07-23T12:06:17.7342094Z   type: 'test'
+linux-tests	Run npm test	2026-07-23T12:06:17.7342768Z   location: '/home/runner/work/Nexora/Nexora/test/build-config.test.cjs:11:1'
+linux-tests	Run npm test	2026-07-23T12:06:17.7343560Z   failureType: 'testCodeFailure'
+linux-tests	Run npm test	2026-07-23T12:06:17.7344008Z   error: |-
+linux-tests	Run npm test	2026-07-23T12:06:17.7345130Z     The input did not match the regular expression /startsWith\(github\.event\.workflow_run\.head_commit\.message, 'release:'\)/. Input:
+linux-tests	Run npm test	2026-07-23T12:06:17.7346096Z     
+linux-tests	Run npm test	2026-07-23T12:06:17.7346442Z     'name: Nexora 3 release\n' +
+linux-tests	Run npm test	2026-07-23T12:06:17.7346870Z       '\n' +
+linux-tests	Run npm test	2026-07-23T12:06:17.7347183Z       'on:\n' +
+linux-tests	Run npm test	2026-07-23T12:06:17.7347524Z       '  workflow_run:\n' +
+linux-tests	Run npm test	2026-07-23T12:06:17.7347964Z       '    workflows: ["CI"]\n' +
+linux-tests	Run npm test	2026-07-23T12:06:17.7348437Z       '    types: [completed]\n' +
+linux-tests	Run npm test	2026-07-23T12:06:17.7348926Z       '  workflow_dispatch:\n' +
+linux-tests	Run npm test	2026-07-23T12:06:17.7349416Z       '    inputs:\n' +
+linux-tests	Run npm test	2026-07-23T12:06:17.7349821Z       '      release_tag:\n' +
+linux-tests	Run npm test	2026-07-23T12:06:17.7350667Z       '        description: Existing release tag, for example v3.3.0\n' +
+linux-tests	Run npm test	2026-07-23T12:06:17.7351346Z       '        required: true\n' +
+linux-tests	Run npm test	2026-07-23T12:06:17.7359227Z       '        type: string\n' +
+linux-tests	Run npm test	2026-07-23T12:06:17.7359651Z       '\n' +
+linux-tests	Run npm test	2026-07-23T12:06:17.7359991Z       'permissions:\n' +
+linux-tests	Run npm test	2026-07-23T12:06:17.7360640Z       '  contents: write\n' +
+linux-tests	Run npm test	2026-07-23T12:06:17.7361040Z       '\n' +
+linux-tests	Run npm test	2026-07-23T12:06:17.7361356Z       'concurrency:\n' +
+linux-tests	Run npm test	2026-07-23T12:06:17.7361912Z       '  group: nexora-release-${{ github.repository }}\n' +
+linux-tests	Run npm test	2026-07-23T12:06:17.7362536Z       '  cancel-in-progress: false\n' +
+linux-tests	Run npm test	2026-07-23T12:06:17.7362969Z       '\n' +
+linux-tests	Run npm test	2026-07-23T12:06:21.4825049Z not ok 103 - website keeps the 3.2.5 UX and applies only typography, localization and hit-testing fixes
+linux-tests	Run npm test	2026-07-23T12:06:21.4825820Z   ---
+linux-tests	Run npm test	2026-07-23T12:06:21.4826142Z   duration_ms: 3.043681
+linux-tests	Run npm test	2026-07-23T12:06:21.4826525Z   type: 'test'
+linux-tests	Run npm test	2026-07-23T12:06:21.4827278Z   location: '/home/runner/work/Nexora/Nexora/test/release-3.3.0-regressions.test.cjs:74:1'
+linux-tests	Run npm test	2026-07-23T12:06:21.4828131Z   failureType: 'testCodeFailure'
+linux-tests	Run npm test	2026-07-23T12:06:21.4828558Z   error: |-
+linux-tests	Run npm test	2026-07-23T12:06:21.4829221Z     The input did not match the regular expression /FALLBACK_VERSION = "3\.3\.0"/. Input:
+linux-tests	Run npm test	2026-07-23T12:06:21.4829918Z     
+linux-tests	Run npm test	2026-07-23T12:06:21.4830212Z     '(() => {\n' +
+linux-tests	Run npm test	2026-07-23T12:06:21.4830814Z       '  "use strict";\n' +
+linux-tests	Run npm test	2026-07-23T12:06:21.4831222Z       '\n' +
+linux-tests	Run npm test	2026-07-23T12:06:21.4831661Z       '  const FALLBACK_VERSION = "3.3.2";\n' +
+linux-tests	Run npm test	2026-07-23T12:06:21.4832174Z       '\n' +
+linux-tests	Run npm test	2026-07-23T12:06:21.4832612Z       '  const ruCorrections = {\n' +
+linux-tests	Run npm test	2026-07-23T12:06:21.4834494Z       '    heroLead: "Самостоятельно размещаемая платформа для частных серверов, команд и сообществ. Единый интерфейс для Windows, PWA и Android, локальный сервер как источник полномочий и отдельный контур Pulse.",\n' +
+linux-tests	Run npm test	2026-07-23T12:06:21.4836271Z       '    membersSecure: "8 участников · защищённый разговор",\n' +
+linux-tests	Run npm test	2026-07-23T12:06:21.4837584Z       '    mockOne: "Локальный сервер остаётся источником истины для комнат, ролей и доставки зашифрованных данных.",\n' +
+linux-tests	Run npm test	2026-07-23T12:06:21.4838969Z       '    mockTwo: "Облачная учётная запись и производственные права Pulse изолированы от локального обмена сообщениями.",\n' +
+linux-tests	Run npm test	2026-07-23T12:06:21.4840708Z       '    mockThree: "Принято. Публикуем документацию и результаты проверки релиза.",\n' +
+linux-tests	Run npm test	2026-07-23T12:06:21.4841655Z       '    deviceVerified: "Устройство проверено",\n' +
+linux-tests	Run npm test	2026-07-23T12:06:21.4842383Z       '    outboxDelivered: "Очередь отправлена",\n' +
+linux-tests	Run npm test	2026-07-23T12:06:21.4843231Z       '    metricVersionHint: "основная ветка / метаданные пакета",\n' +
+linux-tests	Run npm test	2026-07-23T12:06:21.4844014Z       '    liveValue: "актуальное значение",\n' +
+linux-tests	Run npm test	2026-07-23T12:06:21.4844678Z       '    fromGithub: "данные GitHub API",\n' +
+linux-tests	Run npm test	2026-07-23T12:06:21.4846440Z       '    productLead: "Nexora объединяет сообщения, комнаты, медиа, автономную работу, эксплуатационные инструменты, Trust Core и отдельный облачный контур, не требуя передавать локальные сообщения в централизованное облако.",\n' +
+linux-tests	Run npm test	2026-07-23T12:06:21.4849407Z       '    messagingText: "Ответы, ветки, реакции, упоминания, опросы, история изменений, тихая и отложенная отправка, черновики, закладки и надёжная очередь исходящих сообщений.",\n' +
+linux-tests	Run npm test	2026-07-23T12:06:21.4851533Z       '    trustCardTitle: "Защищённые сообщения с привязкой к устройству",\n' +
+linux-tests	Run npm test	2026-07-23T12:06:21.4853218Z       '    trustCardText: "Идентичность Ed25519, проверенные устройства, эпохи MLS, защита от повторов, хранение только шифротекста и зашифрованное локальное состояние.",\n' +
+linux-tests	Run npm test	2026-07-23T12:06:24.6758296Z # fail 2
+linux-tests	Run npm test	2026-07-23T12:06:24.6758515Z # cancelled 0
+linux-tests	Run npm test	2026-07-23T12:06:24.6758705Z # skipped 0
+linux-tests	Run npm test	2026-07-23T12:06:24.6758919Z # todo 0
+linux-tests	Run npm test	2026-07-23T12:06:24.6759151Z # duration_ms 7103.027519
+linux-tests	Run npm test	2026-07-23T12:06:24.6940130Z ##[error]Process completed with exit code 1.
+release-gate	Run npm run release:check	﻿2026-07-23T12:06:06.9202363Z ##[group]Run npm run release:check
+release-gate	Run npm run release:check	2026-07-23T12:06:06.9202682Z ^[[36;1mnpm run release:check^[[0m
+release-gate	Run npm run release:check	2026-07-23T12:06:06.9237311Z shell: /usr/bin/bash -e {0}
+release-gate	Run npm run release:check	2026-07-23T12:06:06.9237585Z ##[endgroup]
+release-gate	Run npm run release:check	2026-07-23T12:06:06.9867990Z 
+release-gate	Run npm run release:check	2026-07-23T12:06:06.9868428Z > nexora@3.3.2 release:check
+release-gate	Run npm run release:check	2026-07-23T12:06:06.9869245Z > node scripts/sync-release-metadata.cjs --check && npm run release:consistency && npm run check && npm run test:unit && npm run test:performance && npm run audit:security
+release-gate	Run npm run release:check	2026-07-23T12:06:06.9869694Z 
+release-gate	Run npm run release:check	2026-07-23T12:06:07.0057595Z Release metadata 3.3.2 is synchronized.
+release-gate	Run npm run release:check	2026-07-23T12:06:07.0645528Z 
+release-gate	Run npm run release:check	2026-07-23T12:06:07.0646120Z > nexora@3.3.2 release:consistency
+release-gate	Run npm run release:check	2026-07-23T12:06:07.0646643Z > node scripts/check-release-consistency.cjs
+release-gate	Run npm run release:check	2026-07-23T12:06:07.0646815Z 
+release-gate	Run npm run release:check	2026-07-23T12:06:07.0871301Z Release consistency 3.3.2 is valid (Android versionCode 30302, 24 current documents).
+release-gate	Run npm run release:check	2026-07-23T12:06:07.1474099Z 
+release-gate	Run npm run release:check	2026-07-23T12:06:07.1474531Z > nexora@3.3.2 check
+release-gate	Run npm run release:check	2026-07-23T12:06:07.1475228Z > node scripts/check-syntax.cjs && node scripts/check-electron-builder-config.cjs && npm run build:web
+release-gate	Run npm run release:check	2026-07-23T12:06:08.6094776Z 
+release-gate	Run npm run release:check	2026-07-23T12:06:08.6095618Z Syntax OK: 116 Node files
+release-gate	Run npm run release:check	2026-07-23T12:06:08.6919128Z   • loaded configuration  file=/home/runner/work/Nexora/Nexora/electron-builder.client.yml
+release-gate	Run npm run release:check	2026-07-23T12:06:09.0533859Z Electron Builder config OK: electron-builder.client.yml
+release-gate	Run npm run release:check	2026-07-23T12:06:09.0554583Z   • loaded configuration  file=/home/runner/work/Nexora/Nexora/electron-builder.server.yml
+release-gate	Run npm run release:check	2026-07-23T12:06:09.0561450Z Nexora Server runtime payload OK: shared/**/* and Pulse catalog are packaged.
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0413667Z not ok 2 - релиз 3.3.2 собирает проверяемые артефакты без native SQLite
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0414284Z   ---
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0421064Z   duration_ms: 5.343173
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0421641Z   type: 'test'
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0422430Z   location: '/home/runner/work/Nexora/Nexora/test/build-config.test.cjs:11:1'
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0423090Z   failureType: 'testCodeFailure'
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0423570Z   error: |-
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0424364Z     The input did not match the regular expression /startsWith\(github\.event\.workflow_run\.head_commit\.message, 'release:'\)/. Input:
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0425105Z     
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0425526Z     'name: Nexora 3 release\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0425970Z       '\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0426345Z       'on:\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0426744Z       '  workflow_run:\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0427194Z       '    workflows: ["CI"]\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0427663Z       '    types: [completed]\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0428123Z       '  workflow_dispatch:\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0428554Z       '    inputs:\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0428998Z       '      release_tag:\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0429573Z       '        description: Existing release tag, for example v3.3.0\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0430304Z       '        required: true\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0430741Z       '        type: string\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0431442Z       '\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0431825Z       'permissions:\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0432237Z       '  contents: write\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0432679Z       '\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0433126Z       'concurrency:\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0433636Z       '  group: nexora-release-${{ github.repository }}\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0434167Z       '  cancel-in-progress: false\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:12.0434634Z       '\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4040503Z not ok 103 - website keeps the 3.2.5 UX and applies only typography, localization and hit-testing fixes
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4041187Z   ---
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4041473Z   duration_ms: 1.947853
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4041794Z   type: 'test'
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4042289Z   location: '/home/runner/work/Nexora/Nexora/test/release-3.3.0-regressions.test.cjs:74:1'
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4042806Z   failureType: 'testCodeFailure'
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4043184Z   error: |-
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4043635Z     The input did not match the regular expression /FALLBACK_VERSION = "3\.3\.0"/. Input:
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4044071Z     
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4044349Z     '(() => {\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4044709Z       '  "use strict";\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4045125Z       '\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4045439Z       '  const FALLBACK_VERSION = "3.3.2";\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4045787Z       '\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4046116Z       '  const ruCorrections = {\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4047235Z       '    heroLead: "Самостоятельно размещаемая платформа для частных серверов, команд и сообществ. Единый интерфейс для Windows, PWA и Android, локальный сервер как источник полномочий и отдельный контур Pulse.",\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4048134Z       '    membersSecure: "8 участников · защищённый разговор",\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4049031Z       '    mockOne: "Локальный сервер остаётся источником истины для комнат, ролей и доставки зашифрованных данных.",\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4050071Z       '    mockTwo: "Облачная учётная запись и производственные права Pulse изолированы от локального обмена сообщениями.",\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4050892Z       '    mockThree: "Принято. Публикуем документацию и результаты проверки релиза.",\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4051463Z       '    deviceVerified: "Устройство проверено",\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4051997Z       '    outboxDelivered: "Очередь отправлена",\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4052553Z       '    metricVersionHint: "основная ветка / метаданные пакета",\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4053027Z       '    liveValue: "актуальное значение",\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4053509Z       '    fromGithub: "данные GitHub API",\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4054540Z       '    productLead: "Nexora объединяет сообщения, комнаты, медиа, автономную работу, эксплуатационные инструменты, Trust Core и отдельный облачный контур, не требуя передавать локальные сообщения в централизованное облако.",\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4055859Z       '    messagingText: "Ответы, ветки, реакции, упоминания, опросы, история изменений, тихая и отложенная отправка, черновики, закладки и надёжная очередь исходящих сообщений.",\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4056678Z       '    trustCardTitle: "Защищённые сообщения с привязкой к устройству",\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:15.4057661Z       '    trustCardText: "Идентичность Ed25519, проверенные устройства, эпохи MLS, защита от повторов, хранение только шифротекста и зашифрованное локальное состояние.",\n' +
+release-gate	Run npm run release:check	2026-07-23T12:06:18.1454065Z # fail 2
+release-gate	Run npm run release:check	2026-07-23T12:06:18.1454216Z # cancelled 0
+release-gate	Run npm run release:check	2026-07-23T12:06:18.1454488Z # skipped 0
+release-gate	Run npm run release:check	2026-07-23T12:06:18.1454718Z # todo 0
+release-gate	Run npm run release:check	2026-07-23T12:06:18.1454977Z # duration_ms 6189.538104
+release-gate	Run npm run release:check	2026-07-23T12:06:18.1577748Z ##[error]Process completed with exit code 1.
