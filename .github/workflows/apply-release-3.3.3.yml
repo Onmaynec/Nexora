@@ -7,6 +7,12 @@ on:
     paths:
       - release-patches/3.3.3/apply.py
       - .github/workflows/apply-release-3.3.3.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - release-patches/3.3.3/apply.py
+      - .github/workflows/apply-release-3.3.3.yml
 
 permissions:
   contents: write
@@ -17,7 +23,7 @@ concurrency:
 
 jobs:
   apply-and-validate:
-    if: ${{ !contains(github.event.head_commit.message, 'apply Nexora 3.3.3 source migration') }}
+    if: ${{ github.event_name == 'pull_request' || !contains(github.event.head_commit.message, 'apply Nexora 3.3.3 source migration') }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
