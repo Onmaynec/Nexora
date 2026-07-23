@@ -34,7 +34,7 @@ Electron Builder корректно создавал installer и `app.asar`, о
 
 ## Проверка
 
-Исправление считается готовым только после прохождения:
+Перед публикацией успешно выполнены:
 
 - `npm run check`;
 - `npm run test:unit`;
@@ -44,9 +44,9 @@ Electron Builder корректно создавал installer и `app.asar`, о
 - Linux `npm test`;
 - schema 8 soak;
 - Android source build;
-- Windows Electron Server packaging в release workflow.
+- Windows Electron Client/Server packaging и post-publication asset validation.
 
-Регрессионный тест сначала был добавлен без исправления и подтвердил дефект: CI job `linux-tests` завершился ошибкой на `npm test`. После включения `shared/**/*` тот же контракт должен проходить.
+Регрессионный тест сначала был добавлен без исправления и подтвердил дефект: CI job `linux-tests` завершился ошибкой на `npm test`. После включения `shared/**/*` тот же контракт и полный release gate прошли успешно.
 
 ## Совместимость
 
