@@ -31,17 +31,17 @@ async function configuredFeed(kind, appImpl = app, fsImpl = fs) {
 }
 
 async function configuredProvider(kind, appImpl = app, fsImpl = fs) {
+  if (!["client", "server"].includes(kind)) return null;
   const feedUrl = await configuredFeed(kind, appImpl, fsImpl);
   if (feedUrl) {
     if (!/^https:\/\//i.test(feedUrl)) return null;
-    return { provider: "generic", url: feedUrl };
+    return { provider: "generic", url: feedUrl, channel: kind === "server" ? "server" : "latest" };
   }
-  if (kind !== "client") return null;
   return {
     ...DEFAULT_GITHUB_RELEASES,
     owner: String(process.env.NEXORA_GITHUB_OWNER || DEFAULT_GITHUB_RELEASES.owner),
     repo: String(process.env.NEXORA_GITHUB_REPO || DEFAULT_GITHUB_RELEASES.repo),
-    ...(kind === "server" ? { channel: "server" } : {}),
+    channel: kind === "server" ? "server" : "latest",
   };
 }
 
@@ -53,26 +53,42 @@ function numericVersion(value) {
 function isNewerVersion(candidate, current) {
   const left = numericVersion(candidate);
   const right = numericVersion(current);
-  if (!left || !right) return String(candidate || "") !== String(current || "");
+  if (!left || !right) return false;
   for (let index = 0; index < 3; index += 1) {
     if (left[index] !== right[index]) return left[index] > right[index];
   }
   return false;
 }
 
+function safeLogMessage(error) {
+  return String(error?.message || error || "unknown updater error")
+    .replace(/[A-Za-z]:\\[^\s]+/g, "[path]")
+    .replace(/\/(?:home|Users|tmp|var)\/[^\s]+/g, "[path]")
+    .slice(0, 600);
+}
+
 function normalizedUpdateError(error) {
-  const message = String(error?.message || error || "Ошибка обновления");
-  if (/latest\.yml|404|no published versions|cannot find latest|no releases found/i.test(message)) {
+  const message = safeLogMessage(error);
+  if (/latest\.yml|server\.yml|404|no published versions|cannot find latest|no releases found/i.test(message)) {
     return {
       reason: "no_installable_update",
+      code: "RESOURCE_NOT_FOUND",
       error: "В GitHub пока нет подписанного устанавливаемого обновления для этого канала.",
     };
   }
   if (/signature|publisher|certificate|checksum|sha-?256|tamper/i.test(message)) {
-    return { reason: "signature_invalid", code: "UPDATE_SIGNATURE_INVALID", error: "Подпись или контрольная сумма обновления недействительна." };
+    return {
+      reason: "signature_invalid",
+      code: "UPDATE_SIGNATURE_INVALID",
+      error: "Подпись или контрольная сумма обновления недействительна.",
+    };
   }
   if (/net::ERR_|ENOTFOUND|ETIMEDOUT|ECONNRESET|network/i.test(message)) {
-    return { reason: "network_error", error: "Не удалось связаться с каналом обновлений. Проверьте интернет и повторите попытку." };
+    return {
+      reason: "network_error",
+      code: "TEMPORARY_UNAVAILABLE",
+      error: "Не удалось связаться с каналом обновлений. Проверьте интернет и повторите попытку.",
+    };
   }
   return { reason: "update_error", code: "TEMPORARY_UNAVAILABLE", error: message };
 }
@@ -110,12 +126,17 @@ async function createUpdateService({
     availableVersion: null,
     progress: 0,
     error: null,
+    code: null,
     reason: null,
     automatic: Boolean(automatic),
     lastCheckedAt: null,
     nextCheckAt: null,
+    provider: null,
+    channel: kind === "server" ? "server" : "latest",
+    repository: null,
     detailsUrl: "https://github.com/Onmaynec/Nexora/releases/latest",
     signature: "required",
+    downgradeAllowed: false,
   };
   let timer = null;
   let stopped = false;
@@ -141,16 +162,36 @@ async function createUpdateService({
   activeUpdater.autoInstallOnAppQuit = automatic;
   activeUpdater.allowPrerelease = false;
   activeUpdater.allowDowngrade = false;
+  if ("channel" in activeUpdater) activeUpdater.channel = provider.channel;
   activeUpdater.setFeedURL(provider);
-  emit({ enabled: true, status: "idle", provider: provider.provider, channel: provider.provider === "github" ? provider.owner + "/" + provider.repo : provider.url });
+  emit({
+    enabled: true,
+    status: "idle",
+    provider: provider.provider,
+    channel: provider.channel,
+    repository: provider.provider === "github" ? `${provider.owner}/${provider.repo}` : provider.url,
+  });
 
-  listen("checking-for-update", () => emit({ status: "checking", error: null, reason: null }));
-  listen("update-available", (info) => emit({ status: automatic ? "downloading" : "available", availableVersion: info.version, reason: null }));
-  listen("update-not-available", () => emit({ status: "current", availableVersion: null, progress: 0, reason: null }));
-  listen("download-progress", (progress) => emit({ status: "downloading", progress: Math.round(progress.percent || 0) }));
-  listen("update-downloaded", (info) => emit({ status: "downloaded", availableVersion: info.version, progress: 100, reason: null }));
+  listen("checking-for-update", () => emit({ status: "checking", error: null, code: null, reason: null }));
+  listen("update-available", (info) => {
+    if (!isNewerVersion(info?.version, state.currentVersion)) {
+      emit({ status: "current", availableVersion: null, progress: 0, reason: "no_downgrade", code: "STATE_CONFLICT" });
+      return;
+    }
+    emit({ status: automatic ? "downloading" : "available", availableVersion: info.version, reason: null, code: null });
+  });
+  listen("update-not-available", () => emit({ status: "current", availableVersion: null, progress: 0, reason: null, code: null }));
+  listen("download-progress", (progress) => emit({ status: "downloading", progress: Math.max(0, Math.min(100, Math.round(progress.percent || 0))) }));
+  listen("update-downloaded", (info) => {
+    if (!isNewerVersion(info?.version, state.currentVersion)) {
+      emit({ status: "error", availableVersion: null, progress: 0, reason: "no_downgrade", code: "STATE_CONFLICT", error: "Установщик не новее текущей версии." });
+      return;
+    }
+    emit({ status: "downloaded", availableVersion: info.version, progress: 100, reason: null, code: null });
+  });
   listen("error", (error) => {
-    log("Updater error: " + (error?.stack || error), "error");
+    const safe = safeLogMessage(error);
+    log(`Updater error: ${safe}`, "error");
     emit({ status: "error", ...normalizedUpdateError(error) });
   });
 
@@ -161,25 +202,28 @@ async function createUpdateService({
     emit({ nextCheckAt: new Date(Date.now() + bounded).toISOString() });
     timer = setTimeoutImpl(async () => {
       timer = null;
-      try { await check(); }
-      finally { schedule(intervalMs); }
+      try {
+        await check();
+      } finally {
+        schedule(intervalMs);
+      }
     }, bounded);
   }
 
   async function check() {
     if (inFlight) return inFlight;
     inFlight = (async () => {
-      emit({ status: "checking", error: null, reason: null, lastCheckedAt: new Date().toISOString() });
+      emit({ status: "checking", error: null, code: null, reason: null, lastCheckedAt: new Date().toISOString() });
       try {
         const result = await activeUpdater.checkForUpdates();
         if (state.status === "checking") {
           const candidate = result?.updateInfo?.version;
           emit(candidate && isNewerVersion(candidate, state.currentVersion)
-            ? { status: automatic ? "downloading" : "available", availableVersion: candidate, reason: null }
-            : { status: "current", availableVersion: null, progress: 0, reason: null });
+            ? { status: automatic ? "downloading" : "available", availableVersion: candidate, reason: null, code: null }
+            : { status: "current", availableVersion: null, progress: 0, reason: candidate ? "no_downgrade" : null, code: candidate ? "STATE_CONFLICT" : null });
         }
       } catch (error) {
-        log("Update check failed: " + (error?.stack || error), "error");
+        log(`Update check failed: ${safeLogMessage(error)}`, "error");
         emit({ status: "error", ...normalizedUpdateError(error) });
       } finally {
         inFlight = null;
@@ -193,15 +237,19 @@ async function createUpdateService({
     status: () => ({ ...state }),
     check,
     download: async () => {
-      try { await activeUpdater.downloadUpdate(); }
-      catch (error) {
-        log("Update download failed: " + (error?.stack || error), "error");
+      if (!isNewerVersion(state.availableVersion, state.currentVersion)) {
+        return emit({ status: "error", reason: "no_downgrade", code: "STATE_CONFLICT", error: "Установщик не новее текущей версии." });
+      }
+      try {
+        await activeUpdater.downloadUpdate();
+      } catch (error) {
+        log(`Update download failed: ${safeLogMessage(error)}`, "error");
         emit({ status: "error", ...normalizedUpdateError(error) });
       }
       return { ...state };
     },
     install: () => {
-      if (state.status !== "downloaded") return false;
+      if (state.status !== "downloaded" || !isNewerVersion(state.availableVersion, state.currentVersion)) return false;
       activeUpdater.quitAndInstall(false, true);
       return true;
     },
@@ -230,4 +278,5 @@ module.exports = {
   isNewerVersion,
   loadDefaultUpdater,
   normalizedUpdateError,
+  safeLogMessage,
 };
