@@ -1,0 +1,21 @@
+name: Diagnose PR51 release consistency
+
+on:
+  push:
+    branches:
+      - agent/release-3.3.2-consistency-final
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+      - run: node scripts/check-release-consistency.cjs
+      - run: node --test test/release-consistency.test.cjs
