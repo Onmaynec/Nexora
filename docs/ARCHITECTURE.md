@@ -2,12 +2,12 @@
 
 ## 1. Область
 
-Документ описывает `main` версии `3.2.4`:
+Документ описывает `main` версии `3.3.1`:
 
 - Application API: v3;
 - Trust/MLS/encrypted-media API: v4;
 - Local Server database: SQLite schema 8;
-- distribution: Source/PWA prerelease;
+- distribution: published `UNSIGNED-TEST` prerelease;
 - signed production baseline: `3.1.2`;
 - independent cryptographic/application-security review: не завершён.
 

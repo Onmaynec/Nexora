@@ -4,8 +4,8 @@
 
 | Параметр | Значение |
 |---|---|
-| Repository version | `3.2.4` |
-| Distribution | Source/PWA prerelease |
+| Repository version | `3.3.1` |
+| Distribution | Published `UNSIGNED-TEST` prerelease |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
 | Trust/MLS/encrypted-media API | v4 |

@@ -6,16 +6,16 @@
 
 | Параметр | Значение |
 |---|---|
-| Current repository version | `3.2.4` |
-| Distribution | Source/PWA prerelease |
+| Current repository version | `3.3.1` |
+| Distribution | Published `UNSIGNED-TEST` prerelease |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
 | Trust/MLS/encrypted-media API | v4 |
 | Local Server database | SQLite schema 8 |
-| Migration from 3.2.0–3.2.3 | не требуется |
+| Local Server migration from 3.2.0–3.3.0 | не требуется |
 | Independent E2EE/security audit | не завершён |
 
-3.2.4 объединяет Trust/MLS foundation 3.2.0, lifecycle corrections 3.2.1–3.2.2, security hardening 3.2.3 и patch updater/Server console/Welcome recovery 3.2.4.
+3.3.1 является текущим исправляющим выпуском: она сохраняет продуктовую линию 3.3.0 и исправляет запуск установленного Windows Server, включая обязательный `shared/pulse-catalog.cjs` в Electron payload. Security boundary, schema 8, API v3 и Trust/MLS API v4 не изменены.
 
 ## 2. Быстрый выбор
 
@@ -36,20 +36,20 @@
 
 | Документ | Scope | Status |
 |---|---|---|
-| [Product Overview](PRODUCT_OVERVIEW.md) | purpose, platforms, capabilities, boundaries | Current 3.2.4 |
-| [Architecture](ARCHITECTURE.md) | components, data flow, storage, updater, Trust/MLS | Current 3.2.4 |
-| [Project Index](../PROJECT_INDEX.md) | entrypoints, modules, API, tests | Current 3.2.4 |
-| [Security Model](SECURITY_MODEL.md) | threat model, controls, metadata, residual risk | Current 3.2.4 |
+| [Product Overview](PRODUCT_OVERVIEW.md) | purpose, platforms, capabilities, boundaries | Current through 3.3.1 |
+| [Architecture](ARCHITECTURE.md) | components, data flow, storage, updater, Trust/MLS | Current through 3.3.1 |
+| [Project Index](../PROJECT_INDEX.md) | entrypoints, modules, API, tests | Current through 3.3.1 |
+| [Security Model](SECURITY_MODEL.md) | threat model, controls, metadata, residual risk | Current through 3.3.1 |
 | [Pulse Cloud Boundary ADR](ADR_0001_PULSE_CLOUD_BOUNDARY.md) | Local Server / Cloud authority separation | Current decision |
 
 ## 4. Security
 
 | Документ | Назначение | Status |
 |---|---|---|
-| [Security Policy](../SECURITY.md) | supported versions and private disclosure | Current 3.2.4 |
+| [Security Policy](../SECURITY.md) | supported versions and private disclosure | Current through 3.3.1 |
 | [Security Verification Summary](../SECURITY_AUDIT.md) | automated verification and residual risk | Current 3.2.4 |
-| [Security Review 3.2.4](../SECURITY_REVIEW_3.2.4.md) | updater, console, Welcome recovery, test mode | Release-specific current |
-| [Release Verification 3.2.4](../RELEASE_VERIFICATION_3.2.4.md) | CI and compatibility evidence | Release-specific current |
+| [Security Review 3.3.0](../SECURITY_REVIEW_3.3.0.md) | current security boundary inherited unchanged by 3.3.1 | Release-specific current |
+| [Release Verification 3.3.1](../RELEASE_VERIFICATION_3.3.1.md) | test-first regression, CI, release and asset evidence | Release-specific current |
 | [Security Review 3.2.3](../SECURITY_REVIEW_3.2.3.md) | resource governance hardening | Historical release-specific |
 | [Trust Core 3.2.0](TRUST_CORE_3.2.0.md) | original Trust/MLS foundation | Historical foundation |
 | [Schema 8 Migration](MIGRATION_3.2.0.md) | schema 7 → 8 and rollback | Current schema history |
@@ -67,7 +67,7 @@
 ## 6. Testing
 
 - [Acceptance Test Guide](../TESTER_GUIDE.md);
-- [Release Verification 3.2.4](../RELEASE_VERIFICATION_3.2.4.md);
+- [Release Verification 3.3.1](../RELEASE_VERIFICATION_3.3.1.md);
 - [Security Verification Summary](../SECURITY_AUDIT.md);
 - `npm run release:check`;
 - `npm run test:soak`;
@@ -86,9 +86,9 @@
 
 | Документ | Назначение |
 |---|---|
-| [Release Notes 3.2.4](../RELEASE_NOTES_3.2.4.md) | current patch scope |
-| [Security Review 3.2.4](../SECURITY_REVIEW_3.2.4.md) | release security boundary |
-| [Release Verification 3.2.4](../RELEASE_VERIFICATION_3.2.4.md) | authoritative evidence |
+| [Release Notes 3.3.1](../RELEASE_NOTES_3.3.1.md) | current Server startup patch scope |
+| [Security Review 3.3.0](../SECURITY_REVIEW_3.3.0.md) | security boundary inherited unchanged by 3.3.1 |
+| [Release Verification 3.3.1](../RELEASE_VERIFICATION_3.3.1.md) | authoritative test and publication evidence |
 | [Changelog](../CHANGELOG.md) | release history |
 | [Release Policy](RELEASE_POLICY.md) | SemVer/classifications/gates |
 | [GitHub Release Guide](GITHUB_RELEASE.md) | tags/assets/updater |
@@ -111,7 +111,7 @@
 - Superseded;
 - Obsolete automation.
 
-Historical branch documentation describes that branch only. It is not updated to claim current 3.2.4 behavior. Complete rules: [Branch Documentation Policy](BRANCH_DOCUMENTATION_POLICY.md). Central lifecycle index: [BRANCHES.md](../BRANCHES.md).
+Historical branch documentation describes that branch only. It is not updated to claim current 3.3.1 behavior. Complete rules: [Branch Documentation Policy](BRANCH_DOCUMENTATION_POLICY.md). Central lifecycle index: [BRANCHES.md](../BRANCHES.md).
 
 ## 11. Document status vocabulary
 

@@ -2,12 +2,12 @@
 
 ## 1. Область
 
-Runbook относится к Nexora `3.2.4`:
+Runbook относится к Nexora `3.3.1`:
 
 - Local Server schema 8;
 - Application API v3;
 - Trust/MLS/encrypted-media API v4;
-- Source/PWA prerelease;
+- published `UNSIGNED-TEST` prerelease;
 - signed production baseline `3.1.2`.
 
 Цель — repeatable startup, monitoring, maintenance, backup, restore, upgrade и incident procedures.

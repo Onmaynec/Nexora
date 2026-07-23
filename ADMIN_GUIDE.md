@@ -4,14 +4,14 @@
 
 | Параметр | Значение |
 |---|---|
-| Repository version | `3.2.4` |
-| Distribution | Source/PWA prerelease |
+| Repository version | `3.3.1` |
+| Distribution | Published `UNSIGNED-TEST` prerelease |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
 | Trust/MLS/encrypted-media API | v4 |
 | Local Server database | SQLite schema 8 |
 
-`3.2.4` предназначена для controlled prerelease testing. Signed production deployment должен использовать подтверждённую release classification и complete signed assets.
+`3.3.1` опубликована как controlled `UNSIGNED-TEST` prerelease. Signed production deployment должен использовать подтверждённую signed release classification и полный набор updater assets.
 
 ## 2. Deployment requirements
 

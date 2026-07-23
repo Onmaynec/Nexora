@@ -19,12 +19,13 @@ Required controls:
 | Classification | Artifacts | Updater eligible |
 |---|---|---|
 | Source/PWA prerelease | source ZIP, PWA ZIP, SPDX SBOM, checksums | no |
+| Published UNSIGNED-TEST prerelease | Client/Server `.exe`, Android APK, source/PWA/SBOM/checksums; no updater metadata | no |
 | Stable signed Windows | signed Client/Server `.exe`, blockmap, `latest.yml`, source/PWA/SBOM/checksums | yes |
 | Local unsigned build | local test output | no |
 
 Current status:
 
-- `3.2.4` — Source/PWA prerelease;
+- `3.3.1` — published `UNSIGNED-TEST` prerelease without `latest.yml` or `.blockmap`;
 - `3.1.2` — last confirmed signed production baseline.
 
 ## 3. Secrets

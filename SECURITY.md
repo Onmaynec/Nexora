@@ -4,8 +4,8 @@
 
 | Версия | Канал | Security status |
 |---|---|---|
-| `3.2.4` | Source/PWA prerelease | Текущая поддерживаемая prerelease-линия; security fixes принимаются |
-| `3.2.0–3.2.3` | Superseded prereleases | Обновитесь до `3.2.4`; отчёты принимаются для regression/impact analysis |
+| `3.3.1` | Published `UNSIGNED-TEST` prerelease | Текущая поддерживаемая prerelease-линия; security fixes принимаются |
+| `3.2.0–3.3.0` | Superseded prereleases | Обновитесь до `3.3.1`; отчёты принимаются для regression/impact analysis |
 | `3.1.x` | Signed production baseline | Поддерживается |
 | `3.0.x` и старше | Historical | Не поддерживается |
 

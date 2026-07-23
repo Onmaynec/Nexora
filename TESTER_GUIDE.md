@@ -2,14 +2,14 @@
 
 ## 1. Область проверки
 
-- current version: `3.2.4` Source/PWA prerelease;
+- current version: `3.3.1` published `UNSIGNED-TEST` prerelease;
 - signed production baseline: `3.1.2`;
 - Windows Client/Server, Browser/PWA и Android;
 - Application API v3;
 - Trust/MLS/encrypted-media API v4;
 - SQLite schema 8.
 
-3.2.4 тестируется с disposable accounts и test data. Она не является signed stable Windows release и не заявляется как independently audited E2EE.
+3.3.1 тестируется с disposable accounts и test data. Она не является signed stable Windows release и не заявляется как independently audited E2EE. Критическая acceptance-проверка: установить Windows Server, запустить его и подтвердить отсутствие `MODULE_NOT_FOUND` для `shared/pulse-catalog.cjs` до открытия Server UI.
 
 ## 2. Test record
 

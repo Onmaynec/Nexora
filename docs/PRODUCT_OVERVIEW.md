@@ -17,13 +17,13 @@ Nexora — self-hosted платформа обмена сообщениями д
 
 | Параметр | Значение |
 |---|---|
-| Current repository version | `3.2.4` |
-| Distribution | Source/PWA prerelease |
+| Current repository version | `3.3.1` |
+| Distribution | Published `UNSIGNED-TEST` prerelease |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
 | Trust/MLS/encrypted-media API | v4 |
 | Local Server database | SQLite schema 8 |
-| Migration from 3.2.0–3.2.3 | не требуется |
+| Local Server migration from 3.2.0–3.3.0 | не требуется |
 | Independent E2EE/security approval | не завершён |
 
 Patch lineage:
@@ -32,7 +32,10 @@ Patch lineage:
 - `3.2.1` — authentication bootstrap ordering и serialized Server shutdown;
 - `3.2.2` — Trust configuration lifecycle race и safe encrypted-draft reads;
 - `3.2.3` — resource governance, route limiting, strict recovery validation и security-state cleanup;
-- `3.2.4` — Windows updater lifecycle, audited Server console, automatic MLS Welcome recovery, post-update UX и test-mode diagnostics.
+- `3.2.4` — Windows updater lifecycle, audited Server console, automatic MLS Welcome recovery, post-update UX и test-mode diagnostics;
+- `3.2.5` — messaging/media regressions, developer commands и encrypted outbox corrections;
+- `3.3.0` — Trust recovery, spendable Impulses/Pulse, voice waveform UX, website и complete artifact pipeline;
+- `3.3.1` — packaged Windows Server startup correction: `shared/**/*` включён в `app.asar` и защищён release gate.
 
 ## 3. Модель развёртывания
 

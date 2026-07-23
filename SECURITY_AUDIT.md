@@ -1,8 +1,8 @@
 # Nexora Security Verification Summary
 
-**Дата документа:** 22 июля 2026  
-**Текущая версия:** `3.2.4`  
-**Канал:** Source/PWA prerelease  
+**Дата документа:** 23 июля 2026  
+**Текущая версия:** `3.3.1`  
+**Канал:** Published `UNSIGNED-TEST` prerelease  
 **Signed production baseline:** `3.1.2`
 
 ## 1. Область
@@ -11,8 +11,9 @@
 
 Авторитетные материалы:
 
-- [Security Review 3.2.4](SECURITY_REVIEW_3.2.4.md);
-- [Release Verification 3.2.4](RELEASE_VERIFICATION_3.2.4.md);
+- [Security Review 3.3.0](SECURITY_REVIEW_3.3.0.md) — security boundary, unchanged by 3.3.1;
+- [Release Verification 3.3.1](RELEASE_VERIFICATION_3.3.1.md);
+- [Release Notes 3.3.1](RELEASE_NOTES_3.3.1.md);
 - [Security Review 3.2.3](SECURITY_REVIEW_3.2.3.md);
 - [Security Model](docs/SECURITY_MODEL.md).
 
@@ -20,18 +21,18 @@
 
 | Параметр | Значение |
 |---|---|
-| Version | `3.2.4` |
+| Version | `3.3.1` |
 | Application API | v3 |
 | Trust/MLS/encrypted-media API | v4 |
 | Local Server database | SQLite schema 8 |
-| Migration from 3.2.0–3.2.3 | не требуется |
+| Local Server migration from 3.2.0–3.3.0 | не требуется |
 | Stable signed Windows approval | не предоставлен |
 
 ## 3. Release evidence
 
-Основной implementation gate 3.2.4: CI run `#334`, ID `29942843275`.
+Основной implementation gate 3.3.1: PR CI run `29998152125`.
 
-Merge-head multi-platform gate: CI run `#343`, ID `29943869863`.
+Focused Nexora 3.3 regressions: run `29998152148`. Release packaging/publication: run `29998460934`.
 
 Проверены:
 
@@ -46,7 +47,7 @@ Merge-head multi-platform gate: CI run `#343`, ID `29943869863`.
 | Schema 8 soak | PASS |
 | Android `assembleDebug` | PASS |
 
-Детали и исключения runner timing приведены в [Release Verification 3.2.4](RELEASE_VERIFICATION_3.2.4.md).
+Детали test-first regression, runner gates, packaging и publication приведены в [Release Verification 3.3.1](RELEASE_VERIFICATION_3.3.1.md). Исправление 3.3.1 не расширяет security boundary: оно восстанавливает dependency closure упакованного Server и добавляет fail-fast release validation.
 
 ## 4. Application security
 
@@ -81,7 +82,7 @@ Merge-head multi-platform gate: CI run `#343`, ID `29943869863`.
 - strict recovery scope, epoch, hash и public-state validation;
 - startup/hourly expired security-state cleanup.
 
-## 6. 3.2.4 patch verification
+## 6. Historical 3.2.4 patch verification
 
 ### Client updater
 

@@ -2,9 +2,9 @@
 
 ## 1. Область
 
-Документ относится к Nexora `3.2.4`:
+Документ относится к Nexora `3.3.1`:
 
-- Source/PWA prerelease;
+- published `UNSIGNED-TEST` prerelease;
 - signed production baseline `3.1.2`;
 - Application API v3;
 - Trust/MLS/encrypted-media API v4;
@@ -17,7 +17,7 @@
 | Local development | development/tests | localhost, Node.js 22.16+, npm |
 | Private LAN/VPN | private installation | HTTPS, firewall, fingerprint verification |
 | Public HTTPS | internet access | reverse proxy, public certificate, exact `allowedOrigins`, monitoring, backups |
-| Controlled 3.2.4 prerelease | Trust/MLS/updater validation | disposable data, compatible clients, documented limitations |
+| Controlled 3.3.1 prerelease | Trust/MLS/updater validation | disposable data, compatible clients, documented limitations |
 | Pulse production | commercial Cloud integration | separate Cloud, provider, mail, key management, legal controls |
 
 Direct port forwarding Local Server без reverse proxy, monitoring и firewall не является supported production topology.

@@ -1,4 +1,4 @@
-# Модель безопасности Nexora 3.2.4
+# Модель безопасности Nexora 3.3.1
 
 ## 1. Область документа
 
@@ -6,8 +6,8 @@
 
 | Параметр | Значение |
 |---|---|
-| Version | `3.2.4` |
-| Distribution | Source/PWA prerelease |
+| Version | `3.3.1` |
+| Distribution | Published `UNSIGNED-TEST` prerelease |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
 | Trust/MLS/encrypted-media API | v4 |
