@@ -6,6 +6,15 @@ const { execFileSync } = require("node:child_process");
 
 const root = path.resolve(__dirname, "..");
 
+function replaceInFile(relativePath, replacements) {
+  const file = path.join(root, relativePath);
+  let source = fs.readFileSync(file, "utf8");
+  for (const [before, after] of replacements) {
+    source = source.split(before).join(after);
+  }
+  fs.writeFileSync(file, source, "utf8");
+}
+
 const contributingPath = path.join(root, "CONTRIBUTING.md");
 const contributing = fs.readFileSync(contributingPath, "utf8");
 const currentBefore = "| Repository version | `3.3.1` |";
@@ -15,6 +24,47 @@ if (contributing.includes(currentBefore)) {
 } else if (!contributing.includes(currentAfter)) {
   throw new Error("CONTRIBUTING.md does not contain a recognized current version marker");
 }
+
+const currentDocuments = [
+  "README.md",
+  "PROJECT_INDEX.md",
+  "docs/README.md",
+  "docs/ARCHITECTURE.md",
+  "docs/SECURITY_MODEL.md",
+  "android/README.md",
+  "SECURITY.md",
+  "SECURITY_AUDIT.md",
+  "SUPPORT.md",
+  "CONTRIBUTING.md",
+  "ADMIN_GUIDE.md",
+  "TESTER_GUIDE.md",
+  "BRANCH_STATUS.md",
+  "BRANCHES.md",
+  "docs/PRODUCT_OVERVIEW.md",
+  "docs/OPERATIONS_RUNBOOK.md",
+  "docs/DEPLOYMENT.md",
+  "docs/RELEASE_POLICY.md",
+  "docs/GITHUB_RELEASE.md",
+  "docs/RELEASE_CHECKLIST.md",
+  ".github/ISSUE_TEMPLATE/bug_report.yml",
+  "website/index.html",
+  "website/app.js",
+  "website/site-fixes.js",
+];
+
+for (const relativePath of currentDocuments) {
+  replaceInFile(relativePath, [
+    ["RELEASE_VERIFICATION_3.2.4.md", "RELEASE_VERIFICATION_3.3.2.md"],
+    ["Release Verification 3.2.4", "Release Verification 3.3.2"],
+  ]);
+}
+
+replaceInFile("TESTER_GUIDE.md", [
+  ["previous signed Client → signed 3.2.4", "previous signed Client → signed 3.3.2"],
+  ["## 19. Server console 3.2.4", "## 19. Server console 3.3.0+"],
+  ["### 3.1.x → 3.2.4", "### 3.1.x → 3.3.2"],
+  ["### 3.2.0–3.2.3 → 3.2.4", "### 3.2.0–3.3.1 → 3.3.2"],
+]);
 
 const canonicalChangelog = execFileSync("git", ["show", "origin/main:CHANGELOG.md"], {
   cwd: root,
@@ -61,4 +111,4 @@ fs.writeFileSync(
   "utf8",
 );
 
-console.log("Synchronized CONTRIBUTING.md and replaced only the canonical 3.3.2 changelog section.");
+console.log("Synchronized current verification links, Tester Guide baselines and canonical 3.3.2 changelog section.");
