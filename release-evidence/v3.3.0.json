@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-07-23T00:29:22.509Z",
+  "repository": "Onmaynec/Nexora",
+  "tag": "v3.3.0",
+  "tagSha": "a46c080e12b9081b448dad6426bf7c44156114cd",
+  "releaseName": "Nexora 3.3.0 — UNSIGNED TEST BUILDS",
+  "releaseUrl": "https://github.com/Onmaynec/Nexora/releases/tag/v3.3.0",
+  "draft": false,
+  "prerelease": true,
+  "distribution": "unsigned-test",
+  "updaterMetadataPublished": false,
+  "requiredAssets": [
+    "Nexora-Android-3.3.0-UNSIGNED-TEST.apk",
+    "Nexora-3.3.0-source.zip",
+    "Nexora-PWA-3.3.0.zip",
+    "Nexora-3.3.0.spdx.json",
+    "SHA256SUMS.txt",
+    "Nexora-Client-Setup-3.3.0-UNSIGNED-TEST.exe",
+    "Nexora-Server-Setup-3.3.0-UNSIGNED-TEST.exe"
+  ],
+  "assets": [
+    {
+      "name": "Nexora-3.3.0-source.zip",
+      "size": 1783226,
+      "url": "https://github.com/Onmaynec/Nexora/releases/download/v3.3.0/Nexora-3.3.0-source.zip",
+      "contentType": "application/zip",
+      "digest": "sha256:2ce56e992afcde4c1c110d23f8ea140ea66827d04255a630859251505977a24b"
+    },
+    {
+      "name": "Nexora-3.3.0.spdx.json",
+      "size": 134466,
+      "url": "https://github.com/Onmaynec/Nexora/releases/download/v3.3.0/Nexora-3.3.0.spdx.json",
+      "contentType": "application/json",
+      "digest": "sha256:b3cca2def42b2453f9d02da7ec7b9dd4b14462e78d030566cf0a3da6fd37b4f3"
+    },
+    {
+      "name": "Nexora-Android-3.3.0-UNSIGNED-TEST.apk",
+      "size": 848686,
+      "url": "https://github.com/Onmaynec/Nexora/releases/download/v3.3.0/Nexora-Android-3.3.0-UNSIGNED-TEST.apk",
+      "contentType": "application/vnd.android.package-archive",
+      "digest": "sha256:2cd4f1fb52dd59843131ebebe6806308b0ec2d8818ece8b54dbbe354beaa29b9"
+    },
+    {
+      "name": "Nexora-Client-Setup-3.3.0-UNSIGNED-TEST.exe",
+      "size": 105353047,
+      "url": "https://github.com/Onmaynec/Nexora/releases/download/v3.3.0/Nexora-Client-Setup-3.3.0-UNSIGNED-TEST.exe",
+      "contentType": "application/x-msdownload",
+      "digest": "sha256:c5e79b5f04ee2dc912a0adcae1457d837f428151a8e20189fbe76f495745e243"
+    },
+    {
+      "name": "Nexora-PWA-3.3.0.zip",
+      "size": 1258671,
+      "url": "https://github.com/Onmaynec/Nexora/releases/download/v3.3.0/Nexora-PWA-3.3.0.zip",
+      "contentType": "application/zip",
+      "digest": "sha256:78cff1a71ee1c54fab30b36ff721f830c9800deb1492ee3d8cb905aa1b330145"
+    },
+    {
+      "name": "Nexora-Server-Setup-3.3.0-UNSIGNED-TEST.exe",
+      "size": 106523620,
+      "url": "https://github.com/Onmaynec/Nexora/releases/download/v3.3.0/Nexora-Server-Setup-3.3.0-UNSIGNED-TEST.exe",
+      "contentType": "application/x-msdownload",
+      "digest": "sha256:1fc91dbd631818bec5f673a1b2f9b068e84bf9b8f3626d6f399214d39909ca83"
+    },
+    {
+      "name": "SHA256SUMS.txt",
+      "size": 597,
+      "url": "https://github.com/Onmaynec/Nexora/releases/download/v3.3.0/SHA256SUMS.txt",
+      "contentType": "text/plain; charset=utf-8",
+      "digest": "sha256:553fe901b5ab2f5179da80a16c9b72aa97b48cf6a735b9f22aa500f1fe5d21f3"
+    }
+  ]
+}
