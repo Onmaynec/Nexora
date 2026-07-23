@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#07050b" />
+  <meta name="theme-color" content="#050308" />
   <meta name="color-scheme" content="dark" />
-  <meta name="description" content="Nexora Aether — интерактивная песочница частиц и мини-игра." />
+  <meta name="description" content="Nexora Aether — интерактивная песочница частиц с физическими связями, хищниками и гравитационным коллапсом." />
   <link rel="icon" href="../assets/nexora-icon.png" type="image/png" />
   <link rel="stylesheet" href="game.css" />
   <title>Nexora Aether</title>
@@ -13,7 +13,7 @@
 <body>
   <a class="skip-link" href="#game-canvas" data-i18n="skip">Перейти к интерактиву</a>
 
-  <canvas id="game-canvas" aria-label="Nexora Aether interactive canvas"></canvas>
+  <canvas id="game-canvas" aria-label="Nexora Aether interactive particle sandbox"></canvas>
   <div class="ambient-grid" aria-hidden="true"></div>
   <div class="vignette" aria-hidden="true"></div>
 
@@ -24,15 +24,15 @@
       <small>AETHER</small>
     </a>
 
-    <div class="mode-switch" role="group" aria-label="Mode">
-      <button type="button" data-mode="sandbox" class="active" aria-pressed="true">Sandbox</button>
-      <button type="button" data-mode="game" aria-pressed="false">Game</button>
+    <div class="sandbox-badge" aria-label="Sandbox mode">
+      <i aria-hidden="true"></i>
+      <span>Sandbox</span>
     </div>
 
     <div class="header-status" aria-live="polite">
-      <div><small data-i18n="score">СЧЁТ</small><strong data-score>0</strong></div>
-      <div><small data-i18n="time">ВРЕМЯ</small><strong data-time>∞</strong></div>
       <div><small data-i18n="particles">ТОЧКИ</small><strong data-particle-count>0</strong></div>
+      <div><small data-i18n="predators">ХИЩНИКИ</small><strong data-predator-count>0</strong></div>
+      <div><small data-i18n="singularities">ДЫРЫ</small><strong data-black-hole-count>0</strong></div>
     </div>
 
     <div class="header-actions">
@@ -41,59 +41,64 @@
         <button type="button" data-lang="en" aria-pressed="false">EN</button>
       </div>
       <button class="icon-button" type="button" data-pause aria-pressed="false" title="Pause">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.25 5.25v13.5M15.75 5.25v13.5"/></svg>
         <span class="sr-only" data-i18n="pause">Пауза</span>
       </button>
       <button class="icon-button settings-button" type="button" data-settings-open aria-expanded="false" aria-controls="settings-panel">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.8 1.8 0 0 0 .36 1.98l.06.06-2.12 2.12-.06-.06a1.8 1.8 0 0 0-1.98-.36 1.8 1.8 0 0 0-1.1 1.64V20.5h-3v-.12a1.8 1.8 0 0 0-1.1-1.64 1.8 1.8 0 0 0-1.98.36l-.06.06-2.12-2.12.06-.06A1.8 1.8 0 0 0 6.6 15a1.8 1.8 0 0 0-1.64-1.1H4.5v-3h.46A1.8 1.8 0 0 0 6.6 9.8a1.8 1.8 0 0 0-.36-1.98l-.06-.06 2.12-2.12.06.06a1.8 1.8 0 0 0 1.98.36 1.8 1.8 0 0 0 1.1-1.64V4.5h3v-.08a1.8 1.8 0 0 0 1.1 1.64 1.8 1.8 0 0 0 1.98-.36l.06-.06 2.12 2.12-.06.06a1.8 1.8 0 0 0-.36 1.98 1.8 1.8 0 0 0 1.64 1.1h.46v3h-.46A1.8 1.8 0 0 0 19.4 15Z"/></svg>
+        <svg class="gear-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="3.15"/>
+          <path d="M12 2.75v2.1M12 19.15v2.1M21.25 12h-2.1M4.85 12h-2.1M18.54 5.46l-1.48 1.48M6.94 17.06l-1.48 1.48M18.54 18.54l-1.48-1.48M6.94 6.94 5.46 5.46"/>
+          <circle cx="12" cy="12" r="7.15"/>
+        </svg>
         <span class="sr-only" data-i18n="settings">Настройки</span>
       </button>
     </div>
   </header>
 
-  <main class="game-ui">
+  <main class="sandbox-ui">
     <section class="intro-card" data-intro>
       <span class="eyebrow">NEXORA INTERACTIVE LAB</span>
-      <h1 data-i18n="title">Aether Field</h1>
-      <p data-i18n="lead">Управляйте потоком частиц курсором, создавайте планеты, хищников и чёрные дыры. Все параметры можно изменить в реальном времени.</p>
+      <h1>Aether Flow</h1>
+      <p data-i18n="lead">Живое поле частиц: мягкие физические связи, магнитный коллапс, испаряющиеся чёрные дыры и хищники, возвращающие съеденные точки после перегрузки.</p>
       <div class="intro-actions">
         <button type="button" class="primary-button" data-intro-start><span data-i18n="start">Начать</span><b>→</b></button>
         <button type="button" class="ghost-button" data-intro-settings><span data-i18n="openSettings">Открыть настройки</span></button>
       </div>
-      <small data-i18n="hint">Клик по сцене использует выбранный инструмент. Space — пауза, S — настройки.</small>
+      <small data-i18n="hint">Курсор отталкивает точки. Удерживайте магнит над плотным облаком для коллапса. Правый клик удаляет объект.</small>
     </section>
 
     <div class="tool-dock" role="toolbar" aria-label="Aether tools">
       <button type="button" data-tool="cursor" class="active" aria-pressed="true">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 3 13 9-6 1.5L9 20 5 3Z"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 3.5 13.6 8.9-6.2 1.55-3.25 6.35L5 3.5Z"/></svg>
         <span data-i18n="toolCursor">Курсор</span>
       </button>
-      <button type="button" data-tool="blackHole" aria-pressed="false">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M4 12a8 8 0 0 1 14.7-4.4M20 12a8 8 0 0 1-14.7 4.4"/></svg>
-        <span data-i18n="toolBlackHole">Чёрная дыра</span>
+      <button type="button" data-tool="magnet" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4.5v7.2a6 6 0 0 0 12 0V4.5h-4v7.2a2 2 0 0 1-4 0V4.5H6Z"/><path d="M6 8.5h4M14 8.5h4"/></svg>
+        <span data-i18n="toolMagnet">Магнит</span>
       </button>
-      <button type="button" data-tool="planet" aria-pressed="false">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M3 14c2.5 2 6.7 2.4 11.2.6 4.5-1.8 7.5-5 6.8-7"/></svg>
-        <span data-i18n="toolPlanet">Планета</span>
+      <button type="button" data-tool="vortex" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.2 7.1A8 8 0 1 0 20 14"/><path d="M19.2 3.8v3.3h-3.3"/><path d="M15.5 10.2a4 4 0 1 0 .3 4.4"/></svg>
+        <span data-i18n="toolVortex">Вихрь</span>
       </button>
       <button type="button" data-tool="predator" aria-pressed="false">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12c3-5 7-7 12-5l4-2-1 5 1 5-4-2c-5 2-9 0-12-5Z"/><circle cx="14.5" cy="9" r=".8"/></svg>
+        <svg class="predator-tool-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12 11.5 3.8l-.7 5.1L21 12l-10.2 3.1.7 5.1L3 12Z"/><path d="m10.8 9 5.6 3-5.6 3 1.2-3-1.2-3Z"/></svg>
         <span data-i18n="toolPredator">Хищник</span>
       </button>
-      <button type="button" data-clear-objects>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13"/></svg>
-        <span data-i18n="clearObjects">Очистить</span>
+      <button type="button" data-tool="eraser" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4.7 15.2 8.9-8.9a2 2 0 0 1 2.8 0l2.3 2.3a2 2 0 0 1 0 2.8l-7.9 7.9H6.4l-1.7-1.7a1.7 1.7 0 0 1 0-2.4Z"/><path d="m10.5 9.4 4.1 4.1M10.8 19.3H20"/></svg>
+        <span data-i18n="toolEraser">Ластик</span>
+      </button>
+      <button type="button" data-restart-field>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.7 8.2A8 8 0 1 1 4 14"/><path d="M4.7 3.8v4.4h4.4"/></svg>
+        <span data-i18n="restart">Перезапуск</span>
       </button>
     </div>
 
-    <div class="game-message" data-game-message aria-live="polite"></div>
-
-    <section class="game-card" data-game-card hidden>
-      <span class="eyebrow">AETHER HARVEST</span>
-      <h2 data-i18n="gameTitle">Собирайте энергию</h2>
-      <p data-i18n="gameText">Направляйте частицы к планетам-коллекторам. Хищники и чёрные дыры отнимают энергию. Наберите 500 очков за 60 секунд.</p>
-      <button class="primary-button" type="button" data-game-start><span data-i18n="startRound">Начать раунд</span><b>→</b></button>
-    </section>
+    <div class="field-message" data-field-message aria-live="polite"></div>
+    <div class="collapse-meter" data-collapse-meter aria-hidden="true">
+      <span></span>
+      <b data-collapse-label>0%</b>
+    </div>
   </main>
 
   <div class="panel-backdrop" data-settings-backdrop hidden></div>
@@ -111,7 +116,8 @@
 
     <nav class="settings-tabs" role="tablist">
       <button type="button" role="tab" data-settings-tab="field" aria-selected="true" class="active" data-i18n="tabField">Поле</button>
-      <button type="button" role="tab" data-settings-tab="objects" aria-selected="false" data-i18n="tabObjects">Объекты</button>
+      <button type="button" role="tab" data-settings-tab="physics" aria-selected="false" data-i18n="tabPhysics">Физика</button>
+      <button type="button" role="tab" data-settings-tab="entities" aria-selected="false" data-i18n="tabEntities">Объекты</button>
       <button type="button" role="tab" data-settings-tab="visual" aria-selected="false" data-i18n="tabVisual">Вид</button>
       <button type="button" role="tab" data-settings-tab="system" aria-selected="false" data-i18n="tabSystem">Система</button>
     </nav>
@@ -119,34 +125,46 @@
     <div class="settings-scroll">
       <section class="settings-group active" data-settings-page="field">
         <h3 data-i18n="particlesGroup">Частицы</h3>
-        <label class="range-row"><span><b data-i18n="particleCount">Количество</b><output data-output="particleCount"></output></span><input type="range" min="30" max="420" step="10" data-setting="particleCount" /></label>
-        <label class="range-row"><span><b data-i18n="particleSize">Размер</b><output data-output="particleSize"></output></span><input type="range" min="0.7" max="4" step="0.1" data-setting="particleSize" /></label>
-        <label class="range-row"><span><b data-i18n="speed">Скорость</b><output data-output="speed"></output></span><input type="range" min="0.1" max="2.2" step="0.05" data-setting="speed" /></label>
-        <label class="range-row"><span><b data-i18n="connectionDistance">Дальность связей</b><output data-output="connectionDistance"></output></span><input type="range" min="40" max="240" step="5" data-setting="connectionDistance" /></label>
-        <label class="range-row"><span><b data-i18n="lineOpacity">Яркость линий</b><output data-output="lineOpacity"></output></span><input type="range" min="0" max="0.8" step="0.02" data-setting="lineOpacity" /></label>
+        <label class="range-row"><span><b data-i18n="particleCount">Количество</b><output data-output="particleCount"></output></span><input type="range" min="60" max="420" step="10" data-setting="particleCount" /></label>
+        <label class="range-row"><span><b data-i18n="particleSize">Размер</b><output data-output="particleSize"></output></span><input type="range" min="0.8" max="4" step="0.1" data-setting="particleSize" /></label>
+        <label class="range-row"><span><b data-i18n="speed">Скорость</b><output data-output="speed"></output></span><input type="range" min="0.1" max="2" step="0.05" data-setting="speed" /></label>
+        <label class="range-row"><span><b data-i18n="regeneration">Регенерация</b><output data-output="regenerationRate"></output></span><input type="range" min="0" max="5" step="0.25" data-setting="regenerationRate" /></label>
 
         <h3 data-i18n="cursorGroup">Курсор</h3>
-        <label class="select-row"><span data-i18n="cursorMode">Режим</span><select data-setting="cursorMode"><option value="repel" data-i18n="repel">Отталкивание</option><option value="attract" data-i18n="attract">Притяжение</option><option value="vortex" data-i18n="vortex">Вихрь</option><option value="none" data-i18n="off">Выключен</option></select></label>
-        <label class="range-row"><span><b data-i18n="cursorRadius">Радиус</b><output data-output="cursorRadius"></output></span><input type="range" min="40" max="320" step="5" data-setting="cursorRadius" /></label>
-        <label class="range-row"><span><b data-i18n="cursorForce">Сила</b><output data-output="cursorForce"></output></span><input type="range" min="0.1" max="5" step="0.1" data-setting="cursorForce" /></label>
-        <label class="switch-row"><span><b data-i18n="cursorGlow">Свечение курсора</b><small data-i18n="cursorGlowHint">Мягкий свет вокруг указателя</small></span><input type="checkbox" data-setting="cursorGlow" /></label>
+        <label class="range-row"><span><b data-i18n="cursorRadius">Радиус</b><output data-output="cursorRadius"></output></span><input type="range" min="60" max="320" step="5" data-setting="cursorRadius" /></label>
+        <label class="range-row"><span><b data-i18n="cursorForce">Сила</b><output data-output="cursorForce"></output></span><input type="range" min="0.5" max="7" step="0.1" data-setting="cursorForce" /></label>
+        <label class="switch-row"><span><b data-i18n="cursorGlow">Свечение курсора</b><small data-i18n="cursorGlowHint">Мягкий свет и подсветка ближайших связей</small></span><input type="checkbox" data-setting="cursorGlow" /></label>
       </section>
 
-      <section class="settings-group" data-settings-page="objects">
-        <h3 data-i18n="blackHolesGroup">Чёрные дыры</h3>
-        <label class="range-row"><span><b data-i18n="blackHoleForce">Сила</b><output data-output="blackHoleForce"></output></span><input type="range" min="0.4" max="6" step="0.1" data-setting="blackHoleForce" /></label>
-        <label class="range-row"><span><b data-i18n="blackHoleRadius">Радиус</b><output data-output="blackHoleRadius"></output></span><input type="range" min="45" max="260" step="5" data-setting="blackHoleRadius" /></label>
-        <label class="switch-row"><span><b data-i18n="absorption">Поглощение</b><small data-i18n="absorptionHint">Удаляет частицы в ядре</small></span><input type="checkbox" data-setting="blackHoleAbsorption" /></label>
+      <section class="settings-group" data-settings-page="physics">
+        <h3 data-i18n="linksGroup">Физические связи</h3>
+        <label class="range-row"><span><b data-i18n="connectionDistance">Дальность связи</b><output data-output="connectionDistance"></output></span><input type="range" min="45" max="220" step="5" data-setting="connectionDistance" /></label>
+        <label class="range-row"><span><b data-i18n="lineOpacity">Яркость линий</b><output data-output="lineOpacity"></output></span><input type="range" min="0" max="0.8" step="0.02" data-setting="lineOpacity" /></label>
+        <label class="range-row"><span><b data-i18n="linkStrength">Сила пружины</b><output data-output="linkStrength"></output></span><input type="range" min="0" max="0.012" step="0.0005" data-setting="linkStrength" /></label>
+        <label class="range-row"><span><b data-i18n="maxLinks">Связей на точку</b><output data-output="maxLinks"></output></span><input type="range" min="1" max="6" step="1" data-setting="maxLinks" /></label>
+        <label class="range-row"><span><b data-i18n="separation">Ближнее отталкивание</b><output data-output="separation"></output></span><input type="range" min="0" max="1" step="0.05" data-setting="separation" /></label>
 
-        <h3 data-i18n="planetsGroup">Планеты</h3>
-        <label class="range-row"><span><b data-i18n="planetForce">Гравитация</b><output data-output="planetForce"></output></span><input type="range" min="0" max="2.8" step="0.1" data-setting="planetForce" /></label>
-        <label class="range-row"><span><b data-i18n="planetSize">Размер</b><output data-output="planetSize"></output></span><input type="range" min="14" max="54" step="1" data-setting="planetSize" /></label>
-        <label class="switch-row"><span><b data-i18n="planetCollectors">Коллекторы энергии</b><small data-i18n="planetCollectorsHint">Дают очки в режиме Game</small></span><input type="checkbox" data-setting="planetCollectors" /></label>
+        <h3 data-i18n="impulseGroup">Импульс и вихрь</h3>
+        <label class="range-row"><span><b data-i18n="impulseForce">Сила импульса</b><output data-output="impulseForce"></output></span><input type="range" min="0.5" max="9" step="0.1" data-setting="impulseForce" /></label>
+        <label class="range-row"><span><b data-i18n="vortexForce">Сила вихря</b><output data-output="vortexForce"></output></span><input type="range" min="0.2" max="6" step="0.1" data-setting="vortexForce" /></label>
+      </section>
+
+      <section class="settings-group" data-settings-page="entities">
+        <h3 data-i18n="collapseGroup">Магнитный коллапс</h3>
+        <label class="range-row"><span><b data-i18n="collapseThreshold">Порог частиц</b><output data-output="collapseThreshold"></output></span><input type="range" min="80" max="120" step="5" data-setting="collapseThreshold" /></label>
+        <label class="range-row"><span><b data-i18n="collapseRadius">Радиус ядра</b><output data-output="collapseRadius"></output></span><input type="range" min="55" max="120" step="5" data-setting="collapseRadius" /></label>
+        <label class="range-row"><span><b data-i18n="collapseHold">Время удержания</b><output data-output="collapseHold"></output></span><input type="range" min="2" max="6" step="0.25" data-setting="collapseHold" /></label>
+
+        <h3 data-i18n="blackHolesGroup">Чёрные дыры</h3>
+        <label class="range-row"><span><b data-i18n="blackHoleForce">Сила</b><output data-output="blackHoleForce"></output></span><input type="range" min="0.5" max="6" step="0.1" data-setting="blackHoleForce" /></label>
+        <label class="range-row"><span><b data-i18n="blackHoleRadius">Радиус</b><output data-output="blackHoleRadius"></output></span><input type="range" min="70" max="220" step="5" data-setting="blackHoleRadius" /></label>
+        <label class="range-row"><span><b data-i18n="blackHoleLifetime">Время жизни</b><output data-output="blackHoleLifetime"></output></span><input type="range" min="20" max="40" step="1" data-setting="blackHoleLifetime" /></label>
 
         <h3 data-i18n="predatorsGroup">Хищники</h3>
-        <label class="range-row"><span><b data-i18n="predatorSpeed">Скорость</b><output data-output="predatorSpeed"></output></span><input type="range" min="0.2" max="3" step="0.1" data-setting="predatorSpeed" /></label>
-        <label class="range-row"><span><b data-i18n="predatorSense">Радиус поиска</b><output data-output="predatorSense"></output></span><input type="range" min="80" max="480" step="10" data-setting="predatorSense" /></label>
-        <label class="switch-row"><span><b data-i18n="predatorTrails">Следы хищников</b><small data-i18n="predatorTrailsHint">Показывает направление движения</small></span><input type="checkbox" data-setting="predatorTrails" /></label>
+        <label class="range-row"><span><b data-i18n="predatorSpeed">Скорость</b><output data-output="predatorSpeed"></output></span><input type="range" min="0.3" max="3" step="0.1" data-setting="predatorSpeed" /></label>
+        <label class="range-row"><span><b data-i18n="predatorSense">Радиус поиска</b><output data-output="predatorSense"></output></span><input type="range" min="100" max="520" step="10" data-setting="predatorSense" /></label>
+        <label class="range-row"><span><b data-i18n="predatorCapacity">Вместимость</b><output data-output="predatorCapacity"></output></span><input type="range" min="14" max="60" step="2" data-setting="predatorCapacity" /></label>
+        <label class="switch-row"><span><b data-i18n="predatorTrails">Следы хищников</b><small data-i18n="predatorTrailsHint">Неоновый след показывает направление атаки</small></span><input type="checkbox" data-setting="predatorTrails" /></label>
       </section>
 
       <section class="settings-group" data-settings-page="visual">
@@ -158,7 +176,7 @@
 
         <h3 data-i18n="effectsGroup">Эффекты</h3>
         <label class="switch-row"><span><b data-i18n="trails">Следы частиц</b><small data-i18n="trailsHint">Плавное затухание предыдущего кадра</small></span><input type="checkbox" data-setting="trails" /></label>
-        <label class="switch-row"><span><b data-i18n="pulse">Пульсация</b><small data-i18n="pulseHint">Изменение размера точек</small></span><input type="checkbox" data-setting="pulse" /></label>
+        <label class="switch-row"><span><b data-i18n="pulse">Пульсация</b><small data-i18n="pulseHint">Небольшое изменение размера точек</small></span><input type="checkbox" data-setting="pulse" /></label>
         <label class="switch-row"><span><b data-i18n="showGrid">Фоновая сетка</b><small data-i18n="showGridHint">Техническая сетка Nexora</small></span><input type="checkbox" data-setting="showGrid" /></label>
         <label class="range-row"><span><b data-i18n="glowStrength">Интенсивность свечения</b><output data-output="glowStrength"></output></span><input type="range" min="0" max="30" step="1" data-setting="glowStrength" /></label>
       </section>
@@ -167,15 +185,15 @@
         <h3 data-i18n="performanceGroup">Производительность</h3>
         <label class="select-row"><span data-i18n="quality">Качество</span><select data-setting="quality"><option value="auto" data-i18n="auto">Авто</option><option value="low" data-i18n="low">Низкое</option><option value="medium" data-i18n="medium">Среднее</option><option value="high" data-i18n="high">Высокое</option></select></label>
         <label class="select-row"><span data-i18n="fpsLimit">Ограничение FPS</span><select data-setting="fpsLimit"><option value="30">30</option><option value="60">60</option><option value="120">120</option></select></label>
-        <label class="switch-row"><span><b data-i18n="autoReduce">Автоснижение качества</b><small data-i18n="autoReduceHint">Уменьшает нагрузку при падении FPS</small></span><input type="checkbox" data-setting="autoReduce" /></label>
-        <label class="switch-row"><span><b data-i18n="respectMotion">Учитывать системное уменьшение движения</b><small data-i18n="respectMotionHint">Можно отключить вручную</small></span><input type="checkbox" data-setting="respectReducedMotion" /></label>
+        <label class="switch-row"><span><b data-i18n="autoReduce">Автоснижение качества</b><small data-i18n="autoReduceHint">Уменьшает нагрузку при устойчивом падении FPS</small></span><input type="checkbox" data-setting="autoReduce" /></label>
+        <label class="switch-row"><span><b data-i18n="respectMotion">Учитывать уменьшение движения</b><small data-i18n="respectMotionHint">Можно отключить вручную</small></span><input type="checkbox" data-setting="respectReducedMotion" /></label>
 
         <h3 data-i18n="presetsGroup">Пресеты</h3>
         <div class="preset-grid">
-          <button type="button" data-preset="balanced" data-i18n="presetBalanced">Баланс</button>
-          <button type="button" data-preset="nebula" data-i18n="presetNebula">Туманность</button>
-          <button type="button" data-preset="chaos" data-i18n="presetChaos">Хаос</button>
-          <button type="button" data-preset="mobile" data-i18n="presetMobile">Mobile</button>
+          <button type="button" data-preset="original" data-i18n="presetOriginal">Original</button>
+          <button type="button" data-preset="elastic" data-i18n="presetElastic">Elastic</button>
+          <button type="button" data-preset="nebula" data-i18n="presetNebula">Nebula</button>
+          <button type="button" data-preset="predator" data-i18n="presetPredator">Predator</button>
         </div>
 
         <h3 data-i18n="configGroup">Конфигурация</h3>
