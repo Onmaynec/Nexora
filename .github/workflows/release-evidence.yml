@@ -38,14 +38,14 @@ jobs:
           set -euo pipefail
           version=$(node -p "require('./package.json').version")
           tag="v${version}"
-          for attempt in $(seq 1 15); do
+          for attempt in $(seq 1 90); do
             if gh release view "$tag" --repo "${{ github.repository }}" --json tagName,name,isDraft,isPrerelease,url,assets > /tmp/release.json 2>/dev/null; then
               echo "Release $tag is available."
               echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
               echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
               exit 0
             fi
-            echo "Attempt $attempt/15: release $tag is not published yet."
+            echo "Attempt $attempt/90: release $tag is not published yet."
             sleep 10
           done
           echo "Release $tag was not published within the verification window." >&2
