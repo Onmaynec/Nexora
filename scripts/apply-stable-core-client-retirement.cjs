@@ -62,7 +62,14 @@ replaceExact(
   '{section === "chats" && (activeConversation ? <SecureMessagePane key={activeConversation.id} conversation={activeConversation} initialMessageId={jumpTarget?.conversationId === activeConversation.id ? jumpTarget.messageId : null} onJumpHandled={() => setJumpTarget(null)} me={me} socket={socket} onlineUserIds={onlineUserIds} trustState={trustState} onRefresh={onRefresh} onDetails={() => setDetailsOpen((value) => !value)} showToast={showToast} /> : <EmptyState icon={MessageCircleMore} title="Выберите чат" description="Ваши личные диалоги и комнаты появятся слева." />)}',
 `{section === "chats" && (activeConversation
           ? activeConversation.legacySecure
-            ? <LegacySecureHistoryPane key={activeConversation.id} conversation={activeConversation} onDetails={() => setDetailsOpen((value) => !value)} showToast={showToast} />
+            ? <LegacySecureHistoryPane
+              key={activeConversation.id}
+              conversation={activeConversation}
+              serverId={bootstrap.server?.id}
+              userId={me.id}
+              onDetails={() => setDetailsOpen((value) => !value)}
+              showToast={showToast}
+            />
             : <MessagePane
               key={activeConversation.id}
               conversation={activeConversation}
