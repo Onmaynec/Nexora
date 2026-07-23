@@ -10,6 +10,7 @@ on:
     paths:
       - "website/**"
       - ".github/workflows/pages.yml"
+      - "test/release-3.3.0-regressions.test.cjs"
   workflow_dispatch:
 
 permissions:
@@ -26,8 +27,23 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22.16.0
-      - run: node --check website/app.js
-      - run: node website/validate.mjs
+      - name: Validate restored source and targeted patches
+        run: |
+          node --check website/app.js
+          node --check website/site-fixes.js
+          node website/validate.mjs
+          node website/validate-restored.mjs
+      - name: Compose deployable site
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '\n\n' >> website/styles.css
+          cat website/site-fixes.css >> website/styles.css
+          printf '\n\n' >> website/app.js
+          cat website/site-fixes.js >> website/app.js
+          node --check website/app.js
+          grep -Fq 'class AetherField' website/app.js
+          grep -Fq 'restored-3.2.5-ux-20260723-1' website/build.json
 
   deploy:
     if: github.event_name != 'pull_request'
@@ -42,6 +58,15 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Compose restored site
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '\n\n' >> website/styles.css
+          cat website/site-fixes.css >> website/styles.css
+          printf '\n\n' >> website/app.js
+          cat website/site-fixes.js >> website/app.js
+          node --check website/app.js
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v6
       - name: Upload website artifact
@@ -51,22 +76,22 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-      - name: Verify published redesign
+      - name: Verify published restored site
         shell: bash
         run: |
           set -euo pipefail
-          url="${{ steps.deployment.outputs.page_url }}build.json?cache=redesign-20260722-4"
+          url="${{ steps.deployment.outputs.page_url }}build.json?cache=restored-3.2.5-ux-20260723-1"
           for attempt in $(seq 1 30); do
             payload="$(curl --fail --silent --show-error --location \
               --header 'Cache-Control: no-cache' \
               --header 'Pragma: no-cache' \
               "$url" || true)"
-            if grep -Fq '"siteBuild": "redesign-20260722-4"' <<<"$payload"; then
-              echo "Published redesign verified at $url"
+            if grep -Fq '"siteBuild": "restored-3.2.5-ux-20260723-1"' <<<"$payload"; then
+              echo "Published restored 3.2.5 UX verified at $url"
               exit 0
             fi
             echo "Attempt $attempt: CDN still serves an older build; retrying in 10 seconds."
             sleep 10
           done
-          echo "GitHub Pages did not expose redesign-20260722-4 within the verification window." >&2
+          echo "GitHub Pages did not expose restored-3.2.5-ux-20260723-1 within the verification window." >&2
           exit 1

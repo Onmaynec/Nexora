@@ -55,30 +55,49 @@ test("Pulse Sandbox serves catalog, receipts and room goals without Cloud fallba
   assert.match(sandbox, /WALLET_INSUFFICIENT_FUNDS/);
 });
 
-test("unsigned test binaries are downloadable but excluded from updater metadata", () => {
+test("unsigned test binaries remain downloadable without updater metadata", () => {
   const workflow = read(".github/workflows/release.yml");
-  const site = read("website/app.js");
+  const legacySite = read("website/app.js");
+  const siteFixes = read("website/site-fixes.js");
+  const composedSite = `${legacySite}\n${siteFixes}`;
   assert.ok(workflow.includes("Nexora-Client-Setup-$version-UNSIGNED-TEST.exe"));
   assert.ok(workflow.includes("Nexora-Server-Setup-$version-UNSIGNED-TEST.exe"));
   assert.ok(workflow.includes("Nexora-Android-$version-UNSIGNED-TEST.apk"));
   assert.ok(workflow.includes("Unsigned release must not expose updater metadata"));
   assert.ok(workflow.includes('if ($names -contains "latest.yml"'));
   assert.ok(workflow.includes("\\.blockmap$"));
-  assert.ok(site.includes("function signatureState"));
-  assert.ok(site.includes("unsigned|test-build|test\\.exe"));
-  assert.ok(site.includes("dataset.signature"));
+  assert.ok(composedSite.includes("function signatureState"));
+  assert.ok(composedSite.includes("unsigned[-_ ]?test|test-build|test\\.exe"));
+  assert.ok(composedSite.includes("dataset.signature"));
 });
 
-test("website 3.3 typography prevents overlapping headings and keeps controls clickable", () => {
+test("website keeps the 3.2.5 UX and applies only typography, localization and hit-testing fixes", () => {
   const html = read("website/index.html");
-  const css = read("website/styles.css");
-  const script = read("website/app.js");
-  assert.doesNotMatch(html, />3\.2\.4</);
-  assert.match(css, /overflow-wrap:anywhere/);
-  assert.match(css, /pointer-events:auto/);
-  assert.match(css, /"Bahnschrift"/);
-  assert.match(script, /document\.addEventListener\("click"/);
-  assert.match(script, /FALLBACK_VERSION = "3\.3\.0"/);
+  const legacyCss = read("website/styles.css");
+  const legacyScript = read("website/app.js");
+  const fixesCss = read("website/site-fixes.css");
+  const fixesScript = read("website/site-fixes.js");
+
+  for (const marker of ["product-window", "stage-orbit-a", "stage-orbit-b", "data-tilt", "floating-signal", "architecture-board", "trust-lifecycle"]) {
+    assert.ok(html.includes(marker), `missing restored UX marker: ${marker}`);
+  }
+  assert.match(legacyScript, /class AetherField/);
+  assert.match(legacyScript, /document\.querySelectorAll\("\[data-tilt\]"\)/);
+  assert.match(legacyScript, /requestAnimationFrame/);
+  assert.match(legacyCss, /@keyframes spin/);
+  assert.match(legacyCss, /@keyframes dataTravel/);
+
+  assert.match(fixesCss, /"Segoe UI Variable Text"/);
+  assert.match(fixesCss, /"Segoe UI Variable Display"/);
+  assert.match(fixesCss, /overflow-wrap: anywhere/);
+  assert.match(fixesCss, /pointer-events: auto/);
+  assert.doesNotMatch(fixesCss, /animation\s*:\s*none\s*!important/i);
+
+  assert.match(fixesScript, /FALLBACK_VERSION = "3\.3\.0"/);
+  assert.match(fixesScript, /document\.addEventListener\("click"/);
+  assert.match(fixesScript, /Самостоятельно размещаемая платформа/);
+  assert.match(fixesScript, /ПОЛНОМОЧИЯ СЕРВЕРА/);
+  assert.match(fixesScript, /applySignatureBadges/);
 });
 
 test("Pulse Cloud preserves raw Stripe webhook body", () => {

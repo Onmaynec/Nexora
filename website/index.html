@@ -3,45 +3,52 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#08050d" />
+  <meta name="theme-color" content="#07050b" />
   <meta name="color-scheme" content="dark" />
-  <meta name="description" content="Nexora 3.3 — self-hosted платформа коммуникаций для Windows, PWA и Android." />
-  <meta property="og:title" content="Nexora 3.3 — коммуникации под вашим контролем" />
-  <meta property="og:description" content="Local Server, Trust Core, MLS, encrypted media, Nexora Pulse и проверяемые release artifacts." />
+  <meta name="description" content="Nexora — self-hosted платформа обмена сообщениями для Windows, браузера/PWA и Android." />
+  <meta property="og:title" content="Nexora — коммуникации под вашим контролем" />
+  <meta property="og:description" content="Self-hosted messenger, Local Server, Trust Core, MLS, encrypted media and Nexora Pulse." />
   <meta property="og:type" content="website" />
   <meta property="og:image" content="assets/nexora-icon.png" />
   <link rel="icon" href="assets/nexora-icon.png" type="image/png" />
   <link rel="stylesheet" href="styles.css" />
-  <title>Nexora 3.3 — self-hosted messenger</title>
+  <title>Nexora — self-hosted messenger</title>
 </head>
 <body>
   <a class="skip-link" href="#main" data-i18n="skip">Перейти к содержимому</a>
   <canvas class="aether-canvas" data-aether aria-hidden="true"></canvas>
+  <div class="cursor-light" data-cursor-light aria-hidden="true"></div>
   <div class="page-grid" aria-hidden="true"></div>
   <div class="scroll-progress" aria-hidden="true"><i data-scroll-progress></i></div>
 
   <header class="site-header" data-header>
     <a class="brand" href="#top" aria-label="Nexora">
-      <img src="assets/nexora-icon.png" alt="" width="38" height="38" />
+      <img src="assets/nexora-icon.png" alt="" width="36" height="36" />
       <span>NEXORA</span>
     </a>
+
     <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav" data-menu-button>
-      <i></i><i></i><i></i><span class="sr-only" data-i18n="menuOpen">Открыть меню</span>
+      <i></i><i></i><i></i>
+      <span class="sr-only" data-i18n="menuOpen">Открыть меню</span>
     </button>
+
     <nav class="site-nav" id="site-nav" aria-label="Основная навигация" data-menu>
       <a href="#product" data-i18n="navProduct">Продукт</a>
       <a href="#architecture" data-i18n="navArchitecture">Архитектура</a>
-      <a href="#security" data-i18n="navSecurity">Безопасность</a>
-      <a href="#pulse" data-i18n="navPulse">Pulse</a>
+      <a href="#trust" data-i18n="navSecurity">Безопасность</a>
       <a href="#downloads" data-i18n="navDownloads">Загрузки</a>
       <a href="#docs" data-i18n="navDocs">Документация</a>
     </nav>
+
     <div class="header-actions">
       <div class="language-switch" role="group" aria-label="Language">
-        <button type="button" data-lang="ru" class="active" aria-pressed="true">RU</button>
-        <button type="button" data-lang="en" aria-pressed="false">EN</button>
+        <button type="button" data-lang="ru" class="active">RU</button>
+        <button type="button" data-lang="en">EN</button>
       </div>
-      <a class="header-github" href="https://github.com/Onmaynec/Nexora" target="_blank" rel="noreferrer">GitHub <span>↗</span></a>
+      <a class="header-github" href="https://github.com/Onmaynec/Nexora" target="_blank" rel="noreferrer">
+        GitHub
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg>
+      </a>
     </div>
   </header>
 
@@ -50,148 +57,406 @@
       <div class="hero-copy reveal">
         <div class="hero-status">
           <span class="status-pulse"></span>
-          <span data-i18n="heroStatus">Линия выпуска</span>
-          <strong data-current-version>3.3.0</strong>
+          <span data-i18n="heroStatus">Актуальная линия</span>
+          <strong data-current-version>3.2.4</strong>
           <span class="status-separator"></span>
-          <span data-ci-label data-i18n="ciLoading">проверяем CI…</span>
+          <span data-ci-label data-i18n="ciLoading">проверка CI…</span>
         </div>
-        <p class="hero-kicker">SELF-HOSTED · OPEN SOURCE · MULTIPLATFORM</p>
-        <h1><span data-i18n="heroTitleA">Коммуникации</span><em data-i18n="heroTitleB">под вашим контролем.</em></h1>
-        <p class="hero-lead" data-i18n="heroLead">Nexora объединяет Local Server, Windows Client, PWA, Android, Trust Core и отдельный Pulse-контур. Сообщения и комнаты остаются на выбранном вами сервере.</p>
+
+        <h1>
+          <span data-i18n="heroTitleA">Коммуникации</span>
+          <em data-i18n="heroTitleB">под вашим контролем.</em>
+        </h1>
+        <p class="hero-lead" data-i18n="heroLead">
+          Self-hosted платформа для частных серверов, команд и сообществ. Один интерфейс для Windows, PWA и Android, локальный authority-сервер и отдельный контур Pulse.
+        </p>
+
         <div class="hero-actions">
-          <a class="button button-primary" href="#downloads"><span data-i18n="downloadNexora">Скачать Nexora</span><b>↓</b></a>
-          <a class="button button-secondary" href="https://github.com/Onmaynec/Nexora" target="_blank" rel="noreferrer"><span data-i18n="openGithub">Открыть GitHub</span><b>↗</b></a>
+          <a class="button button-primary" href="#downloads">
+            <span data-i18n="downloadNexora">Скачать Nexora</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14"/></svg>
+          </a>
+          <a class="button button-secondary" href="https://github.com/Onmaynec/Nexora" target="_blank" rel="noreferrer">
+            <span data-i18n="openGithub">Открыть GitHub</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg>
+          </a>
         </div>
+
         <div class="hero-facts">
-          <div><small data-i18n="heroFactPlatforms">Платформы</small><strong>Windows · PWA · Android</strong></div>
-          <div><small data-i18n="heroFactProtocols">Протоколы</small><strong>API v3 · Trust v4 · MLS</strong></div>
-          <div><small data-i18n="heroFactLicense">Лицензия</small><strong>MIT Open Source</strong></div>
+          <div><small data-i18n="heroFactOneLabel">Платформы</small><strong>Windows · PWA · Android</strong></div>
+          <div><small data-i18n="heroFactTwoLabel">Протоколы</small><strong>API v3 · Trust v4</strong></div>
+          <div><small data-i18n="heroFactThreeLabel">Лицензия</small><strong>MIT Open Source</strong></div>
         </div>
       </div>
 
-      <div class="hero-stage reveal" aria-label="Интерфейс Nexora">
-        <div class="stage-orbit orbit-a" aria-hidden="true"></div>
-        <div class="stage-orbit orbit-b" aria-hidden="true"></div>
-        <article class="product-window">
-          <header class="window-topbar"><span><img src="assets/nexora-icon.png" alt="" /> NEXORA</span><i></i><i></i><i></i></header>
+      <div class="hero-stage reveal" data-parallax="0.06">
+        <div class="stage-orbit stage-orbit-a" aria-hidden="true"></div>
+        <div class="stage-orbit stage-orbit-b" aria-hidden="true"></div>
+        <article class="product-window tilt-card" data-tilt>
+          <div class="window-topbar">
+            <div class="window-brand"><img src="assets/nexora-icon.png" alt="" /> NEXORA</div>
+            <div class="window-controls"><i></i><i></i><i></i></div>
+          </div>
           <div class="window-layout">
             <aside class="window-sidebar">
-              <div class="mock-profile"><span>NX</span><div><b>Private server</b><small>Online · Schema 8</small></div></div>
+              <div class="server-identity">
+                <span class="avatar avatar-violet">NX</span>
+                <div><b>Private server</b><small>Online · 24 ms</small></div>
+              </div>
               <div class="fake-search"></div>
               <small class="window-label" data-i18n="conversations">РАЗГОВОРЫ</small>
-              <button class="conversation-row active" type="button"><span>N</span><div><b>Nexora Team</b><small data-i18n="architectureReady">Архитектура готова</small></div><time>12:42</time></button>
-              <button class="conversation-row" type="button"><span class="green">P</span><div><b>Pulse</b><small>Impulse catalog active</small></div></button>
-              <button class="conversation-row" type="button"><span class="blue">S</span><div><b>Saved Messages</b><small>Encrypted local state</small></div></button>
-              <div class="server-chip"><i></i><span><b>Local Server</b><small>API v3 / Trust v4</small></span></div>
+              <div class="conversation-row active"><span class="avatar">N</span><div><b>Nexora Team</b><small data-i18n="architectureReady">Архитектура готова</small></div><time>12:42</time></div>
+              <div class="conversation-row"><span class="avatar avatar-green">P</span><div><b>Pulse</b><small>Entitlement verified</small></div></div>
+              <div class="conversation-row"><span class="avatar avatar-blue">S</span><div><b>Saved Messages</b><small data-i18n="threeDocs">3 документа</small></div></div>
+              <div class="sidebar-spacer"></div>
+              <div class="local-server-chip"><i></i><div><b>Local Server</b><small>Schema 8 · API v3/v4</small></div></div>
             </aside>
             <section class="window-chat">
-              <header><div><strong>Nexora Team</strong><span data-i18n="membersSecure">8 участников · secure conversation</span></div><b class="verified-chip">◇ VERIFIED</b></header>
+              <header>
+                <div><strong>Nexora Team</strong><span data-i18n="membersSecure">8 участников · secure conversation</span></div>
+                <div class="chat-tools"><i></i><i></i><i></i></div>
+              </header>
               <div class="window-messages">
-                <span class="day-chip" data-i18n="today">СЕГОДНЯ</span>
-                <article class="mock-message"><span>A</span><div><header><b>Architecture</b><time>12:38</time></header><p data-i18n="mockOne">Local Server остаётся authority для комнат, ролей и доставки ciphertext.</p><small>✓ verified</small></div></article>
-                <article class="mock-message"><span class="green">P</span><div><header><b>Pulse</b><time>12:40</time></header><p data-i18n="mockTwo">Импульсы расходуются на оформление и возможности комнат, а не на базовое общение.</p></div></article>
-                <article class="mock-message own"><div><header><b data-i18n="you">Вы</b><time>12:42</time></header><p data-i18n="mockThree">Принято. Проверяем release evidence и публикуем артефакты.</p><small data-i18n="delivered">доставлено · 2</small></div></article>
+                <div class="day-chip" data-i18n="today">СЕГОДНЯ</div>
+                <article class="mock-message">
+                  <span class="avatar">A</span>
+                  <div><header><b>Architecture</b><time>12:38</time></header><p data-i18n="mockOne">Local Server остаётся authority для комнат, ролей и доставки ciphertext.</p><small class="verified">✓ verified</small></div>
+                </article>
+                <article class="mock-message">
+                  <span class="avatar avatar-green">P</span>
+                  <div><header><b>Pulse</b><time>12:40</time></header><p data-i18n="mockTwo">Cloud Identity и production entitlements изолированы от локального messaging-контура.</p></div>
+                </article>
+                <article class="mock-message own">
+                  <div><header><b data-i18n="you">Вы</b><time>12:42</time></header><p data-i18n="mockThree">Принято. Публикуем документацию и release evidence.</p><small data-i18n="delivered">доставлено · 2</small></div>
+                </article>
               </div>
-              <footer class="mock-composer"><button type="button">+</button><span data-i18n="messagePlaceholder">Сообщение в Nexora Team</span><i></i><i></i></footer>
+              <footer class="mock-composer"><button aria-label="Add">+</button><span data-i18n="messagePlaceholder">Сообщение в Nexora Team</span><i></i><i></i></footer>
             </section>
           </div>
+          <span class="tilt-glare" aria-hidden="true"></span>
         </article>
-        <div class="floating-signal signal-trust"><span>◇</span><div><small>TRUST CORE</small><b>Device verified</b></div><i></i></div>
-        <div class="floating-signal signal-sync"><span>↻</span><div><small>OFFLINE SYNC</small><b>Outbox delivered</b></div></div>
+
+        <div class="floating-signal trust-signal" data-parallax="0.12">
+          <span>◇</span><div><small>TRUST CORE</small><b data-i18n="deviceVerified">Device verified</b></div><i></i>
+        </div>
+        <div class="floating-signal sync-signal" data-parallax="-0.08">
+          <span>↻</span><div><small>OFFLINE SYNC</small><b data-i18n="outboxDelivered">Outbox delivered</b></div>
+        </div>
       </div>
     </section>
 
-    <section class="repository-panel section reveal" aria-labelledby="repository-title">
-      <header><div><span class="section-kicker">LIVE REPOSITORY EVIDENCE</span><h2 id="repository-title" data-i18n="repositoryTitle">Состояние проекта — из GitHub, а не из макета.</h2></div><a data-latest-release-link href="https://github.com/Onmaynec/Nexora/releases" target="_blank" rel="noreferrer"><span data-i18n="openReleases">Открыть Releases</span> ↗</a></header>
+    <section class="live-panel section reveal" aria-labelledby="live-title">
+      <div class="live-panel-head">
+        <div>
+          <span class="section-kicker">LIVE REPOSITORY DATA</span>
+          <h2 id="live-title" data-i18n="liveTitle">Состояние проекта прямо из GitHub.</h2>
+        </div>
+        <a data-latest-release-link href="https://github.com/Onmaynec/Nexora/releases" target="_blank" rel="noreferrer">
+          <span data-i18n="openReleases">Открыть Releases</span> ↗
+        </a>
+      </div>
       <div class="metric-grid">
-        <article><small data-i18n="metricVersion">Актуальная версия</small><strong data-current-version>3.3.0</strong><span>package metadata</span></article>
+        <article><small data-i18n="metricVersion">Актуальная версия</small><strong data-current-version>3.2.4</strong><span data-i18n="metricVersionHint">main / package metadata</span></article>
         <article><small>GitHub Stars</small><strong data-stat-stars>—</strong><span data-i18n="liveValue">live value</span></article>
         <article><small>Forks</small><strong data-stat-forks>—</strong><span data-i18n="liveValue">live value</span></article>
         <article><small data-i18n="metricIssues">Открытые issues</small><strong data-stat-issues>—</strong><span data-i18n="liveValue">live value</span></article>
-        <article><small data-i18n="metricReleases">Релизы</small><strong data-stat-releases>—</strong><span>GitHub API</span></article>
-        <article><small>CI / main</small><strong class="ci-metric" data-stat-ci>—</strong><span data-ci-updated data-i18n="checking">проверяем…</span></article>
+        <article><small data-i18n="metricReleases">Релизы</small><strong data-stat-releases>—</strong><span data-i18n="fromGithub">из GitHub API</span></article>
+        <article><small>CI / main</small><strong class="ci-metric" data-stat-ci>—</strong><span data-ci-updated data-i18n="checking">проверка…</span></article>
       </div>
-      <div class="evidence-strip">
-        <div><b>Schema 8</b><span data-i18n="evidenceDatabase">SQLite WAL/FULL, migration и integrity gates</span></div>
-        <div><b>MLS + Ed25519</b><span data-i18n="evidenceTrust">Device-scoped delivery и ciphertext-only persistence</span></div>
-        <div><b>Release assets</b><span data-i18n="evidenceAssets">SHA-256, SBOM и явная маркировка подписи</span></div>
+      <div class="activity-card">
+        <div class="activity-copy">
+          <span class="section-kicker">12 WEEK ACTIVITY</span>
+          <h3 data-i18n="activityTitle">Динамика коммитов</h3>
+          <p data-i18n="activityText">График строится из открытой статистики GitHub и не содержит вымышленных показателей.</p>
+          <div class="activity-total"><strong data-activity-total>—</strong><span data-i18n="activityTotal">коммитов за 12 недель</span></div>
+        </div>
+        <svg class="activity-chart" viewBox="0 0 720 240" role="img" aria-label="Commit activity" data-activity-chart>
+          <defs>
+            <linearGradient id="chartArea" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#b978ff" stop-opacity=".28"/>
+              <stop offset="1" stop-color="#b978ff" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <g class="chart-grid">
+            <path d="M40 32H700M40 86H700M40 140H700M40 194H700"/>
+          </g>
+          <path data-chart-area fill="url(#chartArea)"></path>
+          <path data-chart-line fill="none"></path>
+          <g data-chart-points></g>
+          <text data-chart-status x="370" y="122" text-anchor="middle">GitHub activity data</text>
+        </svg>
       </div>
     </section>
 
-    <section class="section section-heading reveal" id="product"><div><span class="section-kicker">01 / PRODUCT SYSTEM</span><h2 data-i18n="productTitle">Не просто чат.<br><em>Полный коммуникационный контур.</em></h2></div><p data-i18n="productLead">Диалоги, комнаты, медиа, offline-first поведение, эксплуатация, Trust Core и Pulse собраны в одной архитектуре без обязательной передачи локальной переписки в централизованное облако.</p></section>
+    <section class="section section-heading reveal" id="product">
+      <div><span class="section-kicker">01 / PRODUCT SYSTEM</span><h2 data-i18n="productTitle">Не просто чат.<br><em>Полный коммуникационный контур.</em></h2></div>
+      <p data-i18n="productLead">Nexora объединяет messaging, комнаты, медиа, offline-first поведение, эксплуатацию, Trust Core и отдельный Cloud authority без обязательной передачи локальных сообщений в централизованное облако.</p>
+    </section>
+
     <section class="bento-grid section">
-      <article class="bento-card wide reveal"><span>MESSAGING</span><h3 data-i18n="messagingTitle">Диалоги, комнаты и рабочие сценарии</h3><p data-i18n="messagingText">Replies, threads, reactions, mentions, polls, edit history, drafts, bookmarks, scheduled send и durable outbox.</p><div class="mini-flow"><i></i><i></i><i></i><i></i><i></i></div></article>
-      <article class="bento-card reveal"><span>TRUST CORE</span><h3 data-i18n="trustCardTitle">Device-scoped secure messaging</h3><p data-i18n="trustCardText">Ed25519 identity, verified devices, MLS epochs, replay protection и encrypted local state.</p><div class="state-row"><b>identity</b><i></i><b>verified</b><i></i><b>MLS</b></div></article>
-      <article class="bento-card reveal"><span>ROOM CONTROL</span><h3 data-i18n="adminTitle">Server-side policies</h3><p data-i18n="adminText">Owner, moderator, member, bans, invites, join requests, read-only, slow mode и media restrictions.</p><div class="policy-bars"><i></i><i></i><i></i></div></article>
-      <article class="bento-card reveal"><span>MEDIA</span><h3 data-i18n="mediaTitle">Validated and encrypted media</h3><p data-i18n="mediaText">Actual MIME detection, SHA-256, safe names, previews, voice waveform и AES-256-GCM secure attachments.</p><div class="media-meter"><i></i><b>SHA-256 verified</b></div></article>
-      <article class="bento-card wide reveal"><span>NEXORA PLUS + PULSE</span><h3 data-i18n="pulseCardTitle">Импульсы с реальным назначением</h3><p data-i18n="pulseCardText">Каталог оформления профиля, сообщений и комнат, коллективные цели, double-entry ledger, idempotency и подписанные права.</p><div class="pulse-topology"><b>Wallet</b><i></i><b>Catalog</b><i></i><b>Entitlement</b></div></article>
+      <article class="bento-card bento-wide reveal tilt-card" data-tilt>
+        <div class="card-index">01</div>
+        <div class="card-icon">↗</div>
+        <span>MESSAGING</span>
+        <h3 data-i18n="messagingTitle">Диалоги, комнаты и рабочие сценарии</h3>
+        <p data-i18n="messagingText">Replies, threads, reactions, mentions, polls, edit history, silent и scheduled send, drafts, bookmarks и durable outbox.</p>
+        <div class="mini-flow"><i></i><i></i><i></i><i></i><i></i></div>
+        <span class="tilt-glare" aria-hidden="true"></span>
+      </article>
+      <article class="bento-card reveal tilt-card" data-tilt>
+        <div class="card-index">02</div><div class="card-icon">◇</div><span>TRUST CORE</span>
+        <h3 data-i18n="trustCardTitle">Device-scoped secure messaging</h3>
+        <p data-i18n="trustCardText">Ed25519 identity, verified devices, MLS epochs, replay protection, ciphertext-only persistence и encrypted local state.</p>
+        <div class="state-row"><b>identity</b><i></i><b>verified</b><i></i><b>MLS</b></div>
+        <span class="tilt-glare" aria-hidden="true"></span>
+      </article>
+      <article class="bento-card reveal tilt-card" data-tilt>
+        <div class="card-index">03</div><div class="card-icon">⌁</div><span>ROOM CONTROL</span>
+        <h3 data-i18n="adminTitle">Server-side policies</h3>
+        <p data-i18n="adminText">Owner, moderator, member, custom roles, bans, invites, join requests, read-only, slow mode и media restrictions.</p>
+        <div class="policy-bars"><i style="--w:88%"></i><i style="--w:68%"></i><i style="--w:48%"></i></div>
+        <span class="tilt-glare" aria-hidden="true"></span>
+      </article>
+      <article class="bento-card reveal tilt-card" data-tilt>
+        <div class="card-index">04</div><div class="card-icon">▱</div><span>MEDIA</span>
+        <h3 data-i18n="mediaTitle">Validated and encrypted media</h3>
+        <p data-i18n="mediaText">Resumable uploads, actual MIME detection, SHA-256, safe names, previews, voice playback и AES-256-GCM secure attachments.</p>
+        <div class="media-meter"><span></span><b>SHA-256 verified</b></div>
+        <span class="tilt-glare" aria-hidden="true"></span>
+      </article>
+      <article class="bento-card bento-wide reveal tilt-card pulse-card" data-tilt>
+        <div class="card-index">05</div><div class="card-icon">◉</div><span>NEXORA PLUS + PULSE</span>
+        <h3 data-i18n="pulseTitle">Изолированный Cloud authority</h3>
+        <p data-i18n="pulseText">Cloud Identity, email verification, MFA, OAuth 2.1 + PKCE, Impulse ledger, receipts и подписанные production entitlements.</p>
+        <div class="pulse-topology"><b>Local Account</b><i></i><b>Signed Link</b><i></i><b>Cloud Identity</b></div>
+        <span class="tilt-glare" aria-hidden="true"></span>
+      </article>
     </section>
 
     <section class="architecture-section section" id="architecture">
-      <div class="section-heading reveal"><div><span class="section-kicker">02 / ARCHITECTURE</span><h2 data-i18n="architectureTitle">Три контура.<br><em>Чёткие authority-границы.</em></h2></div><p data-i18n="architectureLead">Клиент хранит приватное состояние, Local Server управляет доступом и доставкой, Pulse Cloud отвечает только за Cloud Identity, ledger и production entitlements.</p></div>
+      <div class="section-heading reveal">
+        <div><span class="section-kicker">02 / ARCHITECTURE</span><h2 data-i18n="architectureTitle">Три контура.<br><em>Чёткие authority-границы.</em></h2></div>
+        <p data-i18n="architectureLead">Клиент хранит приватное состояние, Local Server управляет доступом и порядком доставки, Pulse Cloud отвечает только за Cloud Identity, ledger и production entitlements.</p>
+      </div>
+
       <div class="architecture-board reveal">
-        <article><header><span>01</span><b>Client platforms</b></header><div class="chip-row"><i>Windows</i><i>PWA</i><i>Android</i></div><strong>React / Vite + Trust Engine</strong><p data-i18n="archClient">UI, offline state, device keys, MLS encryption/decryption и verified media preview.</p></article>
-        <div class="flow-bridge"><small>HTTPS + Socket.IO</small><i></i></div>
-        <article><header><span>02</span><b>Local Server</b></header><div class="chip-row"><i>Express</i><i>Socket.IO</i><i>SQLite 8</i></div><strong data-i18n="archServerTitle">Локальный источник истины</strong><p data-i18n="archServer">Accounts, sessions, rooms, roles, policies, ordering, ciphertext delivery, audit и backup.</p></article>
-        <div class="flow-bridge"><small>signed contract</small><i></i></div>
-        <article><header><span>03</span><b>Pulse Cloud</b></header><div class="chip-row"><i>Identity</i><i>Ledger</i><i>Entitlements</i></div><strong data-i18n="archCloudTitle">Опциональный Cloud authority</strong><p data-i18n="archCloud">Subscriptions, provider reconciliation, Impulse ledger и signed production entitlements.</p></article>
+        <div class="architecture-flow">
+          <article class="arch-node client-node tilt-card" data-tilt>
+            <header><span>01</span><b>Client platforms</b></header>
+            <div class="chip-row"><i>Windows</i><i>Browser / PWA</i><i>Android</i></div>
+            <div class="arch-symbol">⌬</div>
+            <h3>React / Vite + Trust Engine</h3>
+            <p data-i18n="archClient">UI, offline state, device keys, MLS encryption/decryption и verified media preview.</p>
+            <span class="tilt-glare" aria-hidden="true"></span>
+          </article>
+          <div class="flow-bridge"><small>HTTPS + Socket.IO</small><i><b></b></i></div>
+          <article class="arch-node server-node tilt-card" data-tilt>
+            <header><span>02</span><b>Local Server</b></header>
+            <div class="chip-row"><i>Express</i><i>Socket.IO</i><i>SQLite 8</i></div>
+            <div class="arch-symbol">⬡</div>
+            <h3 data-i18n="archServerTitle">Локальный источник истины</h3>
+            <p data-i18n="archServer">Accounts, sessions, rooms, roles, bans, policies, ordering, ciphertext delivery, storage, audit и backup.</p>
+            <span class="tilt-glare" aria-hidden="true"></span>
+          </article>
+          <div class="flow-bridge"><small>signed contract</small><i><b></b></i></div>
+          <article class="arch-node cloud-node tilt-card" data-tilt>
+            <header><span>03</span><b>Pulse Cloud</b></header>
+            <div class="chip-row"><i>Cloud Identity</i><i>Ledger</i><i>Entitlements</i></div>
+            <div class="arch-symbol">◎</div>
+            <h3 data-i18n="archCloudTitle">Опциональный Cloud authority</h3>
+            <p data-i18n="archCloud">Subscriptions, provider reconciliation, Impulse ledger и signed production entitlements.</p>
+            <span class="tilt-glare" aria-hidden="true"></span>
+          </article>
+        </div>
+        <div class="authority-matrix">
+          <div><span>CLIENT PRIVATE</span><b data-i18n="matrixClientTitle">Private state</b><p data-i18n="matrixClient">Private MLS state и attachment keys не передаются Local Server.</p></div>
+          <div><span>SERVER AUTHORITY</span><b data-i18n="matrixServerTitle">Access control</b><p data-i18n="matrixServer">Роли, bans, room restrictions и realtime-доступ проверяются сервером.</p></div>
+          <div><span>CLOUD ISOLATION</span><b data-i18n="matrixCloudTitle">Commercial boundary</b><p data-i18n="matrixCloud">Pulse не становится хранилищем локальных сообщений.</p></div>
+        </div>
       </div>
-      <div class="authority-matrix reveal"><div><small>CLIENT PRIVATE</small><b data-i18n="matrixClient">Private MLS state и attachment keys остаются на устройстве.</b></div><div><small>SERVER AUTHORITY</small><b data-i18n="matrixServer">Роли, bans и room restrictions проверяются сервером.</b></div><div><small>CLOUD ISOLATION</small><b data-i18n="matrixCloud">Pulse не хранит локальные сообщения.</b></div></div>
+
+      <div class="data-path reveal">
+        <div class="data-path-copy">
+          <span class="section-kicker">MESSAGE DELIVERY PATH</span>
+          <h3 data-i18n="deliveryTitle">От composer до verified device.</h3>
+          <p data-i18n="deliveryText">Каждый переход показывает реальную границу ответственности, а не маркетинговый рейтинг.</p>
+        </div>
+        <ol class="delivery-steps">
+          <li><span>01</span><b data-i18n="deliveryOneTitle">Compose</b><small data-i18n="deliveryOne">Client validates input</small></li>
+          <li><span>02</span><b data-i18n="deliveryTwoTitle">Encrypt</b><small data-i18n="deliveryTwo">MLS application ciphertext</small></li>
+          <li><span>03</span><b data-i18n="deliveryThreeTitle">Authorize</b><small data-i18n="deliveryThree">Session, device, membership, epoch</small></li>
+          <li><span>04</span><b data-i18n="deliveryFourTitle">Persist</b><small data-i18n="deliveryFour">Ciphertext + delivery state</small></li>
+          <li><span>05</span><b data-i18n="deliveryFiveTitle">Deliver</b><small data-i18n="deliveryFive">Verified member devices only</small></li>
+          <li><span>06</span><b data-i18n="deliverySixTitle">Decrypt</b><small data-i18n="deliverySix">Locally on recipient device</small></li>
+        </ol>
+      </div>
     </section>
 
-    <section class="security-section section" id="security">
-      <div class="section-heading reveal"><div><span class="section-kicker">03 / TRUST & SECURITY</span><h2 data-i18n="securityTitle">Проверяемые ограничения.<br><em>Без вымышленных процентов.</em></h2></div><p data-i18n="securityLead">Числа ниже закреплены в серверном коде и проверяются автоматическими тестами.</p></div>
+    <section class="trust-section section" id="trust">
+      <div class="section-heading reveal">
+        <div><span class="section-kicker">03 / TRUST & SECURITY</span><h2 data-i18n="trustTitle">Проверяемые ограничения.<br><em>Без вымышленных процентов.</em></h2></div>
+        <p data-i18n="trustLead">Сайт показывает только значения, закреплённые в коде и release-документации Nexora 3.2.x.</p>
+      </div>
+
       <div class="limit-grid">
-        <article><small data-i18n="limitDevices">Активных Trust devices</small><strong>16</strong><span data-i18n="perAccount">на учётную запись</span></article>
-        <article><small>KeyPackages / request</small><strong>25</strong><span data-i18n="atomicLimit">атомарный лимит</span></article>
-        <article><small>KeyPackages / device</small><strong>32</strong><span>unclaimed</span></article>
-        <article><small>KeyPackages / user</small><strong>256</strong><span data-i18n="totalInventory">общий inventory</span></article>
+        <article class="limit-card reveal"><small data-i18n="limitDevices">Активных Trust devices</small><strong data-count="16">0</strong><span data-i18n="perAccount">на учётную запись</span><i style="--level:64%"></i></article>
+        <article class="limit-card reveal"><small>KeyPackages / request</small><strong data-count="25">0</strong><span data-i18n="atomicLimit">атомарный лимит</span><i style="--level:52%"></i></article>
+        <article class="limit-card reveal"><small>KeyPackages / device</small><strong data-count="32">0</strong><span data-i18n="unclaimed">unclaimed</span><i style="--level:72%"></i></article>
+        <article class="limit-card reveal"><small>KeyPackages / user</small><strong data-count="256">0</strong><span data-i18n="totalInventory">общий inventory</span><i style="--level:92%"></i></article>
       </div>
-      <div class="security-lifecycle reveal"><div class="lifecycle-core"><img src="assets/nexora-icon.png" alt="" /><span>TRUST</span></div><ol><li><span>01</span><div><b>Identity key</b><p data-i18n="lifeOne">Клиент создаёт локальный Ed25519 identity key.</p></div></li><li><span>02</span><div><b>Proof of possession</b><p data-i18n="lifeTwo">Регистрация подтверждает владение private key.</p></div></li><li><span>03</span><div><b>Verification</b><p data-i18n="lifeThree">Устройство получает подписанное подтверждение.</p></div></li><li><span>04</span><div><b>Scoped delivery</b><p data-i18n="lifeFour">Ciphertext доставляется verified devices.</p></div></li><li><span>05</span><div><b>Revocation</b><p data-i18n="lifeFive">Отзыв прекращает secure delivery и очищает local state.</p></div></li></ol></div>
-    </section>
 
-    <section class="pulse-section section" id="pulse">
-      <div class="section-heading reveal"><div><span class="section-kicker">04 / NEXORA PULSE</span><h2 data-i18n="pulseTitle">Импульсы можно<br><em>действительно потратить.</em></h2></div><p data-i18n="pulseLead">Каталог не блокирует сообщения, безопасность или базовые функции. Все списания выполняются сервером атомарно и идемпотентно.</p></div>
-      <div class="catalog-preview">
-        <article><span>PROFILE</span><h3 data-i18n="catalogProfile">Неоновая рамка</h3><p>120 ◈ · permanent</p></article>
-        <article><span>MESSAGES</span><h3 data-i18n="catalogMessages">Стиль Prism</h3><p>220 ◈ · permanent</p></article>
-        <article><span>REACTIONS</span><h3 data-i18n="catalogReactions">Набор Nova</h3><p>140 ◈ · permanent</p></article>
-        <article><span>ROOM</span><h3 data-i18n="catalogRoom">Тема Midnight</h3><p>650 ◈ · 30 days</p></article>
+      <div class="trust-lifecycle reveal">
+        <div class="lifecycle-visual">
+          <div class="lifecycle-core"><img src="assets/nexora-icon.png" alt="" /><span>TRUST</span></div>
+          <i class="ring ring-a"></i><i class="ring ring-b"></i><i class="ring ring-c"></i>
+          <b class="orbit-dot dot-a"></b><b class="orbit-dot dot-b"></b><b class="orbit-dot dot-c"></b>
+        </div>
+        <div class="lifecycle-content">
+          <span class="section-kicker">DEVICE TRUST LIFECYCLE</span>
+          <h3 data-i18n="lifecycleTitle">Идентичность устройства становится частью доступа.</h3>
+          <ol>
+            <li><span>01</span><div><b data-i18n="lifeOneTitle">Identity key</b><p data-i18n="lifeOne">Client создаёт non-extractable Ed25519 identity key.</p></div></li>
+            <li><span>02</span><div><b data-i18n="lifeTwoTitle">Proof of possession</b><p data-i18n="lifeTwo">Registration подтверждает владение private key.</p></div></li>
+            <li><span>03</span><div><b data-i18n="lifeThreeTitle">Verification</b><p data-i18n="lifeThree">Дополнительное устройство получает подписанное подтверждение.</p></div></li>
+            <li><span>04</span><div><b data-i18n="lifeFourTitle">Scoped delivery</b><p data-i18n="lifeFour">Ciphertext доставляется конкретным verified devices.</p></div></li>
+            <li><span>05</span><div><b data-i18n="lifeFiveTitle">Revocation</b><p data-i18n="lifeFive">Отзыв немедленно отключает secure socket и очищает local state.</p></div></li>
+          </ol>
+        </div>
       </div>
     </section>
 
     <section class="downloads-section section" id="downloads">
-      <div class="section-heading reveal"><div><span class="section-kicker">05 / DOWNLOADS</span><h2 data-i18n="downloadsTitle">Выберите версию.<br><em>Затем платформу.</em></h2></div><p data-i18n="downloadsLead">Карточки получают реальные assets из GitHub Releases. Неподписанные тестовые сборки маркируются явно и не подключаются к production updater.</p></div>
-      <div class="release-selector reveal"><label for="release-select" data-i18n="versionLabel">Версия</label><select id="release-select" data-release-select><option value="fallback">3.3.0</option></select><div><span data-selected-release-state data-i18n="releaseLoading">загружаем release metadata…</span><a data-selected-release-link href="https://github.com/Onmaynec/Nexora/releases" target="_blank" rel="noreferrer">Release notes ↗</a></div></div>
-      <div class="download-grid">
-        <article class="download-card" data-platform="client"><span>WINDOWS CLIENT</span><h3>Nexora Client</h3><p data-i18n="clientDownloadText">Desktop shell, auto-update, certificate pinning и test-mode diagnostics.</p><div><b data-asset-name="client">Проверяем asset…</b><small data-asset-size="client">—</small></div><a data-download-link="client" href="https://github.com/Onmaynec/Nexora/releases" target="_blank" rel="noreferrer"><span data-i18n="downloadButton">Скачать</span> ↗</a></article>
-        <article class="download-card" data-platform="server"><span>WINDOWS SERVER</span><h3>Nexora Server</h3><p data-i18n="serverDownloadText">Local Server shell, audited console, backup, health и controlled shutdown.</p><div><b data-asset-name="server">Проверяем asset…</b><small data-asset-size="server">—</small></div><a data-download-link="server" href="https://github.com/Onmaynec/Nexora/releases" target="_blank" rel="noreferrer"><span data-i18n="downloadButton">Скачать</span> ↗</a></article>
-        <article class="download-card" data-platform="pwa"><span>PWA</span><h3>Browser / PWA</h3><p data-i18n="pwaDownloadText">Installable web client with Service Worker, IndexedDB cache и durable outbox.</p><div><b data-asset-name="pwa">Проверяем asset…</b><small data-asset-size="pwa">—</small></div><a data-download-link="pwa" href="https://github.com/Onmaynec/Nexora/releases" target="_blank" rel="noreferrer"><span data-i18n="downloadButton">Скачать</span> ↗</a></article>
-        <article class="download-card" data-platform="android"><span>ANDROID</span><h3>Nexora Android</h3><p data-i18n="androidDownloadText">WebView shell with system TLS trust store and shared product UI.</p><div><b data-asset-name="android">Проверяем asset…</b><small data-asset-size="android">—</small></div><a data-download-link="android" href="https://github.com/Onmaynec/Nexora/releases" target="_blank" rel="noreferrer"><span data-i18n="downloadButton">Скачать</span> ↗</a></article>
-        <article class="download-card source-card" data-platform="source"><span>SOURCE</span><h3 data-i18n="sourceTitle">Исходный код</h3><p data-i18n="sourceDownloadText">Полный repository snapshot для проверки и самостоятельной сборки.</p><div><b data-asset-name="source">Source archive</b><small data-asset-size="source">ZIP</small></div><a data-download-link="source" href="https://github.com/Onmaynec/Nexora/archive/refs/heads/main.zip"><span data-i18n="downloadSource">Скачать source</span> ↗</a></article>
+      <div class="section-heading reveal">
+        <div><span class="section-kicker">04 / DOWNLOADS</span><h2 data-i18n="downloadsTitle">Выберите версию.<br><em>Затем платформу.</em></h2></div>
+        <p data-i18n="downloadsLead">Список версий и assets загружается из GitHub Releases. Если для платформы нет готового файла, сайт честно переводит на страницу выбранного релиза.</p>
       </div>
-      <div class="signature-notice reveal"><strong data-i18n="signatureTitle">Подпись видна до скачивания</strong><p data-i18n="signatureText">Signed production builds и UNSIGNED TEST builds не смешиваются. Updater принимает только подписанный Windows-канал.</p></div>
+
+      <div class="release-selector reveal">
+        <label for="release-select" data-i18n="versionLabel">Версия</label>
+        <select id="release-select" data-release-select>
+          <option value="fallback">3.2.4</option>
+        </select>
+        <div><span data-selected-release-state data-i18n="releaseLoading">загрузка release metadata…</span><a data-selected-release-link href="https://github.com/Onmaynec/Nexora/releases" target="_blank" rel="noreferrer">Release notes ↗</a></div>
+      </div>
+
+      <div class="download-grid">
+        <article class="download-card reveal tilt-card" data-tilt data-platform="client">
+          <div class="platform-symbol">⊞</div><span>WINDOWS CLIENT</span><h3>Nexora Client</h3><p data-i18n="clientDownloadText">Desktop shell, auto-update, certificate pinning и test-mode diagnostics.</p>
+          <div class="download-meta"><b data-asset-name="client">Release page</b><small data-asset-size="client">—</small></div>
+          <a data-download-link="client" href="https://github.com/Onmaynec/Nexora/releases" target="_blank" rel="noreferrer"><span data-i18n="downloadButton">Скачать</span> ↗</a>
+          <span class="tilt-glare" aria-hidden="true"></span>
+        </article>
+        <article class="download-card reveal tilt-card" data-tilt data-platform="server">
+          <div class="platform-symbol">⌘</div><span>WINDOWS SERVER</span><h3>Nexora Server</h3><p data-i18n="serverDownloadText">Local Server shell, audited console, backup, health и controlled shutdown.</p>
+          <div class="download-meta"><b data-asset-name="server">Release page</b><small data-asset-size="server">—</small></div>
+          <a data-download-link="server" href="https://github.com/Onmaynec/Nexora/releases" target="_blank" rel="noreferrer"><span data-i18n="downloadButton">Скачать</span> ↗</a>
+          <span class="tilt-glare" aria-hidden="true"></span>
+        </article>
+        <article class="download-card reveal tilt-card" data-tilt data-platform="pwa">
+          <div class="platform-symbol">◫</div><span>PWA</span><h3>Browser / PWA</h3><p data-i18n="pwaDownloadText">Installable web client with Service Worker, IndexedDB cache и durable outbox.</p>
+          <div class="download-meta"><b data-asset-name="pwa">Release page</b><small data-asset-size="pwa">—</small></div>
+          <a data-download-link="pwa" href="https://github.com/Onmaynec/Nexora/releases" target="_blank" rel="noreferrer"><span data-i18n="downloadButton">Скачать</span> ↗</a>
+          <span class="tilt-glare" aria-hidden="true"></span>
+        </article>
+        <article class="download-card reveal tilt-card" data-tilt data-platform="android">
+          <div class="platform-symbol">◇</div><span>ANDROID</span><h3>Android shell</h3><p data-i18n="androidDownloadText">WebView shell with system TLS trust store and shared product UI.</p>
+          <div class="download-meta"><b data-asset-name="android">Release page</b><small data-asset-size="android">—</small></div>
+          <a data-download-link="android" href="https://github.com/Onmaynec/Nexora/releases" target="_blank" rel="noreferrer"><span data-i18n="downloadButton">Скачать</span> ↗</a>
+          <span class="tilt-glare" aria-hidden="true"></span>
+        </article>
+        <article class="download-card source-card reveal tilt-card" data-tilt data-platform="source">
+          <div class="platform-symbol">{ }</div><span>SOURCE</span><h3 data-i18n="sourceTitle">Исходный код</h3><p data-i18n="sourceDownloadText">Полный repository snapshot для разработки, проверки и самостоятельной сборки.</p>
+          <div class="download-meta"><b data-asset-name="source">GitHub archive</b><small data-asset-size="source">ZIP</small></div>
+          <a data-download-link="source" href="https://github.com/Onmaynec/Nexora/archive/refs/heads/main.zip"><span data-i18n="downloadSource">Скачать source</span> ↗</a>
+          <span class="tilt-glare" aria-hidden="true"></span>
+        </article>
+      </div>
+    </section>
+
+    <section class="assessment-section section">
+      <div class="section-heading reveal">
+        <div><span class="section-kicker">05 / OBJECTIVE ASSESSMENT</span><h2 data-i18n="assessmentTitle">Сильные стороны.<br><em>И реальные границы.</em></h2></div>
+        <p data-i18n="assessmentLead">Вместо общей пары пустых карточек — конкретная матрица: что готово, что распространяется как prerelease и какие проверки остаются внешними.</p>
+      </div>
+
+      <div class="assessment-grid">
+        <article class="assessment-card strengths reveal">
+          <header><span>+</span><div><small data-i18n="strengthsLabel">СИЛЬНЫЕ СТОРОНЫ</small><h3 data-i18n="strengthsTitle">Контроль и полнота контура</h3></div></header>
+          <ul>
+            <li><b data-i18n="strengthOneTitle">Local-first authority</b><span data-i18n="strengthOne">Сообщения, комнаты и файлы не требуют централизованного Cloud.</span></li>
+            <li><b data-i18n="strengthTwoTitle">Server-side enforcement</b><span data-i18n="strengthTwo">Роли, bans, media restrictions и realtime access проверяются сервером.</span></li>
+            <li><b data-i18n="strengthThreeTitle">Cross-platform UI</b><span data-i18n="strengthThree">Windows, Browser/PWA и Android используют общий React-контур.</span></li>
+            <li><b data-i18n="strengthFourTitle">Open source</b><span data-i18n="strengthFour">MIT разрешает использование, изменение и распространение.</span></li>
+          </ul>
+        </article>
+        <article class="assessment-card boundaries reveal">
+          <header><span>!</span><div><small data-i18n="boundariesLabel">ТЕКУЩИЕ ГРАНИЦЫ</small><h3 data-i18n="boundariesTitle">Prerelease и metadata visibility</h3></div></header>
+          <ul>
+            <li><b data-i18n="boundaryOneTitle">Independent audit</b><span data-i18n="boundaryOne">Линия 3.2.x не заявляется как независимо аудированная E2EE-система.</span></li>
+            <li><b data-i18n="boundaryTwoTitle">Traffic metadata</b><span data-i18n="boundaryTwo">Сервер видит membership, timing, IP context, ciphertext size и delivery events.</span></li>
+            <li><b data-i18n="boundaryThreeTitle">Windows signing</b><span data-i18n="boundaryThree">Stable promotion зависит от Authenticode и packaged runtime gates.</span></li>
+            <li><b data-i18n="boundaryFourTitle">Calls</b><span data-i18n="boundaryFour">Voice/video calls и screen sharing не входят в текущий релиз.</span></li>
+          </ul>
+        </article>
+        <article class="assessment-card matrix reveal">
+          <header><span>↗</span><div><small>PLATFORM MATRIX</small><h3 data-i18n="matrixTitle">Каналы распространения</h3></div></header>
+          <div class="platform-matrix">
+            <div><b>Windows Client</b><span class="state prerelease" data-i18n="prerelease">Prerelease</span></div>
+            <div><b>Windows Server</b><span class="state prerelease" data-i18n="prerelease">Prerelease</span></div>
+            <div><b>Browser / PWA</b><span class="state available" data-i18n="available">Доступно</span></div>
+            <div><b>Android source</b><span class="state verified" data-i18n="sourceVerified">Source verified</span></div>
+            <div><b>Stable signed baseline</b><span class="state baseline">3.1.2</span></div>
+          </div>
+        </article>
+      </div>
     </section>
 
     <section class="docs-section section" id="docs">
-      <div class="section-heading reveal"><div><span class="section-kicker">06 / DOCUMENTATION</span><h2 data-i18n="docsTitle">От продукта<br><em>до эксплуатации.</em></h2></div><p data-i18n="docsLead">Документация разделена по ответственности: продукт, архитектура, security model, deployment, operations, testing и Pulse.</p></div>
+      <div class="section-heading reveal">
+        <div><span class="section-kicker">06 / DOCUMENTATION</span><h2 data-i18n="docsTitle">От продукта<br><em>до эксплуатации.</em></h2></div>
+        <p data-i18n="docsLead">Документация разделена по ответственности: продукт, архитектура, security model, deployment, operations, testing и Pulse.</p>
+      </div>
       <div class="docs-grid">
-        <a href="https://github.com/Onmaynec/Nexora/blob/main/docs/PRODUCT_OVERVIEW.md" target="_blank" rel="noreferrer"><span>01</span><div><small>PRODUCT</small><h3>Product Overview</h3><p data-i18n="docProduct">Назначение, возможности и product boundaries.</p></div><b>↗</b></a>
-        <a href="https://github.com/Onmaynec/Nexora/blob/main/docs/ARCHITECTURE.md" target="_blank" rel="noreferrer"><span>02</span><div><small>ENGINEERING</small><h3>Architecture</h3><p data-i18n="docArchitecture">Authority boundaries, data flow и storage.</p></div><b>↗</b></a>
-        <a href="https://github.com/Onmaynec/Nexora/blob/main/docs/SECURITY_MODEL.md" target="_blank" rel="noreferrer"><span>03</span><div><small>SECURITY</small><h3>Security Model</h3><p data-i18n="docSecurity">Threat model, Trust/MLS boundary и residual risks.</p></div><b>↗</b></a>
-        <a href="https://github.com/Onmaynec/Nexora/blob/main/docs/DEPLOYMENT.md" target="_blank" rel="noreferrer"><span>04</span><div><small>DEPLOYMENT</small><h3>Deployment Guide</h3><p data-i18n="docDeployment">HTTPS, firewall, origins и backups.</p></div><b>↗</b></a>
-        <a href="https://github.com/Onmaynec/Nexora/blob/main/docs/OPERATIONS_RUNBOOK.md" target="_blank" rel="noreferrer"><span>05</span><div><small>OPERATIONS</small><h3>Operations Runbook</h3><p data-i18n="docOperations">Startup, monitoring, restore и incidents.</p></div><b>↗</b></a>
-        <a href="https://github.com/Onmaynec/Nexora/blob/main/docs/PULSE.md" target="_blank" rel="noreferrer"><span>06</span><div><small>CLOUD</small><h3>Nexora Pulse</h3><p data-i18n="docPulse">Plus, Impulse catalog и entitlements.</p></div><b>↗</b></a>
+        <a class="doc-link reveal" href="https://github.com/Onmaynec/Nexora/blob/main/docs/PRODUCT_OVERVIEW.md" target="_blank" rel="noreferrer"><span>01</span><div><small>PRODUCT</small><h3>Product Overview</h3><p data-i18n="docProduct">Назначение, возможности, платформы и product boundaries.</p></div><b>↗</b></a>
+        <a class="doc-link reveal" href="https://github.com/Onmaynec/Nexora/blob/main/docs/ARCHITECTURE.md" target="_blank" rel="noreferrer"><span>02</span><div><small>ENGINEERING</small><h3>Architecture</h3><p data-i18n="docArchitecture">Authority boundaries, data flow, authorization и storage.</p></div><b>↗</b></a>
+        <a class="doc-link reveal" href="https://github.com/Onmaynec/Nexora/blob/main/docs/SECURITY_MODEL.md" target="_blank" rel="noreferrer"><span>03</span><div><small>SECURITY</small><h3>Security Model</h3><p data-i18n="docSecurity">Threat model, Trust/MLS boundary и residual risks.</p></div><b>↗</b></a>
+        <a class="doc-link reveal" href="https://github.com/Onmaynec/Nexora/blob/main/docs/DEPLOYMENT.md" target="_blank" rel="noreferrer"><span>04</span><div><small>DEPLOYMENT</small><h3>Deployment Guide</h3><p data-i18n="docDeployment">HTTPS, reverse proxy, firewall, origins и backups.</p></div><b>↗</b></a>
+        <a class="doc-link reveal" href="https://github.com/Onmaynec/Nexora/blob/main/docs/OPERATIONS_RUNBOOK.md" target="_blank" rel="noreferrer"><span>05</span><div><small>OPERATIONS</small><h3>Operations Runbook</h3><p data-i18n="docOperations">Startup, monitoring, backup, restore и incidents.</p></div><b>↗</b></a>
+        <a class="doc-link reveal" href="https://github.com/Onmaynec/Nexora/blob/main/docs/PULSE.md" target="_blank" rel="noreferrer"><span>06</span><div><small>CLOUD</small><h3>Nexora Pulse</h3><p data-i18n="docPulse">Plus, Impulse, account linking и entitlements.</p></div><b>↗</b></a>
       </div>
     </section>
 
     <section class="final-cta section reveal">
-      <div class="cta-content"><span class="section-kicker">READY TO INSPECT · READY TO SELF-HOST</span><h2 data-i18n="ctaTitle">Разверните собственный<br><em>контур коммуникаций.</em></h2><p data-i18n="ctaText">Скачайте проверяемый artifact, изучите исходный код и сопоставьте ограничения с release evidence.</p><div class="hero-actions"><a class="button button-primary" href="#downloads"><span data-i18n="downloadNexora">Скачать Nexora</span> ↓</a><a class="button button-secondary" href="https://github.com/Onmaynec/Nexora" target="_blank" rel="noreferrer"><span data-i18n="openGithub">Открыть GitHub</span> ↗</a></div></div>
-      <div class="cta-telemetry"><div><small data-i18n="metricVersion">Актуальная версия</small><strong data-current-version>3.3.0</strong><span>SemVer release line</span></div><div><small>API</small><strong>v3 / v4</strong><span>Local + Trust</span></div><div><small>DB</small><strong>Schema 8</strong><span>SQLite WAL/FULL</span></div><div><small>LICENSE</small><strong>MIT</strong><span>Open source</span></div><div class="wide"><small>RELEASE EVIDENCE</small><strong>CI · SBOM · SHA-256</strong><span data-i18n="ctaEvidence">Факты публикации проверяются по GitHub Actions и assets выбранного релиза.</span></div></div>
+      <div class="cta-content">
+        <span class="section-kicker">OPEN SOURCE · SELF-HOSTED · MULTIPLATFORM</span>
+        <h2 data-i18n="ctaTitle">Разверните собственный<br><em>контур коммуникаций.</em></h2>
+        <p data-i18n="ctaText">Скачайте актуальную версию, изучите исходный код или проверьте release evidence.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#downloads"><span data-i18n="downloadNexora">Скачать Nexora</span> ↓</a>
+          <a class="button button-secondary" href="https://github.com/Onmaynec/Nexora" target="_blank" rel="noreferrer"><span data-i18n="openGithub">Открыть GitHub</span> ↗</a>
+        </div>
+      </div>
+      <div class="cta-telemetry">
+        <div><small data-i18n="metricVersion">Актуальная версия</small><strong data-current-version>3.2.4</strong></div>
+        <div><small>API</small><strong>v3 / v4</strong></div>
+        <div><small>DB</small><strong>Schema 8</strong></div>
+        <div><small>License</small><strong>MIT</strong></div>
+      </div>
     </section>
   </main>
 
-  <footer class="site-footer"><a class="brand" href="#top"><img src="assets/nexora-icon.png" alt="" width="34" height="34" /><span>NEXORA</span></a><p data-i18n="footerText">Self-hosted messenger для Windows, browser/PWA и Android.</p><nav><a href="https://github.com/Onmaynec/Nexora" target="_blank" rel="noreferrer">GitHub</a><a href="https://github.com/Onmaynec/Nexora/releases" target="_blank" rel="noreferrer">Releases</a><a href="https://github.com/Onmaynec/Nexora/blob/main/docs/README.md" target="_blank" rel="noreferrer">Docs</a><a href="https://github.com/Onmaynec/Nexora/blob/main/LICENSE" target="_blank" rel="noreferrer">MIT</a></nav><small>© <span data-year></span> Nexora / Onmaynec</small></footer>
+  <footer class="site-footer">
+    <a class="brand" href="#top"><img src="assets/nexora-icon.png" alt="" width="34" height="34" /><span>NEXORA</span></a>
+    <p data-i18n="footerText">Self-hosted messenger for Windows, browser/PWA and Android.</p>
+    <nav>
+      <a href="https://github.com/Onmaynec/Nexora" target="_blank" rel="noreferrer">GitHub</a>
+      <a href="https://github.com/Onmaynec/Nexora/releases" target="_blank" rel="noreferrer">Releases</a>
+      <a href="https://github.com/Onmaynec/Nexora/blob/main/docs/README.md" target="_blank" rel="noreferrer">Docs</a>
+      <a href="https://github.com/Onmaynec/Nexora/blob/main/LICENSE" target="_blank" rel="noreferrer">MIT</a>
+    </nav>
+    <small>© <span data-year></span> Nexora / Onmaynec</small>
+  </footer>
+
   <div class="toast" role="status" aria-live="polite" data-toast></div>
   <script src="app.js" defer></script>
 </body>
