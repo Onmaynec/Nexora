@@ -1,16 +1,28 @@
-name: Project website
+name: Project websites
 
 on:
   push:
     branches: [main]
     paths:
       - "website/**"
+      - "advanced-website/**"
+      - "server/**"
+      - "cloud/**"
+      - "package.json"
+      - "package-lock.json"
+      - "RELEASE_NOTES_*.md"
       - ".github/workflows/pages.yml"
   pull_request:
     paths:
       - "website/**"
+      - "advanced-website/**"
+      - "server/**"
+      - "cloud/**"
+      - "package.json"
+      - "package-lock.json"
+      - "RELEASE_NOTES_*.md"
       - ".github/workflows/pages.yml"
-      - "test/release-3.3.0-regressions.test.cjs"
+      - "docs/ADVANCED_DOCUMENTATION.md"
   workflow_dispatch:
 
 permissions:
@@ -19,21 +31,24 @@ permissions:
   id-token: write
 
 jobs:
-  validate:
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22.16.0
-      - name: Validate restored source and targeted patches
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Validate introductory website
         run: |
           node --check website/app.js
           node --check website/site-fixes.js
           node website/validate.mjs
           node website/validate-restored.mjs
-      - name: Compose deployable site
+      - name: Compose introductory website artifact
         shell: bash
         run: |
           set -euo pipefail
@@ -44,10 +59,35 @@ jobs:
           node --check website/app.js
           grep -Fq 'class AetherField' website/app.js
           grep -Fq 'restored-3.2.5-ux-20260723-1' website/build.json
+          node advanced-website/scripts/inject-entry-link.mjs website/index.html
+          test "$(grep -Fc 'data-advanced-docs' website/index.html)" -eq 1
+      - name: Generate advanced reference
+        run: node advanced-website/scripts/generate-reference.mjs
+      - name: Validate advanced documentation
+        run: |
+          node advanced-website/scripts/validate-content.mjs
+          node --test advanced-website/test/*.test.mjs
+      - name: Build advanced React portal
+        run: npx vite build --config advanced-website/vite.config.mjs
+      - name: Verify composed artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s website/index.html
+          test -s website/advanced/index.html
+          grep -Fq 'Nexora Advanced Documentation' website/advanced/index.html
+          grep -Fq '/Nexora/advanced/assets/' website/advanced/index.html
+          test -s website/advanced/robots.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nexora-pages-site
+          path: website
+          if-no-files-found: error
+          retention-days: 2
 
   deploy:
     if: github.event_name != 'pull_request'
-    needs: validate
+    needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 12
     concurrency:
@@ -57,41 +97,29 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Compose restored site
-        shell: bash
-        run: |
-          set -euo pipefail
-          printf '\n\n' >> website/styles.css
-          cat website/site-fixes.css >> website/styles.css
-          printf '\n\n' >> website/app.js
-          cat website/site-fixes.js >> website/app.js
-          node --check website/app.js
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v6
-      - name: Upload website artifact
-        uses: actions/upload-pages-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
-          path: website
-      - name: Deploy to GitHub Pages
-        id: deployment
+          name: nexora-pages-site
+          path: _site
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+      - id: deployment
         uses: actions/deploy-pages@v4
-      - name: Verify published restored site
+      - name: Smoke-check published sites
         shell: bash
         run: |
           set -euo pipefail
-          url="${{ steps.deployment.outputs.page_url }}build.json?cache=restored-3.2.5-ux-20260723-1"
+          base="${{ steps.deployment.outputs.page_url }}"
           for attempt in $(seq 1 30); do
-            payload="$(curl --fail --silent --show-error --location \
-              --header 'Cache-Control: no-cache' \
-              --header 'Pragma: no-cache' \
-              "$url" || true)"
-            if grep -Fq '"siteBuild": "restored-3.2.5-ux-20260723-1"' <<<"$payload"; then
-              echo "Published restored 3.2.5 UX verified at $url"
+            root="$(curl --fail --silent --show-error --location --header 'Cache-Control: no-cache' "${base}build.json?attempt=${attempt}" || true)"
+            advanced="$(curl --fail --silent --show-error --location --header 'Cache-Control: no-cache' "${base}advanced/?attempt=${attempt}" || true)"
+            if grep -Fq 'restored-3.2.5-ux-20260723-1' <<<"$root" && grep -Fq 'Nexora Advanced Documentation' <<<"$advanced"; then
+              echo "Both Nexora websites verified at ${base} and ${base}advanced/"
               exit 0
             fi
-            echo "Attempt $attempt: CDN still serves an older build; retrying in 10 seconds."
             sleep 10
           done
-          echo "GitHub Pages did not expose restored-3.2.5-ux-20260723-1 within the verification window." >&2
+          echo "Published Pages artifact did not expose both websites within the verification window." >&2
           exit 1
