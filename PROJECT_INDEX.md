@@ -10,8 +10,9 @@
 | Application API | v3 |
 | Trust/MLS/encrypted-media API | v4 |
 | Local Server database | SQLite schema 8 |
+| Advanced documentation | `https://onmaynec.github.io/Nexora/advanced/` |
 
-Этот индекс отражает текущий `main`. Архитектурные и security boundaries: [Architecture](docs/ARCHITECTURE.md), [Security Model](docs/SECURITY_MODEL.md), [Security Policy](SECURITY.md).
+Этот индекс отражает текущий `main`. Архитектурные и security boundaries: [Architecture](docs/ARCHITECTURE.md), [Security Model](docs/SECURITY_MODEL.md), [Security Policy](SECURITY.md). Инженерный портал и правила его генерации описаны в [Advanced Documentation](docs/ADVANCED_DOCUMENTATION.md).
 
 ## Entry points
 
@@ -21,6 +22,8 @@
 | `electron/server-main.cjs` | Windows Server shell, setup/admin IPC и serialized graceful shutdown |
 | `electron/client-main.cjs` | Windows Client, server trust, isolated sessions и updater lifecycle |
 | `client/src/main.jsx` | общий React renderer для desktop, browser/PWA и Android |
+| `advanced-website/src/main.jsx` | отдельный React/Vite renderer продвинутой документации |
+| `advanced-website/scripts/generate-content.mjs` | package/repository/release source index, REST/realtime extraction и OpenAPI 3.1 generation |
 | `android/app/.../MainActivity.kt` | Android WebView shell, server picker и strict TLS policy |
 | `cloud/cli.cjs` | отдельный Pulse Cloud process |
 
@@ -86,6 +89,19 @@ Pulse Cloud не хранит local message content, room history, local files, 
 | `client/src/api.js` | fetch, CSRF, Client version, Trust/recovery и upload helpers |
 | `client/public/sw.js` | application-shell cache без API/Socket.IO |
 
+## Advanced Documentation
+
+| Файл | Ответственность |
+|---|---|
+| `advanced-website/src/App.jsx` | hash routing, bilingual UI, search, TOC, version selector, source links, Mermaid и Aether background |
+| `advanced-website/src/content.js` | 27 curated RU/EN engineering sections |
+| `advanced-website/scripts/generate-content.mjs` | current version, Markdown/release import, REST/realtime/error extraction и conservative OpenAPI |
+| `advanced-website/scripts/validate.mjs` | content, route contract, accessibility marker, responsive and output validation |
+| `advanced-website/content/` | historical Documentation Kit snapshots with explicit outdated-content boundary |
+| `website/advanced-link.js` | единственное функциональное дополнение к существующему beginner website |
+| `.github/workflows/advanced-docs.yml` | pull-request tests and production build artifact |
+| `.github/workflows/pages.yml` | composition and deployment of both websites through GitHub Pages |
+
 ## Desktop, Android и release
 
 | Файл | Ответственность |
@@ -131,7 +147,7 @@ Pulse Cloud не хранит local message content, room history, local files, 
 
 Mutating browser requests требуют session, Origin и CSRF. Trust operations дополнительно требуют active device scope, credential/signature validation и route/resource limits.
 
-## Ключевые лимиты, действующие в 3.2.4
+## Ключевые лимиты, действующие в 3.3.1
 
 | Ресурс | Лимит |
 |---|---|
@@ -166,6 +182,7 @@ Trust/recovery/E2EE routes используют bounded sliding-window limiter �
 | `test/store-queue.test.cjs` | mutation queue recovery после rejected operation |
 | `test/pulse-local-integration.test.cjs` | Pulse compatibility на schema 8 |
 | `test/performance.test.cjs` | warmed 20-client / 120-message budget и integrity |
+| `advanced-website/test/advanced-docs.test.mjs` | bilingual navigation, source extraction, contract fields, realtime references and auth inference |
 
 ## Verification commands
 
@@ -178,6 +195,8 @@ Trust/recovery/E2EE routes используют bounded sliding-window limiter �
 | `npm run audit:security` | security invariants и dependency audit |
 | `npm run release:check` | synchronized metadata и complete release-sensitive gate |
 | `npm run test:soak` | long-running state, backup и integrity validation |
+| `npm run test:advanced` | advanced portal source extraction, tests and structural validation |
+| `npm run build:advanced` | Vite production build and OpenAPI 3.1 generation |
 | `gradle -p android :app:assembleDebug --no-daemon` | Android source build |
 | `npm run dist:windows` | local test NSIS packages |
 | `npm run release:windows` | release gate, signing gate и Windows installers |
