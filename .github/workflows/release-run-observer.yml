@@ -14,7 +14,7 @@ permissions:
 jobs:
   capture:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -25,7 +25,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22.16.0
-      - name: Capture workflow runs for current release tag
+      - name: Capture workflow runs and failed publication log
         shell: bash
         run: |
           set -euo pipefail
@@ -34,16 +34,21 @@ jobs:
           git fetch --force origin "refs/tags/${tag}:refs/tags/${tag}"
           tag_sha=$(git rev-list -n 1 "$tag")
           mkdir -p release-evidence
-          gh api "repos/${{ github.repository }}/actions/runs?head_sha=${tag_sha}&per_page=100" \
-            --jq '{capturedAt: now | todate, repository: "${{ github.repository }}", tag: "'"$tag"'", tagSha: "'"$tag_sha"'", workflowRuns: [.workflow_runs[] | {id, name, event, status, conclusion, run_number, created_at, updated_at, html_url, head_sha, head_branch}]}' \
-            > "release-evidence/${tag}-workflow-runs.json"
+          runs=$(gh api "repos/${{ github.repository }}/actions/runs?head_sha=${tag_sha}&per_page=100")
+          jq --arg repository "${{ github.repository }}" --arg tag "$tag" --arg tagSha "$tag_sha" \
+            '{capturedAt: (now | todate), repository: $repository, tag: $tag, tagSha: $tagSha, workflowRuns: [.workflow_runs[] | {id, name, event, status, conclusion, run_number, created_at, updated_at, html_url, head_sha, head_branch}]}' \
+            <<<"$runs" > "release-evidence/${tag}-workflow-runs.json"
+          failed_run=$(jq -r '[.workflow_runs[] | select(.name == "Nexora 3 release" and .conclusion == "failure")] | sort_by(.created_at) | last | .id // empty' <<<"$runs")
+          if [ -n "$failed_run" ]; then
+            gh run view "$failed_run" --repo "${{ github.repository }}" --log-failed > "release-evidence/${tag}-release-failure.log" 2>&1 || true
+          fi
       - name: Commit diagnostic snapshot
         shell: bash
         run: |
           set -euo pipefail
-          git add release-evidence/*-workflow-runs.json
+          git add release-evidence/*-workflow-runs.json release-evidence/*-release-failure.log
           if git diff --cached --quiet; then exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "docs(release): capture workflow run diagnostics"
+          git commit -m "docs(release): capture failed publication log"
           git push origin HEAD:main
