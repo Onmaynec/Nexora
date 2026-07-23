@@ -9,6 +9,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: finalize-nexora-3.3.1
+  cancel-in-progress: true
+
 jobs:
   finalize:
     runs-on: ubuntu-latest
@@ -231,4 +235,6 @@ ${names.map((name) => `- \`${name}\``).join("\n")}
           git add README.md CHANGELOG.md RELEASE_VERIFICATION_3.3.1.md BRANCH_STATUS.md
           git rm .github/workflows/finalize-3.3.1-release.yml
           git commit -m "docs(release): finalize Nexora 3.3.1 publication [skip ci]"
+          git fetch origin main
+          git rebase origin/main
           git push origin HEAD:main
