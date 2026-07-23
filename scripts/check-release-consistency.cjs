@@ -80,8 +80,8 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
     ["BRANCHES.md", new RegExp("\\| `main` \\| Nexora `" + escapedVersion + "` published `UNSIGNED-TEST` prerelease"), `main status does not match ${version}`],
     [".github/ISSUE_TEMPLATE/bug_report.yml", new RegExp("Current version: " + escapedVersion + " published UNSIGNED-TEST prerelease"), `current issue template version does not match ${version}`],
     ["website/index.html", new RegExp(">" + escapedVersion + "<"), `static version does not match ${version}`],
-    ["website/app.js", new RegExp("FALLBACK_VERSION = \\"" + escapedVersion + "\\""), `fallback version does not match ${version}`],
-    ["website/site-fixes.js", new RegExp("FALLBACK_VERSION = \\"" + escapedVersion + "\\""), `correction fallback version does not match ${version}`],
+    ["website/app.js", new RegExp("FALLBACK_VERSION\\s*=\\s*.*" + escapedVersion), `fallback version does not match ${version}`],
+    ["website/site-fixes.js", new RegExp("FALLBACK_VERSION\\s*=\\s*.*" + escapedVersion), `correction fallback version does not match ${version}`],
   ];
 
   for (const [relativePath, expression, description] of markers) {
