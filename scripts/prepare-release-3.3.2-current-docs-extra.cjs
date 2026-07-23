@@ -10,8 +10,11 @@ const contributingPath = path.join(root, "CONTRIBUTING.md");
 const contributing = fs.readFileSync(contributingPath, "utf8");
 const currentBefore = "| Repository version | `3.3.1` |";
 const currentAfter = "| Repository version | `3.3.2` |";
-if (!contributing.includes(currentBefore)) throw new Error("CONTRIBUTING.md current version marker was not found");
-fs.writeFileSync(contributingPath, contributing.replace(currentBefore, currentAfter), "utf8");
+if (contributing.includes(currentBefore)) {
+  fs.writeFileSync(contributingPath, contributing.replace(currentBefore, currentAfter), "utf8");
+} else if (!contributing.includes(currentAfter)) {
+  throw new Error("CONTRIBUTING.md does not contain a recognized current version marker");
+}
 
 const canonicalChangelog = execFileSync("git", ["show", "origin/main:CHANGELOG.md"], {
   cwd: root,
