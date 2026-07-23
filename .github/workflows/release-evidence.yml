@@ -19,7 +19,7 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -32,21 +32,21 @@ jobs:
         with:
           node-version: 22.16.0
 
-      - name: Wait for published release
+      - name: Read published release
         shell: bash
         run: |
           set -euo pipefail
           version=$(node -p "require('./package.json').version")
           tag="v${version}"
-          for attempt in $(seq 1 45); do
+          for attempt in $(seq 1 15); do
             if gh release view "$tag" --repo "${{ github.repository }}" --json tagName,name,isDraft,isPrerelease,url,assets > /tmp/release.json 2>/dev/null; then
               echo "Release $tag is available."
               echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
               echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
               exit 0
             fi
-            echo "Attempt $attempt/45: release $tag is not published yet."
-            sleep 20
+            echo "Attempt $attempt/15: release $tag is not published yet."
+            sleep 10
           done
           echo "Release $tag was not published within the verification window." >&2
           exit 1
@@ -120,6 +120,7 @@ jobs:
         run: |
           set -euo pipefail
           file="release-evidence/${RELEASE_TAG}.json"
+          git pull --rebase origin main
           git add "$file"
           if git diff --cached --quiet; then
             echo "Evidence is already current."
