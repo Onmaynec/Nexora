@@ -23,9 +23,11 @@ export function Avatar({ user, size = "medium", online = false, onClick, label }
     .map((part) => part[0])
     .join("")
     .toUpperCase();
+  const frameClass = user?.avatarFrame && user.avatarFrame !== "none" ? ` avatar-frame-${user.avatarFrame}` : "";
+  const profileClass = user?.profileColor && user.profileColor !== "violet" ? ` avatar-profile-${user.profileColor}` : "";
   return (
     <span
-      className={`avatar avatar-${size}${onClick ? " avatar-interactive" : ""}${user?.avatarFrame && user.avatarFrame !== "none" ? ` avatar-frame-${user.avatarFrame}` : ""}`}
+      className={`avatar avatar-${size}${onClick ? " avatar-interactive" : ""}${frameClass}${profileClass}`}
       title={label || (onClick ? `Открыть профиль ${name}` : name)}
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
