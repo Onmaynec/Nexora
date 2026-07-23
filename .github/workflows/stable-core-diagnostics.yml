@@ -1,0 +1,38 @@
+name: Stable Core diagnostics
+
+on:
+  push:
+    branches:
+      - release/3.4.0-stable-core
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stable-core-diagnostics
+  cancel-in-progress: true
+
+jobs:
+  unit-summary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - run: npm ci
+      - name: Run unit suite with concise failure output
+        shell: bash
+        run: |
+          set +e
+          npm run test:unit > unit.log 2>&1
+          status=$?
+          if [ "$status" -ne 0 ]; then
+            echo "--- concise unit failures ---"
+            grep -E "^(not ok|# Subtest:)|AssertionError|ERR_|Error:|expected|actual|failureType|location" unit.log | tail -n 400 || tail -n 400 unit.log
+          else
+            tail -n 40 unit.log
+          fi
+          exit "$status"
