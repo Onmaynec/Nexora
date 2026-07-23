@@ -26,8 +26,10 @@ jobs:
         with:
           node-version: 22.16.0
           cache: npm
-      - name: Apply exact source migration
-        run: node scripts/apply-stable-core-3.4.cjs
+      - name: Apply exact source migrations
+        run: |
+          node scripts/apply-stable-core-3.4.cjs
+          node scripts/apply-stable-core-error-contracts.cjs
       - name: Commit generated source changes
         shell: bash
         run: |
