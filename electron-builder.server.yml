@@ -6,14 +6,18 @@ npmRebuild: false
 directories:
   output: release/server
 publish:
-  provider: generic
-  url: https://github.com/Onmaynec/Nexora/releases/download/server-stable
+  provider: github
+  owner: Onmaynec
+  repo: Nexora
   channel: server
+  releaseType: draft
+  publishAutoUpdate: true
 files:
   - electron/server-main.cjs
   - electron/server-preload.cjs
   - electron/server-shell/**/*
   - electron/update-service.cjs
+  - electron/release-experience.cjs
   - server/**/*
   - shared/**/*
   - client/dist/**/*
