@@ -1,17 +1,18 @@
 {
   "schemaVersion": 1,
-  "verifiedAt": "2026-07-23T00:44:19.572Z",
+  "verifiedAt": "2026-07-23T12:53:00.329Z",
   "repository": "Onmaynec/Nexora",
-  "version": "3.3.0",
-  "sourceSha": "3f080592c1c2a2a574803db91542b585f0a870ef",
-  "runId": 29969806669,
-  "runUrl": "https://github.com/Onmaynec/Nexora/actions/runs/29969806669",
+  "version": "3.3.2",
+  "sourceSha": "ede81d9a1f2b3c603769c7f4eda8d25d76bfb68c",
+  "runId": 30008613425,
+  "runUrl": "https://github.com/Onmaynec/Nexora/actions/runs/30008613425",
   "gates": {
     "releaseCheck": "pass",
     "linuxProductSuite": "pass",
     "schemaSoak": "pass",
     "androidBuild": "pass",
     "websiteValidation": "pass",
-    "publishedReleaseEvidence": "pass"
+    "publishedReleaseEvidence": "pass",
+    "publishedAssetSmoke": "pass"
   }
 }
