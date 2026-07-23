@@ -25,16 +25,18 @@ jobs:
         with:
           node-version: 22.16.0
           cache: npm
-      - name: Apply deterministic migration in diagnostic workspace
-        shell: bash
-        run: |
-          set -euo pipefail
-          node scripts/apply-stable-core-3.4.cjs
-          node scripts/apply-stable-core-error-contracts.cjs
-          node scripts/apply-stable-core-bootstrap.cjs
-          node scripts/apply-stable-core-client-retirement.cjs
-          node scripts/apply-stable-core-runtime-retirement.cjs
-          npm install --package-lock-only --ignore-scripts
+      - name: Apply base Stable Core migration
+        run: node scripts/apply-stable-core-3.4.cjs
+      - name: Apply stable error contracts
+        run: node scripts/apply-stable-core-error-contracts.cjs
+      - name: Apply legacy bootstrap contract
+        run: node scripts/apply-stable-core-bootstrap.cjs
+      - name: Apply client retirement contract
+        run: node scripts/apply-stable-core-client-retirement.cjs
+      - name: Remove executable Trust and MLS runtime
+        run: node scripts/apply-stable-core-runtime-retirement.cjs
+      - name: Regenerate lockfile
+        run: npm install --package-lock-only --ignore-scripts
       - run: npm ci
       - name: Run unit suite with concise failure output
         shell: bash
