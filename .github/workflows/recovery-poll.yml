@@ -1,0 +1,62 @@
+name: Poll Nexora 3.3.0 recovery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/recovery-poll.yml"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Wait for recovery workflow completion
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-evidence
+          run_id=""
+          for attempt in $(seq 1 100); do
+            payload=$(gh api "repos/${{ github.repository }}/actions/workflows/recover-v3.3.0-release.yml/runs?per_page=5")
+            run_id=$(jq -r '.workflow_runs[0].id // empty' <<<"$payload")
+            status=$(jq -r '.workflow_runs[0].status // empty' <<<"$payload")
+            conclusion=$(jq -r '.workflow_runs[0].conclusion // empty' <<<"$payload")
+            echo "attempt=$attempt run=$run_id status=$status conclusion=$conclusion"
+            if [ -n "$run_id" ] && [ "$status" = "completed" ]; then
+              gh api "repos/${{ github.repository }}/actions/runs/${run_id}" \
+                --jq '{capturedAt: (now | todate), id, name, event, status, conclusion, run_number, created_at, updated_at, html_url, head_sha, head_branch}' \
+                > release-evidence/v3.3.0-recovery-run.json
+              if [ "$conclusion" != "success" ]; then
+                gh run view "$run_id" --repo "${{ github.repository }}" --log-failed > release-evidence/v3.3.0-recovery-failure.log 2>&1 || true
+              else
+                rm -f release-evidence/v3.3.0-recovery-failure.log
+              fi
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "Recovery workflow did not complete within the polling window" >&2
+          exit 1
+      - name: Commit recovery evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git pull --rebase origin main
+          git add -A release-evidence
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "docs(release): capture v3.3.0 recovery evidence"
+          git push origin HEAD:main
