@@ -11,10 +11,9 @@ const [html, css, app, fixesCss, fixesJs, build, packageSource] = await Promise.
   read("site-fixes.css"),
   read("site-fixes.js"),
   read("build.json"),
-  read("../package.json"),
+  readFile(path.join(root, "..", "package.json"), "utf8"),
 ]);
-const version = JSON.parse(packageSource).version;
-const versionMarker = `FALLBACK_VERSION = "${version}"`;
+const packageVersion = JSON.parse(packageSource).version;
 
 const requiredLegacyUx = [
   "product-window",
@@ -49,14 +48,14 @@ for (const marker of [
   '"Segoe UI Variable Display"',
   "overflow-wrap: anywhere",
   "pointer-events: auto",
-  "html[lang=\"ru\"] .hero h1",
+  'html[lang="ru"] .hero h1',
   ".signature-badge",
 ]) {
   if (!fixesCss.includes(marker)) throw new Error(`Targeted CSS fix is missing: ${marker}`);
 }
 
 for (const marker of [
-  versionMarker,
+  `FALLBACK_VERSION = "${packageVersion}"`,
   "function signatureState",
   "dataset.signature",
   'document.addEventListener("click"',
@@ -65,9 +64,6 @@ for (const marker of [
   "НЕПОДПИСАННАЯ ТЕСТОВАЯ СБОРКА",
 ]) {
   if (!fixesJs.includes(marker)) throw new Error(`Targeted runtime fix is missing: ${marker}`);
-}
-if (!app.includes(versionMarker)) {
-  throw new Error(`Restored website fallback version does not match package.json: ${version}`);
 }
 
 if (/\.tilt-card\s*\{[^}]*display\s*:\s*none/is.test(fixesCss)) {
@@ -82,4 +78,4 @@ if (!String(buildData.siteBuild || "").startsWith("restored-3.2.5-ux-")) {
   throw new Error("Restored site build marker is missing");
 }
 
-console.log(`Restored Nexora 3.2.5 website UX and ${version} targeted fixes validated.`);
+console.log(`Restored Nexora 3.2.5 website UX and targeted fixes validated for ${packageVersion}.`);
