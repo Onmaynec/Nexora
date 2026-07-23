@@ -1,0 +1,131 @@
+name: Record release evidence
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/release-evidence.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-evidence-${{ github.event.release.tag_name || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+
+      - name: Wait for published release
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version")
+          tag="v${version}"
+          for attempt in $(seq 1 45); do
+            if gh release view "$tag" --repo "${{ github.repository }}" --json tagName,name,isDraft,isPrerelease,url,assets > /tmp/release.json 2>/dev/null; then
+              echo "Release $tag is available."
+              echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
+              echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
+              exit 0
+            fi
+            echo "Attempt $attempt/45: release $tag is not published yet."
+            sleep 20
+          done
+          echo "Release $tag was not published within the verification window." >&2
+          exit 1
+
+      - name: Validate assets and write evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --force origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+          tag_sha=$(git rev-list -n 1 "$RELEASE_TAG")
+          TAG_SHA="$tag_sha" node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const release = JSON.parse(fs.readFileSync('/tmp/release.json', 'utf8'));
+          const version = process.env.RELEASE_VERSION;
+          const tag = process.env.RELEASE_TAG;
+          const names = (release.assets || []).map((asset) => asset.name);
+          const unsigned = names.includes(`Nexora-Client-Setup-${version}-UNSIGNED-TEST.exe`);
+          const common = [
+            `Nexora-Android-${version}-UNSIGNED-TEST.apk`,
+            `Nexora-${version}-source.zip`,
+            `Nexora-PWA-${version}.zip`,
+            `Nexora-${version}.spdx.json`,
+            'SHA256SUMS.txt',
+          ];
+          const signed = [
+            `Nexora-Client-Setup-${version}.exe`,
+            `Nexora-Client-Setup-${version}.exe.blockmap`,
+            'latest.yml',
+            `Nexora-Server-Setup-${version}.exe`,
+          ];
+          const testing = [
+            `Nexora-Client-Setup-${version}-UNSIGNED-TEST.exe`,
+            `Nexora-Server-Setup-${version}-UNSIGNED-TEST.exe`,
+          ];
+          const required = [...common, ...(unsigned ? testing : signed)];
+          const missing = required.filter((name) => !names.includes(name));
+          if (release.isDraft) throw new Error(`${tag} is still a draft`);
+          if (missing.length) throw new Error(`Missing release assets: ${missing.join(', ')}`);
+          if (unsigned && names.some((name) => name === 'latest.yml' || name.endsWith('.blockmap'))) {
+            throw new Error('Unsigned release exposes updater metadata');
+          }
+          const evidence = {
+            schemaVersion: 1,
+            verifiedAt: new Date().toISOString(),
+            repository: process.env.GITHUB_REPOSITORY,
+            tag,
+            tagSha: process.env.TAG_SHA,
+            releaseName: release.name,
+            releaseUrl: release.url,
+            draft: Boolean(release.isDraft),
+            prerelease: Boolean(release.isPrerelease),
+            distribution: unsigned ? 'unsigned-test' : 'signed-production',
+            updaterMetadataPublished: names.includes('latest.yml') || names.some((name) => name.endsWith('.blockmap')),
+            requiredAssets: required,
+            assets: (release.assets || []).map((asset) => ({
+              name: asset.name,
+              size: asset.size ?? null,
+              url: asset.url ?? null,
+              contentType: asset.contentType ?? null,
+              digest: asset.digest ?? null,
+            })),
+          };
+          const directory = path.join('release-evidence');
+          fs.mkdirSync(directory, { recursive: true });
+          fs.writeFileSync(path.join(directory, `${tag}.json`), `${JSON.stringify(evidence, null, 2)}\n`, 'utf8');
+          NODE
+
+      - name: Commit immutable evidence record
+        shell: bash
+        run: |
+          set -euo pipefail
+          file="release-evidence/${RELEASE_TAG}.json"
+          git add "$file"
+          if git diff --cached --quiet; then
+            echo "Evidence is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "docs(release): record ${RELEASE_TAG} publication evidence"
+          git push origin HEAD:main
