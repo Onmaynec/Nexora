@@ -8,7 +8,7 @@ const { test } = require("node:test");
 
 const root = path.resolve(__dirname, "..");
 
-test("релиз 3.3.3 собирает проверяемые артефакты без native SQLite", () => {
+test("релиз 3.4.0 собирает проверяемые signed assets без native SQLite и MLS runtime", () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
   const lock = fs.readFileSync(path.join(root, "package-lock.json"), "utf8");
   const client = fs.readFileSync(path.join(root, "electron-builder.client.yml"), "utf8");
@@ -18,9 +18,16 @@ test("релиз 3.3.3 собирает проверяемые артефакт�
   const releaseWorkflow = fs.readFileSync(path.join(root, ".github", "workflows", "release.yml"), "utf8");
   const ciWorkflow = fs.readFileSync(path.join(root, ".github", "workflows", "ci.yml"), "utf8");
   const unitRunner = fs.readFileSync(path.join(root, "scripts", "run-unit-tests.cjs"), "utf8");
+  const signingCheck = fs.readFileSync(path.join(root, "scripts", "check-release-signing.cjs"), "utf8");
+  const signatureVerifier = fs.readFileSync(path.join(root, "scripts", "verify-authenticode.ps1"), "utf8");
+
   assert.equal(packageJson.version, require("../package-lock.json").version);
   assert.equal(packageJson.dependencies["better-sqlite3"], undefined);
   assert.equal(packageJson.devDependencies?.["better-sqlite3"], undefined);
+  assert.equal(packageJson.dependencies["ts-mls"], undefined);
+  assert.equal(fs.existsSync(path.join(root, "server", "trust-core.cjs")), false);
+  assert.equal(fs.existsSync(path.join(root, "server", "mls-transport.cjs")), false);
+  assert.equal(fs.existsSync(path.join(root, "client", "src", "crypto", "mls-engine.js")), false);
   assert.match(packageJson.scripts.test, /build:web/);
   assert.match(packageJson.scripts["test:unit"], /run-unit-tests\.cjs/);
   assert.match(unitRunner, /spawnSync\(process\.execPath/);
@@ -30,41 +37,57 @@ test("релиз 3.3.3 собирает проверяемые артефакт�
   assert.match(packageJson.scripts["release:check"], /test:unit[\s\S]*test:performance[\s\S]*audit:security/);
   assert.match(ciWorkflow, /verify:[\s\S]*test:unit[\s\S]*test:performance[\s\S]*audit:security/);
   assert.doesNotMatch(lock, /node_modules\/better-sqlite3/);
+  assert.doesNotMatch(lock, /node_modules\/ts-mls/);
   assert.match(packageJson.engines.node, /22\.16/);
-  assert.match(client, /npmRebuild:\s*false/);
+
+  for (const config of [client, server]) {
+    assert.match(config, /npmRebuild:\s*false/);
+    assert.match(config, /provider:\s*github/);
+    assert.match(config, /owner:\s*Onmaynec/);
+    assert.match(config, /repo:\s*Nexora/);
+    assert.match(config, /releaseType:\s*draft/);
+    assert.match(config, /verifyUpdateCodeSignature:\s*true/);
+  }
   assert.match(client, /electron\/client-connection\.cjs/);
-  assert.match(server, /npmRebuild:\s*false/);
-  assert.doesNotMatch(server, /\.node|better-sqlite3|node-gyp/);
-  assert.match(client, /provider:\s*github/);
-  assert.match(client, /owner:\s*Onmaynec/);
-  assert.match(client, /repo:\s*Nexora/);
-  assert.match(client, /releaseType:\s*draft/);
+  assert.match(server, /channel:\s*server/);
+  assert.match(server, /publishAutoUpdate:\s*true/);
+  assert.doesNotMatch(server, /\.node|better-sqlite3|node-gyp|ts-mls/);
+
   assert.match(updater, /autoInstallOnAppQuit\s*=\s*automatic/);
-  assert.match(updater, /owner:\s*"Onmaynec"/);
+  assert.match(updater, /allowDowngrade\s*=\s*false/);
+  assert.match(updater, /UPDATE_SIGNATURE_INVALID/);
+  assert.match(updater, /kind === "server" \? "server" : "latest"/);
+  assert.match(updater, /isNewerVersion/);
+
+  assert.match(signingCheck, /NEXORA_WINDOWS_SIGNER_SUBJECT/);
+  assert.match(signingCheck, /NEXORA_WINDOWS_SIGNER_THUMBPRINT/);
+  assert.match(signatureVerifier, /Get-AuthenticodeSignature/);
+  assert.match(signatureVerifier, /TimeStamperCertificate/);
+  assert.match(signatureVerifier, /Unexpected certificate thumbprint/);
 
   assert.match(releaseWorkflow, /SHA256SUMS\.txt/);
   assert.match(releaseWorkflow, /Nexora-\$version-source\.zip/);
   assert.match(releaseWorkflow, /npm sbom --omit=dev --sbom-format=spdx/);
   assert.match(releaseWorkflow, /steps\.signing\.outputs\.available == 'true'/);
-  assert.match(releaseWorkflow, /Build signed Windows installers/);
-  assert.match(releaseWorkflow, /Build explicitly unsigned Windows test installers/);
+  assert.match(releaseWorkflow, /Build and verify signed Windows assets/);
+  assert.match(releaseWorkflow, /Build explicitly unsigned Windows test assets/);
   assert.match(releaseWorkflow, /Nexora-Client-Setup-\$version-UNSIGNED-TEST\.exe/);
   assert.match(releaseWorkflow, /Nexora-Server-Setup-\$version-UNSIGNED-TEST\.exe/);
   assert.match(releaseWorkflow, /Nexora-Android-\$version-UNSIGNED-TEST\.apk/);
   assert.match(releaseWorkflow, /--publish never/);
   assert.doesNotMatch(releaseWorkflow, /--publish always/);
-  assert.match(releaseWorkflow, /gh release create[\s\S]*--prerelease/);
-  assert.match(releaseWorkflow, /Unsigned release must not expose updater metadata/);
-  assert.match(releaseWorkflow, /\$names -contains "latest\.yml"/);
-  assert.match(releaseWorkflow, /\\\.blockmap\$/);
-  assert.doesNotMatch(releaseWorkflow, /release upload .*--clobber/);
+  assert.match(releaseWorkflow, /v3\.3\.4/);
+  assert.match(releaseWorkflow, /Installed Windows n-1 to n smoke/);
+  assert.match(releaseWorkflow, /verify-authenticode\.ps1/);
+  assert.match(releaseWorkflow, /server\.yml/);
+  assert.match(releaseWorkflow, /unsigned-test\.\$env:GITHUB_RUN_NUMBER/);
+  assert.match(releaseWorkflow, /Unsigned artifact set contains updater metadata/);
+  assert.match(releaseWorkflow, /Immutable tag already points to another commit/);
+  assert.match(releaseWorkflow, /Re-download and verify immutable release assets/);
   assert.match(releaseWorkflow, /workflow_run:/);
   assert.match(releaseWorkflow, /startsWith\(github\.event\.workflow_run\.head_commit\.message, 'release: Nexora '\)/);
   assert.doesNotMatch(releaseWorkflow, /startsWith\(github\.event\.workflow_run\.head_commit\.message, 'release:'\)/);
-  assert.match(releaseWorkflow, /RELEASE_SKIP=true/);
-  assert.match(releaseWorkflow, /Published immutable release .* is retained; build and publication steps are skipped/);
-  assert.match(releaseWorkflow, /post-release correction\. Publication is a safe no-op/);
-  assert.match(releaseWorkflow, /git tag -a \$tag/);
+
   assert.match(clientMain, /persist:nexora-server-/);
   assert.match(clientMain, /partition:\s*currentPartition/);
   assert.match(ciWorkflow, /android-source:/);
