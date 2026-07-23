@@ -1,0 +1,14 @@
+{
+  "name": "nexora-advanced-documentation",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Advanced bilingual documentation portal for Nexora",
+  "scripts": {
+    "generate": "node scripts/generate-content.mjs",
+    "build": "npm run generate && vite build --config vite.config.mjs",
+    "dev": "npm run generate && vite --config vite.config.mjs",
+    "validate": "node scripts/validate.mjs",
+    "test": "node --test test/*.test.mjs"
+  }
+}
