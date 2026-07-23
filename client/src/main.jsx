@@ -9,6 +9,7 @@ import "./secure-messaging.css";
 import "./trust-devices.css";
 import "./onboarding.css";
 import "./confirm-dialog.css";
+import "./pulse-effects.css";
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
