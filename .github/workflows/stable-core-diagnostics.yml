@@ -4,35 +4,32 @@ on:
   push:
     branches:
       - release/3.4.0-stable-core
+  pull_request:
+    branches:
+      - main
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: stable-core-diagnostics
+  group: stable-core-diagnostics-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   unit-summary:
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: release/3.4.0-stable-core
-          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22.16.0
           cache: npm
       - run: npm ci
-      - name: Run each unit file
-        id: tests
+      - name: Run each unit file and print failing output
         shell: bash
         run: |
           set +e
-          : > unit-failures.log
           failed=0
           for file in test/*.test.cjs; do
             if [ "$file" = "test/performance.test.cjs" ]; then
@@ -43,30 +40,11 @@ jobs:
             status=$?
             if [ "$status" -ne 0 ]; then
               failed=1
-              echo "=== FAILED: $file ===" >> unit-failures.log
-              grep -E "^(not ok|# Subtest:)|AssertionError|ERR_|Error:|expected|actual|failureType|location|Cannot find module|SyntaxError|TypeError|ReferenceError" "$log" | tail -n 160 >> unit-failures.log || tail -n 160 "$log" >> unit-failures.log
+              echo "=== FAILED: $file ==="
+              cat "$log"
             fi
           done
-          echo "failed=$failed" >> "$GITHUB_OUTPUT"
-          exit 0
-      - name: Persist diagnostic result
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if [ '${{ steps.tests.outputs.failed }}' = '0' ]; then
-            rm -f unit-failures.log
-            if git status --short | grep -q '^ D unit-failures.log$'; then
-              git add -A unit-failures.log
-              git commit -m "ci(stable-core): clear unit failure evidence"
-              git push origin HEAD:release/3.4.0-stable-core
-            fi
-          else
-            git add unit-failures.log
-            git commit -m "ci(stable-core): capture unit failures"
-            git push origin HEAD:release/3.4.0-stable-core
+          if [ "$failed" -eq 0 ]; then
+            echo "All unit files passed individually."
           fi
-      - name: Fail after persisted diagnostics
-        if: steps.tests.outputs.failed != '0'
-        run: exit 1
+          exit "$failed"
