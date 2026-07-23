@@ -1,0 +1,76 @@
+name: Advanced documentation
+
+on:
+  pull_request:
+    paths:
+      - "advanced-website/**"
+      - "package.json"
+      - "package-lock.json"
+      - "README.md"
+      - "PROJECT_INDEX.md"
+      - "docs/**"
+      - "RELEASE_NOTES_3.*.md"
+      - "server/**"
+      - "cloud/**"
+      - "shared/**"
+      - "client/**"
+      - "electron/**"
+      - "website/advanced-link.js"
+      - ".github/workflows/advanced-docs.yml"
+      - ".github/workflows/pages.yml"
+  push:
+    branches: [main]
+    paths:
+      - "advanced-website/**"
+      - "package.json"
+      - "README.md"
+      - "PROJECT_INDEX.md"
+      - "docs/**"
+      - "RELEASE_NOTES_3.*.md"
+      - "server/**"
+      - "cloud/**"
+      - "shared/**"
+      - "client/**"
+      - "electron/**"
+      - "website/advanced-link.js"
+      - ".github/workflows/advanced-docs.yml"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: advanced-docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - run: npm ci
+      - name: Test source extraction and portal contracts
+        run: npm run test:advanced
+      - name: Production build
+        run: npm run build:advanced
+      - name: Verify deployable output
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s advanced-website/dist/index.html
+          test -s advanced-website/dist/openapi.json
+          test -d advanced-website/dist/assets
+          grep -Fq '/Nexora/advanced/' advanced-website/dist/index.html
+          node -e 'const fs=require("node:fs"); const api=JSON.parse(fs.readFileSync("advanced-website/dist/openapi.json","utf8")); if(api.openapi!=="3.1.0" || !Object.keys(api.paths).length) process.exit(1)'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nexora-advanced-documentation
+          path: advanced-website/dist
+          if-no-files-found: error
+          retention-days: 7
