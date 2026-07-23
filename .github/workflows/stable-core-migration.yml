@@ -1,4 +1,4 @@
-name: Stable Core migration
+name: Stable Core documentation migration
 
 on:
   push:
@@ -9,14 +9,14 @@ permissions:
   contents: write
 
 concurrency:
-  group: stable-core-migration
+  group: stable-core-docs-migration
   cancel-in-progress: true
 
 jobs:
   migrate:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,58 +26,23 @@ jobs:
         with:
           node-version: 22.16.0
           cache: npm
-      - name: Apply pending source migrations
-        id: migrate
-        shell: bash
-        run: |
-          set +e
-          : > migration-error.log
-          status=0
-          for command in \
-            "node scripts/apply-stable-core-bootstrap.cjs" \
-            "node scripts/apply-stable-core-runtime-retirement.cjs" \
-            "npm install --package-lock-only --ignore-scripts"
-          do
-            echo "> $command" >> migration-error.log
-            bash -lc "$command" >> migration-error.log 2>&1
-            status=$?
-            if [ "$status" -ne 0 ]; then
-              echo "FAILED_STATUS=$status" >> migration-error.log
-              break
-            fi
-          done
-          echo "status=$status" >> "$GITHUB_OUTPUT"
-          exit 0
-      - name: Commit generated source changes or diagnostics
+      - name: Synchronize current documentation surfaces
+        run: node scripts/apply-stable-core-docs.cjs
+      - name: Commit generated documentation
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if [ '${{ steps.migrate.outputs.status }}' = '0' ]; then
-            rm -f migration-error.log
-            git add -A
-            if git diff --cached --quiet; then
-              echo "No generated changes"
-            else
-              git commit -m "feat(stable-core): apply 3.4.0 contracts [stable-core-generated]"
-              git push origin HEAD:release/3.4.0-stable-core
-            fi
+          git add README.md CHANGELOG.md SECURITY.md SUPPORT.md CONTRIBUTING.md ADMIN_GUIDE.md TESTER_GUIDE.md BRANCHES.md android/README.md docs website .github/ISSUE_TEMPLATE/bug_report.md release-evidence/current.json
+          if git diff --cached --quiet; then
+            echo "Documentation already synchronized"
           else
-            git add migration-error.log
-            git commit -m "ci(stable-core): capture migration failure"
+            git commit -m "docs(stable-core): synchronize 3.4.0 RC surfaces [generated]"
             git push origin HEAD:release/3.4.0-stable-core
           fi
-      - name: Fail after persisted migration diagnostic
-        if: steps.migrate.outputs.status != '0'
-        run: exit 1
-      - if: steps.migrate.outputs.status == '0'
-        run: npm ci
-      - if: steps.migrate.outputs.status == '0'
-        run: npm run check
-      - if: steps.migrate.outputs.status == '0'
-        run: npm run test:unit
-      - if: steps.migrate.outputs.status == '0'
-        run: npm run test:performance
-      - if: steps.migrate.outputs.status == '0'
-        run: npm run audit:security
+      - run: npm ci
+      - run: npm run check
+      - run: npm run test:unit
+      - run: npm run test:performance
+      - run: npm run audit:security
