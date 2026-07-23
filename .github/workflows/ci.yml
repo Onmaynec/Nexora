@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   materialize:
-    if: github.head_ref == 'agent/release-3.3.2-complete-consistency'
+    if: github.head_ref == 'agent/release-3.3.2-consistency-final'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -29,7 +29,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          branch=agent/release-3.3.2-complete-consistency
+          branch=agent/release-3.3.2-consistency-final
           git show 400f7c4ddba0e33d695f89830e59a8e82384fe02^:.github/workflows/ci.yml > /tmp/nexora-ci.yml
           git fetch origin "$branch"
           git checkout -B materialize "origin/$branch"
