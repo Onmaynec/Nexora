@@ -1,0 +1,104 @@
+name: Post-release main gate
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/post-release-gate.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: post-release-main-gate
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+
+      - run: npm ci
+      - run: npm run release:check
+      - run: npm test
+      - run: npm run test:soak
+        env:
+          NEXORA_SOAK_MINUTES: "1"
+          NEXORA_SOAK_INTERVAL_MS: "500"
+      - run: gradle -p android :app:assembleDebug --no-daemon
+      - run: node --check website/app.js && node website/validate.mjs
+
+      - name: Verify published release evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const pkg = require('./package.json');
+          const evidence = JSON.parse(fs.readFileSync(`release-evidence/v${pkg.version}.json`, 'utf8'));
+          if (evidence.tag !== `v${pkg.version}`) throw new Error('Release evidence tag mismatch');
+          if (evidence.draft || !evidence.prerelease) throw new Error('Release evidence classification mismatch');
+          if (evidence.distribution !== 'unsigned-test') throw new Error('Unexpected release distribution');
+          if (evidence.updaterMetadataPublished) throw new Error('Unsigned release exposes updater metadata');
+          if (!Array.isArray(evidence.requiredAssets) || evidence.requiredAssets.length !== 7) throw new Error('Required asset evidence is incomplete');
+          if (!Array.isArray(evidence.assets) || evidence.assets.length !== 7) throw new Error('Published asset evidence is incomplete');
+          for (const asset of evidence.assets) {
+            if (!asset.name || !asset.size || !/^sha256:[a-f0-9]{64}$/.test(asset.digest || '')) throw new Error(`Invalid asset evidence: ${asset.name || 'unknown'}`);
+          }
+          NODE
+
+      - name: Record successful post-release gate
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-evidence
+          node <<'NODE'
+          const fs = require('node:fs');
+          const pkg = require('./package.json');
+          const record = {
+            schemaVersion: 1,
+            verifiedAt: new Date().toISOString(),
+            repository: process.env.GITHUB_REPOSITORY,
+            version: pkg.version,
+            sourceSha: process.env.SOURCE_SHA,
+            runId: Number(process.env.RUN_ID),
+            runUrl: process.env.RUN_URL,
+            gates: {
+              releaseCheck: 'pass',
+              linuxProductSuite: 'pass',
+              schemaSoak: 'pass',
+              androidBuild: 'pass',
+              websiteValidation: 'pass',
+              publishedReleaseEvidence: 'pass',
+            },
+          };
+          fs.writeFileSync('release-evidence/post-release-main-gate.json', `${JSON.stringify(record, null, 2)}\n`, 'utf8');
+          NODE
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add release-evidence/post-release-main-gate.json
+          git commit -m "docs(release): record post-release main gate [skip ci]"
+          git push origin HEAD:main
