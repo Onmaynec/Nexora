@@ -1,0 +1,43 @@
+name: Capture Windows performance 3.3.2 once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/capture-windows-performance-3.3.2-once.yml"
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Extract Windows performance measurements
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-evidence
+          gh run view 30006386964 --repo "${{ github.repository }}" --attempt 2 --log-failed > /tmp/windows-performance.log
+          grep -E -B 14 -A 30 'not ok|120 сообщений|получено [0-9]+ мс|ERR_TEST_FAILURE|test/performance\.test\.cjs' /tmp/windows-performance.log \
+            | awk '!seen[$0]++' > release-evidence/windows-performance-3.3.2-diagnostic.txt
+          test -s release-evidence/windows-performance-3.3.2-diagnostic.txt
+      - name: Commit diagnostic and remove workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/capture-windows-performance-3.3.2-once.yml
+          git add release-evidence/windows-performance-3.3.2-diagnostic.txt
+          git commit -m "docs(release): record Windows performance diagnostic [skip ci]"
+          git pull --rebase origin main
+          git push origin HEAD:main
