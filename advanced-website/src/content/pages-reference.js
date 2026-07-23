@@ -2,65 +2,60 @@ const both = (ru, en) => ({ ru, en });
 
 export const pages = [
   {
-    id: 'reference', group: 'reference', icon: 'BookOpenCheck', title: both('Полный reference', 'Full reference'),
-    description: both('Индекс исходников, документации и generated contracts.', 'Index of source, documentation, and generated contracts.'),
+    id: 'versions', group: 'reference', icon: 'GitBranch', title: both('Версии 3.1–3.3', 'Versions 3.1–3.3'),
+    description: both('Исторические линии и compatibility.', 'Historical lines and compatibility.'),
     body: both(
-`# Полный reference
+`# Версии 3.1–3.3
 
-## Динамические разделы
+## 3.1.x
 
-- API Inventory — REST routes, request fields, statuses и error codes;
-- Realtime Events — Socket.IO receive/emit references;
-- Error Codes — стабильные machine-readable codes;
-- Releases — GitHub Releases плюс local release-note fallback;
-- Repository Documents — актуальные Markdown-документы current main;
-- Documentation Kit — исторический комплект 0.3–1.0.
+Линия Cloud Identity, OAuth 2.1 + PKCE, MFA, Pulse billing/entitlements и production hardening. Patch-релизы исправляли updater, voice и sandbox administration.
 
-## Статические инженерные разделы
+## 3.2.x
 
-Портал содержит curated guides для установки, архитектуры, безопасности, эксплуатации, разработки и релизов. Curated content объясняет модель; generated inventory связывает её с исходниками.
+Линия Trust/MLS, secure media, release hardening, UX/regression fixes и расширенной security/performance проверки.
 
-## Принцип точности
+## 3.3.x
 
-Ни одна автоматически извлечённая схема не должна считаться более авторитетной, чем фактический server validator. Если static extraction не доказывает тип или constraint, OpenAPI оставляет поле без вымышленного типа и ведёт к source location.`,
-`# Full reference
+Линия Trust recovery, расходуемого Impulse catalog, обновлённого Client UX, сайта и полного artifact pipeline. 3.3.1 исправляет packaged Server startup из-за отсутствующего shared Pulse runtime без schema/API migration.
 
-## Dynamic sections
+## Правило просмотра
 
-- API Inventory — REST routes, request fields, statuses, and error codes;
-- Realtime Events — Socket.IO receive/emit references;
-- Error Codes — stable machine-readable codes;
-- Releases — GitHub Releases with local release-note fallback;
-- Repository Documents — current-main Markdown documents;
-- Documentation Kit — historical 0.3–1.0 material.
+Version selector фильтрует release reference. Общие архитектурные страницы отражают current main. Для точного поведения конкретного patch используйте release notes, verification и tag source.`,
+`# Versions 3.1–3.3
 
-## Curated engineering sections
+## 3.1.x
 
-The portal contains curated guides for installation, architecture, security, operations, development, and releases. Curated content explains the model; generated inventories bind it back to source.
+The Cloud Identity, OAuth 2.1 + PKCE, MFA, Pulse billing/entitlements, and production-hardening line. Patch releases fixed updater, voice, and sandbox-administration defects.
 
-## Accuracy rule
+## 3.2.x
 
-No generated schema is more authoritative than the actual server validator. When static extraction cannot prove a type or constraint, OpenAPI leaves it unspecified and links to the source location.`),
-    special: 'reference',
+The Trust/MLS, secure-media, release-hardening, UX/regression, and expanded security/performance validation line.
+
+## 3.3.x
+
+The Trust recovery, consumable Impulse catalog, refreshed Client UX, website, and full artifact-pipeline line. 3.3.1 fixes packaged Server startup caused by a missing shared Pulse runtime without a schema/API migration.
+
+## Viewing rule
+
+The version selector filters release references. General architecture pages describe current main. For exact patch behavior, use release notes, verification, and tag source.`),
   },
   {
-    id: 'historical-kit', group: 'reference', icon: 'Archive', title: both('Documentation Kit 0.3–1.0', 'Documentation Kit 0.3–1.0'),
-    description: both('Исторические документы из приложенного комплекта.', 'Historical material from the attached documentation kit.'),
-    body: both(
-`# Documentation Kit 0.3–1.0
-
-Приложенный комплект зафиксирован на базе Nexora 0.3.0 и roadmap к 1.0.0. Он включён для сохранения проектного контекста: ранние модели Client/Server, roadmap 0.4–0.6 и объединённая спецификация 1.0.0.
-
-> Этот раздел исторический. Названия файлов, схем, API и статус функций могут не соответствовать current main 3.3.1.
-
-Используйте документы для анализа эволюции требований. Для реализации, эксплуатации и security decisions всегда проверяйте current repository docs, source и release notes.`,
-`# Documentation Kit 0.3–1.0
-
-The attached kit is based on Nexora 0.3.0 and a roadmap toward 1.0.0. It is preserved for project context: early Client/Server models, the 0.4–0.6 roadmap, and the consolidated 1.0.0 specification.
-
-> This section is historical. File names, schemas, APIs, and feature status may not match current main 3.3.1.
-
-Use the documents to study requirement evolution. For implementation, operations, and security decisions, always verify current repository documentation, source, and release notes.`),
-    special: 'historical',
+    id: 'releases', group: 'reference', icon: 'Tags', title: both('Release notes', 'Release notes'),
+    description: both('GitHub Releases с локальным fallback.', 'GitHub Releases with a local fallback.'),
+    body: both('# Release notes\n\nДанные загружаются из GitHub Releases и фильтруются по выбранной линии 3.1.x–3.3.x.', '# Release notes\n\nData is loaded from GitHub Releases and filtered by the selected 3.1.x–3.3.x line.'),
+    special: 'releases',
+  },
+  {
+    id: 'repository-docs', group: 'reference', icon: 'BookMarked', title: both('Документы репозитория', 'Repository documents'),
+    description: both('Актуальные Markdown-документы current main.', 'Current-main Markdown documents.'),
+    body: both('# Документы репозитория\n\nСтраницы импортируются при сборке из README, PROJECT_INDEX и каталога docs.', '# Repository documents\n\nPages are imported at build time from README, PROJECT_INDEX, and the docs directory.'),
+    special: 'repository-docs',
+  },
+  {
+    id: 'documentation-kit', group: 'reference', icon: 'Archive', title: both('Documentation Kit 0.3–1.0', 'Documentation Kit 0.3–1.0'),
+    description: both('Исторический аудит и проектная спецификация.', 'Historical audit and product specification.'),
+    body: both('# Documentation Kit\n\nМатериалы основаны на Nexora 0.3.0 от 17 июля 2026 года. Они показывают эволюцию решений, но могут описывать целевое или уже заменённое поведение.', '# Documentation Kit\n\nThese materials are based on Nexora 0.3.0 as of July 17, 2026. They explain design evolution but may describe target or superseded behavior.'),
+    special: 'kit-docs',
   }
 ];
