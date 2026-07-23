@@ -1,0 +1,27 @@
+name: Agent source snapshot
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create source snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          git archive --format=zip --output=nexora-source-snapshot.zip HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nexora-source-snapshot
+          path: nexora-source-snapshot.zip
+          if-no-files-found: error
+          retention-days: 1
