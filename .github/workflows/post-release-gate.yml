@@ -54,8 +54,12 @@ jobs:
           node <<'NODE'
           const fs = require('node:fs');
           const pkg = require('./package.json');
-          const evidence = JSON.parse(fs.readFileSync(`release-evidence/v${pkg.version}.json`, 'utf8'));
+          const immutablePath = `release-evidence/v${pkg.version}.json`;
+          const evidence = JSON.parse(fs.readFileSync(immutablePath, 'utf8'));
+          const current = JSON.parse(fs.readFileSync('release-evidence/current.json', 'utf8'));
+          if (evidence.version !== pkg.version) throw new Error('Release evidence version mismatch');
           if (evidence.tag !== `v${pkg.version}`) throw new Error('Release evidence tag mismatch');
+          if (current.version !== pkg.version || current.tag !== `v${pkg.version}`) throw new Error('Current release evidence mismatch');
           if (evidence.draft || !evidence.prerelease) throw new Error('Release evidence classification mismatch');
           if (evidence.distribution !== 'unsigned-test') throw new Error('Unexpected release distribution');
           if (evidence.updaterMetadataPublished) throw new Error('Unsigned release exposes updater metadata');
@@ -64,6 +68,12 @@ jobs:
           for (const asset of evidence.assets) {
             if (!asset.name || !asset.size || !/^sha256:[a-f0-9]{64}$/.test(asset.digest || '')) throw new Error(`Invalid asset evidence: ${asset.name || 'unknown'}`);
           }
+          const smoke = evidence.smoke || {};
+          if (smoke.status !== 'pass' || smoke.checksums !== 'pass') throw new Error('Published checksum smoke did not pass');
+          if (smoke.client?.peHeader !== 'MZ' || smoke.client?.minimumSize !== 'pass') throw new Error('Client asset smoke did not pass');
+          if (smoke.server?.peHeader !== 'MZ' || smoke.server?.minimumSize !== 'pass') throw new Error('Server asset smoke did not pass');
+          if (smoke.android?.zipIntegrity !== 'pass' || smoke.android?.manifest !== 'pass') throw new Error('Android asset smoke did not pass');
+          if (smoke.pwa?.zipIntegrity !== 'pass' || smoke.pwa?.indexHtml !== 'pass') throw new Error('PWA asset smoke did not pass');
           NODE
 
       - name: Record successful post-release gate
@@ -93,6 +103,7 @@ jobs:
               androidBuild: 'pass',
               websiteValidation: 'pass',
               publishedReleaseEvidence: 'pass',
+              publishedAssetSmoke: 'pass',
             },
           };
           fs.writeFileSync('release-evidence/post-release-main-gate.json', `${JSON.stringify(record, null, 2)}\n`, 'utf8');
