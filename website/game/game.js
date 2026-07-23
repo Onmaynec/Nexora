@@ -19,7 +19,7 @@
     speed: 0.62,
     regenerationRate: 1.25,
     cursorRadius: 200,
-    cursorForce: 3.1,
+    cursorForce: 5,
     cursorGlow: true,
     connectionDistance: 132,
     lineOpacity: 0.26,
@@ -29,7 +29,7 @@
     impulseForce: 4.2,
     vortexForce: 2.2,
     collapseThreshold: 100,
-    collapseRadius: 82,
+    collapseRadius: 110,
     collapseHold: 3.5,
     blackHoleForce: 2.8,
     blackHoleRadius: 155,
@@ -775,7 +775,11 @@
       const average = this.fpsSamples.reduce((sum, value) => sum + value, 0) / this.fpsSamples.length;
       if (average < 34 && this.settings.particleCount > 100) {
         this.settings.particleCount = Math.max(100, Math.round(this.settings.particleCount * .78 / 10) * 10);
+        if (this.particles.length > this.settings.particleCount) {
+          this.particles.length = this.settings.particleCount;
+        }
         this.reducedOnce = true;
+        this.emitCounts();
         this.callbacks.onAutoReduce?.(this.settings.particleCount);
       }
     }
@@ -837,7 +841,7 @@
         const distance = Math.hypot(dx, dy);
         if (distance <= .001 || distance >= radius + this.settings.particleSize) continue;
         const force = (radius - distance) / radius;
-        const displacement = force * this.settings.cursorForce * .32 * delta;
+        const displacement = force * this.settings.cursorForce * delta;
         particle.x -= dx / distance * displacement;
         particle.y -= dy / distance * displacement;
         particle.vx -= dx / distance * force * .018 * this.settings.cursorForce;
