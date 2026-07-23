@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-07-23T10:01:43.304Z",
+  "websiteUrl": "https://onmaynec.github.io/Nexora/",
+  "sourceCommit": "512e137d16694c1c00d6bc696df7882e2840148b",
+  "siteBuild": "restored-3.2.5-ux-20260723-1",
+  "restoredFrom": "v3.2.5",
+  "releaseDataVersion": "3.3.0",
+  "checks": {
+    "legacyStructure": true,
+    "aetherCanvas": true,
+    "threeDimensionalWindow": true,
+    "tiltCards": true,
+    "originalAnimations": true,
+    "russianLocalization": true,
+    "cyrillicTypography": true,
+    "overflowAndSpacing": true,
+    "headerControlsHitTesting": true,
+    "releaseAssetClassification": true
+  },
+  "sha256": {
+    "indexHtml": "0608d8e70404634c6657f9887bc24c5b882d243e0625ae5ee3744536c2bc341b",
+    "appJs": "1b73df9f1055e78d00eb720f7eb96f610da33aa22d9d160f24bc765338a18a25",
+    "stylesCss": "0cd39f79bd804ff516d97918fb2904283b2cc5e65b6ce4424f31259532b5fb89"
+  }
+}
