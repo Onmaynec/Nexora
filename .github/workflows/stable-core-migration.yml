@@ -30,6 +30,7 @@ jobs:
         run: |
           node scripts/apply-stable-core-3.4.cjs
           node scripts/apply-stable-core-error-contracts.cjs
+          node scripts/apply-stable-core-client-retirement.cjs
       - name: Commit generated source changes
         shell: bash
         run: |
