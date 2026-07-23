@@ -8,6 +8,7 @@ const test = require("node:test");
 const { checkReleaseConsistency } = require("../scripts/check-release-consistency.cjs");
 
 const root = path.resolve(__dirname, "..");
+// Keep this list aligned with the current-document set enforced by the full unit and release gates.
 const fixtureFiles = [
   "package.json",
   "package-lock.json",
