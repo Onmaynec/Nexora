@@ -1,7 +1,6 @@
 "use strict";
 
 const { createNexoraServer: createBaseNexoraServer, LIMITS, REACTIONS } = require("./create-server.cjs");
-const { mountE2eeAttachmentRoutes } = require("./e2ee-attachments.cjs");
 const { PulseCloudClient } = require("./pulse-cloud-client.cjs");
 const { PulseLocalRepository } = require("./pulse-local-repository.cjs");
 const { upgradeStoreToSchema7 } = require("./pulse-schema7.cjs");
@@ -11,11 +10,7 @@ const { PulseSyncWorker } = require("./pulse-sync-worker.cjs");
 const { DeveloperCommandService } = require("./developer-commands.cjs");
 const { PulseSandboxService } = require("./pulse-sandbox-service.cjs");
 const { upgradeStoreToSchema8 } = require("./trust-schema8.cjs");
-const { TrustCore } = require("./trust-core.cjs");
-const { mountTrustRoutes } = require("./trust-routes.cjs");
-const { mountTrustRecoveryRoutes } = require("./trust-recovery-routes.cjs");
-const { mountTrustSocketAuthorization } = require("./trust-socket.cjs");
-const { mountMlsTransport } = require("./mls-transport.cjs");
+const { mountStableCore } = require("./stable-core.cjs");
 
 function parsePublicKeys(options = {}) {
   const values = [];
@@ -44,13 +39,12 @@ async function createNexoraServer(options = {}) {
     if (!options.quiet) console[level === "error" ? "error" : level === "warn" ? "warn" : "log"](`[Nexora] ${message}`);
   };
 
-  let trustCleanupTimer = null;
   try {
     const pulseMigration = await upgradeStoreToSchema7(instance.store, {
       databaseFile: instance.status().databaseFile,
       log: (message) => log(message, "info"),
     });
-    const trustMigration = await upgradeStoreToSchema8(instance.store, {
+    const legacyTrustMigration = await upgradeStoreToSchema8(instance.store, {
       databaseFile: instance.status().databaseFile,
       log: (message) => log(message, "info"),
     });
@@ -79,9 +73,6 @@ async function createNexoraServer(options = {}) {
     });
 
     const sandbox = new PulseSandboxService({ store: instance.store, productionMode: client.status().mode === "production", clock: options.clock, log });
-    const trustCore = new TrustCore({ store: instance.store, clock: options.clock, log });
-    mountTrustSocketAuthorization({ io: instance.io, trustCore, log });
-
     const pulseRoutes = mountPulseV3Routes({
       app: instance.app,
       store: instance.store,
@@ -111,16 +102,12 @@ async function createNexoraServer(options = {}) {
       io: instance.io,
       store: instance.store,
     });
-    const trustRoutes = mountTrustRoutes({ app: instance.app, store: instance.store, io: instance.io, trustCore, log });
-    mountTrustRecoveryRoutes({ app: instance.app, trustCore, ...trustRoutes });
-    const mlsTransport = mountMlsTransport({ io: instance.io, store: instance.store, trustCore, log });
-    const e2eeAttachments = mountE2eeAttachmentRoutes({
+    const stableCore = mountStableCore({
       app: instance.app,
       store: instance.store,
-      authRequired: trustRoutes.authRequired,
-      dataDir: instance.dataDir,
-      maxPlaintextBytes: LIMITS.fileBytes,
-      postingError: mlsTransport.postingError,
+      io: instance.io,
+      authRequired: pulseRoutes.authRequired,
+      maintenance: instance.maintenance,
       log,
     });
 
@@ -129,28 +116,20 @@ async function createNexoraServer(options = {}) {
       ...baseStatus(),
       schemaVersion: 8,
       pulseV3: { ...client.status(), ...(sandbox.enabled() ? { mode: "sandbox", enabled: true, productionReady: false, testMode: true } : {}), sync: syncWorker.status() },
-      trust: { ...trustCore.status(), encryptedAttachments: true, deviceScopedRealtime: true },
+      stableCore: stableCore.status(),
+      trust: { runtime: "retired", legacyHistory: "read_only", encryptedAttachments: false, deviceScopedRealtime: false },
       migration: pulseMigration,
-      migrations: { pulse: pulseMigration, trust: trustMigration },
+      migrations: { pulse: pulseMigration, legacyTrust: legacyTrustMigration },
     });
     const baseListen = instance.listen.bind(instance);
     instance.listen = async () => {
       await baseListen();
       syncWorker.start();
-      trustCore.cleanup();
-      await e2eeAttachments.cleanupExpired();
-      trustCleanupTimer = setInterval(() => {
-        try { trustCore.cleanup(); } catch (error) { log(`Trust cleanup failed: ${error.message}`, "warn"); }
-        e2eeAttachments.cleanupExpired().catch((error) => log(`E2EE attachment cleanup failed: ${error.message}`, "warn"));
-      }, 60 * 60_000);
-      trustCleanupTimer.unref?.();
       return instance.status();
     };
     const baseClose = instance.close.bind(instance);
     instance.close = async () => {
       syncWorker.stop();
-      if (trustCleanupTimer) clearInterval(trustCleanupTimer);
-      trustCleanupTimer = null;
       await baseClose();
     };
     instance.pulseRepository = repository;
@@ -158,14 +137,12 @@ async function createNexoraServer(options = {}) {
     instance.pulseSyncWorker = syncWorker;
     instance.pulseMigration = pulseMigration;
     instance.pulseSandbox = sandbox;
-    instance.trustCore = trustCore;
-    instance.trustMigration = trustMigration;
-    instance.e2eeAttachments = e2eeAttachments;
+    instance.legacyTrustMigration = legacyTrustMigration;
+    instance.stableCore = stableCore;
     instance.commandService = new DeveloperCommandService({ instance, store: instance.store, pulseSandbox: sandbox, log, clock: options.clock });
     return instance;
   } catch (error) {
-    if (trustCleanupTimer) clearInterval(trustCleanupTimer);
-    await instance.close().catch((closeError) => log(`Failed to close Local Server after Trust/Pulse initialization error: ${closeError.message}`, "error"));
+    await instance.close().catch((closeError) => log(`Failed to close Local Server after Stable Core initialization error: ${closeError.message}`, "error"));
     throw error;
   }
 }
