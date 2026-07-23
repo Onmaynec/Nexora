@@ -68,6 +68,15 @@ jobs:
           python3 release-patches/3.3.3/fixups.py >> nexora-3.3.3-migration.log 2>&1
           python3 release-patches/3.3.3/mls-fixups.py >> nexora-3.3.3-migration.log 2>&1
           python3 release-patches/3.3.3/trust-route-fixups.py >> nexora-3.3.3-migration.log 2>&1
+          python3 - <<'PY' >> nexora-3.3.3-migration.log 2>&1
+          from pathlib import Path
+          for name in ("test/voice-waveform.test.cjs", "test/pulse-effects.test.cjs"):
+              path = Path(name)
+              text = path.read_text(encoding="utf-8")
+              if text.startswith("\\\n"):
+                  path.write_text(text[2:], encoding="utf-8")
+          print("Generated regression test headers normalized.")
+          PY
       - name: Upload migration diagnostics
         if: always()
         uses: actions/upload-artifact@v4
