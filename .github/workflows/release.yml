@@ -26,7 +26,7 @@ jobs:
       github.event.workflow_run.head_branch == 'main' &&
       startsWith(github.event.workflow_run.head_commit.message, 'release:'))
     runs-on: windows-latest
-    timeout-minutes: 75
+    timeout-minutes: 90
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || '' }}
@@ -49,6 +49,8 @@ jobs:
           java-version: "17"
 
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
 
       - name: Resolve immutable release tag
         shell: pwsh
@@ -117,7 +119,7 @@ jobs:
             Write-Warning "Authenticode secrets are absent. Windows installers will be published only as explicitly named UNSIGNED TEST builds; updater metadata will not be published."
           }
 
-      - name: Build source, PWA, SBOM and Android test artifact
+      - name: Prepare source and PWA archives
         if: steps.existing.outputs.published != 'true'
         shell: pwsh
         run: |
@@ -126,14 +128,36 @@ jobs:
           New-Item -ItemType Directory -Force artifacts | Out-Null
           git archive --format=zip --output "artifacts/Nexora-$version-source.zip" $env:RELEASE_TAG
           if ($LASTEXITCODE -ne 0) { throw "Unable to archive source tag" }
-          Compress-Archive -Path "client/dist/*" -DestinationPath "artifacts/Nexora-PWA-$version.zip" -CompressionLevel Optimal
-          npm sbom --omit=dev --sbom-format=spdx | Set-Content -Encoding utf8 "artifacts/Nexora-$version.spdx.json"
-          if ($LASTEXITCODE -ne 0) { throw "Unable to create SPDX SBOM" }
+          if (-not (Test-Path -LiteralPath "client/dist/index.html")) { throw "Production web build is missing" }
+          Compress-Archive -Path "client/dist/*" -DestinationPath "artifacts/Nexora-PWA-$version.zip" -CompressionLevel Optimal -Force
+          foreach ($file in @("artifacts/Nexora-$version-source.zip", "artifacts/Nexora-PWA-$version.zip")) {
+            if (-not (Test-Path -LiteralPath $file) -or (Get-Item $file).Length -lt 1024) { throw "Invalid release archive: $file" }
+          }
+
+      - name: Generate and validate SPDX SBOM
+        if: steps.existing.outputs.published != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version")
+          output="artifacts/Nexora-${version}.spdx.json"
+          if ! npm sbom --omit=dev --sbom-format=spdx > "$output"; then
+            echo "npm sbom failed; using the repository SPDX fallback generator" >&2
+            node scripts/generate-spdx-sbom.cjs "$output"
+          fi
+          node -e "const fs=require('node:fs');const p=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));if(p.spdxVersion!=='SPDX-2.3'||!Array.isArray(p.packages)||!p.packages.length)process.exit(1)" "$output"
+
+      - name: Build Android unsigned test artifact
+        if: steps.existing.outputs.published != 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $version = node -p "require('./package.json').version"
           gradle -p android :app:assembleDebug --no-daemon
           if ($LASTEXITCODE -ne 0) { throw "Android debug build failed" }
-          $apk = Get-ChildItem -Path "android/app/build/outputs/apk/debug" -Filter "*.apk" | Select-Object -First 1
+          $apk = Get-ChildItem -Path "android/app/build/outputs/apk/debug" -Filter "*.apk" | Sort-Object Length -Descending | Select-Object -First 1
           if (-not $apk) { throw "Android APK was not created" }
-          Copy-Item $apk.FullName "artifacts/Nexora-Android-$version-UNSIGNED-TEST.apk"
+          Copy-Item $apk.FullName "artifacts/Nexora-Android-$version-UNSIGNED-TEST.apk" -Force
 
       - name: Validate signing secrets
         if: steps.existing.outputs.published != 'true' && steps.signing.outputs.available == 'true'
@@ -161,8 +185,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Unsigned Client build failed" }
           npx electron-builder --config electron-builder.server.yml --win nsis --publish never
           if ($LASTEXITCODE -ne 0) { throw "Unsigned Server build failed" }
-          Copy-Item "release/client/Nexora-Client-Setup-$version.exe" "artifacts/Nexora-Client-Setup-$version-UNSIGNED-TEST.exe"
-          Copy-Item "release/server/Nexora-Server-Setup-$version.exe" "artifacts/Nexora-Server-Setup-$version-UNSIGNED-TEST.exe"
+          Copy-Item "release/client/Nexora-Client-Setup-$version.exe" "artifacts/Nexora-Client-Setup-$version-UNSIGNED-TEST.exe" -Force
+          Copy-Item "release/server/Nexora-Server-Setup-$version.exe" "artifacts/Nexora-Server-Setup-$version-UNSIGNED-TEST.exe" -Force
 
       - name: Publish complete signed release
         if: steps.existing.outputs.published != 'true' && steps.signing.outputs.available == 'true'
@@ -206,6 +230,9 @@ jobs:
             "artifacts/Nexora-$version.spdx.json"
           )
           foreach ($asset in $assets) { if (-not (Test-Path -LiteralPath $asset)) { throw "Missing release asset: $asset" } }
+          if (Get-ChildItem artifacts -File | Where-Object { $_.Name -eq "latest.yml" -or $_.Extension -eq ".blockmap" }) {
+            throw "Unsigned artifact directory contains production updater metadata"
+          }
           Get-FileHash $assets -Algorithm SHA256 | Sort-Object Path | ForEach-Object { "$($_.Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content -Encoding utf8 artifacts/SHA256SUMS.txt
           $all = @($assets | ForEach-Object { (Resolve-Path $_).Path }) + (Resolve-Path "artifacts/SHA256SUMS.txt").Path
           $notes = "RELEASE_NOTES_$version.md"
