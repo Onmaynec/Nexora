@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gunzipSync } from 'node:zlib';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const siteRoot = path.resolve(here, '..');
@@ -323,10 +324,13 @@ async function main() {
 
   const kitDocs = [];
   const contentDir = path.join(siteRoot, 'content');
-  for (const file of (await walk(contentDir)).filter((candidate) => candidate.endsWith('.md')).sort()) {
-    const content = await readText(file);
+  for (const file of (await walk(contentDir)).filter((candidate) => candidate.endsWith('.md') || candidate.endsWith('.md.gz.b64')).sort()) {
+    const encoded = await readText(file);
+    const compressed = file.endsWith('.md.gz.b64');
+    const content = compressed ? gunzipSync(Buffer.from(encoded.trim(), 'base64')).toString('utf8') : encoded;
+    const baseName = path.basename(file).replace(/\.md(?:\.gz\.b64)?$/, '');
     kitDocs.push({
-      id: `kit-${path.basename(file, '.md')}`,
+      id: `kit-${baseName}`,
       title: content.match(/^#\s+(.+)$/m)?.[1]?.trim() || path.basename(file, '.md'),
       source: normalizePath(path.relative(repoRoot, file)),
       kind: 'documentation-kit',
