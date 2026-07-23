@@ -1,27 +1,47 @@
 {
-  "schemaVersion": 1,
-  "version": "3.3.3",
-  "status": "candidate",
+  "schemaVersion": 2,
+  "version": "3.4.0",
+  "status": "release-candidate",
   "verifiedAt": null,
   "repository": "Onmaynec/Nexora",
-  "tag": "v3.3.3",
+  "branch": "release/3.4.0-stable-core",
+  "pullRequest": 69,
+  "tag": null,
   "tagSha": null,
-  "releaseName": "Nexora 3.3.3 — UNSIGNED TEST BUILDS",
-  "releaseUrl": "https://github.com/Onmaynec/Nexora/releases/tag/v3.3.3",
+  "releaseName": "Nexora 3.4.0 — Stable Core",
+  "releaseUrl": null,
+  "published": false,
+  "signed": false,
   "draft": true,
-  "prerelease": true,
-  "distribution": "unsigned-test",
+  "prerelease": false,
   "updaterMetadataPublished": false,
-  "requiredAssets": [
-    "Nexora-3.3.3-source.zip",
-    "Nexora-PWA-3.3.3.zip",
-    "Nexora-3.3.3.spdx.json",
-    "SHA256SUMS.txt",
-    "Nexora-Client-Setup-3.3.3-UNSIGNED-TEST.exe",
-    "Nexora-Server-Setup-3.3.3-UNSIGNED-TEST.exe"
+  "blockers": [
+    "verified-v3.3.4",
+    "authenticode-windows-acceptance",
+    "independent-security-review",
+    "final-ci-and-publication-evidence"
   ],
-  "smoke": {
-    "status": "pending"
+  "requiredAssets": [
+    "Nexora-3.4.0-source.zip",
+    "Nexora-PWA-3.4.0.zip",
+    "Nexora-3.4.0.spdx.json",
+    "SHA256SUMS.txt",
+    "Nexora-Client-Setup-3.4.0.exe",
+    "Nexora-Client-Setup-3.4.0.exe.blockmap",
+    "latest.yml",
+    "Nexora-Server-Setup-3.4.0.exe",
+    "Nexora-Server-Setup-3.4.0.exe.blockmap",
+    "server.yml",
+    "Nexora-Android-3.4.0-UNSIGNED-TEST.apk",
+    "AUTHENTICODE-EVIDENCE.json",
+    "RELEASE-EVIDENCE.json"
+  ],
+  "checks": {
+    "implementation": "in-progress",
+    "ci": "in-progress",
+    "independentReview": "blocked",
+    "signedWindowsAcceptance": "blocked",
+    "publication": "blocked"
   },
   "assets": []
 }
