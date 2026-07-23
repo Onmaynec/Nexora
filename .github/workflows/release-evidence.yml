@@ -12,6 +12,7 @@ on:
 permissions:
   contents: write
 
+# A reviewed workflow change may replay verification when a release event was delayed.
 concurrency:
   group: release-evidence-${{ github.event.release.tag_name || github.sha }}
   cancel-in-progress: false
