@@ -27,8 +27,6 @@ jobs:
           cache: npm
       - name: Apply legacy bootstrap contract
         run: node scripts/apply-stable-core-bootstrap.cjs
-      - name: Apply client retirement contract
-        run: node scripts/apply-stable-core-client-retirement.cjs
       - name: Remove executable Trust and MLS runtime
         run: node scripts/apply-stable-core-runtime-retirement.cjs
       - name: Regenerate lockfile
