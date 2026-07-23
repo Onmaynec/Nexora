@@ -1,22 +1,28 @@
 # Release Verification — Nexora 3.3.0
 
-Дата подготовки: 2026-07-23  
+Дата финализации: 2026-07-23  
 Pull Request: `#38`  
-Рабочая ветка: `agent/nexora-3.3.0-full-release`
+Merge commit: `a46c080e12b9081b448dad6426bf7c44156114cd`  
+Tag: `v3.3.0`  
+Release: `https://github.com/Onmaynec/Nexora/releases/tag/v3.3.0`
 
-## Статус
+## Итоговый статус
 
-Runtime release candidate проверен на commit `32743436bbce99dc9632d28eeb44367d8554fbb7`.
+Nexora `3.3.0` опубликована как проверенный `UNSIGNED-TEST` prerelease. Tag `v3.3.0` неизменно указывает на merge commit. Release не является draft, содержит полный обязательный набор assets и не публикует production updater metadata.
 
-- CI run: `29966678997` — **PASS**;
-- focused Nexora 3.3 regressions run: `29966678998` — **PASS**;
-- Project website run: `29966678986` — **PASS**.
-
-Этот документ добавляет только release evidence. Финальная публикация считается завершённой только после merge, успешного CI на merge commit, создания immutable tag `v3.3.0` и проверки GitHub Release assets.
+| Параметр | Значение |
+|---|---|
+| Release name | `Nexora 3.3.0 — UNSIGNED TEST BUILDS` |
+| Draft | `false` |
+| Prerelease | `true` |
+| Distribution | `unsigned-test` |
+| `latest.yml` / `.blockmap` | отсутствуют |
+| Immutable asset evidence | `release-evidence/v3.3.0.json` |
+| Recovery run | `29968722912` — PASS |
 
 ## Проверенные первопричины и исправления
 
-### 1. Чаты не открывались
+### 1. Чаты и комнаты не открывались
 
 Подтверждённая цепочка:
 
@@ -29,10 +35,11 @@ Runtime release candidate проверен на commit `32743436bbce99dc9632d28e
 
 Исправлено:
 
-- rate-limit bucket изолирован по `user + device + conversation`;
-- параллельные Client requests объединяются;
+- server bucket изолирован по `user + device + conversation`;
+- параллельные Client recovery requests объединяются;
 - claim/request имеют отдельные минимальные интервалы;
-- Client соблюдает `Retry-After`;
+- Client соблюдает `Retry-After` и conversation-scoped backoff;
+- фоновые циклы не создают общий request storm;
 - plaintext fallback не добавлен.
 
 ### 2. Sandbox Импульсы нельзя было потратить
@@ -42,10 +49,11 @@ Runtime release candidate проверен на commit `32743436bbce99dc9632d28e
 Исправлено:
 
 - добавлен authoritative shared catalog;
-- реализованы Local Sandbox catalog, purchases, goals, contributions, refunds и receipts;
+- реализованы Local Sandbox catalog, purchases, goals, contributions, refunds, receipts и entitlements;
 - реализованы Cloud catalog и purchases;
 - списание и выдача entitlement выполняются атомарно и идемпотентно;
-- room operations проверяют membership, ban и owner role на Local Server.
+- отрицательный баланс и повторное списание запрещены;
+- room operations проверяют существование комнаты, membership, active ban и owner role на Local Server.
 
 ### 3. Voice waveform выглядел плоским
 
@@ -67,46 +75,91 @@ Runtime release candidate проверен на commit `32743436bbce99dc9632d28e
 
 Исправлено:
 
-- общий in-app `ConfirmDialog`;
-- серверное удаление вызывается только после подтверждения;
+- общий доступный in-app `ConfirmDialog`;
+- server action вызывается только после подтверждения;
+- Escape, focus restoration, busy state и backdrop dismissal обработаны;
 - lock element удалён из DOM и layout.
 
-### 5. Download cards не имели installers
+### 5. На сайте отсутствовали installers
 
-Причина: старый workflow не публиковал `.exe` без Authenticode secrets.
+Причина: прежний release path не публиковал `.exe` при отсутствии Authenticode secrets.
 
 Безопасное исправление:
 
 - signed production path сохранён;
-- при отсутствии сертификата публикуются Client/Server `.exe` и Android `.apk` только с суффиксом `UNSIGNED-TEST`;
+- без сертификата Client/Server `.exe` и Android `.apk` публикуются только с суффиксом `UNSIGNED-TEST`;
 - unsigned prerelease не содержит `latest.yml` и `.blockmap` и не может быть принят production updater;
-- release publication сериализована и не запускается повторно от созданного tag;
-- сайт обнаруживает реальные GitHub Release assets и показывает signature classification.
+- сайт разрешает реальные GitHub Release assets и показывает distribution classification;
+- Source ZIP, PWA ZIP, SPDX SBOM и SHA-256 manifest публикуются вместе с installers.
 
-## Автоматические suites
+### 6. Первичная публикация 3.3.0 завершилась ошибкой
+
+Исходный run `29967729776` прошёл release gate, но упал в объединённом шаге `Build source, PWA, SBOM and Android test artifact`. Один шаг выполнял четыре независимые операции, а версия Gradle в release job не была закреплена. Поэтому failure boundary был слишком широким и отличался от успешно проверенного CI Android toolchain.
+
+Исправление pipeline:
+
+- Gradle закреплён на `8.13`, как в CI;
+- source archive, PWA archive, SPDX SBOM и Android APK разделены на отдельные steps;
+- каждый artifact проверяется на существование, ненулевой размер и формат;
+- добавлен production-safe SPDX fallback generator `scripts/generate-spdx-sbom.cjs`;
+- fallback покрыт `test/spdx-sbom.test.cjs`;
+- recovery run `29968722912` прошёл полностью и опубликовал release;
+- одноразовые recovery/observer workflows после завершения удалены.
+
+Точный упавший подкомандный вызов первоначального монолитного шага не был отдельно размечен самим workflow. Подтверждённая первопричина уровня pipeline — непинованный Android toolchain и отсутствие изоляции независимых artifact operations. После изоляции и pinning все операции прошли.
+
+## Автоматические проверки
+
+### PR head
+
+PR head `7d83bce963d5a774f9c107a5cf8d3a05130c1d44`:
 
 | Gate | Результат | Evidence |
 |---|---:|---|
-| `npm run check` | PASS | CI `29966678997`, job `verify` |
-| `npm run test:unit` | PASS | CI `29966678997`, job `verify` |
-| `npm run test:performance` | PASS | CI `29966678997`, job `verify` |
-| `npm run audit:security` | PASS | CI `29966678997`, job `verify` |
-| `npm run release:check` | PASS | CI `29966678997`, job `release-gate` |
-| Linux `npm test` | PASS | CI `29966678997`, job `linux-tests` |
-| schema 8 soak | PASS | CI `29966678997`, job `schema8-soak` |
-| Android `assembleDebug` | PASS | CI `29966678997`, job `android-source` |
-| Nexora 3.3 focused regressions | PASS | run `29966678998` |
-| website validation/deployment gate | PASS | run `29966678986` |
-| Windows artifact build | после merge/tag | signed либо explicit `UNSIGNED-TEST` path |
-| release asset verification | после merge/tag | required names, checksums и updater boundary |
+| `npm run check` | PASS | CI `29967109170`, job `verify` |
+| `npm run test:unit` | PASS | CI `29967109170`, job `verify` |
+| `npm run test:performance` | PASS | CI `29967109170`, job `verify` |
+| `npm run audit:security` | PASS | CI `29967109170`, job `verify` |
+| `npm run release:check` | PASS | CI `29967109170`, job `release-gate` |
+| Linux `npm test` | PASS | CI `29967109170`, job `linux-tests` |
+| schema 8 soak | PASS | CI `29967109170`, job `schema8-soak` |
+| Android `assembleDebug` | PASS | CI `29967109170`, job `android-source` |
+| focused Nexora 3.3 regressions | PASS | run `29967109182` |
+| Project website | PASS | run `29967109165` |
 
-CI jobs `verify`, `release-gate`, `linux-tests`, `schema8-soak` и `android-source` завершились с conclusion `success` на одном runtime candidate SHA.
+### Merge commit
 
-## Добавленные регрессионные тесты
+Merge commit `a46c080e12b9081b448dad6426bf7c44156114cd`:
+
+- CI `29967637087` — PASS;
+- Project website `29967637097` — PASS;
+- immutable tag `v3.3.0` создан на этом commit.
+
+### Publication
+
+Recovery publication run `29968722912`:
+
+- source/tag validation — PASS;
+- `npm ci` — PASS;
+- `npm run release:check` — PASS;
+- `npm run release:tag-check` — PASS;
+- source archive — PASS;
+- PWA archive — PASS;
+- SPDX SBOM — PASS;
+- Android debug APK — PASS;
+- unsigned Windows Client build — PASS;
+- unsigned Windows Server build — PASS;
+- checksum manifest — PASS;
+- GitHub prerelease creation — PASS;
+- required asset verification — PASS;
+- updater metadata prohibition — PASS.
+
+## Добавленные тесты
 
 - `test/pulse-sandbox-service.test.cjs`;
 - `test/pulse-catalog-3.3.test.cjs`;
 - `test/release-3.3.0-regressions.test.cjs`;
+- `test/spdx-sbom.test.cjs`;
 - обновлённый `test/build-config.test.cjs`;
 - обновлённый `website/validate.mjs`;
 - focused workflow `.github/workflows/nexora-3.3-regressions.yml`.
@@ -126,7 +179,8 @@ CI jobs `verify`, `release-gate`, `linux-tests`, `schema8-soak` и `android-sour
 - normalized waveform contract;
 - raw Stripe webhook body;
 - website version, controls, typography и asset detection;
-- prohibition of updater metadata in unsigned distribution.
+- unsigned updater metadata prohibition;
+- SPDX fallback validity и исключение dev-only packages.
 
 ## Schema и migration
 
@@ -161,9 +215,23 @@ CI jobs `verify`, `release-gate`, `linux-tests`, `schema8-soak` и `android-sour
 - room goals/create/contribute/cancel в Sandbox;
 - Trust Welcome rate-limit scope.
 
+## Published assets
+
+| Asset | Size | GitHub digest |
+|---|---:|---|
+| `Nexora-Client-Setup-3.3.0-UNSIGNED-TEST.exe` | 105,353,047 bytes | `sha256:c5e79b5f04ee2dc912a0adcae1457d837f428151a8e20189fbe76f495745e243` |
+| `Nexora-Server-Setup-3.3.0-UNSIGNED-TEST.exe` | 106,523,620 bytes | `sha256:1fc91dbd631818bec5f673a1b2f9b068e84bf9b8f3626d6f399214d39909ca83` |
+| `Nexora-Android-3.3.0-UNSIGNED-TEST.apk` | 848,686 bytes | `sha256:2cd4f1fb52dd59843131ebebe6806308b0ec2d8818ece8b54dbbe354beaa29b9` |
+| `Nexora-PWA-3.3.0.zip` | 1,258,671 bytes | `sha256:78cff1a71ee1c54fab30b36ff721f830c9800deb1492ee3d8cb905aa1b330145` |
+| `Nexora-3.3.0-source.zip` | 1,783,226 bytes | `sha256:2ce56e992afcde4c1c110d23f8ea140ea66827d04255a630859251505977a24b` |
+| `Nexora-3.3.0.spdx.json` | 134,466 bytes | `sha256:b3cca2def42b2453f9d02da7ec7b9dd4b14462e78d030566cf0a3da6fd37b4f3` |
+| `SHA256SUMS.txt` | 597 bytes | `sha256:553fe901b5ab2f5179da80a16c9b72aa97b48cf6a735b9f22aa500f1fe5d21f3` |
+
+Authoritative machine-readable evidence: `release-evidence/v3.3.0.json`.
+
 ## Ручная приёмка
 
-Рекомендуемые release smoke scenarios после установки artifacts:
+Рекомендуемые smoke scenarios для опубликованных installers:
 
 1. открыть старый DM, новый DM, старую и новую комнату на одном verified device;
 2. переключаться между чатами и проверить отсутствие recovery storm/429;
@@ -176,24 +244,13 @@ CI jobs `verify`, `release-gate`, `linux-tests`, `schema8-soak` и `android-sour
 9. проверить insufficient balance и повторный idempotency key;
 10. проверить сайт на desktop/mobile, RU/EN, GitHub controls и downloads;
 11. проверить signature labels и имена GitHub Release assets;
-12. при unsigned release подтвердить отсутствие `latest.yml` и `.blockmap`.
+12. подтвердить отсутствие `latest.yml` и `.blockmap`.
 
 ## Реальные ограничения
 
-- без Authenticode и Android release keystore binaries остаются `UNSIGNED-TEST`;
-- test APK не заменяет physical-device matrix;
+- текущие Windows и Android binaries не подписаны Authenticode/release keystore и предназначены для контролируемого тестирования;
+- unsigned Client не получает production auto-update metadata;
+- Android test APK не заменяет physical-device matrix;
 - независимый cryptographic/application-security audit не выполнялся;
 - traffic-analysis resistance не заявляется;
 - voice/video calls и screen sharing не входят в 3.3.0.
-
-## Финальная фиксация после публикации
-
-В PR/release evidence должны быть зафиксированы:
-
-- merge commit SHA;
-- tag SHA;
-- release classification и URL;
-- опубликованные asset names;
-- SHA-256 manifest;
-- live Pages marker;
-- итоговые conclusions CI на merge commit.
