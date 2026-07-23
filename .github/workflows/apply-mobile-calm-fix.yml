@@ -1,0 +1,45 @@
+name: Apply mobile and calm Aether fix
+
+on:
+  push:
+    branches: [fix/mobile-layout-calm-aether]
+    paths:
+      - "website/game/apply-mobile-calm-fix.mjs"
+      - ".github/workflows/apply-mobile-calm-fix.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/mobile-layout-calm-aether
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+      - name: Apply deterministic source patch
+        run: node website/game/apply-mobile-calm-fix.mjs
+      - name: Validate patched website
+        run: |
+          node --check website/game/game.js
+          node website/game/smoke.cjs
+          node website/validate.mjs
+          node website/validate-restored.mjs
+      - name: Commit generated source changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "Patch already applied."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add website/site-fixes.css website/game/game.js website/game/index.html website/game/smoke.cjs website/validate-restored.mjs
+          git commit -m "fix(site): repair mobile layout and calm Aether defaults"
+          git push origin HEAD:fix/mobile-layout-calm-aether
