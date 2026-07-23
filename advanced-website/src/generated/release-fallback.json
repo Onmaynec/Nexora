@@ -1,0 +1,22 @@
+{
+  "releases": [
+    {
+      "tag_name": "v3.3.2",
+      "name": "Nexora 3.3.2",
+      "prerelease": true,
+      "published_at": "2026-07-23T00:00:00Z",
+      "html_url": "https://github.com/Onmaynec/Nexora/releases",
+      "body": "Release consistency line. Live GitHub Releases data is loaded when available.",
+      "assets": []
+    },
+    {
+      "tag_name": "v3.1.2",
+      "name": "Nexora 3.1.2",
+      "prerelease": false,
+      "published_at": null,
+      "html_url": "https://github.com/Onmaynec/Nexora/releases",
+      "body": "Confirmed signed production baseline referenced by current repository documentation.",
+      "assets": []
+    }
+  ]
+}

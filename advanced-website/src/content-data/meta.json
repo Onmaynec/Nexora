@@ -1,0 +1,17 @@
+{
+  "versionLines": [
+    {"id":"3.3","label":"3.3.x","status":{"ru":"Текущая линия","en":"Current line"}},
+    {"id":"3.2","label":"3.2.x","status":{"ru":"Trust/MLS и schema 8","en":"Trust/MLS and schema 8"}},
+    {"id":"3.1","label":"3.1.x","status":{"ru":"Подписанная baseline 3.1.2","en":"Signed baseline 3.1.2"}}
+  ],
+  "navigation": [
+    {"id":"start","title":{"ru":"Начало работы","en":"Getting started"},"items":["overview","quickstart","installation","configuration","deployment"]},
+    {"id":"architecture","title":{"ru":"Архитектура","en":"Architecture"},"items":["system-architecture","authority-boundaries","data-model","realtime-offline"]},
+    {"id":"product","title":{"ru":"Продуктовые контуры","en":"Product domains"},"items":["rooms-moderation","files-media","trust-mls","pulse-cloud"]},
+    {"id":"security","title":{"ru":"Безопасность","en":"Security"},"items":["security-model","security-operations","limits-errors"]},
+    {"id":"reference","title":{"ru":"Reference","en":"Reference"},"items":["api-overview","api-v3","api-v4","socket-events","error-codes"]},
+    {"id":"operations","title":{"ru":"Эксплуатация","en":"Operations"},"items":["operations","backup-restore","troubleshooting"]},
+    {"id":"development","title":{"ru":"Разработка","en":"Development"},"items":["project-map","development","testing","contributing"]},
+    {"id":"releases","title":{"ru":"Версии и источники","en":"Versions and sources"},"items":["releases","versioning","migration-guides","historical-kit"]}
+  ]
+}
