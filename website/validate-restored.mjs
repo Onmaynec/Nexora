@@ -4,14 +4,16 @@ import { fileURLToPath } from "node:url";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const read = (file) => readFile(path.join(root, file), "utf8");
-const [html, css, app, fixesCss, fixesJs, build] = await Promise.all([
+const [html, css, app, fixesCss, fixesJs, build, packageSource] = await Promise.all([
   read("index.html"),
   read("styles.css"),
   read("app.js"),
   read("site-fixes.css"),
   read("site-fixes.js"),
   read("build.json"),
+  readFile(path.join(root, "..", "package.json"), "utf8"),
 ]);
+const packageVersion = JSON.parse(packageSource).version;
 
 const requiredLegacyUx = [
   "product-window",
@@ -46,14 +48,14 @@ for (const marker of [
   '"Segoe UI Variable Display"',
   "overflow-wrap: anywhere",
   "pointer-events: auto",
-  "html[lang=\"ru\"] .hero h1",
+  'html[lang="ru"] .hero h1',
   ".signature-badge",
 ]) {
   if (!fixesCss.includes(marker)) throw new Error(`Targeted CSS fix is missing: ${marker}`);
 }
 
 for (const marker of [
-  'FALLBACK_VERSION = "3.3.0"',
+  `FALLBACK_VERSION = "${packageVersion}"`,
   "function signatureState",
   "dataset.signature",
   'document.addEventListener("click"',
@@ -76,4 +78,4 @@ if (!String(buildData.siteBuild || "").startsWith("restored-3.2.5-ux-")) {
   throw new Error("Restored site build marker is missing");
 }
 
-console.log("Restored Nexora 3.2.5 website UX and targeted fixes validated.");
+console.log(`Restored Nexora 3.2.5 website UX and targeted fixes validated for ${packageVersion}.`);
