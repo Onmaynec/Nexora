@@ -1,0 +1,224 @@
+name: Finalize Nexora 3.3.1 release documentation
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.event.release.tag_name == 'v3.3.1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Read and validate published release
+        id: release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release view v3.3.1 --json url,assets,isPrerelease,isDraft,tagName,name,publishedAt > /tmp/nexora-release.json
+          git fetch --force origin refs/tags/v3.3.1:refs/tags/v3.3.1
+          tag_sha=$(git rev-list -n 1 v3.3.1)
+          echo "tag_sha=$tag_sha" >> "$GITHUB_OUTPUT"
+      - name: Finalize release documents
+        shell: bash
+        env:
+          TAG_SHA: ${{ steps.release.outputs.tag_sha }}
+        run: |
+          node <<'NODE'
+          "use strict";
+          const fs = require("node:fs");
+          const release = JSON.parse(fs.readFileSync("/tmp/nexora-release.json", "utf8"));
+          const version = "3.3.1";
+          const names = release.assets.map((asset) => asset.name).sort();
+          const requiredCommon = [
+            `Nexora-Android-${version}-UNSIGNED-TEST.apk`,
+            `Nexora-${version}-source.zip`,
+            `Nexora-PWA-${version}.zip`,
+            `Nexora-${version}.spdx.json`,
+            "SHA256SUMS.txt",
+          ];
+          for (const name of requiredCommon) {
+            if (!names.includes(name)) throw new Error(`Published release is missing ${name}`);
+          }
+          const signed = names.includes(`Nexora-Server-Setup-${version}.exe`) && names.includes("latest.yml");
+          const unsigned = names.includes(`Nexora-Server-Setup-${version}-UNSIGNED-TEST.exe`);
+          if (signed === unsigned) throw new Error("Release must expose exactly one signed/unsigned Windows distribution mode");
+          if (signed) {
+            for (const name of [`Nexora-Client-Setup-${version}.exe`, `Nexora-Client-Setup-${version}.exe.blockmap`, "latest.yml", `Nexora-Server-Setup-${version}.exe`]) {
+              if (!names.includes(name)) throw new Error(`Signed release is missing ${name}`);
+            }
+          } else {
+            for (const name of [`Nexora-Client-Setup-${version}-UNSIGNED-TEST.exe`, `Nexora-Server-Setup-${version}-UNSIGNED-TEST.exe`]) {
+              if (!names.includes(name)) throw new Error(`Testing prerelease is missing ${name}`);
+            }
+            if (names.includes("latest.yml") || names.some((name) => name.endsWith(".blockmap"))) {
+              throw new Error("Unsigned release exposes production updater metadata");
+            }
+          }
+          if (release.isDraft) throw new Error("Release is still a draft");
+          const mode = signed ? "signed production release" : "explicitly marked UNSIGNED-TEST prerelease";
+
+          const changelogPath = "CHANGELOG.md";
+          let changelog = fs.readFileSync(changelogPath, "utf8");
+          if (!changelog.includes("## [3.3.1] — 2026-07-23")) {
+            const entry = `## [3.3.1] — 2026-07-23
+
+### Исправлено
+
+- Windows Nexora Server больше не завершается при запуске с \`MODULE_NOT_FOUND: ../shared/pulse-catalog.cjs\`;
+- обязательный каталог \`shared/**/*\` включён в Electron Server payload и \`app.asar\`;
+- release config validation проверяет наличие Pulse catalog и его runtime contract.
+
+### Тесты и выпуск
+
+- дефект сначала подтверждён падающим regression test, затем исправлен тем же контрактом;
+- Windows check, unit/API/integration, performance, security, Linux, schema 8 soak, Android и focused 3.3 gates прошли;
+- тег \`v3.3.1\` указывает на \`${process.env.TAG_SHA}\`;
+- GitHub Release опубликован как ${mode} и содержит Windows Client/Server, Android, source, PWA, SPDX SBOM и SHA-256 checksums.
+
+### Совместимость
+
+- Local Server schema 8, API v3 и Trust/MLS API v4 сохранены;
+- миграция базы, новые зависимости и изменение конфигурации не требуются.
+
+`;
+            changelog = changelog.replace("## [3.3.0] — 2026-07-23", `${entry}## [3.3.0] — 2026-07-23`);
+            fs.writeFileSync(changelogPath, changelog, "utf8");
+          }
+
+          const readmePath = "README.md";
+          let readme = fs.readFileSync(readmePath, "utf8");
+          readme = readme.replace("[![License: MIT](LICENSE)](LICENSE)", "[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)");
+          readme = readme.replace(
+            "![Current version](https://img.shields.io/badge/current-3.3.1%20prerelease-c69cff)",
+            signed
+              ? "![Current version](https://img.shields.io/badge/current-3.3.1%20signed-70e6b1)"
+              : "![Current version](https://img.shields.io/badge/current-3.3.1%20UNSIGNED--TEST-c69cff)",
+          );
+          readme = readme.replace(
+            "Signed release при наличии ключей или явно маркированный UNSIGNED-TEST prerelease |\n| `3.3.0`",
+            `${signed ? "Опубликованный signed production release" : "Опубликованный UNSIGNED-TEST prerelease без updater metadata"} |\n| \`3.3.0\``,
+          );
+          if (!readme.includes("## Документация")) {
+            readme += `
+
+Electron Client закрепляет fingerprint за Server ID. Для браузера/PWA и Android Local CA необходимо установить в доверенное хранилище операционной системы. TLS errors не должны обходиться.
+
+Инструкции: [Deployment Guide](docs/DEPLOYMENT.md), [Administrator Guide](ADMIN_GUIDE.md) и [Operations Runbook](docs/OPERATIONS_RUNBOOK.md).
+
+## Документация
+
+Центральный каталог: **[Nexora Documentation](docs/README.md)**.
+
+| Раздел | Документы |
+|---|---|
+| Продукт | [Product Overview](docs/PRODUCT_OVERVIEW.md), [Current Release Status](BRANCH_STATUS.md) |
+| Архитектура | [Architecture](docs/ARCHITECTURE.md), [Project Index](PROJECT_INDEX.md) |
+| Безопасность | [Security Policy](SECURITY.md), [Security Model](docs/SECURITY_MODEL.md), [Security Verification](SECURITY_AUDIT.md) |
+| Развёртывание | [Deployment](docs/DEPLOYMENT.md), [Administrator Guide](ADMIN_GUIDE.md), [Operations Runbook](docs/OPERATIONS_RUNBOOK.md) |
+| Тестирование | [Acceptance Test Guide](TESTER_GUIDE.md), [3.3.1 Verification](RELEASE_VERIFICATION_3.3.1.md) |
+| Trust / MLS | [Trust Core 3.2.0 foundation](docs/TRUST_CORE_3.2.0.md), [Security Review 3.3.0](SECURITY_REVIEW_3.3.0.md) |
+| Миграция | [Schema 8 Migration](docs/MIGRATION_3.2.0.md) |
+| Plus / Pulse | [Pulse](docs/PULSE.md), [Pulse Cloud](docs/PULSE_CLOUD.md) |
+| Выпуски | [Release Policy](docs/RELEASE_POLICY.md), [Release Checklist](docs/RELEASE_CHECKLIST.md), [Changelog](CHANGELOG.md) |
+| Репозиторий | [Branch Index](BRANCHES.md), [Contributing](CONTRIBUTING.md), [Support](SUPPORT.md) |
+
+## Поддержка и участие
+
+- ошибки: [Bug report](https://github.com/Onmaynec/Nexora/issues/new?template=bug_report.yml);
+- предложения: [Feature request](https://github.com/Onmaynec/Nexora/issues/new?template=feature_request.yml);
+- установка и эксплуатация: [SUPPORT.md](SUPPORT.md);
+- уязвимости: только приватно по инструкции в [SECURITY.md](SECURITY.md);
+- правила участия: [CONTRIBUTING.md](CONTRIBUTING.md) и [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
+## Лицензия
+
+Код и документация распространяются по лицензии [MIT](LICENSE).
+`;
+          }
+          fs.writeFileSync(readmePath, readme, "utf8");
+
+          const verificationPath = "RELEASE_VERIFICATION_3.3.1.md";
+          let verification = fs.readFileSync(verificationPath, "utf8");
+          if (!verification.includes("## Фактический опубликованный выпуск")) {
+            verification += `
+
+## Фактический опубликованный выпуск
+
+- final PR head: \`3161ea6e97e6e58f34e341f1b70d763c8550a9a3\`;
+- PR CI run: \`29998152125\` — success для verify, release-gate, Linux, schema 8 soak и Android;
+- focused Nexora 3.3 run: \`29998152148\` — success;
+- release commit/tag: \`${process.env.TAG_SHA}\` / \`v3.3.1\`;
+- GitHub Release: ${release.url};
+- distribution: ${mode};
+- verified assets: ${names.map((name) => `\`${name}\``).join(", ")}.
+
+One-shot publication verifier повторно проверил обязательные assets и запрет updater metadata для unsigned distribution. После этой проверки release documentation синхронизирована с фактическим опубликованным состоянием.
+`;
+            fs.writeFileSync(verificationPath, verification, "utf8");
+          }
+
+          const status = `# Nexora 3.3.1 — состояние ветки
+
+Дата проверки: 2026-07-23
+
+## Текущее состояние
+
+- версия: \`3.3.1\`;
+- release commit: \`${process.env.TAG_SHA}\`;
+- tag: \`v3.3.1\`;
+- распространение: ${mode};
+- Local Server schema: \`8\`;
+- Application API: \`v3\`;
+- Trust/MLS API: \`v4\`;
+- миграции: не требуются.
+
+## Исправленный блокер
+
+Windows Server installer 3.3.0 не включал \`shared/pulse-catalog.cjs\`, хотя Server runtime импортировал его через \`../shared/pulse-catalog.cjs\`. В 3.3.1 каталог \`shared/**/*\` включён в Electron Server payload и защищён release-config и regression tests.
+
+## Проверки
+
+- test-first regression: дефект воспроизведён до исправления;
+- PR CI \`29998152125\`: success;
+- focused 3.3 regressions \`29998152148\`: success;
+- Windows check, unit/API/integration, performance и security audit: success;
+- Linux test suite: success;
+- release metadata gate: success;
+- schema 8 soak: success;
+- Android source build: success;
+- опубликованный asset set и distribution boundary: success.
+
+## Опубликованные материалы
+
+GitHub Release: ${release.url}
+
+${names.map((name) => `- \`${name}\``).join("\n")}
+
+## Реальные ограничения
+
+- ${signed ? "Windows Client/Server подписаны в release pipeline; Android APK остаётся явно маркированным UNSIGNED-TEST." : "Windows Client/Server и Android являются UNSIGNED-TEST artifacts; production updater их не принимает."}
+- независимый cryptographic/application-security audit не заявляется;
+- voice/video calls и screen sharing не входят в 3.3.1.
+`;
+          fs.writeFileSync("BRANCH_STATUS.md", status, "utf8");
+          NODE
+      - name: Commit verified publication state and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md CHANGELOG.md RELEASE_VERIFICATION_3.3.1.md BRANCH_STATUS.md
+          git rm .github/workflows/finalize-3.3.1-release.yml
+          git commit -m "docs(release): finalize Nexora 3.3.1 publication [skip ci]"
+          git push origin HEAD:main
