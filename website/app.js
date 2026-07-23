@@ -4,7 +4,7 @@
   const REPO = "Onmaynec/Nexora";
   const API = `https://api.github.com/repos/${REPO}`;
   const RAW_PACKAGE = `https://raw.githubusercontent.com/${REPO}/main/package.json`;
-  const FALLBACK_VERSION = "3.2.4";
+  const FALLBACK_VERSION = "3.3.2";
   const FALLBACK_RELEASE_URL = `https://github.com/${REPO}/releases`;
   const safeStorage = {
     get(key) {
@@ -107,7 +107,7 @@
       deliverySixTitle: "Decrypt",
       deliverySix: "Локально на устройстве получателя",
       trustTitle: "Проверяемые ограничения.<br><em>Без вымышленных процентов.</em>",
-      trustLead: "Сайт показывает только значения, закреплённые в коде и release-документации Nexora 3.2.x.",
+      trustLead: "Сайт показывает только значения, закреплённые в коде и release-документации Nexora 3.3.x.",
       limitDevices: "Активных Trust devices",
       perAccount: "на учётную запись",
       atomicLimit: "атомарный лимит",
@@ -151,7 +151,7 @@
       boundariesLabel: "ТЕКУЩИЕ ГРАНИЦЫ",
       boundariesTitle: "Prerelease и metadata visibility",
       boundaryOneTitle: "Independent audit",
-      boundaryOne: "Линия 3.2.x не заявляется как независимо аудированная E2EE-система.",
+      boundaryOne: "Линия 3.3.x не заявляется как независимо аудированная E2EE-система.",
       boundaryTwoTitle: "Traffic metadata",
       boundaryTwo: "Сервер видит membership, timing, IP context, ciphertext size и delivery events.",
       boundaryThreeTitle: "Windows signing",

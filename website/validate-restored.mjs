@@ -4,14 +4,17 @@ import { fileURLToPath } from "node:url";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const read = (file) => readFile(path.join(root, file), "utf8");
-const [html, css, app, fixesCss, fixesJs, build] = await Promise.all([
+const [html, css, app, fixesCss, fixesJs, build, packageSource] = await Promise.all([
   read("index.html"),
   read("styles.css"),
   read("app.js"),
   read("site-fixes.css"),
   read("site-fixes.js"),
   read("build.json"),
+  read("../package.json"),
 ]);
+const version = JSON.parse(packageSource).version;
+const versionMarker = `FALLBACK_VERSION = "${version}"`;
 
 const requiredLegacyUx = [
   "product-window",
@@ -53,7 +56,7 @@ for (const marker of [
 }
 
 for (const marker of [
-  'FALLBACK_VERSION = "3.3.0"',
+  versionMarker,
   "function signatureState",
   "dataset.signature",
   'document.addEventListener("click"',
@@ -62,6 +65,9 @@ for (const marker of [
   "НЕПОДПИСАННАЯ ТЕСТОВАЯ СБОРКА",
 ]) {
   if (!fixesJs.includes(marker)) throw new Error(`Targeted runtime fix is missing: ${marker}`);
+}
+if (!app.includes(versionMarker)) {
+  throw new Error(`Restored website fallback version does not match package.json: ${version}`);
 }
 
 if (/\.tilt-card\s*\{[^}]*display\s*:\s*none/is.test(fixesCss)) {
@@ -76,4 +82,4 @@ if (!String(buildData.siteBuild || "").startsWith("restored-3.2.5-ux-")) {
   throw new Error("Restored site build marker is missing");
 }
 
-console.log("Restored Nexora 3.2.5 website UX and targeted fixes validated.");
+console.log(`Restored Nexora 3.2.5 website UX and ${version} targeted fixes validated.`);

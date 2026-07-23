@@ -2,14 +2,14 @@
 
 ## 1. Область проверки
 
-- current version: `3.3.1` published `UNSIGNED-TEST` prerelease;
+- current version: `3.3.2` published `UNSIGNED-TEST` prerelease;
 - signed production baseline: `3.1.2`;
 - Windows Client/Server, Browser/PWA и Android;
 - Application API v3;
 - Trust/MLS/encrypted-media API v4;
 - SQLite schema 8.
 
-3.3.1 тестируется с disposable accounts и test data. Она не является signed stable Windows release и не заявляется как independently audited E2EE. Критическая acceptance-проверка: установить Windows Server, запустить его и подтвердить отсутствие `MODULE_NOT_FOUND` для `shared/pulse-catalog.cjs` до открытия Server UI.
+3.3.2 тестируется с disposable accounts и test data. Она не является signed stable Windows release и не заявляется как independently audited E2EE. Критическая acceptance-проверка: установить Windows Server, запустить его и подтвердить отсутствие `MODULE_NOT_FOUND` для `shared/pulse-catalog.cjs` до открытия Server UI.
 
 ## 2. Test record
 
@@ -175,7 +175,7 @@ Positive contiguous recovery and failures for:
 
 Invalid chain must not persist partial local state.
 
-## 13. MLS Welcome recovery 3.2.4
+## 13. MLS Welcome recovery 3.3.0+
 
 ### Positive
 
@@ -258,7 +258,7 @@ For Trust directory, enrollment, KeyPackage, recovery и E2EE upload:
 - stale rate-limit buckets removed;
 - active state remains valid.
 
-## 18. Windows updater 3.2.4
+## 18. Windows updater 3.3.0+
 
 Use installed packaged Client.
 
@@ -287,7 +287,7 @@ Use installed packaged Client.
 
 ### Installed update
 
-- previous signed Client → signed 3.2.4;
+- previous signed Client → signed 3.3.2;
 - download/install/restart;
 - trusted server/session/settings preserved;
 - post-update summary appears once;
@@ -295,7 +295,7 @@ Use installed packaged Client.
 - “Закрыть” closes;
 - “Не показывать снова” suppresses same version only.
 
-## 19. Server console 3.2.4
+## 19. Server console 3.3.0+
 
 - known commands execute via registry;
 - unknown command rejected;
@@ -345,7 +345,7 @@ Use installed packaged Client.
 
 ## 23. Upgrade и compatibility
 
-### 3.1.x → 3.2.4
+### 3.1.x → 3.3.2
 
 - verified schema 7 backup;
 - migration integrity/free-space/WAL/backup;
@@ -354,7 +354,7 @@ Use installed packaged Client.
 - downgrade blocked;
 - restore rollback tested.
 
-### 3.2.0–3.2.3 → 3.2.4
+### 3.2.0–3.3.1 → 3.3.2
 
 - no schema migration;
 - schema remains 8;
@@ -375,7 +375,7 @@ npm run test:soak
 gradle -p android :app:assembleDebug --no-daemon
 ```
 
-Authoritative evidence: [Release Verification 3.2.4](RELEASE_VERIFICATION_3.2.4.md).
+Authoritative evidence: [Release Verification 3.3.2](RELEASE_VERIFICATION_3.3.2.md).
 
 ## 25. Defect report
 

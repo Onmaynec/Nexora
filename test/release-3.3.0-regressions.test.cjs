@@ -77,6 +77,7 @@ test("website keeps the 3.2.5 UX and applies only typography, localization and h
   const legacyScript = read("website/app.js");
   const fixesCss = read("website/site-fixes.css");
   const fixesScript = read("website/site-fixes.js");
+  const version = require("../package.json").version.replace(/\./g, "\\.");
 
   for (const marker of ["product-window", "stage-orbit-a", "stage-orbit-b", "data-tilt", "floating-signal", "architecture-board", "trust-lifecycle"]) {
     assert.ok(html.includes(marker), `missing restored UX marker: ${marker}`);
@@ -93,7 +94,8 @@ test("website keeps the 3.2.5 UX and applies only typography, localization and h
   assert.match(fixesCss, /pointer-events: auto/);
   assert.doesNotMatch(fixesCss, /animation\s*:\s*none\s*!important/i);
 
-  assert.match(fixesScript, /FALLBACK_VERSION = "3\.3\.0"/);
+  assert.match(fixesScript, new RegExp(`FALLBACK_VERSION = "${version}"`));
+  assert.match(legacyScript, new RegExp(`FALLBACK_VERSION = "${version}"`));
   assert.match(fixesScript, /document\.addEventListener\("click"/);
   assert.match(fixesScript, /Самостоятельно размещаемая платформа/);
   assert.match(fixesScript, /ПОЛНОМОЧИЯ СЕРВЕРА/);

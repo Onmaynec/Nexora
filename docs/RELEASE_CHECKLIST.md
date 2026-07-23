@@ -1,14 +1,14 @@
-# Nexora 3.2.4 Release Checklist
+# Nexora 3.3.2 Release Checklist
 
 ## 1. Classification и repository state
 
 - [ ] Classification selected: Development, Source/PWA prerelease или Stable signed Windows.
-- [ ] `package.json`, lockfile, Client handshake и Android metadata show `3.2.4`.
-- [ ] Tag is immutable `v3.2.4` and points to verified commit.
+- [ ] `package.json`, lockfile, Client handshake и Android metadata show `3.3.2`.
+- [ ] Tag is immutable `v3.3.2` and points to verified commit.
 - [ ] `CHANGELOG.md`, release notes, security review и verification are current.
 - [ ] README, docs portal, Security Policy, Architecture, Branch Status и Support agree.
 - [ ] Commit has no secrets, databases, backups, user data или temporary patchers.
-- [ ] 3.2.4 is not described as independently audited or signed stable without evidence.
+- [ ] 3.3.2 is not described as independently audited or signed stable without evidence.
 
 ## 2. Automated gates
 
@@ -28,7 +28,7 @@
 - [ ] Application API remains v3.
 - [ ] Trust/MLS/encrypted-media API remains v4-compatible.
 - [ ] Local Server schema remains 8.
-- [ ] No migration required from 3.2.0–3.2.3.
+- [ ] No migration required from 3.2.0–3.3.1.
 - [ ] Schema 7 → 8 migration remains tested for 3.1.x data.
 - [ ] Restore-based rollback documented and tested.
 - [ ] Older Client compatibility/failure message verified.
@@ -81,7 +81,7 @@
 - [ ] Invalid recovery never persists partial state.
 - [ ] Unrecoverable state fails explicitly.
 
-## 8. MLS Welcome recovery 3.2.4
+## 8. MLS Welcome recovery 3.3.0+
 
 - [ ] `welcome/request` requires session, Origin/CSRF, access, active-ban and verified device.
 - [ ] Bounded rate limiter applied.
@@ -118,7 +118,7 @@ After MLS activation reject:
 - [ ] Local verified preview/playback/download.
 - [ ] Room media restrictions fail-closed.
 
-## 11. Updater 3.2.4
+## 11. Updater 3.3.0+
 
 - [ ] Service initialized before renderer IPC.
 - [ ] Packaged default provider is official GitHub Releases.
@@ -175,7 +175,7 @@ After MLS activation reject:
 - [ ] Clean Client/Server install Windows 11.
 - [ ] Upgrade preserves data/settings/trust.
 - [ ] Signed Authenticode installers/timestamps.
-- [ ] Installed updater n-1 → 3.2.4.
+- [ ] Installed updater n-1 → 3.3.2.
 - [ ] Packaged MLS Welcome recovery for text/media/voice.
 - [ ] Test-mode shortcut on clean account.
 
@@ -213,4 +213,4 @@ After MLS activation reject:
 - [ ] No unresolved high/critical findings.
 - [ ] Release owner approval recorded.
 
-Until all stable gates complete, 3.2.4 remains Source/PWA prerelease and must not be promoted through stable updater.
+Until all stable gates complete, 3.3.2 remains an `UNSIGNED-TEST` prerelease and must not be promoted through stable updater.

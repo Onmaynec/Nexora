@@ -8,7 +8,7 @@ Nexora использует SemVer:
 - `MINOR` — backward-compatible functionality;
 - `PATCH` — backward-compatible defect, security или operational hardening.
 
-Metadata синхронизируется в package, lockfile, Client handshake, Android, release notes, verification и tag.
+Metadata синхронизируется в package, lockfile, Client handshake, Android, current README/documentation, release notes, verification, release evidence и tag.
 
 ## 2. Release classifications
 
@@ -113,7 +113,7 @@ Schema change requires:
 - downgrade protection;
 - tests from supported source schemas.
 
-3.2.4 keeps schema 8. Migration from 3.2.0–3.2.3 is not required.
+3.3.2 keeps schema 8. Migration from 3.2.0–3.3.1 is not required.
 
 ## 8. Branch policy
 
@@ -126,13 +126,13 @@ Schema change requires:
 
 ## 9. Current release decision
 
-### 3.2.4
+### 3.3.2
 
-- classification: Source/PWA prerelease;
+- classification: Published `UNSIGNED-TEST` prerelease;
 - automated multi-platform gate: passed;
 - schema: 8;
 - API: v3/v4;
-- database migration from 3.2.0–3.2.3: none;
+- database migration from 3.2.0–3.3.1: none;
 - signed stable Windows approval: not granted;
 - independent security review: not completed.
 
@@ -142,4 +142,4 @@ Schema change requires:
 - schema: 7;
 - secure-message E2EE from Local Server operator: not provided.
 
-Authoritative evidence: [Release Verification 3.2.4](../RELEASE_VERIFICATION_3.2.4.md).
+Authoritative evidence: [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.2.md).
