@@ -132,47 +132,65 @@
 
 ```mermaid
 flowchart TB
-  subgraph Clients
-    WIN[Windows Client]
-    WEB[Browser / PWA]
-    AND[Android]
-    UI[React / Vite]
-    MLS[Trust + MLS engine]
-    EDB[Encrypted IndexedDB]
-    WIN --> UI
-    WEB --> UI
-    AND --> UI
-    UI --> MLS
-    MLS --> EDB
+  classDef platform fill:#181221,stroke:#b978ff,stroke-width:1.5px,color:#f7f3ff;
+  classDef client fill:#211533,stroke:#c994ff,stroke-width:1.5px,color:#ffffff;
+  classDef server fill:#0f1c25,stroke:#70d8ff,stroke-width:1.5px,color:#f4fbff;
+  classDef data fill:#101a17,stroke:#65e4b0,stroke-width:1.5px,color:#f4fff9;
+  classDef cloud fill:#241a14,stroke:#f1c666,stroke-width:1.5px,color:#fff8e8;
+  classDef external fill:#181818,stroke:#9299a8,stroke-width:1px,color:#f2f2f2;
+
+  subgraph PLATFORMS["01 · КЛИЕНТСКИЕ ПЛАТФОРМЫ"]
+    direction LR
+    WIN["Windows Client"]
+    PWA["Browser / PWA"]
+    AND["Android"]
   end
 
-  subgraph Local Server
-    API[REST API v3 / Trust API v4]
-    AUTH[Sessions, CSRF, roles, bans]
-    LIMITS[Resource and route limits]
-    RT[Device-scoped Socket.IO]
-    DB[(SQLite schema 8)]
-    FILES[Legacy / opaque media]
-    OPS[Health, maintenance, audit]
-    API --> AUTH
-    API --> LIMITS
-    API --> DB
-    RT --> DB
-    API --> FILES
-    API --> OPS
+  subgraph CLIENT["02 · КЛИЕНТСКОЕ ПРИЛОЖЕНИЕ"]
+    direction LR
+    UI["React + Vite<br/>интерфейс · offline state · outbox"]
+    TRUST["Trust Core + MLS<br/>device identity · E2EE · recovery"]
+    LOCAL[("Encrypted IndexedDB<br/>ключи · private MLS state · drafts")]
+    UI --> TRUST --> LOCAL
   end
 
-  subgraph Pulse Cloud
-    ID[Cloud Identity]
-    LEDGER[Double-entry ledger]
-    PROVIDER[Payment provider]
+  subgraph SERVER["03 · ЛОКАЛЬНЫЙ СЕРВЕР"]
+    direction LR
+    EDGE["API + Realtime<br/>REST v3 · Trust v4 · Socket.IO"]
+    CONTROL["Контроль доступа<br/>sessions · CSRF · roles · bans · limits"]
+    DB[("SQLite schema 8<br/>rooms · ciphertext · audit")]
+    SERVICES["Медиа и эксплуатация<br/>uploads · health · backup · maintenance"]
+    EDGE --> CONTROL --> DB
+    EDGE --> SERVICES
   end
 
-  MLS <-->|HTTPS + ciphertext| API
-  MLS <-->|verified device channel| RT
-  API <-->|signed HTTPS contract| ID
-  ID --> LEDGER
-  LEDGER --> PROVIDER
+  subgraph CLOUD["04 · NEXORA PULSE CLOUD"]
+    direction LR
+    ID["Cloud Identity<br/>email · MFA · OAuth 2.1 + PKCE"]
+    COMMERCE["Коммерческий контур<br/>Plus · Impulse ledger · receipts"]
+    ENT["Signed entitlements<br/>подписки и покупки"]
+    PAY["Payment provider"]
+    ID --> COMMERCE --> ENT
+    COMMERCE --> PAY
+  end
+
+  WIN --> UI
+  PWA --> UI
+  AND --> UI
+  TRUST <-->|"HTTPS · MLS ciphertext · verified device channel"| EDGE
+  EDGE <-->|"signed HTTPS contract"| ID
+
+  class WIN,PWA,AND platform;
+  class UI,TRUST client;
+  class LOCAL,DB data;
+  class EDGE,CONTROL,SERVICES server;
+  class ID,COMMERCE,ENT cloud;
+  class PAY external;
+
+  style PLATFORMS fill:#0b0910,stroke:#6f568b,stroke-width:1px
+  style CLIENT fill:#0d0914,stroke:#9c67d3,stroke-width:1px
+  style SERVER fill:#081116,stroke:#4d91aa,stroke-width:1px
+  style CLOUD fill:#151008,stroke:#a98643,stroke-width:1px
 ```
 
 Local Server является источником истины для локальных аккаунтов, комнат, ролей, доступа, порядка доставки и хранения ciphertext. Pulse Cloud является отдельным authority для Cloud Identity, billing, ledger и production entitlements.
