@@ -1,0 +1,54 @@
+name: Apply Nexora 3.3.3
+
+on:
+  push:
+    branches:
+      - release/3.3.3
+    paths:
+      - release-patches/3.3.3/apply.py
+      - .github/workflows/apply-release-3.3.3.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nexora-3.3.3-migration
+  cancel-in-progress: false
+
+jobs:
+  apply-and-validate:
+    if: ${{ !contains(github.event.head_commit.message, 'apply Nexora 3.3.3 source migration') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/3.3.3
+          fetch-depth: 0
+      - name: Apply source migration
+        run: python3 release-patches/3.3.3/apply.py
+      - name: Install dependencies
+        run: npm ci
+      - name: Synchronize release metadata
+        run: npm run release:sync-version
+      - name: Validate syntax and web production build
+        run: npm run check
+      - name: Run unit and regression tests
+        run: npm run test:unit
+      - name: Run performance tests
+        run: npm run test:performance
+      - name: Verify release consistency
+        run: npm run release:consistency
+      - name: Remove one-shot migration files
+        run: |
+          rm -f release-patches/3.3.3/apply.py
+          rmdir release-patches/3.3.3 2>/dev/null || true
+          rmdir release-patches 2>/dev/null || true
+          rm -f .github/workflows/apply-release-3.3.3.yml
+      - name: Commit validated release sources
+        run: |
+          git config user.name "Nexora Release Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "feat(release): apply Nexora 3.3.3 source migration"
+          git push origin HEAD:release/3.3.3
