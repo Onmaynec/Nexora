@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "version": "3.3.2",
+  "tag": "v3.3.2",
+  "status": "release-candidate",
+  "sourceOfTruth": "package.json",
+  "verificationDocument": "RELEASE_VERIFICATION_3.3.2.md",
+  "immutableEvidence": "release-evidence/v3.3.2.json"
+}
