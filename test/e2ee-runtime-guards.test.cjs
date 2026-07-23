@@ -18,17 +18,19 @@ function cookieFrom(response) {
 function browserAgent(agent, csrf) {
   return new Proxy(agent, {
     get(target, property) {
-      if (["post", "put", "patch", "delete"].includes(property)) {
-        return (...args) => {
-          const builder = target[property](...args).set("X-Nexora-Client-Version", "3.2.0");
+      if (typeof target[property] !== "function") return target[property];
+      return (...args) => {
+        const builder = target[property](...args)
+          .set("X-Nexora-Client-Version", "3.4.0")
+          .set("X-Nexora-Device-ID", "legacy-runtime-regression-device")
+          .set("X-Nexora-Device-Name", "Legacy runtime regression")
+          .set("X-Nexora-Platform", "web");
+        if (["post", "put", "patch", "delete"].includes(property)) {
           const token = csrf();
-          return token ? builder.set("X-Nexora-CSRF", token) : builder;
-        };
-      }
-      if (typeof target[property] === "function") {
-        return (...args) => target[property](...args).set("X-Nexora-Client-Version", "3.2.0");
-      }
-      return target[property];
+          if (token) builder.set("X-Nexora-CSRF", token);
+        }
+        return builder;
+      };
     },
   });
 }
@@ -53,7 +55,7 @@ function emitAck(socket, event, payload, timeoutMs = 5_000) {
   });
 }
 
-function activateMlsGroup(instance, conversationId) {
+function activateLegacyGroup(instance, conversationId) {
   const now = new Date().toISOString();
   const groupRecordId = crypto.randomUUID();
   instance.store.db.prepare(`INSERT INTO mls_groups(
@@ -72,8 +74,14 @@ function activateMlsGroup(instance, conversationId) {
   return groupRecordId;
 }
 
-test("schema 8 server rejects every exercised plaintext path after MLS activation", async (context) => {
-  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "nexora-e2ee-runtime-"));
+function assertLegacyReadOnly(response) {
+  assert.equal(response.body.ok, false);
+  assert.equal(response.body.code, "LEGACY_READ_ONLY");
+  assert.match(response.body.requestId, /^[A-Za-z0-9_.:-]{8,128}$/);
+}
+
+test("every exercised legacy secure write path is terminal read-only and stores no plaintext", async (context) => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "nexora-legacy-runtime-guards-"));
   const instance = await createNexoraServer({
     dataDir: directory,
     clientDir: path.join(__dirname, "..", "client", "dist"),
@@ -97,29 +105,28 @@ test("schema 8 server rejects every exercised plaintext path after MLS activatio
   });
 
   const registered = await agent.post("/api/auth/register").send({
-    displayName: "Runtime Guard",
-    username: `guard_${crypto.randomBytes(4).toString("hex")}`,
-    password: "RuntimeGuardPass123!",
+    displayName: "Legacy Runtime Guard",
+    username: `legacy_guard_${crypto.randomBytes(4).toString("hex")}`,
+    password: "LegacyRuntimeGuard123!",
   }).expect(201);
   csrf = registered.body.csrfToken;
   const cookie = cookieFrom(registered);
 
   const bootstrap = await agent.get("/api/bootstrap").expect(200);
   const general = bootstrap.body.rooms.find((room) => room.slug === "general");
-  assert.ok(general?.conversationId, "general conversation must exist");
+  assert.ok(general?.conversationId);
   const conversationId = general.conversationId;
 
   const bot = await agent.post(`/api/rooms/${general.id}/bots`).send({
-    displayName: "Guard Bot",
-    username: `guard_bot_${crypto.randomBytes(3).toString("hex")}`,
-    description: "Runtime downgrade regression bot",
+    displayName: "Legacy Guard Bot",
+    username: `legacy_bot_${crypto.randomBytes(3).toString("hex")}`,
+    description: "Direct API retirement regression bot",
   }).expect(201);
   const token = await agent.post(`/api/bots/${bot.body.bot.id}/tokens`).send({
-    name: "Runtime guard token",
+    name: "Legacy guard token",
     scopes: ["messages:write"],
   }).expect(201);
   const botToken = token.body.token.value;
-  assert.match(botToken, /^nxa_/);
 
   const resumable = await agent.post(`/api/conversations/${conversationId}/uploads`).send({
     name: "queued.txt",
@@ -132,19 +139,17 @@ test("schema 8 server rejects every exercised plaintext path after MLS activatio
   socket = createSocket(baseUrl, {
     transports: ["websocket"],
     extraHeaders: { Cookie: cookie },
-    auth: { clientVersion: "3.2.0" },
+    auth: { clientVersion: "3.4.0" },
   });
   await once(socket, "connect");
 
   const source = await emitAck(socket, "message:send", {
     conversationId,
-    text: "plaintext source before MLS activation",
+    text: "ordinary source before legacy activation",
     clientId: `source_${crypto.randomBytes(8).toString("hex")}`,
   });
   assert.equal(source.ok, true);
-  assert.ok(source.message?.id);
-
-  activateMlsGroup(instance, conversationId);
+  activateLegacyGroup(instance, conversationId);
 
   const blockedSend = await emitAck(socket, "message:send", {
     conversationId,
@@ -152,7 +157,7 @@ test("schema 8 server rejects every exercised plaintext path after MLS activatio
     clientId: `blocked_${crypto.randomBytes(8).toString("hex")}`,
   });
   assert.equal(blockedSend.ok, false);
-  assert.equal(blockedSend.code, "E2EE_REQUIRED");
+  assert.equal(blockedSend.code, "LEGACY_READ_ONLY");
 
   const blockedForward = await emitAck(socket, "message:forward", {
     messageId: source.message.id,
@@ -160,64 +165,55 @@ test("schema 8 server rejects every exercised plaintext path after MLS activatio
     clientId: `forward_${crypto.randomBytes(8).toString("hex")}`,
   });
   assert.equal(blockedForward.ok, false);
-  assert.equal(blockedForward.code, "E2EE_FORWARD_REQUIRED");
+  assert.equal(blockedForward.code, "LEGACY_READ_ONLY");
 
-  const draft = await agent.put(`/api/v3/drafts/${conversationId}`).send({ text: "server plaintext draft" }).expect(409);
-  assert.equal(draft.body.code, "E2EE_DRAFT_LOCAL_ONLY");
-
-  const scheduled = await agent.post("/api/messages/scheduled").send({
+  assertLegacyReadOnly(await agent.put(`/api/v3/drafts/${conversationId}`).send({ text: "server plaintext draft" }).expect(410));
+  assertLegacyReadOnly(await agent.post("/api/messages/scheduled").send({
     conversationId,
     text: "scheduled plaintext",
     scheduledAt: new Date(Date.now() + 60_000).toISOString(),
-  }).expect(409);
-  assert.equal(scheduled.body.code, "E2EE_SCHEDULE_UNSUPPORTED");
-
-  const poll = await agent.post(`/api/conversations/${conversationId}/polls`).send({
+  }).expect(410));
+  assertLegacyReadOnly(await agent.post(`/api/conversations/${conversationId}/polls`).send({
     question: "Plaintext poll?",
     options: ["No", "Never"],
-  }).expect(409);
-  assert.equal(poll.body.code, "E2EE_POLL_UNSUPPORTED");
+  }).expect(410));
 
   const incomingDir = path.join(directory, "uploads", ".incoming");
   const beforeMultipart = (await fs.readdir(incomingDir)).sort();
   const multipart = await agent.post(`/api/conversations/${conversationId}/upload`)
     .field("kind", "file")
     .attach("file", Buffer.from("blocked"), { filename: "blocked.txt", contentType: "text/plain" })
-    .expect(409);
-  assert.equal(multipart.body.code, "E2EE_ATTACHMENT_REQUIRED");
+    .expect(410);
+  assertLegacyReadOnly(multipart);
   assert.deepEqual((await fs.readdir(incomingDir)).sort(), beforeMultipart, "rejected multipart upload must remove temporary data");
 
-  const newResumable = await agent.post(`/api/conversations/${conversationId}/uploads`).send({
+  assertLegacyReadOnly(await agent.post(`/api/conversations/${conversationId}/uploads`).send({
     name: "blocked.bin",
     mimeType: "application/octet-stream",
     kind: "file",
     size: 4,
-  }).expect(409);
-  assert.equal(newResumable.body.code, "E2EE_ATTACHMENT_REQUIRED");
+  }).expect(410));
 
   const chunk = Buffer.from("test");
-  const blockedChunk = await agent.put(`/api/uploads/${uploadId}/chunks/0`)
+  assertLegacyReadOnly(await agent.put(`/api/uploads/${uploadId}/chunks/0`)
     .set("Content-Type", "application/octet-stream")
     .set("X-Chunk-SHA256", crypto.createHash("sha256").update(chunk).digest("hex"))
     .send(chunk)
-    .expect(409);
-  assert.equal(blockedChunk.body.code, "E2EE_ATTACHMENT_REQUIRED");
-
-  const blockedComplete = await agent.post(`/api/uploads/${uploadId}/complete`).send({ caption: "plaintext caption" }).expect(409);
-  assert.equal(blockedComplete.body.code, "E2EE_ATTACHMENT_REQUIRED");
+    .expect(410));
+  assertLegacyReadOnly(await agent.post(`/api/uploads/${uploadId}/complete`).send({ caption: "plaintext caption" }).expect(410));
   const cancelledUpload = await agent.get(`/api/uploads/${uploadId}`).expect(200);
   assert.equal(cancelledUpload.body.upload.status, "cancelled");
 
   const blockedBot = await request(instance.app).post("/api/v3/bot/messages")
     .set("Authorization", `Bearer ${botToken}`)
-    .set("X-Nexora-Client-Version", "3.2.0")
+    .set("X-Nexora-Client-Version", "3.4.0")
     .send({ conversationId, text: "bot plaintext downgrade", clientId: `bot_${crypto.randomBytes(8).toString("hex")}` })
-    .expect(409);
-  assert.equal(blockedBot.body.code, "E2EE_BOT_UNSUPPORTED");
+    .expect(410);
+  assertLegacyReadOnly(blockedBot);
 
   const leaked = instance.store.read((state) => state.messages.filter((message) =>
-    message.conversationId === conversationId &&
-    ["plaintext downgrade attempt", "server plaintext draft", "scheduled plaintext", "Plaintext poll?", "bot plaintext downgrade"].includes(message.text),
+    message.conversationId === conversationId
+    && ["plaintext downgrade attempt", "server plaintext draft", "scheduled plaintext", "Plaintext poll?", "bot plaintext downgrade"].includes(message.text),
   ));
   assert.deepEqual(leaked, [], "rejected plaintext content must never reach persistent messages");
 });
