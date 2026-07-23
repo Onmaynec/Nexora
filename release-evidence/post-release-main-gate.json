@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-07-23T00:44:19.572Z",
+  "repository": "Onmaynec/Nexora",
+  "version": "3.3.0",
+  "sourceSha": "3f080592c1c2a2a574803db91542b585f0a870ef",
+  "runId": 29969806669,
+  "runUrl": "https://github.com/Onmaynec/Nexora/actions/runs/29969806669",
+  "gates": {
+    "releaseCheck": "pass",
+    "linuxProductSuite": "pass",
+    "schemaSoak": "pass",
+    "androidBuild": "pass",
+    "websiteValidation": "pass",
+    "publishedReleaseEvidence": "pass"
+  }
+}
