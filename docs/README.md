@@ -47,7 +47,7 @@
 | Документ | Назначение | Status |
 |---|---|---|
 | [Security Policy](../SECURITY.md) | supported versions and private disclosure | Current through 3.3.1 |
-| [Security Verification Summary](../SECURITY_AUDIT.md) | automated verification and residual risk | Current 3.2.4 |
+| [Security Verification Summary](../SECURITY_AUDIT.md) | automated verification and residual risk | Current through 3.3.1 |
 | [Security Review 3.3.0](../SECURITY_REVIEW_3.3.0.md) | current security boundary inherited unchanged by 3.3.1 | Release-specific current |
 | [Release Verification 3.3.1](../RELEASE_VERIFICATION_3.3.1.md) | test-first regression, CI, release and asset evidence | Release-specific current |
 | [Security Review 3.2.3](../SECURITY_REVIEW_3.2.3.md) | resource governance hardening | Historical release-specific |
