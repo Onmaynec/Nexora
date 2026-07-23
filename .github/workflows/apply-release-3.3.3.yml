@@ -9,6 +9,8 @@ on:
       - release-patches/3.3.3/fixups.py
       - release-patches/3.3.3/mls-fixups.py
       - release-patches/3.3.3/trust-route-fixups.py
+      - release-patches/3.3.3/regression-fixups.py
+      - release-patches/3.3.3/release-docs-fixups.py
       - .github/workflows/apply-release-3.3.3.yml
   pull_request:
     branches:
@@ -18,6 +20,8 @@ on:
       - release-patches/3.3.3/fixups.py
       - release-patches/3.3.3/mls-fixups.py
       - release-patches/3.3.3/trust-route-fixups.py
+      - release-patches/3.3.3/regression-fixups.py
+      - release-patches/3.3.3/release-docs-fixups.py
       - .github/workflows/apply-release-3.3.3.yml
 
 permissions:
@@ -68,6 +72,8 @@ jobs:
           python3 release-patches/3.3.3/fixups.py >> nexora-3.3.3-migration.log 2>&1
           python3 release-patches/3.3.3/mls-fixups.py >> nexora-3.3.3-migration.log 2>&1
           python3 release-patches/3.3.3/trust-route-fixups.py >> nexora-3.3.3-migration.log 2>&1
+          python3 release-patches/3.3.3/regression-fixups.py >> nexora-3.3.3-migration.log 2>&1
+          python3 release-patches/3.3.3/release-docs-fixups.py >> nexora-3.3.3-migration.log 2>&1
           python3 - <<'PY' >> nexora-3.3.3-migration.log 2>&1
           from pathlib import Path
           for name in ("test/voice-waveform.test.cjs", "test/pulse-effects.test.cjs"):
@@ -140,6 +146,8 @@ jobs:
           rm -f release-patches/3.3.3/fixups.py
           rm -f release-patches/3.3.3/mls-fixups.py
           rm -f release-patches/3.3.3/trust-route-fixups.py
+          rm -f release-patches/3.3.3/regression-fixups.py
+          rm -f release-patches/3.3.3/release-docs-fixups.py
           rm -f nexora-3.3.3-migration.log
           rm -f nexora-3.3.3-validation.log
           rm -f nexora-3.3.3-tests.log
