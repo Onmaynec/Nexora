@@ -65,6 +65,7 @@ jobs:
             "![Current version](https://img.shields.io/badge/current-3.3.0%20prerelease-c69cff)",
             "![Current version](https://img.shields.io/badge/current-3.3.1%20prerelease-c69cff)",
           );
+          readme = readme.replace("[![License: MIT](LICENSE)](LICENSE)", "[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)");
           const statusRow = "| `3.3.1` | Исправление запуска Windows Server: shared Pulse runtime включён в installer и проверяется release gate | Signed release при наличии ключей или явно маркированный UNSIGNED-TEST prerelease |";
           if (!readme.includes(statusRow)) {
             readme = readme.replace(
