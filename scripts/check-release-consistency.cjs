@@ -65,6 +65,23 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
     ["docs/SECURITY_MODEL.md", new RegExp("Version \\| `" + escapedVersion + "`"), `table does not match ${version}`],
     ["android/README.md", new RegExp("Current version \\| `" + escapedVersion + "`"), `does not match ${version}`],
     ["android/README.md", new RegExp("version metadata equals `" + escapedVersion + "`"), `acceptance metadata does not match ${version}`],
+    ["SECURITY.md", new RegExp("\\| `" + escapedVersion + "` \\| Published `UNSIGNED-TEST` prerelease"), `supported version does not match ${version}`],
+    ["SUPPORT.md", new RegExp("\\| `" + escapedVersion + "` published `UNSIGNED-TEST` prerelease"), `support line does not match ${version}`],
+    ["CONTRIBUTING.md", new RegExp("Repository version \\| `" + escapedVersion + "`"), `does not match ${version}`],
+    ["ADMIN_GUIDE.md", new RegExp("Repository version \\| `" + escapedVersion + "`"), `does not match ${version}`],
+    ["TESTER_GUIDE.md", new RegExp("current version: `" + escapedVersion + "` published `UNSIGNED-TEST` prerelease"), `does not match ${version}`],
+    ["docs/PRODUCT_OVERVIEW.md", new RegExp("Current repository version \\| `" + escapedVersion + "`"), `does not match ${version}`],
+    ["docs/OPERATIONS_RUNBOOK.md", new RegExp("Runbook относится к Nexora `" + escapedVersion + "`"), `does not match ${version}`],
+    ["docs/DEPLOYMENT.md", new RegExp("Документ относится к Nexora `" + escapedVersion + "`"), `does not match ${version}`],
+    ["docs/RELEASE_POLICY.md", new RegExp("^### " + escapedVersion + "$", "m"), `current release decision does not match ${version}`],
+    ["docs/GITHUB_RELEASE.md", new RegExp("- `" + escapedVersion + "` — published `UNSIGNED-TEST` prerelease"), `current release status does not match ${version}`],
+    ["docs/GITHUB_RELEASE.md", new RegExp("Current tag: `v" + escapedVersion + "`"), `current tag does not match v${version}`],
+    ["docs/RELEASE_CHECKLIST.md", new RegExp("^# Nexora " + escapedVersion + " Release Checklist$", "m"), `title does not match ${version}`],
+    ["BRANCHES.md", new RegExp("\\| `main` \\| Nexora `" + escapedVersion + "` published `UNSIGNED-TEST` prerelease"), `main status does not match ${version}`],
+    [".github/ISSUE_TEMPLATE/bug_report.yml", new RegExp("Current version: " + escapedVersion + " published UNSIGNED-TEST prerelease"), `current issue template version does not match ${version}`],
+    ["website/index.html", new RegExp(">" + escapedVersion + "<"), `static version does not match ${version}`],
+    ["website/app.js", new RegExp("FALLBACK_VERSION = \\"" + escapedVersion + "\\""), `fallback version does not match ${version}`],
+    ["website/site-fixes.js", new RegExp("FALLBACK_VERSION = \\"" + escapedVersion + "\\""), `correction fallback version does not match ${version}`],
   ];
 
   for (const [relativePath, expression, description] of markers) {
@@ -99,23 +116,63 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
     "docs/ARCHITECTURE.md",
     "docs/SECURITY_MODEL.md",
     "android/README.md",
+    "SECURITY.md",
     "SECURITY_AUDIT.md",
+    "SUPPORT.md",
+    "CONTRIBUTING.md",
+    "ADMIN_GUIDE.md",
+    "TESTER_GUIDE.md",
     "BRANCH_STATUS.md",
+    "BRANCHES.md",
+    "docs/PRODUCT_OVERVIEW.md",
+    "docs/OPERATIONS_RUNBOOK.md",
+    "docs/DEPLOYMENT.md",
+    "docs/RELEASE_POLICY.md",
+    "docs/GITHUB_RELEASE.md",
+    "docs/RELEASE_CHECKLIST.md",
+    ".github/ISSUE_TEMPLATE/bug_report.yml",
+    "website/index.html",
+    "website/app.js",
+    "website/site-fixes.js",
   ];
+
+  const obsoleteCurrentVerification = "RELEASE_VERIFICATION_3.2.4.md";
   for (const relativePath of currentDocuments) {
     const source = read(root, relativePath);
-    if (source.includes("RELEASE_VERIFICATION_3.2.4.md")) {
+    if (source.includes(obsoleteCurrentVerification)) {
       fail(`${relativePath} still links the obsolete current verification document 3.2.4`);
     }
   }
 
-  return { version, expectedAndroidCode };
+  const obsoleteCurrentClaims = [
+    ["SECURITY.md", "Текущая security boundary — 3.2.4"],
+    ["SUPPORT.md", "воспроизведите на `3.2.4`"],
+    ["ADMIN_GUIDE.md", "Repository version | `3.3.1`"],
+    ["TESTER_GUIDE.md", "current version: `3.3.1`"],
+    ["docs/PRODUCT_OVERVIEW.md", "Current repository version | `3.3.1`"],
+    ["docs/OPERATIONS_RUNBOOK.md", "Runbook относится к Nexora `3.3.1`"],
+    ["docs/DEPLOYMENT.md", "Документ относится к Nexora `3.3.1`"],
+    ["docs/GITHUB_RELEASE.md", "Current tag: `v3.2.4`"],
+    ["docs/RELEASE_CHECKLIST.md", "# Nexora 3.2.4 Release Checklist"],
+    ["BRANCHES.md", "| `main` | Nexora `3.2.4`"],
+    [".github/ISSUE_TEMPLATE/bug_report.yml", "Current version: 3.3.1"],
+    ["website/app.js", "FALLBACK_VERSION = \"3.2.4\""],
+  ];
+  for (const [relativePath, obsoleteClaim] of obsoleteCurrentClaims) {
+    if (read(root, relativePath).includes(obsoleteClaim)) {
+      fail(`${relativePath} still contains obsolete current claim ${JSON.stringify(obsoleteClaim)}`);
+    }
+  }
+
+  return { version, expectedAndroidCode, currentDocumentCount: currentDocuments.length };
 }
 
 if (require.main === module) {
   try {
     const result = checkReleaseConsistency();
-    console.log(`Release consistency ${result.version} is valid (Android versionCode ${result.expectedAndroidCode}).`);
+    console.log(
+      `Release consistency ${result.version} is valid (Android versionCode ${result.expectedAndroidCode}, ${result.currentDocumentCount} current documents).`,
+    );
   } catch (error) {
     console.error(error.stack || error.message);
     process.exit(1);
