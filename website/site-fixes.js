@@ -150,7 +150,9 @@
     [".docs-grid .doc-link:nth-child(6) small", "ОБЛАКО", "CLOUD"],
     ["[data-selected-release-link]", "Описание релиза ↗", "Release notes ↗"],
     [".site-footer nav a:nth-child(2)", "Релизы", "Releases"],
-    [".site-footer nav a:nth-child(3)", "Документация", "Docs"]
+    [".site-footer nav a:nth-child(3)", "Документация", "Docs"],
+    [".game-label-ru", "Интерактив", "Интерактив"],
+    [".game-label-en", "Aether", "Aether"]
   ];
 
   function currentLanguage() {
