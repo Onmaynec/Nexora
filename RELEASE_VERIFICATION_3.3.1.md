@@ -28,7 +28,7 @@ CI run `29997280893` подтвердил дефект: job `linux-tests` (`8917
 - `scripts/check-electron-builder-config.cjs`: release gate читает source manifest, проверяет inclusion pattern, существование Pulse catalog и обязательные exports `catalogItem`/`publicCatalog`;
 - `test/build-config.test.cjs`: добавлен постоянный regression contract;
 - release metadata синхронизирована как `3.3.1` для package, lockfile, Client и Android;
-- добавлены release notes и changelog documentation.
+- добавлены release notes, changelog и машиночитаемое release evidence.
 
 ## Схема, API и миграции
 
@@ -51,23 +51,15 @@ CI run `29997280893` подтвердил дефект: job `linux-tests` (`8917
 
 ## Windows artifact gate
 
-После merge release workflow обязан:
+Release workflow run `29998460934` завершился успешно и проверил:
 
-1. создать тег `v3.3.1` только для проверенного release commit;
-2. собрать Windows Client и Windows Server;
-3. включить `shared/pulse-catalog.cjs` в Server `app.asar` через `shared/**/*`;
-4. опубликовать signed artifacts при наличии Authenticode secrets либо явно маркированные `UNSIGNED-TEST` artifacts без updater metadata;
-5. создать SPDX SBOM и `SHA256SUMS.txt`.
-
-Release workflow run `29998460934` завершился успешно. Тег `v3.3.1` указывает на `a7d5a7f020051bb837b67df437de90b2cd96958a`. GitHub Release опубликован как `UNSIGNED-TEST` prerelease и прошёл встроенную проверку обязательных assets и запрета updater metadata.
-
-## Реальные ограничения
-
-- до завершения Windows release workflow packaged installer считается release candidate, а не опубликованным выпуском;
-- неподписанный installer может показывать предупреждение SmartScreen;
-- независимый cryptographic/application-security audit не выполнен;
-- voice/video calls и screen sharing не входят в `3.3.1`.
-
+1. тег `v3.3.1` указывает на release commit `a7d5a7f020051bb837b67df437de90b2cd96958a`;
+2. Windows Client и Windows Server собраны Electron Builder;
+3. Server payload включает `shared/pulse-catalog.cjs` через `shared/**/*`;
+4. Windows и Android artifacts опубликованы с явной маркировкой `UNSIGNED-TEST`;
+5. `latest.yml` и `.blockmap` отсутствуют, поэтому production updater не принимает неподписанные сборки;
+6. опубликованы SPDX SBOM и `SHA256SUMS.txt`;
+7. обязательный набор release assets прошёл post-publication validation.
 
 ## Фактический опубликованный выпуск
 
@@ -80,3 +72,10 @@ Release workflow run `29998460934` завершился успешно. Тег `
 - verified assets: `Nexora-3.3.1-source.zip`, `Nexora-3.3.1.spdx.json`, `Nexora-Android-3.3.1-UNSIGNED-TEST.apk`, `Nexora-Client-Setup-3.3.1-UNSIGNED-TEST.exe`, `Nexora-PWA-3.3.1.zip`, `Nexora-Server-Setup-3.3.1-UNSIGNED-TEST.exe`, `SHA256SUMS.txt`.
 
 Машиночитаемое свидетельство с SHA-256 digest, размером и URL каждого artifact сохранено в `release-evidence/v3.3.1.json`.
+
+## Реальные ограничения
+
+- Windows Client/Server и Android являются неподписанными test artifacts; Windows SmartScreen может показывать предупреждение;
+- production updater намеренно не принимает этот prerelease из-за отсутствия `latest.yml` и `.blockmap`;
+- независимый cryptographic/application-security audit не выполнен;
+- voice/video calls и screen sharing не входят в `3.3.1`.
