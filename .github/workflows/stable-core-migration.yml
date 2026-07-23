@@ -1,0 +1,44 @@
+name: Stable Core migration
+
+on:
+  push:
+    branches:
+      - release/3.4.0-stable-core
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/3.4.0-stable-core
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - name: Apply exact source migration
+        run: node scripts/apply-stable-core-3.4.cjs
+      - name: Commit generated source changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "No generated changes"
+          else
+            git add server client electron electron-builder.server.yml package.json package-lock.json android test
+            git commit -m "feat(stable-core): apply 3.4.0 contracts [stable-core-generated]"
+            git push origin HEAD:release/3.4.0-stable-core
+          fi
+      - run: npm ci
+      - run: npm run check
+      - run: npm run test:unit
+      - run: npm run test:performance
+      - run: npm run audit:security
