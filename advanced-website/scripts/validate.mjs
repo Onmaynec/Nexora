@@ -57,7 +57,7 @@ for (const marker of ['Ctrl K', 'aria-modal="true"', 'prefers-reduced-motion', '
   if (!`${appSource}\n${cssSource}`.includes(marker)) fail(`Required portal marker missing: ${marker}`);
 }
 if (!viteSource.includes("base: '/Nexora/advanced/'")) fail('Vite base path must be /Nexora/advanced/.');
-if (!cssSource.includes('@media (max-width: 820px)')) fail('Responsive mobile layout is missing.');
+if (!/@media\s*\(max-width:\s*820px\)/.test(cssSource)) fail('Responsive mobile layout is missing.');
 if (/\beval\s*\(/.test(appSource)) fail('Unsafe eval usage detected.');
 
 if (failures.length) {
