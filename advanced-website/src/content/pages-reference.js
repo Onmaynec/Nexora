@@ -17,7 +17,7 @@ export const pages = [
 
 ## 3.3.x
 
-Линия Trust recovery, расходуемого Impulse catalog, обновлённого Client UX, сайта и полного artifact pipeline. 3.3.1 исправляет packaged Server startup из-за отсутствующего shared Pulse runtime без schema/API migration.
+Линия Trust recovery, расходуемого Impulse catalog, обновлённого Client UX, сайта и полного artifact pipeline. 3.3.1 исправляет packaged Server startup из-за отсутствующего shared Pulse runtime, а 3.3.2 добавляет release-consistency и post-publication asset smoke gates без schema/API migration.
 
 ## Правило просмотра
 
@@ -34,7 +34,7 @@ The Trust/MLS, secure-media, release-hardening, UX/regression, and expanded secu
 
 ## 3.3.x
 
-The Trust recovery, consumable Impulse catalog, refreshed Client UX, website, and full artifact-pipeline line. 3.3.1 fixes packaged Server startup caused by a missing shared Pulse runtime without a schema/API migration.
+The Trust recovery, consumable Impulse catalog, refreshed Client UX, website, and full artifact-pipeline line. 3.3.1 fixes packaged Server startup caused by a missing shared Pulse runtime, while 3.3.2 adds release-consistency and post-publication asset smoke gates without a schema/API migration.
 
 ## Viewing rule
 
