@@ -1,0 +1,217 @@
+/* Targeted compatibility fixes for the restored Nexora 3.2.5 presentation.
+   This file intentionally preserves the original layout, 3D scene and animations. */
+
+:root {
+  font-family: "Segoe UI Variable Text", "Segoe UI", Arial, sans-serif;
+}
+
+body,
+button,
+input,
+textarea,
+select {
+  font-family: "Segoe UI Variable Text", "Segoe UI", Arial, sans-serif;
+}
+
+.hero h1,
+.section-heading h2,
+.final-cta h2,
+.activity-copy h3,
+.bento-card h3,
+.arch-node h3,
+.data-path-copy h3,
+.lifecycle-content h3,
+.download-card h3,
+.assessment-card h3,
+.doc-link h3 {
+  font-family: "Segoe UI Variable Display", "Segoe UI", Arial, sans-serif;
+  font-synthesis: none;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  hyphens: auto;
+}
+
+html[lang="ru"] .hero h1 {
+  line-height: .94;
+  letter-spacing: -.052em;
+}
+
+html[lang="ru"] .section-heading h2,
+html[lang="ru"] .final-cta h2 {
+  line-height: .98;
+  letter-spacing: -.045em;
+}
+
+html[lang="ru"] .bento-card h3,
+html[lang="ru"] .arch-node h3,
+html[lang="ru"] .download-card h3,
+html[lang="ru"] .assessment-card h3,
+html[lang="ru"] .doc-link h3 {
+  line-height: 1.14;
+  letter-spacing: -.025em;
+}
+
+.hero-lead,
+.section-heading p,
+.bento-card p,
+.arch-node p,
+.authority-matrix p,
+.data-path p,
+.lifecycle-content p,
+.download-card p,
+.assessment-card li span,
+.doc-link p,
+.final-cta p,
+.site-footer p {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.section-heading {
+  grid-template-columns: minmax(0, 1.18fr) minmax(300px, .82fr);
+  gap: clamp(2rem, 5vw, 6rem);
+  align-items: end;
+}
+
+.section-heading > div,
+.section-heading > p,
+.live-panel-head > div,
+.download-card,
+.assessment-card,
+.doc-link > div {
+  min-width: 0;
+}
+
+.section-heading h2 {
+  width: 100%;
+}
+
+.site-header {
+  z-index: 220;
+  pointer-events: auto;
+}
+
+.site-nav,
+.header-actions,
+.language-switch,
+.language-switch button,
+.header-github,
+.menu-button {
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.header-actions {
+  z-index: 12;
+}
+
+.language-switch button,
+.header-github,
+.menu-button {
+  touch-action: manipulation;
+}
+
+.download-meta {
+  min-width: 0;
+}
+
+.download-meta b,
+.download-meta small,
+.release-selector > div,
+.release-selector [data-selected-release-state] {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.signature-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-top: .45rem;
+  padding: .28rem .45rem;
+  border: 1px solid rgba(241, 198, 102, .24);
+  border-radius: .4rem;
+  color: var(--amber);
+  background: rgba(241, 198, 102, .07);
+  font-size: .5rem;
+  font-weight: 800;
+  letter-spacing: .05em;
+  line-height: 1.25;
+}
+
+.download-card[data-signature="signed"] .signature-badge {
+  border-color: rgba(101, 228, 176, .24);
+  color: var(--green);
+  background: rgba(101, 228, 176, .07);
+}
+
+.download-card[data-signature="not-applicable"] .signature-badge,
+.download-card[data-signature="unavailable"] .signature-badge {
+  border-color: var(--line-soft);
+  color: var(--faint);
+  background: rgba(255, 255, 255, .02);
+}
+
+@media (max-width: 1240px) {
+  .hero {
+    grid-template-columns: minmax(0, .95fr) minmax(480px, 1.05fr);
+  }
+
+  html[lang="ru"] .hero h1 {
+    font-size: clamp(3.55rem, 6.2vw, 6.5rem);
+  }
+}
+
+@media (max-width: 1040px) {
+  .section-heading {
+    grid-template-columns: 1fr;
+    gap: 1.35rem;
+  }
+
+  .header-actions {
+    position: relative;
+    z-index: 130;
+  }
+}
+
+@media (max-width: 760px) {
+  html[lang="ru"] .hero h1 {
+    font-size: clamp(2.7rem, 11.2vw, 4.35rem);
+    line-height: .98;
+    letter-spacing: -.04em;
+  }
+
+  html[lang="ru"] .section-heading h2,
+  html[lang="ru"] .final-cta h2 {
+    font-size: clamp(2.25rem, 9.4vw, 4rem);
+    line-height: 1.02;
+    letter-spacing: -.035em;
+  }
+
+  .section-heading {
+    padding-top: 5.5rem;
+    padding-bottom: 2rem;
+  }
+
+  .release-selector > div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: .45rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .hero-status {
+    width: 100%;
+  }
+
+  .hero-facts strong {
+    white-space: normal;
+  }
+
+  .cta-telemetry strong {
+    font-size: 1.35rem;
+  }
+}
