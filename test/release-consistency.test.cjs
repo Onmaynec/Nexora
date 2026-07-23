@@ -79,8 +79,13 @@ test("release consistency gate rejects Android metadata drift", () => {
 
 test("release consistency gate rejects a stale current Security Policy version", () => {
   withFixture((fixture) => {
+    const currentVersion = require("../package.json").version;
+    const staleVersion = currentVersion === "0.0.0" ? "0.0.1" : "0.0.0";
     const policy = path.join(fixture, "SECURITY.md");
-    fs.writeFileSync(policy, fs.readFileSync(policy, "utf8").replace("| `3.3.2` | Published", "| `3.3.1` | Published"));
+    const before = fs.readFileSync(policy, "utf8");
+    const currentMarker = `| \`${currentVersion}\` | Published`;
+    assert.ok(before.includes(currentMarker), "current Security Policy marker must exist before mutation");
+    fs.writeFileSync(policy, before.replace(currentMarker, `| \`${staleVersion}\` | Published`));
     assert.throws(() => checkReleaseConsistency(fixture), /SECURITY\.md supported version/);
   });
 });
