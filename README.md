@@ -3,7 +3,7 @@
 [![Website](https://img.shields.io/badge/website-open-c69cff)](https://onmaynec.github.io/Nexora/)
 [![Advanced docs](https://img.shields.io/badge/advanced%20docs-open-9b5cff)](https://onmaynec.github.io/Nexora/advanced/)
 [![CI](https://github.com/Onmaynec/Nexora/actions/workflows/ci.yml/badge.svg)](https://github.com/Onmaynec/Nexora/actions/workflows/ci.yml)
-![Current version](https://img.shields.io/badge/current-3.3.1%20UNSIGNED--TEST-c69cff)
+![Current version](https://img.shields.io/badge/current-3.3.2%20UNSIGNED--TEST-c69cff)
 ![Stable signed baseline](https://img.shields.io/badge/stable%20signed-3.1.2-70e6b1)
 ![API](https://img.shields.io/badge/API-v3%20%2B%20Trust%20v4-70e6b1)
 ![Database](https://img.shields.io/badge/SQLite-schema%208-70e6b1)
@@ -20,14 +20,15 @@
 
 | Линия | Назначение | Статус распространения |
 |---|---|---|
-| `3.3.1` | Исправление запуска Windows Server: shared Pulse runtime включён в installer и проверяется release gate | Опубликованный UNSIGNED-TEST prerelease без updater metadata |
+| `3.3.2` | Release Consistency: единая версия, current docs, release evidence и asset smoke gate | Опубликованный UNSIGNED-TEST prerelease без updater metadata |
+| `3.3.1` | Исправление запуска Windows Server: shared Pulse runtime включён в installer и проверяется release gate | Заменён 3.3.2 |
 | `3.3.0` | Trust recovery, расходуемые Импульсы, обновлённый Client UX, сайт и полный artifact pipeline | Заменён 3.3.1: Server installer не содержал обязательный shared runtime module |
 | `3.1.2` | Основной messaging-контур, Pulse Cloud и production hardening | Последняя подтверждённая signed production baseline |
 
-`3.3.1` прошёл build-, unit-, API-, integration-, performance-, security-, soak-, Android- и Windows artifact-gates. Windows Client/Server и Android опубликованы как явно маркированные `UNSIGNED-TEST` assets; `latest.yml` и `.blockmap` отсутствуют, поэтому production updater их не принимает. Независимый E2EE-аудит не заявляется. Авторитетные документы текущей линии:
+`3.3.2` сохраняет runtime и security boundary 3.3.1, синхронизирует release metadata и current documentation, а также добавляет обязательную post-publication smoke-проверку Client, Server, Android и PWA assets. Windows Client/Server и Android публикуются как явно маркированные `UNSIGNED-TEST` assets; `latest.yml` и `.blockmap` отсутствуют, поэтому production updater их не принимает. Независимый E2EE-аудит не заявляется. Авторитетные документы текущей линии:
 
-- [Release Notes 3.3.1](RELEASE_NOTES_3.3.1.md);
-- [Release Verification 3.3.1](RELEASE_VERIFICATION_3.3.1.md);
+- [Release Notes 3.3.2](RELEASE_NOTES_3.3.2.md);
+- [Release Verification 3.3.2](RELEASE_VERIFICATION_3.3.2.md);
 - [Security Review 3.3.0](SECURITY_REVIEW_3.3.0.md) — security boundary не изменён.
 
 ## Возможности
@@ -82,6 +83,14 @@
 - server-side guards против plaintext downgrade через legacy send/edit/forward/draft/scheduled/poll/bot/upload paths.
 
 Фиксированный MLS profile: `MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519`.
+
+### Release 3.3.2
+
+- package, lockfile, Client handshake и Android metadata синхронизированы одной версией;
+- Architecture, Security Model, Android README, Project Index и Documentation Portal актуализированы;
+- `CHANGELOG.md` закреплён как единственный источник release history;
+- CI блокирует version drift и старые current verification links;
+- release evidence pipeline скачивает и smoke-проверяет Client, Server, Android и PWA assets.
 
 ### Release 3.3.1
 
@@ -198,7 +207,7 @@ flowchart TB
 
 Local Server является источником истины для локальных аккаунтов, комнат, ролей, доступа, порядка доставки и хранения ciphertext. Pulse Cloud является отдельным authority для Cloud Identity, billing, ledger и production entitlements.
 
-Local Server не получает private MLS state, plaintext secure-message content или ключи secure attachments. При этом сервер видит service metadata: account/device identifiers, membership, conversation scope, timing, IP/network context, ciphertext size, attachment ID и delivery events. Nexora `3.3.1` не заявляет защиту от traffic analysis.
+Local Server не получает private MLS state, plaintext secure-message content или ключи secure attachments. При этом сервер видит service metadata: account/device identifiers, membership, conversation scope, timing, IP/network context, ciphertext size, attachment ID и delivery events. Nexora `3.3.2` не заявляет защиту от traffic analysis.
 
 Полное описание: [Architecture](docs/ARCHITECTURE.md), [Security Model](docs/SECURITY_MODEL.md) и [Project Index](PROJECT_INDEX.md).
 
@@ -265,11 +274,11 @@ Electron Client закрепляет fingerprint за Server ID. Для брау
 | Архитектура | [Architecture](docs/ARCHITECTURE.md), [Project Index](PROJECT_INDEX.md) |
 | Безопасность | [Security Policy](SECURITY.md), [Security Model](docs/SECURITY_MODEL.md), [Security Verification](SECURITY_AUDIT.md) |
 | Развёртывание | [Deployment](docs/DEPLOYMENT.md), [Administrator Guide](ADMIN_GUIDE.md), [Operations Runbook](docs/OPERATIONS_RUNBOOK.md) |
-| Тестирование | [Acceptance Test Guide](TESTER_GUIDE.md), [3.3.1 Verification](RELEASE_VERIFICATION_3.3.1.md) |
+| Тестирование | [Acceptance Test Guide](TESTER_GUIDE.md), [3.3.2 Verification](RELEASE_VERIFICATION_3.3.2.md) |
 | Trust / MLS | [Trust Core 3.2.0 foundation](docs/TRUST_CORE_3.2.0.md), [Security Review 3.3.0](SECURITY_REVIEW_3.3.0.md) |
 | Миграция | [Schema 8 Migration](docs/MIGRATION_3.2.0.md) |
 | Plus / Pulse | [Pulse](docs/PULSE.md), [Pulse Cloud](docs/PULSE_CLOUD.md) |
-| Выпуски | [Release Policy](docs/RELEASE_POLICY.md), [Release Checklist](docs/RELEASE_CHECKLIST.md), [Changelog](CHANGELOG.md) |
+| Выпуски | [Release Policy](docs/RELEASE_POLICY.md), [Release Checklist](docs/RELEASE_CHECKLIST.md), [Release History](RELEASE_HISTORY.md), [Changelog](CHANGELOG.md) |
 | Репозиторий | [Branch Index](BRANCHES.md), [Contributing](CONTRIBUTING.md), [Support](SUPPORT.md) |
 
 ## Поддержка и участие
