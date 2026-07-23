@@ -71,7 +71,19 @@ jobs:
               if ($LASTEXITCODE -ne 0) { throw "Unable to fetch existing tag $tag" }
               $tagHead = (git rev-list -n 1 $tag).Trim()
               $head = (git rev-parse HEAD).Trim()
-              if ($tagHead -ne $head) { throw "Tag $tag already points to another commit" }
+              if ($tagHead -ne $head) {
+                $publishedJson = gh release view $tag --json isDraft 2>$null
+                if ($LASTEXITCODE -eq 0) {
+                  $publishedRelease = ($publishedJson -join "`n") | ConvertFrom-Json
+                  if (-not $publishedRelease.isDraft) {
+                    Write-Warning "Release $tag is already published from immutable commit $tagHead; current main $head is a post-release correction. Publication is a safe no-op."
+                    "RELEASE_SKIP=true" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+                    "RELEASE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+                    exit 0
+                  }
+                }
+                throw "Tag $tag already points to another commit and no published immutable release permits a no-op"
+              }
             } else {
               git config user.name "github-actions[bot]"
               git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -91,6 +103,11 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
+          if ($env:RELEASE_SKIP -eq "true") {
+            Write-Host "Published immutable release $env:RELEASE_TAG is retained; build and publication steps are skipped."
+            "published=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            exit 0
+          }
           $json = gh release view $env:RELEASE_TAG --json isDraft,isPrerelease 2>$null
           if ($LASTEXITCODE -ne 0) {
             "published=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
