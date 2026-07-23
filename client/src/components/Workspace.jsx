@@ -440,7 +440,7 @@ export default function Workspace({ me, bootstrap, socket, onlineUserIds, onRefr
       <section className={`workspace-main${detailsOpen ? " details-visible" : ""}`}>
         {section === "chats" && (activeConversation
           ? activeConversation.legacySecure
-            ? <LegacySecureHistoryPane key={activeConversation.id} conversation={activeConversation} onDetails={() => setDetailsOpen((value) => !value)} showToast={showToast} />
+            ? <LegacySecureHistoryPane key={activeConversation.id} conversation={activeConversation} serverId={bootstrap.server?.id} userId={me.id} onDetails={() => setDetailsOpen((value) => !value)} showToast={showToast} />
             : <MessagePane
               key={activeConversation.id}
               conversation={activeConversation}
