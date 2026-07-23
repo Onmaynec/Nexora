@@ -2,7 +2,7 @@
 
 ## 1. Область
 
-Runbook относится к Nexora `3.3.1`:
+Runbook относится к Nexora `3.3.2`:
 
 - Local Server schema 8;
 - Application API v3;
@@ -135,9 +135,9 @@ Never manually copy active SQLite database as a backup procedure.
 
 Schema 8 rollback is restore-based. Do not run schema 7 binary against schema 8 database.
 
-## 9. Upgrade to 3.2.4
+## 9. Upgrade to 3.3.2
 
-### From 3.1.x/schema 7
+### From 3.1.x/schema 7 to 3.3.2
 
 - verified backup required;
 - migration performs integrity/free-space/WAL/transactional checks;
@@ -145,7 +145,7 @@ Schema 8 rollback is restore-based. Do not run schema 7 binary against schema 8 
 - old history is not retroactively encrypted;
 - downgrade blocked.
 
-### From 3.2.0–3.2.3
+### From 3.2.0–3.3.1
 
 - no database migration;
 - schema remains 8;
@@ -230,7 +230,7 @@ Symptoms: verified device remains `MLS_WELCOME_PENDING`.
 
 Check:
 
-1. Client/Server both 3.2.4-compatible;
+1. Client/Server both 3.3.0+-compatible;
 2. pending device active/verified;
 3. conversation access and no active ban;
 4. at least one active verified group device online;

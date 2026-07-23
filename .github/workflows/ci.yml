@@ -1,68 +1,79 @@
-name: Materialize Nexora 3.3.2 documentation branch
+name: CI
 
 on:
-  pull_request:
+  push:
     branches: [main]
+  pull_request:
+  workflow_dispatch:
 
 permissions:
-  contents: write
-
-concurrency:
-  group: materialize-nexora-3.3.2-current-docs
-  cancel-in-progress: false
+  contents: read
 
 jobs:
-  materialize:
-    if: github.head_ref == 'agent/release-3.3.2-consistency-final'
-    runs-on: ubuntu-latest
+  verify:
+    runs-on: windows-latest
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22.16.0
           cache: npm
-      - name: Materialize and verify working branch
-        shell: bash
-        run: |
-          set -euo pipefail
-          branch=agent/release-3.3.2-consistency-final
-          git show 400f7c4ddba0e33d695f89830e59a8e82384fe02^:.github/workflows/ci.yml > /tmp/nexora-ci.yml
-          git fetch origin "$branch"
-          git checkout -B materialize "origin/$branch"
-          if test -f scripts/prepare-release-3.3.2-current-docs.cjs; then
-            node scripts/prepare-release-3.3.2-current-docs.cjs
-            node scripts/prepare-release-3.3.2-current-docs-extra.cjs
-            npm ci
-            node --check scripts/check-release-consistency.cjs
-            npm run release:consistency
-            node --test test/release-consistency.test.cjs
-            node --check website/app.js
-            node --check website/site-fixes.js
-            node website/validate.mjs
-            cp /tmp/nexora-ci.yml .github/workflows/ci.yml
-            git rm scripts/prepare-release-3.3.2-current-docs.cjs scripts/prepare-release-3.3.2-current-docs-extra.cjs
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add -A
-            git commit -m "docs(release): complete Nexora 3.3.2 current consistency"
-          fi
-          materialized_sha=$(git rev-parse HEAD)
+      - run: npm ci
+      - run: npm run check
+      - run: npm run test:unit
+      - run: npm run test:performance
+      - run: npm run audit:security
 
-          git checkout main
-          cp /tmp/nexora-ci.yml .github/workflows/ci.yml
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/workflows/ci.yml
-          if ! git diff --cached --quiet; then
-            git commit -m "ci(release): restore canonical CI after 3.3.2 materialization [skip ci]"
-            git pull --rebase origin main
-            git push origin HEAD:main
-          fi
+  linux-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - run: npm ci
+      - run: npm test
 
-          git checkout materialize
-          test "$(git rev-parse HEAD)" = "$materialized_sha"
-          git push origin HEAD:"$branch"
+  release-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - run: npm ci
+      - run: npm run release:check
+
+  schema8-soak:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - run: npm ci
+      - run: npm run test:soak
+        env:
+          NEXORA_SOAK_MINUTES: "1"
+          NEXORA_SOAK_INTERVAL_MS: "500"
+
+  android-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+      - run: gradle -p android :app:assembleDebug --no-daemon
