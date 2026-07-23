@@ -4,26 +4,27 @@
 
 | Параметр | Значение |
 |---|---|
-| Repository branch | `agent/nexora-3.3.0-full-release` |
 | Version | `3.3.0` |
 | Base version | `3.2.5` |
-| Source Pull Request | PR `#38` |
-| Runtime candidate | `32743436bbce99dc9632d28eeb44367d8554fbb7` |
-| Evidence head | release documentation commit after verified runtime candidate |
-| Release tag | `v3.3.0` after merge and main CI |
-| Distribution | signed release with Authenticode; otherwise complete `UNSIGNED-TEST` prerelease |
-| Stable signed baseline | `3.1.2` until a signed 3.3.0 publication exists |
+| Source Pull Request | PR `#38`, merged |
+| Merge commit | `a46c080e12b9081b448dad6426bf7c44156114cd` |
+| Release tag | `v3.3.0` → merge commit |
+| GitHub Release | `Nexora 3.3.0 — UNSIGNED TEST BUILDS` |
+| Release URL | `https://github.com/Onmaynec/Nexora/releases/tag/v3.3.0` |
+| Distribution | verified `UNSIGNED-TEST` prerelease |
+| Production updater metadata | not published |
+| Stable signed baseline | `3.1.2` until a signed 3.3.x publication exists |
 | Independent E2EE audit | not performed |
 
-Nexora `3.3.0` remains a release candidate until PR merge, successful CI on the merge commit, immutable tag creation and GitHub Release asset verification.
+Nexora `3.3.0` is published. The source tag is immutable and points to the merged runtime commit. Client, Server, Android, PWA, source, SPDX SBOM and checksum assets were built and verified by GitHub Actions.
 
 ## Implemented
 
 ### Trust and messages
 
 - `Welcome claim` limits are isolated per conversation;
-- Client coalescing and `Retry-After` eliminate the MLS recovery request storm;
-- old and new DMs/rooms no longer share one device recovery bucket;
+- Client coalescing, minimum request intervals and `Retry-After` stop the MLS recovery request storm;
+- old and new DMs/rooms no longer consume a shared device recovery bucket;
 - no plaintext fallback was introduced;
 - regular and secure message deletion is confirmed inside the application;
 - the inert lock control was removed from the secure composer.
@@ -31,7 +32,7 @@ Nexora `3.3.0` remains a release candidate until PR merge, successful CI on the 
 ### Voice and media UX
 
 - waveform is calculated using RMS/peak and normalized for each recording;
-- the played segment changes color and animates;
+- bars have different heights and the played segment changes color and animates;
 - seek, duration and playback rate remain available;
 - echo cancellation, noise suppression and auto gain are requested when supported.
 
@@ -40,38 +41,54 @@ Nexora `3.3.0` remains a release candidate until PR merge, successful CI on the 
 - a spendable catalog was added for profile, message, reaction and room customization;
 - debit and entitlement issuance are atomic and idempotent;
 - negative balance and duplicate charging are rejected;
-- room purchases require the owner role;
+- room purchases require membership, no active ban and owner role;
 - Sandbox independently serves catalog, receipts, goals, contributions, refunds and entitlements;
 - Cloud schema includes the additive `impulse_purchases` migration;
 - production entitlements are signed with Ed25519; Sandbox entitlements remain explicitly local.
 
 ### Website and distribution
 
-- the website was redesigned for 3.3.0 with safe Cyrillic typography;
+- the website was redesigned with safe Cyrillic typography and corrected responsive layout;
 - RU/EN and GitHub controls have corrected hit testing;
 - download cards resolve actual GitHub Release assets;
-- without Authenticode, Client/Server `.exe` and Android `.apk` are published with `UNSIGNED-TEST` suffixes;
-- the unsigned path publishes no `latest.yml` or `.blockmap`;
-- Source ZIP, PWA ZIP, SPDX SBOM and SHA-256 checksums are produced in both modes;
-- release publication is serialized and does not recursively start from its own newly created tag.
+- Client/Server `.exe` and Android `.apk` are published with `UNSIGNED-TEST` suffixes because signing keys are absent;
+- `latest.yml` and `.blockmap` are absent, so production auto-update cannot consume unsigned builds;
+- Source ZIP, PWA ZIP, SPDX SBOM and SHA-256 checksums are published.
 
-## Verified release candidate
+## Verification
 
-Runtime candidate `32743436bbce99dc9632d28eeb44367d8554fbb7` passed:
+### Release candidate
 
-- CI `29966678997`;
-- `npm run check`;
-- `npm run test:unit`;
-- `npm run test:performance`;
-- `npm run audit:security`;
-- `npm run release:check`;
-- Linux `npm test`;
-- schema 8 soak;
-- Android `assembleDebug`;
-- focused Nexora 3.3 regressions `29966678998`;
-- Project website gate `29966678986`.
+PR head `7d83bce963d5a774f9c107a5cf8d3a05130c1d44` passed:
 
-The current branch head contains only subsequent release-evidence and release-pipeline hardening changes and is required to pass the same current-head checks before merge.
+- CI `29967109170`;
+- focused Nexora 3.3 regressions `29967109182`;
+- Project website `29967109165`.
+
+### Merge commit
+
+Merge commit `a46c080e12b9081b448dad6426bf7c44156114cd` passed:
+
+- CI `29967637087`;
+- Project website `29967637097`.
+
+### Publication
+
+- the initial release run `29967729776` failed inside the combined source/PWA/SBOM/Android preparation step;
+- recovery run `29968722912` split the operations, pinned Gradle `8.13`, validated each artifact and completed successfully;
+- immutable asset evidence is stored in `release-evidence/v3.3.0.json`;
+- `updaterMetadataPublished` is `false`;
+- all seven required assets have GitHub SHA-256 digests.
+
+## Published assets
+
+- `Nexora-Client-Setup-3.3.0-UNSIGNED-TEST.exe`;
+- `Nexora-Server-Setup-3.3.0-UNSIGNED-TEST.exe`;
+- `Nexora-Android-3.3.0-UNSIGNED-TEST.apk`;
+- `Nexora-PWA-3.3.0.zip`;
+- `Nexora-3.3.0-source.zip`;
+- `Nexora-3.3.0.spdx.json`;
+- `SHA256SUMS.txt`.
 
 ## Compatibility
 
@@ -89,8 +106,8 @@ Pulse catalog does not paywall communication and does not alter Trust permission
 
 ## Real limitations
 
-- without Authenticode and an Android release keystore, binaries are `UNSIGNED-TEST`, not production-signed;
-- Android test APK does not replace physical-device testing;
+- current Client/Server/APK assets are unsigned test builds, not production-signed binaries;
+- Android test APK does not replace a physical-device matrix;
 - independent cryptographic and application-security audit has not been performed;
 - traffic-analysis resistance is not claimed;
 - voice/video calls and screen sharing are outside 3.3.0.
