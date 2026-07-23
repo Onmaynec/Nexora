@@ -1,5 +1,5 @@
 {
-  "siteBuild": "redesign-20260722-2",
-  "sourceCommit": "c1ba9393825d94e80ede50052122913be1e2fb6d",
-  "purpose": "GitHub Pages deployment and cache verification marker"
+  "siteBuild": "restored-3.2.5-ux-20260723-1",
+  "sourceCommit": "v3.2.5 + targeted localization and layout fixes",
+  "purpose": "Restore the 3.2.5 presentation UX while retaining the 3.3.0 release data"
 }
