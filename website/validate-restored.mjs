@@ -27,7 +27,13 @@ for (const marker of requiredLegacyUx) {
   if (!html.includes(marker)) throw new Error(`Restored 3.2.5 UX marker is missing: ${marker}`);
 }
 
-for (const marker of ["class AetherField", "setupTilt", "data-parallax", "requestAnimationFrame"]) {
+for (const marker of [
+  "class AetherField",
+  'document.querySelectorAll("[data-tilt]")',
+  'style.setProperty("--rx"',
+  "data-parallax",
+  "requestAnimationFrame",
+]) {
   if (!app.includes(marker)) throw new Error(`Restored animation marker is missing: ${marker}`);
 }
 
