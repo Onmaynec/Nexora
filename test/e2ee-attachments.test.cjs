@@ -8,104 +8,56 @@ const path = require("node:path");
 const { test } = require("node:test");
 
 const request = require("supertest");
-const { claimE2eeAttachment } = require("../server/e2ee-attachments.cjs");
 const { createNexoraServer } = require("../server/create-server-v31.cjs");
 
 function browserAgent(agent, csrf) {
   return new Proxy(agent, {
     get(target, property) {
-      if (["post", "put", "patch", "delete"].includes(property)) {
-        return (...args) => {
-          const builder = target[property](...args).set("X-Nexora-Client-Version", "3.2.0");
+      if (typeof target[property] !== "function") return target[property];
+      return (...args) => {
+        const builder = target[property](...args)
+          .set("X-Nexora-Client-Version", "3.4.0")
+          .set("X-Nexora-Device-ID", "legacy-history-test-device")
+          .set("X-Nexora-Device-Name", "Legacy history test")
+          .set("X-Nexora-Platform", "web");
+        if (["post", "put", "patch", "delete"].includes(property)) {
           const token = csrf();
-          return token ? builder.set("X-Nexora-CSRF", token) : builder;
-        };
-      }
-      if (typeof target[property] === "function") return (...args) => target[property](...args).set("X-Nexora-Client-Version", "3.2.0");
-      return target[property];
+          if (token) builder.set("X-Nexora-CSRF", token);
+        }
+        return builder;
+      };
     },
   });
 }
 
-function activateMlsGroup(instance, conversationId) {
+function installLegacyHistory(instance, { conversationId, senderId }) {
   const now = new Date().toISOString();
+  const groupRecordId = crypto.randomUUID();
+  const messageId = crypto.randomUUID();
+  const ciphertext = crypto.randomBytes(96).toString("base64");
   instance.store.db.prepare(`INSERT INTO mls_groups(
     id,conversation_id,group_id,ciphersuite,epoch,status,creator_device_id,public_state_hash,created_at,updated_at
   ) VALUES(?,?,?,?,?,'active',?,?,?,?)`).run(
-    crypto.randomUUID(), conversationId, crypto.randomBytes(24).toString("base64url"), 1, 0,
-    crypto.randomUUID(), crypto.createHash("sha256").update(conversationId).digest("hex"), now, now,
+    groupRecordId,
+    conversationId,
+    crypto.randomBytes(24).toString("base64url"),
+    1,
+    7,
+    crypto.randomUUID(),
+    crypto.randomBytes(32).toString("hex"),
+    now,
+    now,
   );
-}
-
-async function encryptedFixture(plaintext = Buffer.from("secret attachment bytes")) {
-  const key = crypto.randomBytes(32);
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
-  const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final(), cipher.getAuthTag()]);
-  return {
-    plaintext,
-    ciphertext,
-    sha256: crypto.createHash("sha256").update(ciphertext).digest("hex"),
-  };
-}
-
-test("opaque E2EE attachment API validates, stores and deletes ciphertext without plaintext metadata", async (context) => {
-  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "nexora-e2ee-attachment-"));
-  const instance = await createNexoraServer({ dataDir: directory, clientDir: path.join(__dirname, "..", "client", "dist"), tls: false, redirect: false, port: 0, host: "127.0.0.1", quiet: true });
-  await instance.listen();
-  context.after(async () => { await instance.close(); await fs.rm(directory, { recursive: true, force: true }); });
-
-  let csrf = "";
-  const agent = browserAgent(request.agent(instance.app), () => csrf);
-  const registered = await agent.post("/api/auth/register").send({ displayName: "Attachment Guard", username: `attachment_${crypto.randomBytes(4).toString("hex")}`, password: "AttachmentGuard123!" }).expect(201);
-  csrf = registered.body.csrfToken;
-  const userId = registered.body.user.id;
-  const bootstrap = await agent.get("/api/bootstrap").expect(200);
-  const general = bootstrap.body.rooms.find((room) => room.slug === "general");
-  assert.ok(general?.conversationId);
-  activateMlsGroup(instance, general.conversationId);
-
-  function uploadAttachment(attachmentId, fixture) {
-    return agent.post(`/api/v4/e2ee/conversations/${general.conversationId}/attachments`)
-      .set("Content-Type", "application/octet-stream")
-      .set("X-Nexora-Attachment-ID", attachmentId)
-      .set("X-Nexora-Ciphertext-SHA256", fixture.sha256)
-      .set("X-Nexora-Plaintext-Size", String(fixture.plaintext.length))
-      .send(fixture.ciphertext);
-  }
-
-  const attachmentId = crypto.randomUUID();
-  const fixture = await encryptedFixture();
-  const created = await uploadAttachment(attachmentId, fixture).expect(201);
-  assert.equal(created.body.attachment.id, attachmentId);
-  assert.equal(created.body.attachment.size, fixture.ciphertext.length);
-  assert.equal(created.body.attachment.plaintextSize, fixture.plaintext.length);
-  assert.equal(created.body.attachment.ciphertextSha256, fixture.sha256);
-
-  const duplicate = await uploadAttachment(attachmentId, fixture).expect(200);
-  assert.equal(duplicate.body.duplicate, true);
-
-  const file = instance.store.read((state) => state.files.find((item) => item.id === attachmentId));
-  assert.equal(file.kind, "encrypted");
-  assert.equal(file.mimeType, "application/octet-stream");
-  assert.equal(file.pendingE2ee, true);
-  assert.equal(file.originalName, `e2ee-${attachmentId}.bin`);
-  assert.equal(JSON.stringify(file).includes("secret attachment bytes"), false);
-  assert.equal(JSON.stringify(file).includes("AttachmentGuard123"), false);
-
-  await agent.get(`/api/files/${attachmentId}`).expect(404);
-  const messageId = crypto.randomUUID();
-  await instance.store.mutate((state) => {
-    claimE2eeAttachment(state, { attachmentId, conversationId: general.conversationId, uploaderId: userId, messageId });
+  return instance.store.mutate((state) => {
     state.messages.push({
       id: messageId,
-      conversationId: general.conversationId,
-      senderId: userId,
+      conversationId,
+      senderId,
       clientId: crypto.randomUUID(),
       type: "encrypted",
       encryptedContentType: "attachment",
-      text: "",
-      fileId: attachmentId,
+      text: "plaintext-must-never-be-exported",
+      fileId: null,
       replyToId: null,
       threadRootId: null,
       forwardedFromId: null,
@@ -113,73 +65,84 @@ test("opaque E2EE attachment API validates, stores and deletes ciphertext withou
       silent: false,
       mentions: [],
       pendingApproval: false,
-      mlsEnvelope: { ciphertext: Buffer.alloc(32).toString("base64"), messageHash: crypto.randomBytes(32).toString("hex") },
-      createdAt: new Date().toISOString(),
+      mlsEnvelope: {
+        groupRecordId,
+        epoch: 7,
+        generation: 3,
+        ciphertext,
+        messageHash: crypto.createHash("sha256").update(ciphertext).digest("hex"),
+      },
+      createdAt: now,
       updatedAt: null,
       deletedAt: null,
       pinnedAt: null,
       pinnedBy: null,
     });
+    return { groupRecordId, messageId, ciphertext };
+  });
+}
+
+test("legacy encrypted attachments are immutable and ciphertext remains exportable without plaintext", async (context) => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "nexora-legacy-history-"));
+  const instance = await createNexoraServer({
+    dataDir: directory,
+    clientDir: path.join(__dirname, "..", "client", "dist"),
+    tls: false,
+    redirect: false,
+    port: 0,
+    host: "127.0.0.1",
+    quiet: true,
+  });
+  await instance.listen();
+  context.after(async () => {
+    await instance.close();
+    await fs.rm(directory, { recursive: true, force: true });
   });
 
-  const downloaded = await agent.get(`/api/files/${attachmentId}`).expect(200);
-  assert.deepEqual(downloaded.body, fixture.ciphertext);
-  assert.notDeepEqual(downloaded.body, fixture.plaintext);
-  await agent.delete(`/api/v4/e2ee/attachments/${attachmentId}`).expect(409);
-
-  const badId = crypto.randomUUID();
-  const badHash = await agent.post(`/api/v4/e2ee/conversations/${general.conversationId}/attachments`)
-    .set("Content-Type", "application/octet-stream")
-    .set("X-Nexora-Attachment-ID", badId)
-    .set("X-Nexora-Ciphertext-SHA256", "0".repeat(64))
-    .set("X-Nexora-Plaintext-Size", String(fixture.plaintext.length))
-    .send(fixture.ciphertext)
-    .expect(409);
-  assert.equal(badHash.body.code, "E2EE_ATTACHMENT_HASH_MISMATCH");
-  assert.equal(instance.store.read((state) => state.files.some((item) => item.id === badId)), false);
-
-  const pendingId = crypto.randomUUID();
-  const pendingFixture = await encryptedFixture(Buffer.from("pending ciphertext"));
-  await uploadAttachment(pendingId, pendingFixture).expect(201);
-  await agent.delete(`/api/v4/e2ee/attachments/${pendingId}`).expect(200);
-  assert.equal(instance.store.read((state) => state.files.some((item) => item.id === pendingId)), false);
-  await agent.get(`/api/files/${pendingId}`).expect(404);
-});
-
-test("claimE2eeAttachment is one-time and scope-bound", () => {
-  const attachmentId = crypto.randomUUID();
-  const conversationId = crypto.randomUUID();
-  const userId = crypto.randomUUID();
-  const state = { files: [{
-    id: attachmentId, conversationId, uploaderId: userId, kind: "encrypted", pendingE2ee: true,
-    claimedAt: null, messageId: null, expiresAt: new Date(Date.now() + 60_000).toISOString(), deletedAt: null,
-  }] };
-  const claimed = claimE2eeAttachment(state, { attachmentId, conversationId, uploaderId: userId, messageId: crypto.randomUUID() });
-  assert.equal(claimed.pendingE2ee, false);
-  assert.ok(claimed.claimedAt);
-  assert.throws(() => claimE2eeAttachment(state, { attachmentId, conversationId, uploaderId: userId, messageId: crypto.randomUUID() }), (error) => error.code === "E2EE_ATTACHMENT_ALREADY_CLAIMED");
-});
-
-test("encrypted room media is fail-closed when any media class is disabled", async (context) => {
-  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "nexora-e2ee-policy-"));
-  const instance = await createNexoraServer({ dataDir: directory, clientDir: path.join(__dirname, "..", "client", "dist"), tls: false, redirect: false, port: 0, host: "127.0.0.1", quiet: true });
-  await instance.listen();
-  context.after(async () => { await instance.close(); await fs.rm(directory, { recursive: true, force: true }); });
   let csrf = "";
   const agent = browserAgent(request.agent(instance.app), () => csrf);
-  const registered = await agent.post("/api/auth/register").send({ displayName: "Policy Guard", username: `policy_${crypto.randomBytes(4).toString("hex")}`, password: "PolicyGuardPass123!" }).expect(201);
+  const registered = await agent.post("/api/auth/register").send({
+    displayName: "Legacy History",
+    username: `legacy_${crypto.randomBytes(4).toString("hex")}`,
+    password: "LegacyHistoryPass123!",
+  }).expect(201);
   csrf = registered.body.csrfToken;
   const bootstrap = await agent.get("/api/bootstrap").expect(200);
   const general = bootstrap.body.rooms.find((room) => room.slug === "general");
-  activateMlsGroup(instance, general.conversationId);
-  await agent.patch(`/api/rooms/${general.id}`).send({ allowVoice: false }).expect(200);
-  const fixture = await encryptedFixture(Buffer.from("policy"));
+  assert.ok(general?.conversationId);
+  const legacy = await installLegacyHistory(instance, {
+    conversationId: general.conversationId,
+    senderId: registered.body.user.id,
+  });
+
+  const beforeFiles = instance.store.read((state) => state.files.length);
+  const incomingDir = path.join(directory, "uploads", ".incoming");
+  const beforeIncoming = (await fs.readdir(incomingDir)).sort();
   const blocked = await agent.post(`/api/v4/e2ee/conversations/${general.conversationId}/attachments`)
     .set("Content-Type", "application/octet-stream")
     .set("X-Nexora-Attachment-ID", crypto.randomUUID())
-    .set("X-Nexora-Ciphertext-SHA256", fixture.sha256)
-    .set("X-Nexora-Plaintext-Size", String(fixture.plaintext.length))
-    .send(fixture.ciphertext)
-    .expect(403);
-  assert.equal(blocked.body.code, "E2EE_MEDIA_POLICY_RESTRICTED");
+    .set("X-Nexora-Ciphertext-SHA256", "0".repeat(64))
+    .send(crypto.randomBytes(64))
+    .expect(410);
+  assert.equal(blocked.body.code, "LEGACY_READ_ONLY");
+  assert.match(blocked.body.requestId, /^[A-Za-z0-9_.:-]{8,128}$/);
+  assert.equal(instance.store.read((state) => state.files.length), beforeFiles);
+  assert.deepEqual((await fs.readdir(incomingDir)).sort(), beforeIncoming);
+
+  const conversations = await agent.get("/api/v3/legacy-secure/conversations").expect(200);
+  const conversation = conversations.body.conversations.find((item) => item.conversationId === general.conversationId);
+  assert.equal(conversation.readOnly, true);
+  assert.equal(conversation.state, "exportable");
+  assert.equal(conversation.messageCount, 1);
+
+  const messages = await agent.get(`/api/v3/legacy-secure/conversations/${general.conversationId}/messages`).expect(200);
+  assert.equal(messages.body.messages.length, 1);
+  assert.equal(messages.body.messages[0].ciphertext, legacy.ciphertext);
+  assert.equal(messages.body.messages[0].readOnly, true);
+  assert.equal(Object.hasOwn(messages.body.messages[0], "text"), false);
+
+  const exported = await agent.post(`/api/v3/legacy-secure/conversations/${general.conversationId}/export`).send({}).expect(200);
+  assert.equal(exported.body.export.serverDecrypted, false);
+  assert.equal(exported.body.export.messages[0].ciphertext, legacy.ciphertext);
+  assert.equal(JSON.stringify(exported.body).includes("plaintext-must-never-be-exported"), false);
 });
