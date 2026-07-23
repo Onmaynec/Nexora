@@ -86,7 +86,22 @@ jobs:
       - name: Synchronize release metadata
         run: npm run release:sync-version
       - name: Validate syntax and web production build
-        run: npm run check
+        id: validation
+        continue-on-error: true
+        run: npm run check > nexora-3.3.3-validation.log 2>&1
+      - name: Upload validation diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexora-3.3.3-validation-log
+          path: nexora-3.3.3-validation.log
+          if-no-files-found: error
+          retention-days: 2
+      - name: Stop on validation failure
+        if: steps.validation.outcome == 'failure'
+        run: |
+          cat nexora-3.3.3-validation.log
+          exit 1
       - name: Run unit and regression tests
         run: npm run test:unit
       - name: Run performance tests
@@ -100,6 +115,7 @@ jobs:
           rm -f release-patches/3.3.3/mls-fixups.py
           rm -f release-patches/3.3.3/trust-route-fixups.py
           rm -f nexora-3.3.3-migration.log
+          rm -f nexora-3.3.3-validation.log
           rmdir release-patches/3.3.3 2>/dev/null || true
           rmdir release-patches 2>/dev/null || true
           rm -f .github/workflows/apply-release-3.3.3.yml
