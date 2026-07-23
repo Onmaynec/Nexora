@@ -16,16 +16,19 @@ if (testFiles.length === 0) {
   process.exit(1);
 }
 
-const result = spawnSync(process.execPath, ["--test", ...testFiles], {
-  cwd: root,
-  env: process.env,
-  stdio: "inherit",
-  shell: false,
-});
-
-if (result.error) {
-  console.error(result.error.stack || result.error.message);
-  process.exit(1);
+for (const file of testFiles) {
+  const result = spawnSync(process.execPath, ["--test", file], {
+    cwd: root,
+    env: process.env,
+    encoding: "utf8",
+    shell: false,
+  });
+  if (result.status !== 0 || result.error) {
+    console.error(`DIAGNOSTIC UNIT FAILURE: ${file}`);
+    if (result.stdout) console.error(result.stdout);
+    if (result.stderr) console.error(result.stderr);
+    if (result.error) console.error(result.error.stack || result.error.message);
+    process.exit(result.status ?? 1);
+  }
+  console.log(`DIAGNOSTIC UNIT PASS: ${file}`);
 }
-
-process.exit(result.status ?? 1);
