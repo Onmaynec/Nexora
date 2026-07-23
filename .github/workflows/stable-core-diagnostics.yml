@@ -18,13 +18,23 @@ concurrency:
 jobs:
   unit-summary:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22.16.0
           cache: npm
+      - name: Apply deterministic migration in diagnostic workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/apply-stable-core-3.4.cjs
+          node scripts/apply-stable-core-error-contracts.cjs
+          node scripts/apply-stable-core-bootstrap.cjs
+          node scripts/apply-stable-core-client-retirement.cjs
+          node scripts/apply-stable-core-runtime-retirement.cjs
+          npm install --package-lock-only --ignore-scripts
       - run: npm ci
       - name: Run unit suite with concise failure output
         shell: bash
@@ -34,8 +44,8 @@ jobs:
           status=$?
           if [ "$status" -ne 0 ]; then
             echo "--- concise unit failures ---"
-            grep -E "^(not ok|# Subtest:)|AssertionError|ERR_|Error:|expected|actual|failureType|location" unit.log | tail -n 400 || tail -n 400 unit.log
+            grep -E "^(not ok|# Subtest:)|AssertionError|ERR_|Error:|expected|actual|failureType|location" unit.log | tail -n 500 || tail -n 500 unit.log
           else
-            tail -n 40 unit.log
+            tail -n 60 unit.log
           fi
           exit "$status"
