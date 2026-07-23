@@ -4,7 +4,7 @@
   "engines": {
     "node": ">=22.16.0"
   },
-  "description": "Nexora self-hosted messenger for Windows, browsers and Android",
+  "description": "Nexora self-hosted messenger for Windows, PWA and Android",
   "author": "Nexora",
   "homepage": "https://github.com/Onmaynec/Nexora#readme",
   "repository": {
