@@ -1,7 +1,7 @@
 # Nexora Security Verification Summary
 
 **Дата документа:** 23 июля 2026  
-**Текущая версия:** `3.3.1`  
+**Текущая версия:** `3.3.2`  
 **Канал:** Published `UNSIGNED-TEST` prerelease  
 **Signed production baseline:** `3.1.2`
 
@@ -11,9 +11,9 @@
 
 Авторитетные материалы:
 
-- [Security Review 3.3.0](SECURITY_REVIEW_3.3.0.md) — security boundary, unchanged by 3.3.1;
-- [Release Verification 3.3.1](RELEASE_VERIFICATION_3.3.1.md);
-- [Release Notes 3.3.1](RELEASE_NOTES_3.3.1.md);
+- [Security Review 3.3.0](SECURITY_REVIEW_3.3.0.md) — security boundary, unchanged by 3.3.2;
+- [Release Verification 3.3.2](RELEASE_VERIFICATION_3.3.2.md);
+- [Release Notes 3.3.2](RELEASE_NOTES_3.3.2.md);
 - [Security Review 3.2.3](SECURITY_REVIEW_3.2.3.md);
 - [Security Model](docs/SECURITY_MODEL.md).
 
@@ -21,18 +21,16 @@
 
 | Параметр | Значение |
 |---|---|
-| Version | `3.3.1` |
+| Version | `3.3.2` |
 | Application API | v3 |
 | Trust/MLS/encrypted-media API | v4 |
 | Local Server database | SQLite schema 8 |
-| Local Server migration from 3.2.0–3.3.0 | не требуется |
+| Local Server migration from 3.2.0–3.3.1 | не требуется |
 | Stable signed Windows approval | не предоставлен |
 
 ## 3. Release evidence
 
-Основной implementation gate 3.3.1: PR CI run `29998152125`.
-
-Focused Nexora 3.3 regressions: run `29998152148`. Release packaging/publication: run `29998460934`.
+Для 3.3.2 обязательны стандартные Windows/Linux/release/soak/Android gates, version-consistency regression и post-publication asset smoke. Конкретные run IDs и digests записываются в `release-evidence/v3.3.2.json` и `release-evidence/post-release-main-gate.json`.
 
 Проверены:
 
@@ -47,7 +45,7 @@ Focused Nexora 3.3 regressions: run `29998152148`. Release packaging/publication
 | Schema 8 soak | PASS |
 | Android `assembleDebug` | PASS |
 
-Детали test-first regression, runner gates, packaging и publication приведены в [Release Verification 3.3.1](RELEASE_VERIFICATION_3.3.1.md). Исправление 3.3.1 не расширяет security boundary: оно восстанавливает dependency closure упакованного Server и добавляет fail-fast release validation.
+Acceptance contract, consistency gate и asset smoke описаны в [Release Verification 3.3.2](RELEASE_VERIFICATION_3.3.2.md). Выпуск 3.3.2 не расширяет security boundary и не изменяет runtime authorization, Trust/MLS или storage behavior.
 
 ## 4. Application security
 

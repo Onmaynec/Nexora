@@ -2,7 +2,7 @@
 
 ## 1. Область
 
-Документ описывает `main` версии `3.3.1`:
+Документ описывает `main` версии `3.3.2`:
 
 - Application API: v3;
 - Trust/MLS/encrypted-media API: v4;
@@ -154,7 +154,7 @@ Schema 8 adds:
 
 Migration `7 → 8` executes before network listen with source integrity, free-space check, WAL checkpoint, verified backup, transactional/idempotent migration, destination integrity и downgrade protection.
 
-No migration is required between 3.2.0–3.2.4.
+No migration is required between 3.2.0–3.3.2.
 
 ## 6. Authorization pipeline
 
@@ -208,7 +208,7 @@ Fixed profile: `MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519`.
 7. Server persists ciphertext and emits only active verified group devices.
 8. Recipient validates authenticated data and decrypts locally.
 
-## 10. Welcome recovery 3.2.4
+## 10. Welcome recovery baseline 3.3.0
 
 When verified pending device has no group state:
 
@@ -296,8 +296,12 @@ Pulse Cloud does not receive local messages/files/private Trust state. Local Ser
 
 Local Server и Pulse Cloud expose liveness, readiness, protected metrics, request IDs, credential redaction и graceful drain. SQLite uses verified backup/restore and integrity checks.
 
-## 20. Security limitations
+## 20. Release metadata boundary
+
+`package.json` является источником SemVer. CI сравнивает lockfile, Android metadata, Client handshake, README, Project Index, Architecture, Security Model и current release evidence. Post-publication workflow скачивает Client, Server, Android и PWA assets, проверяет SHA-256 и container integrity до записи immutable evidence.
+
+## 21. Security limitations
 
 Local Server still observes account/device IDs, membership, timing, IP/network context, ciphertext size, attachment ID, delivery order, Welcome request timing и traffic patterns.
 
-No independent audit, traffic-analysis resistance, stable signed 3.2.4 Windows approval или seamless total-state-loss recovery is claimed.
+No independent audit, traffic-analysis resistance, stable signed 3.3.x Windows approval или seamless total-state-loss recovery is claimed.

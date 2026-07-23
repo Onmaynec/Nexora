@@ -2,6 +2,31 @@
 
 Формат основан на Keep a Changelog. Версии следуют Semantic Versioning.
 
+## [3.3.2] — 2026-07-23
+
+### Исправлено
+
+- version metadata, current documentation и release evidence приведены к одному источнику истины;
+- current-ссылки на устаревшую Release Verification 3.2.4 заменены актуальными;
+- Architecture, Security Model, Android README и Project Index больше не содержат противоречивых current claims.
+
+### CI и выпуск
+
+- добавлен release consistency gate для package, lockfile, Android, README, Project Index, Architecture, Security Model и evidence;
+- добавлена негативная регрессия, подтверждающая отказ при Android version drift;
+- release evidence workflow скачивает опубликованные Client, Server, Android и PWA assets, проверяет SHA-256, PE/ZIP integrity и обязательное содержимое;
+- CHANGELOG закреплён как единственный канонический release history.
+
+### Организационная очистка
+
+- конфликтующие устаревшие PR #30 и #31 закрыты;
+- экспериментальный Rust/OpenMLS PR #11 закрыт как superseded отдельным текущим Trust/MLS-контуром.
+
+### Совместимость
+
+- schema 8, API v3 и Trust/MLS API v4 сохранены;
+- runtime code, зависимости, migrations и пользовательские функции не изменены.
+
 ## [3.3.1] — 2026-07-23
 
 ### Исправлено
