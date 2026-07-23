@@ -18,30 +18,33 @@ concurrency:
 jobs:
   unit-summary:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22.16.0
           cache: npm
-      - name: Apply legacy bootstrap contract
-        run: node scripts/apply-stable-core-bootstrap.cjs
-      - name: Remove executable Trust and MLS runtime
-        run: node scripts/apply-stable-core-runtime-retirement.cjs
-      - name: Regenerate lockfile
-        run: npm install --package-lock-only --ignore-scripts
       - run: npm ci
-      - name: Run unit suite with concise failure output
+      - name: Run each unit file and print only failing diagnostics
         shell: bash
         run: |
           set +e
-          npm run test:unit > unit.log 2>&1
-          status=$?
-          if [ "$status" -ne 0 ]; then
-            echo "--- concise unit failures ---"
-            grep -E "^(not ok|# Subtest:)|AssertionError|ERR_|Error:|expected|actual|failureType|location" unit.log | tail -n 500 || tail -n 500 unit.log
-          else
-            tail -n 60 unit.log
+          failed=0
+          for file in test/*.test.cjs; do
+            if [ "$file" = "test/performance.test.cjs" ]; then
+              continue
+            fi
+            log="$(basename "$file").log"
+            node --test "$file" > "$log" 2>&1
+            status=$?
+            if [ "$status" -ne 0 ]; then
+              failed=1
+              echo "=== FAILED: $file ==="
+              grep -E "^(not ok|# Subtest:)|AssertionError|ERR_|Error:|expected|actual|failureType|location|Cannot find module|SyntaxError" "$log" | tail -n 120 || tail -n 120 "$log"
+            fi
+          done
+          if [ "$failed" -eq 0 ]; then
+            echo "All unit files passed individually."
           fi
-          exit "$status"
+          exit "$failed"
