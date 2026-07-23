@@ -19,7 +19,7 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -51,6 +51,50 @@ jobs:
           echo "Release $tag was not published within the verification window." >&2
           exit 1
 
+      - name: Smoke published Client, Server, Android and PWA assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          directory=/tmp/nexora-release-assets
+          rm -rf "$directory"
+          mkdir -p "$directory"
+          gh release download "$RELEASE_TAG" --repo "${{ github.repository }}" --dir "$directory"
+          cd "$directory"
+          sha256sum --check SHA256SUMS.txt
+
+          client=$(find . -maxdepth 1 -type f -name "Nexora-Client-Setup-${RELEASE_VERSION}*.exe" -print -quit)
+          server=$(find . -maxdepth 1 -type f -name "Nexora-Server-Setup-${RELEASE_VERSION}*.exe" -print -quit)
+          android="./Nexora-Android-${RELEASE_VERSION}-UNSIGNED-TEST.apk"
+          pwa="./Nexora-PWA-${RELEASE_VERSION}.zip"
+
+          test -n "$client" && test -f "$client"
+          test -n "$server" && test -f "$server"
+          test -f "$android"
+          test -f "$pwa"
+          test "$(stat -c%s "$client")" -gt 10000000
+          test "$(stat -c%s "$server")" -gt 10000000
+          test "$(stat -c%s "$android")" -gt 100000
+          test "$(stat -c%s "$pwa")" -gt 1024
+          test "$(head -c 2 "$client")" = "MZ"
+          test "$(head -c 2 "$server")" = "MZ"
+          unzip -tq "$android"
+          unzip -Z1 "$android" | grep -qx "AndroidManifest.xml"
+          unzip -tq "$pwa"
+          unzip -Z1 "$pwa" | grep -Eq '(^|/)index\.html$'
+
+          CLIENT_NAME=$(basename "$client") SERVER_NAME=$(basename "$server") node <<'NODE'
+          const fs = require('node:fs');
+          const smoke = {
+            status: 'pass',
+            checksums: 'pass',
+            client: { name: process.env.CLIENT_NAME, peHeader: 'MZ', minimumSize: 'pass' },
+            server: { name: process.env.SERVER_NAME, peHeader: 'MZ', minimumSize: 'pass' },
+            android: { name: `Nexora-Android-${process.env.RELEASE_VERSION}-UNSIGNED-TEST.apk`, zipIntegrity: 'pass', manifest: 'pass' },
+            pwa: { name: `Nexora-PWA-${process.env.RELEASE_VERSION}.zip`, zipIntegrity: 'pass', indexHtml: 'pass' },
+          };
+          fs.writeFileSync('/tmp/release-smoke.json', `${JSON.stringify(smoke, null, 2)}\n`, 'utf8');
+          NODE
+
       - name: Validate assets and write evidence
         shell: bash
         run: |
@@ -61,6 +105,7 @@ jobs:
           const fs = require('node:fs');
           const path = require('node:path');
           const release = JSON.parse(fs.readFileSync('/tmp/release.json', 'utf8'));
+          const smoke = JSON.parse(fs.readFileSync('/tmp/release-smoke.json', 'utf8'));
           const version = process.env.RELEASE_VERSION;
           const tag = process.env.RELEASE_TAG;
           const names = (release.assets || []).map((asset) => asset.name);
@@ -91,6 +136,8 @@ jobs:
           }
           const evidence = {
             schemaVersion: 1,
+            version,
+            status: 'published',
             verifiedAt: new Date().toISOString(),
             repository: process.env.GITHUB_REPOSITORY,
             tag,
@@ -102,6 +149,7 @@ jobs:
             distribution: unsigned ? 'unsigned-test' : 'signed-production',
             updaterMetadataPublished: names.includes('latest.yml') || names.some((name) => name.endsWith('.blockmap')),
             requiredAssets: required,
+            smoke,
             assets: (release.assets || []).map((asset) => ({
               name: asset.name,
               size: asset.size ?? null,
@@ -112,16 +160,19 @@ jobs:
           };
           const directory = path.join('release-evidence');
           fs.mkdirSync(directory, { recursive: true });
-          fs.writeFileSync(path.join(directory, `${tag}.json`), `${JSON.stringify(evidence, null, 2)}\n`, 'utf8');
+          const serialized = `${JSON.stringify(evidence, null, 2)}\n`;
+          fs.writeFileSync(path.join(directory, `${tag}.json`), serialized, 'utf8');
+          fs.writeFileSync(path.join(directory, 'current.json'), serialized, 'utf8');
           NODE
 
       - name: Commit immutable evidence record
         shell: bash
         run: |
           set -euo pipefail
-          file="release-evidence/${RELEASE_TAG}.json"
+          immutable="release-evidence/${RELEASE_TAG}.json"
+          current="release-evidence/current.json"
           git pull --rebase origin main
-          git add "$file"
+          git add "$immutable" "$current"
           if git diff --cached --quiet; then
             echo "Evidence is already current."
             exit 0
