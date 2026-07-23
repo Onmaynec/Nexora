@@ -64,9 +64,20 @@ function emitAck(socket, event, payload) {
 
 before(async () => {
   directory = await fs.mkdtemp(path.join(os.tmpdir(), "nexora-test-"));
+  const clientDirectory = path.join(directory, "client-dist");
+  await fs.mkdir(clientDirectory, { recursive: true });
+  await fs.writeFile(
+    path.join(clientDirectory, "index.html"),
+    '<!doctype html><html lang="ru"><head><meta charset="UTF-8"></head><body><div id="root"></div></body></html>',
+    "utf8",
+  );
+  await fs.writeFile(
+    path.join(clientDirectory, "nexora-icon.png"),
+    Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2l5sAAAAASUVORK5CYII=", "base64"),
+  );
   instance = await createNexoraServer({
     dataDir: directory,
-    clientDir: path.join(__dirname, "..", "client", "dist"),
+    clientDir: clientDirectory,
     tls: false,
     redirect: false,
     port: 0,
