@@ -1,6 +1,7 @@
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const html = await readFile(path.join(root, "index.html"), "utf8");
@@ -88,5 +89,16 @@ if (/<script[^>]+src=["']https?:/i.test(html) || /<link[^>]+href=["']https?:/i.t
 if (/<script[^>]+src=["']https?:/i.test(gameHtml) || /<link[^>]+href=["']https?:/i.test(gameHtml)) {
   throw new Error("External game runtime scripts or styles are not allowed");
 }
+
+const syntax = spawnSync(process.execPath, ["--check", path.join(root, "game", "game.js")], {
+  encoding: "utf8",
+});
+if (syntax.status !== 0) {
+  throw new Error(`Aether game JavaScript syntax check failed:\n${syntax.stderr || syntax.stdout}`);
+}
+
+const ids = [...gameHtml.matchAll(/\sid=["']([^"']+)["']/g)].map((match) => match[1]);
+const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
+if (duplicateIds.length) throw new Error(`Duplicate game IDs: ${[...new Set(duplicateIds)].join(", ")}`);
 
 console.log("Nexora website validation passed.");
