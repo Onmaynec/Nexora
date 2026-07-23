@@ -47,7 +47,7 @@ jobs:
           NEXORA_SOAK_MINUTES: "1"
           NEXORA_SOAK_INTERVAL_MS: "500"
       - run: gradle -p android :app:assembleDebug --no-daemon
-      - run: node --check website/app.js && node website/validate.mjs
+      - run: node --check website/app.js && node --check website/site-fixes.js && node website/validate.mjs && node website/validate-restored.mjs
 
       - name: Verify published release evidence
         shell: bash
