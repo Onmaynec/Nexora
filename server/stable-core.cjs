@@ -106,6 +106,7 @@ function mountStableCore({ app, store, io, authRequired, maintenance, log = () =
 
   function withRequestId(request, response, next) {
     request.stableRequestId ||= request.pulseRequestId || requestId(request.headers["x-request-id"]);
+    request.pulseRequestId ||= request.stableRequestId;
     response.setHeader("X-Request-ID", request.stableRequestId);
     response.setHeader("Cache-Control", "no-store");
     next();

@@ -5,6 +5,10 @@ asar: true
 npmRebuild: false
 directories:
   output: release/server
+publish:
+  provider: generic
+  url: https://github.com/Onmaynec/Nexora/releases/download/server-stable
+  channel: server
 files:
   - electron/server-main.cjs
   - electron/server-preload.cjs
@@ -18,6 +22,7 @@ extraMetadata:
   main: electron/server-main.cjs
 win:
   icon: build/icon.ico
+  verifyUpdateCodeSignature: true
   target:
     - nsis
 nsis:

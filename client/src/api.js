@@ -1,14 +1,20 @@
 export class ApiError extends Error {
-  constructor(message, status, code, details = {}) {
+  constructor(message, status, code, details = {}, requestId = null) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
     this.details = details;
+    this.requestId = requestId || details?.requestId || null;
   }
 }
 
-export const CLIENT_VERSION = "3.3.3";
+export const CLIENT_VERSION = "3.4.0";
+const DEVICE_ID_KEY = "nexora:device-id";
+export const DEVICE_ID = localStorage.getItem(DEVICE_ID_KEY) || crypto.randomUUID();
+localStorage.setItem(DEVICE_ID_KEY, DEVICE_ID);
+const DEVICE_NAME = /Electron/i.test(navigator.userAgent) ? "Nexora Client" : "Nexora Web";
+const DEVICE_PLATFORM = /Android/i.test(navigator.userAgent) ? "android" : /Electron|Windows/i.test(navigator.userAgent) ? "windows" : "web";
 let csrfToken = sessionStorage.getItem("nexora:csrf") || "";
 const recoveryRequests = new Map();
 const WELCOME_CLAIM_MIN_INTERVAL_MS = 2_000;
@@ -44,6 +50,9 @@ async function request(path, options = {}) {
     headers: {
       ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
       "X-Nexora-Client-Version": CLIENT_VERSION,
+      "X-Nexora-Device-ID": DEVICE_ID,
+      "X-Nexora-Device-Name": DEVICE_NAME,
+      "X-Nexora-Platform": DEVICE_PLATFORM,
       ...(!["GET", "HEAD"].includes(String(options.method || "GET").toUpperCase()) && csrfToken ? { "X-Nexora-CSRF": csrfToken } : {}),
       ...(options.headers ?? {}),
     },
@@ -56,7 +65,8 @@ async function request(path, options = {}) {
     throw new ApiError(body?.message ?? body?.error ?? `Ошибка ${response.status}`, response.status, body?.code, {
       ...(body?.details || {}),
       ...(retryAfter ? { retryAfter } : {}),
-    });
+      ...(body?.requestId ? { requestId: body.requestId } : {}),
+    }, body?.requestId || response.headers.get("x-request-id"));
   }
   return body;
 }
@@ -115,7 +125,7 @@ async function resumableUpload(conversationId, file, kind, caption, options) {
       const checksum = [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, "0")).join("");
       const response = await fetch(`/api/uploads/${encodeURIComponent(upload.id)}/chunks/${index}`, {
         method: "PUT", credentials: "include", body: chunk, signal: options.signal,
-        headers: { "Content-Type": "application/octet-stream", "X-Nexora-Client-Version": CLIENT_VERSION, "X-Chunk-SHA256": checksum, ...(csrfToken ? { "X-Nexora-CSRF": csrfToken } : {}) },
+        headers: { "Content-Type": "application/octet-stream", "X-Nexora-Client-Version": CLIENT_VERSION, "X-Nexora-Device-ID": DEVICE_ID, "X-Nexora-Device-Name": DEVICE_NAME, "X-Nexora-Platform": DEVICE_PLATFORM, "X-Chunk-SHA256": checksum, ...(csrfToken ? { "X-Nexora-CSRF": csrfToken } : {}) },
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new ApiError(result.message || result.error || `Ошибка ${response.status}`, response.status, result.code, result.details);
@@ -144,6 +154,9 @@ export function uploadFile(conversationId, file, kind, duration = 0, caption = "
     requestValue.open("POST", `/api/conversations/${encodeURIComponent(conversationId)}/upload`);
     requestValue.withCredentials = true;
     requestValue.setRequestHeader("X-Nexora-Client-Version", CLIENT_VERSION);
+    requestValue.setRequestHeader("X-Nexora-Device-ID", DEVICE_ID);
+    requestValue.setRequestHeader("X-Nexora-Device-Name", DEVICE_NAME);
+    requestValue.setRequestHeader("X-Nexora-Platform", DEVICE_PLATFORM);
     if (csrfToken) requestValue.setRequestHeader("X-Nexora-CSRF", csrfToken);
     requestValue.upload.onprogress = (event) => {
       if (event.lengthComputable) options.onProgress?.(Math.min(100, Math.round(event.loaded / event.total * 100)), event.loaded, event.total);

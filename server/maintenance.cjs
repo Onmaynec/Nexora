@@ -302,6 +302,25 @@ class MaintenanceService {
     return { manifest, databasePath, uploadsPath: path.join(materialized, "uploads"), directory: resolved, materialized: materialized !== resolved ? materialized : null };
   }
 
+  async verifyBackup(directory, options = {}) {
+    if (!options.locked) return this.withFileLock(() => this.verifyBackup(directory, { ...options, locked: true }));
+    const backup = await this.validateBackup(directory, { passphrase: options.passphrase });
+    try {
+      return {
+        backupId: path.basename(backup.directory),
+        createdAt: backup.manifest.createdAt,
+        appVersion: backup.manifest.appVersion || null,
+        schemaVersion: backup.manifest.schemaVersion || null,
+        encrypted: Boolean(backup.manifest.encrypted),
+        databaseIntegrity: "ok",
+        uploadsPresent: true,
+        verifiedAt: new Date().toISOString(),
+      };
+    } finally {
+      if (backup.materialized) await fs.rm(backup.materialized, { recursive: true, force: true });
+    }
+  }
+
   async restoreBackup(directory, options = {}) {
     if (!options.locked) return this.withFileLock(() => this.restoreBackup(directory, { locked: true, passphrase: options.passphrase }));
     const backup = await this.validateBackup(directory, { passphrase: options.passphrase });

@@ -41,6 +41,7 @@ async function configuredProvider(kind, appImpl = app, fsImpl = fs) {
     ...DEFAULT_GITHUB_RELEASES,
     owner: String(process.env.NEXORA_GITHUB_OWNER || DEFAULT_GITHUB_RELEASES.owner),
     repo: String(process.env.NEXORA_GITHUB_REPO || DEFAULT_GITHUB_RELEASES.repo),
+    ...(kind === "server" ? { channel: "server" } : {}),
   };
 }
 
@@ -67,10 +68,13 @@ function normalizedUpdateError(error) {
       error: "В GitHub пока нет подписанного устанавливаемого обновления для этого канала.",
     };
   }
+  if (/signature|publisher|certificate|checksum|sha-?256|tamper/i.test(message)) {
+    return { reason: "signature_invalid", code: "UPDATE_SIGNATURE_INVALID", error: "Подпись или контрольная сумма обновления недействительна." };
+  }
   if (/net::ERR_|ENOTFOUND|ETIMEDOUT|ECONNRESET|network/i.test(message)) {
     return { reason: "network_error", error: "Не удалось связаться с каналом обновлений. Проверьте интернет и повторите попытку." };
   }
-  return { reason: "update_error", error: message };
+  return { reason: "update_error", code: "TEMPORARY_UNAVAILABLE", error: message };
 }
 
 function disabledService(state, reason) {
@@ -110,7 +114,8 @@ async function createUpdateService({
     automatic: Boolean(automatic),
     lastCheckedAt: null,
     nextCheckAt: null,
-    detailsUrl: kind === "client" ? "https://github.com/Onmaynec/Nexora/releases/latest" : null,
+    detailsUrl: "https://github.com/Onmaynec/Nexora/releases/latest",
+    signature: "required",
   };
   let timer = null;
   let stopped = false;

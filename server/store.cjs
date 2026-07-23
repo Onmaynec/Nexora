@@ -127,6 +127,10 @@ function normalizeState(value) {
   normalized.sessions = normalized.sessions.map((session) => ({
     ...session,
     csrfToken: session.csrfToken || crypto.randomBytes(24).toString("base64url"),
+    deviceId: session.deviceId || `legacy-${session.id}`,
+    deviceName: session.deviceName || session.name || "Nexora device",
+    platform: session.platform || "unknown",
+    clientVersion: session.clientVersion || null,
   }));
   normalized.billingLinks = normalized.billingLinks
     .map((link) => ({ ...link, userId: link.userId || link.localUserId || null }))

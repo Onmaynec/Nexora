@@ -99,6 +99,24 @@ function normalizeUsername(value) {
   return cleanLine(value, LIMITS.username).toLowerCase();
 }
 
+function sessionMetadata(request) {
+  const userAgent = cleanLine(request.headers["user-agent"], 180);
+  const suppliedId = cleanLine(request.headers["x-nexora-device-id"], 160);
+  const deviceId = /^[A-Za-z0-9_.:-]{8,160}$/.test(suppliedId)
+    ? suppliedId
+    : `legacy-${crypto.createHash("sha256").update(userAgent || "unknown").digest("hex").slice(0, 32)}`;
+  const inferredPlatform = /Electron/i.test(userAgent) ? "windows"
+    : /Android/i.test(userAgent) ? "android"
+      : /iPhone|iPad/i.test(userAgent) ? "ios" : "web";
+  return {
+    deviceId,
+    deviceName: cleanLine(request.headers["x-nexora-device-name"], 80) || (inferredPlatform === "windows" ? "Nexora Client" : "Nexora Web"),
+    platform: cleanLine(request.headers["x-nexora-platform"], 40) || inferredPlatform,
+    clientVersion: cleanLine(request.headers["x-nexora-client-version"], 40) || null,
+    userAgent,
+  };
+}
+
 function normalizeRoomSlug(value) {
   return cleanLine(value, LIMITS.roomName)
     .toLocaleLowerCase("ru")
@@ -108,8 +126,9 @@ function normalizeRoomSlug(value) {
     .replace(/^[-_]+|[-_]+$/g, "") || `room-${crypto.randomBytes(3).toString("hex")}`;
 }
 
-function apiError(response, status, error, code = "REQUEST_FAILED") {
-  response.status(status).json({ ok: false, error, code });
+function apiError(response, status, error, code = "REQUEST_FAILED", details = {}) {
+  const requestId = response.locals?.requestId || crypto.randomUUID();
+  response.status(status).json({ ok: false, error, message: error, code, requestId, details });
 }
 
 function majorVersion(value) {
@@ -200,6 +219,14 @@ async function createNexoraServer(options = {}) {
   }
 
   const app = express();
+  app.use((request, response, next) => {
+    const supplied = String(request.headers["x-request-id"] || "");
+    const requestId = /^[A-Za-z0-9_.:-]{8,128}$/.test(supplied) ? supplied : crypto.randomUUID();
+    request.nexoraRequestId = requestId;
+    response.locals.requestId = requestId;
+    response.setHeader("X-Request-ID", requestId);
+    next();
+  });
   const operational = createOperationalRuntime({
     service: "nexora-local-server",
     version: APP_VERSION,
@@ -386,7 +413,7 @@ async function createNexoraServer(options = {}) {
   async function createTextMessage({ senderId, conversationId, text: rawText, replyToId = null, clientId = null, silent = false, threadRootId = null }) {
     const normalizedConversationId = cleanLine(conversationId, 64);
     if (conversationUsesMls(normalizedConversationId)) {
-      throw Object.assign(new Error("Диалог защищён MLS. Используйте E2EE transport."), { code: "E2EE_REQUIRED", status: 409 });
+      throw Object.assign(new Error("Диалог защищён MLS. Используйте E2EE transport."), { code: "LEGACY_READ_ONLY", status: 409 });
     }
     const text = cleanText(rawText);
     if (!text) throw Object.assign(new Error("Сообщение пустое."), { code: "MESSAGE_EMPTY" });
@@ -507,7 +534,8 @@ async function createNexoraServer(options = {}) {
     const token = createSessionToken();
     const csrfToken = createCsrfToken();
     const createdAt = nowIso();
-    const userAgent = cleanLine(request.headers["user-agent"], 180);
+    const device = sessionMetadata(request);
+    const userAgent = device.userAgent;
     const ip = cleanLine(request.ip, 64);
     await store.mutate((state) => {
       ensureSavedConversation(state, user.id);
@@ -515,6 +543,7 @@ async function createNexoraServer(options = {}) {
       const session = {
         id: crypto.randomUUID(), userId: user.id, tokenHash: hashToken(token), csrfToken,
         createdAt, expiresAt: new Date(Date.now() + SESSION_DURATION_MS).toISOString(), lastSeenAt: createdAt,
+        deviceId: device.deviceId, deviceName: device.deviceName, platform: device.platform, clientVersion: device.clientVersion,
         userAgent, ip,
       };
       state.sessions.push(session);
@@ -544,7 +573,7 @@ async function createNexoraServer(options = {}) {
   function authRequired(request, response, next) {
     const { token, tokenHash, session, user } = sessionFromRequest(request);
     if (!user) {
-      apiError(response, 401, "Требуется вход в аккаунт.", "UNAUTHORIZED");
+      apiError(response, 401, "Требуется вход в аккаунт.", "AUTH_REQUIRED");
       return;
     }
     request.nexora = { token, tokenHash, session, user };
@@ -616,7 +645,7 @@ async function createNexoraServer(options = {}) {
 
   app.post("/api/auth/register", async (request, response) => {
     if (!(await consumePersistentRateLimit(`register:${request.ip}`, 8, 60 * 60 * 1000))) {
-      return apiError(response, 429, "Слишком много регистраций с этого адреса.", "RATE_LIMIT");
+      return apiError(response, 429, "Слишком много регистраций с этого адреса.", "RATE_LIMITED");
     }
     const username = normalizeUsername(request.body?.username);
     const displayName = cleanLine(request.body?.displayName, LIMITS.displayName);
@@ -630,6 +659,7 @@ async function createNexoraServer(options = {}) {
 
     const passwordData = await hashPassword(password);
     const token = createSessionToken();
+    const device = sessionMetadata(request);
     let createdUser;
     try {
       createdUser = await store.mutate((state) => {
@@ -662,7 +692,11 @@ async function createNexoraServer(options = {}) {
           createdAt,
           expiresAt: new Date(Date.now() + SESSION_DURATION_MS).toISOString(),
           lastSeenAt: createdAt,
-          userAgent: cleanLine(request.headers["user-agent"], 180),
+          deviceId: device.deviceId,
+          deviceName: device.deviceName,
+          platform: device.platform,
+          clientVersion: device.clientVersion,
+          userAgent: device.userAgent,
           ip: cleanLine(request.ip, 64),
         });
 
@@ -721,7 +755,7 @@ async function createNexoraServer(options = {}) {
     const ip = cleanLine(request.ip, 64);
     if (!(await consumePersistentRateLimit(`login:${ip}`, 30, 15 * 60 * 1000))) {
       await recordLoginAttempt({ username, ip, success: false, reason: "rate_limit", userAgent: request.headers["user-agent"] });
-      return apiError(response, 429, "Слишком много попыток входа. Повторите позже.", "RATE_LIMIT");
+      return apiError(response, 429, "Слишком много попыток входа. Повторите позже.", "RATE_LIMITED");
     }
     const lock = loginLockStatus(username, ip);
     if (lock.locked) {
@@ -816,6 +850,7 @@ async function createNexoraServer(options = {}) {
       capabilities: {
         offlineSync: true, scheduledMessages: true, polls: true, communities: true,
         resumableUploads: true, bots: true, pwa: true, android: true, totp: true,
+        trustRuntime: false, legacySecureHistory: true, legacySecureWrite: false, deviceInventory: true,
       },
     });
   });
@@ -1882,7 +1917,7 @@ async function createNexoraServer(options = {}) {
     if (!canAccessConversation(state, conversation, viewerId)) return apiError(response, 403, "Чат недоступен.");
     const kind = request.query.kind === "voice" ? "voice" : "file";
     if (conversationUsesMls(conversation.id)) {
-      return response.status(409).json({ ok: false, allowed: false, code: "E2EE_ATTACHMENT_REQUIRED", message: "Вложения в MLS-диалоге должны быть зашифрованы на клиенте." });
+      return response.status(409).json({ ok: false, allowed: false, code: "LEGACY_READ_ONLY", message: "Вложения в legacy secure dialogе должны быть зашифрованы на клиенте." });
     }
     const posting = roomPostingError(state, conversation, viewerId, kind);
     if (posting) return apiError(response, 403, posting.message, posting.code);
@@ -1926,7 +1961,7 @@ async function createNexoraServer(options = {}) {
     }
     if (conversationUsesMls(conversation.id)) {
       await fs.unlink(request.file.path).catch(() => {});
-      return apiError(response, 409, "Вложения в MLS-диалоге должны быть зашифрованы на клиенте.", "E2EE_ATTACHMENT_REQUIRED");
+      return apiError(response, 409, "Вложения в legacy secure dialogе должны быть зашифрованы на клиенте.", "LEGACY_READ_ONLY");
     }
     if (conversation.type === "dm" && isBlockedEither(state, viewerId, dmPeer(state, conversation, viewerId)?.id)) {
       await fs.unlink(request.file.path).catch(() => {});
@@ -2137,7 +2172,7 @@ async function createNexoraServer(options = {}) {
         return acknowledge({ ok: false, error: "Пересылка недоступна." });
       }
       if (conversationUsesMls(targetConversation.id)) {
-        return acknowledge({ ok: false, code: "E2EE_FORWARD_REQUIRED", error: "Пересылка в MLS-диалог должна быть зашифрована на клиенте." });
+        return acknowledge({ ok: false, code: "LEGACY_READ_ONLY", error: "Пересылка в legacy secure dialog должна быть зашифрована на клиенте." });
       }
       const postingKind = source.type === "voice" ? "voice" : source.fileId ? "file" : "text";
       const posting = roomPostingError(state, targetConversation, user.id, postingKind);
@@ -2572,6 +2607,7 @@ async function createNexoraServer(options = {}) {
     store,
     events,
     operational,
+    maintenance,
     dataDir,
     certificates,
     listen,
