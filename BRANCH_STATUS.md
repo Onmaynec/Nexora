@@ -1,126 +1,59 @@
-# Статус выпуска Nexora 3.3.0
+# Статус выпуска Nexora 3.3.1
 
 ## Классификация
 
 | Параметр | Значение |
 |---|---|
-| Version | `3.3.0` |
-| Base version | `3.2.5` |
-| Source Pull Request | PR `#38`, merged |
-| Merge commit | `a46c080e12b9081b448dad6426bf7c44156114cd` |
-| Release tag | `v3.3.0` → merge commit |
-| GitHub Release | `Nexora 3.3.0 — UNSIGNED TEST BUILDS` |
-| Release URL | `https://github.com/Onmaynec/Nexora/releases/tag/v3.3.0` |
+| Version | `3.3.1` |
+| Source Pull Request | PR `#40`, merged |
+| Release commit | `a7d5a7f020051bb837b67df437de90b2cd96958a` |
+| Release tag | `v3.3.1` → release commit |
+| GitHub Release | `Nexora 3.3.1 — UNSIGNED TEST BUILDS` |
+| Release URL | `https://github.com/Onmaynec/Nexora/releases/tag/v3.3.1` |
 | Distribution | verified `UNSIGNED-TEST` prerelease |
 | Production updater metadata | not published |
-| Stable signed baseline | `3.1.2` until a signed 3.3.x publication exists |
-| Independent E2EE audit | not performed |
+| Local Server schema | `8` |
+| Application API | `v3` |
+| Trust/MLS API | `v4` |
+| Database migration | not required |
+| Independent security audit | not performed |
 
-Nexora `3.3.0` is published. The source tag is immutable and points to the merged runtime commit. Client, Server, Android, PWA, source, SPDX SBOM and checksum assets were built and verified by GitHub Actions.
+Nexora `3.3.1` опубликован. Source tag неизменяемо указывает на исправленный runtime commit. Windows Client/Server, Android, PWA, source, SPDX SBOM и checksum assets собраны и проверены GitHub Actions.
 
-## Implemented
+## Исправленный блокер
 
-### Trust and messages
-
-- `Welcome claim` limits are isolated per conversation;
-- Client coalescing, minimum request intervals and `Retry-After` stop the MLS recovery request storm;
-- old and new DMs/rooms no longer consume a shared device recovery bucket;
-- no plaintext fallback was introduced;
-- regular and secure message deletion is confirmed inside the application;
-- the inert lock control was removed from the secure composer.
-
-### Voice and media UX
-
-- waveform is calculated using RMS/peak and normalized for each recording;
-- bars have different heights and the played segment changes color and animates;
-- seek, duration and playback rate remain available;
-- echo cancellation, noise suppression and auto gain are requested when supported.
-
-### Plus, Impulses and Pulse
-
-- a spendable catalog was added for profile, message, reaction and room customization;
-- debit and entitlement issuance are atomic and idempotent;
-- negative balance and duplicate charging are rejected;
-- room purchases require membership, no active ban and owner role;
-- Sandbox independently serves catalog, receipts, goals, contributions, refunds and entitlements;
-- Cloud schema includes the additive `impulse_purchases` migration;
-- production entitlements are signed with Ed25519; Sandbox entitlements remain explicitly local.
-
-### Website and distribution
-
-- the website was redesigned with safe Cyrillic typography and corrected responsive layout;
-- RU/EN and GitHub controls have corrected hit testing;
-- download cards resolve actual GitHub Release assets;
-- Client/Server `.exe` and Android `.apk` are published with `UNSIGNED-TEST` suffixes because signing keys are absent;
-- `latest.yml` and `.blockmap` are absent, so production auto-update cannot consume unsigned builds;
-- Source ZIP, PWA ZIP, SPDX SBOM and SHA-256 checksums are published.
+Windows Server installer 3.3.0 не включал `shared/pulse-catalog.cjs`, хотя `server/pulse-sandbox-service.cjs` импортировал его через `../shared/pulse-catalog.cjs`. В 3.3.1 каталог `shared/**/*` включён в Electron Server payload. Release gate дополнительно проверяет packaging manifest, существование Pulse catalog и его обязательные exports.
 
 ## Verification
 
-### Release candidate
-
-PR head `7d83bce963d5a774f9c107a5cf8d3a05130c1d44` passed:
-
-- CI `29967109170`;
-- focused Nexora 3.3 regressions `29967109182`;
-- Project website `29967109165`.
-
-### Merge commit
-
-Merge commit `a46c080e12b9081b448dad6426bf7c44156114cd` passed:
-
-- CI `29967637087`;
-- Project website `29967637097`.
-
-### Publication
-
-- the initial release run `29967729776` failed inside the combined source/PWA/SBOM/Android preparation step;
-- recovery run `29968722912` split the operations, pinned Gradle `8.13`, validated each artifact and completed successfully;
-- immutable asset evidence is stored in `release-evidence/v3.3.0.json`;
-- `updaterMetadataPublished` is `false`;
-- all seven required assets have GitHub SHA-256 digests.
-
-### Post-release main gate
-
-Source `3f080592c1c2a2a574803db91542b585f0a870ef` passed workflow `29969806669`:
-
-- `npm run release:check`;
-- full Linux `npm test` product suite;
-- schema 8 soak;
-- Android build with Gradle `8.13`;
-- website syntax and validation;
-- machine-readable published-release evidence validation.
-
-Evidence: `release-evidence/post-release-main-gate.json`.
+- test-first failure commit: `cbb112df2885c1eab0b85c9e08efece6aec39e2a`;
+- final PR head: `3161ea6e97e6e58f34e341f1b70d763c8550a9a3`;
+- PR CI: `29998152125`, success;
+- focused 3.3 regressions: `29998152148`, success;
+- release workflow: `29998460934`, success;
+- release asset validation: success;
+- updater distribution boundary: success.
 
 ## Published assets
 
-- `Nexora-Client-Setup-3.3.0-UNSIGNED-TEST.exe`;
-- `Nexora-Server-Setup-3.3.0-UNSIGNED-TEST.exe`;
-- `Nexora-Android-3.3.0-UNSIGNED-TEST.apk`;
-- `Nexora-PWA-3.3.0.zip`;
-- `Nexora-3.3.0-source.zip`;
-- `Nexora-3.3.0.spdx.json`;
-- `SHA256SUMS.txt`.
+- `Nexora-3.3.1-source.zip` — 1817325 bytes, `sha256:3485b2a52f271f21b9c8a7675ab88c87542d1c7b1baeeed4eff6f2142f4cb210`;
+- `Nexora-3.3.1.spdx.json` — 134461 bytes, `sha256:9ef90e7ccbd0b8ae73344d587a605492e0c493712ad728b67cf62849f30d3a83`;
+- `Nexora-Android-3.3.1-UNSIGNED-TEST.apk` — 848686 bytes, `sha256:76b9fd61e9489402728f2eb44de048587a42e553f00368dddbc6eb147a273c14`;
+- `Nexora-Client-Setup-3.3.1-UNSIGNED-TEST.exe` — 105353064 bytes, `sha256:a6536d6953ff7cc2a12fb24eb9d13736112d44df205126d5d2aa61f7cfa20baf`;
+- `Nexora-PWA-3.3.1.zip` — 1258672 bytes, `sha256:59c0c47daf6b00a1fb42f115a92cc38f6551fb055c9feded401c078dd28e4b6a`;
+- `Nexora-Server-Setup-3.3.1-UNSIGNED-TEST.exe` — 106523884 bytes, `sha256:6a81c80b589487c896e9605bfa5b356ed66a604435b50732b97438d6ef2dfd78`;
+- `SHA256SUMS.txt` — 597 bytes, `sha256:ce7ef65a55d9ceb1b5e0868722ce12507359d6313fc75980b274f455da0b1fb6`;
 
-## Compatibility
+## Security and compatibility
 
-- Local Server schema: `8`, without a new local migration;
-- Cloud DB: idempotent additive migration `cloud/schema-3.3.sql`;
-- Application API: v3, compatible extension;
-- Trust/MLS/encrypted-media API: v4, compatible recovery fix;
-- upgrade supported from Nexora `3.2.0–3.2.5`.
-
-## Security boundary
-
-Local Server does not receive plaintext secure messages, private MLS state, secure-attachment keys, source names, actual MIME, attachment signatures, voice duration or waveform. It sees service metadata: account/device identifiers, membership, conversation scope, timing, network context, ciphertext size and delivery events.
-
-Pulse catalog does not paywall communication and does not alter Trust permissions. Rights, scope and debit are checked server-side. Plaintext downgrade, client-defined price and direct room-scope bypass were not added.
+- authorization, room roles, bans, upload policy, Pulse pricing/ledger and Trust Core were not changed;
+- no new dependencies, secrets or network permissions were added;
+- schema 8, API v3 and Trust/MLS API v4 remain compatible;
+- no migration or rollback is required.
 
 ## Real limitations
 
-- current Client/Server/APK assets are unsigned test builds, not production-signed binaries;
-- Android test APK does not replace a physical-device matrix;
-- independent cryptographic and application-security audit has not been performed;
-- traffic-analysis resistance is not claimed;
-- voice/video calls and screen sharing are outside 3.3.0.
+- Windows Client/Server and Android are unsigned test artifacts; Windows SmartScreen may warn;
+- production updater cannot consume this release because `latest.yml` and `.blockmap` are intentionally absent;
+- independent cryptographic/application-security audit was not performed;
+- voice/video calls and screen sharing are outside 3.3.1.

@@ -2,6 +2,27 @@
 
 Формат основан на Keep a Changelog. Версии следуют Semantic Versioning.
 
+## [3.3.1] — 2026-07-23
+
+### Исправлено
+
+- установленный Windows Nexora Server больше не завершается при запуске с `MODULE_NOT_FOUND: ../shared/pulse-catalog.cjs`;
+- обязательный каталог `shared/**/*` включён в Electron Server payload и `app.asar`;
+- release config validation проверяет packaging manifest, наличие Pulse catalog и exports `catalogItem`/`publicCatalog`.
+
+### Тесты и выпуск
+
+- дефект сначала подтверждён падающим regression test, затем исправлен тем же контрактом;
+- Windows check, unit/API/integration, performance, security, Linux, schema 8 soak, Android и focused 3.3 gates прошли;
+- тег `v3.3.1` указывает на release commit `a7d5a7f020051bb837b67df437de90b2cd96958a`;
+- GitHub Release опубликован как явно маркированный `UNSIGNED-TEST` prerelease с Client, Server, Android, source, PWA, SPDX SBOM и SHA-256 checksums;
+- `latest.yml` и `.blockmap` не опубликованы, поэтому production updater не принимает неподписанные сборки.
+
+### Совместимость
+
+- Local Server schema 8, API v3 и Trust/MLS API v4 сохранены;
+- миграция базы, новые зависимости и изменение конфигурации не требуются.
+
 ## [3.3.0] — 2026-07-23
 
 ### Добавлено
@@ -347,6 +368,7 @@ Source/PWA prerelease не содержит unsigned updater assets и не за
 
 - объединённый RC с SQLite, профилями, поиском, outbox и Violet Grid.
 
+[3.3.1]: https://github.com/Onmaynec/Nexora/releases/tag/v3.3.1
 [3.2.1]: https://github.com/Onmaynec/Nexora/compare/v3.2.0...v3.2.1
 [3.2.0]: https://github.com/Onmaynec/Nexora/releases/tag/v3.2.0
 [3.1.2]: https://github.com/Onmaynec/Nexora/releases/tag/v3.1.2

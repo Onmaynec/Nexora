@@ -2,12 +2,12 @@
 
 [![Website](https://img.shields.io/badge/website-open-c69cff)](https://onmaynec.github.io/Nexora/)
 [![CI](https://github.com/Onmaynec/Nexora/actions/workflows/ci.yml/badge.svg)](https://github.com/Onmaynec/Nexora/actions/workflows/ci.yml)
-![Current version](https://img.shields.io/badge/current-3.3.1%20prerelease-c69cff)
+![Current version](https://img.shields.io/badge/current-3.3.1%20UNSIGNED--TEST-c69cff)
 ![Stable signed baseline](https://img.shields.io/badge/stable%20signed-3.1.2-70e6b1)
 ![API](https://img.shields.io/badge/API-v3%20%2B%20Trust%20v4-70e6b1)
 ![Database](https://img.shields.io/badge/SQLite-schema%208-70e6b1)
 ![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20PWA%20%7C%20Android-9b5cff)
-[![License: MIT](LICENSE)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **Nexora** — self-hosted платформа обмена сообщениями для Windows, браузера/PWA и Android. Система объединяет локальный сервер, многоплатформенный клиент, комнаты и модерацию, офлайн-синхронизацию, защищённые сообщения и медиа, эксплуатационные инструменты, а также отдельный коммерческий контур Nexora Pulse.
 
@@ -17,11 +17,11 @@
 
 | Линия | Назначение | Статус распространения |
 |---|---|---|
-| `3.3.1` | Исправление запуска Windows Server: shared Pulse runtime включён в installer и проверяется release gate | Signed release при наличии ключей или явно маркированный UNSIGNED-TEST prerelease |
+| `3.3.1` | Исправление запуска Windows Server: shared Pulse runtime включён в installer и проверяется release gate | Опубликованный UNSIGNED-TEST prerelease без updater metadata |
 | `3.3.0` | Trust recovery, расходуемые Импульсы, обновлённый Client UX, сайт и полный artifact pipeline | Заменён 3.3.1: Server installer не содержал обязательный shared runtime module |
 | `3.1.2` | Основной messaging-контур, Pulse Cloud и production hardening | Последняя подтверждённая signed production baseline |
 
-`3.3.1` проходит build-, unit-, API-, integration-, performance-, security-, soak-, Android- и Windows artifact-gates. При отсутствии сертификатов Windows/Android binaries публикуются только как явно маркированные `UNSIGNED-TEST` assets и не подключаются к production updater. Независимый E2EE-аудит не заявляется. Авторитетные документы текущей линии:
+`3.3.1` прошёл build-, unit-, API-, integration-, performance-, security-, soak-, Android- и Windows artifact-gates. Windows Client/Server и Android опубликованы как явно маркированные `UNSIGNED-TEST` assets; `latest.yml` и `.blockmap` отсутствуют, поэтому production updater их не принимает. Независимый E2EE-аудит не заявляется. Авторитетные документы текущей линии:
 
 - [Release Notes 3.3.1](RELEASE_NOTES_3.3.1.md);
 - [Release Verification 3.3.1](RELEASE_VERIFICATION_3.3.1.md);
@@ -244,3 +244,37 @@ gradle -p android :app:assembleDebug --no-daemon
 1. полный HTTPS-адрес;
 2. Server ID;
 3. SHA-256 certificate fingerprint.
+
+
+Electron Client закрепляет fingerprint за Server ID. Для браузера/PWA и Android Local CA необходимо установить в доверенное хранилище операционной системы. TLS errors не должны обходиться.
+
+Инструкции: [Deployment Guide](docs/DEPLOYMENT.md), [Administrator Guide](ADMIN_GUIDE.md) и [Operations Runbook](docs/OPERATIONS_RUNBOOK.md).
+
+## Документация
+
+Центральный каталог: **[Nexora Documentation](docs/README.md)**.
+
+| Раздел | Документы |
+|---|---|
+| Продукт | [Product Overview](docs/PRODUCT_OVERVIEW.md), [Current Release Status](BRANCH_STATUS.md) |
+| Архитектура | [Architecture](docs/ARCHITECTURE.md), [Project Index](PROJECT_INDEX.md) |
+| Безопасность | [Security Policy](SECURITY.md), [Security Model](docs/SECURITY_MODEL.md), [Security Verification](SECURITY_AUDIT.md) |
+| Развёртывание | [Deployment](docs/DEPLOYMENT.md), [Administrator Guide](ADMIN_GUIDE.md), [Operations Runbook](docs/OPERATIONS_RUNBOOK.md) |
+| Тестирование | [Acceptance Test Guide](TESTER_GUIDE.md), [3.3.1 Verification](RELEASE_VERIFICATION_3.3.1.md) |
+| Trust / MLS | [Trust Core 3.2.0 foundation](docs/TRUST_CORE_3.2.0.md), [Security Review 3.3.0](SECURITY_REVIEW_3.3.0.md) |
+| Миграция | [Schema 8 Migration](docs/MIGRATION_3.2.0.md) |
+| Plus / Pulse | [Pulse](docs/PULSE.md), [Pulse Cloud](docs/PULSE_CLOUD.md) |
+| Выпуски | [Release Policy](docs/RELEASE_POLICY.md), [Release Checklist](docs/RELEASE_CHECKLIST.md), [Changelog](CHANGELOG.md) |
+| Репозиторий | [Branch Index](BRANCHES.md), [Contributing](CONTRIBUTING.md), [Support](SUPPORT.md) |
+
+## Поддержка и участие
+
+- ошибки: [Bug report](https://github.com/Onmaynec/Nexora/issues/new?template=bug_report.yml);
+- предложения: [Feature request](https://github.com/Onmaynec/Nexora/issues/new?template=feature_request.yml);
+- установка и эксплуатация: [SUPPORT.md](SUPPORT.md);
+- уязвимости: только приватно по инструкции в [SECURITY.md](SECURITY.md);
+- правила участия: [CONTRIBUTING.md](CONTRIBUTING.md) и [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
+## Лицензия
+
+Код и документация распространяются по лицензии [MIT](LICENSE).

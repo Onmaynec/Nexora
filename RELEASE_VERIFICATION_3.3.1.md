@@ -44,17 +44,10 @@ CI run `29997280893` подтвердил дефект: job `linux-tests` (`8917
 
 ## Release candidate gates
 
-Финальные номера workflow и commit SHA фиксируются после завершения PR gates:
-
-- Windows `npm run check`;
-- Windows unit/API/integration tests;
-- isolated performance smoke;
-- security audit;
-- Linux `npm test`;
-- release metadata gate;
-- schema 8 soak;
-- Android source build;
-- focused Nexora 3.3 regressions.
+- PR head: `3161ea6e97e6e58f34e341f1b70d763c8550a9a3`;
+- PR CI run `29998152125`: success для `release-gate`, Linux tests, Android source build, schema 8 soak и Windows verify;
+- Windows verify: `npm run check`, unit/API/integration tests, performance smoke и security audit — success;
+- focused Nexora 3.3 regressions run `29998152148`: success.
 
 ## Windows artifact gate
 
@@ -66,7 +59,7 @@ CI run `29997280893` подтвердил дефект: job `linux-tests` (`8917
 4. опубликовать signed artifacts при наличии Authenticode secrets либо явно маркированные `UNSIGNED-TEST` artifacts без updater metadata;
 5. создать SPDX SBOM и `SHA256SUMS.txt`.
 
-Фактический release run, tag commit и опубликованные assets будут добавлены в post-release verification update.
+Release workflow run `29998460934` завершился успешно. Тег `v3.3.1` указывает на `a7d5a7f020051bb837b67df437de90b2cd96958a`. GitHub Release опубликован как `UNSIGNED-TEST` prerelease и прошёл встроенную проверку обязательных assets и запрета updater metadata.
 
 ## Реальные ограничения
 
@@ -74,3 +67,16 @@ CI run `29997280893` подтвердил дефект: job `linux-tests` (`8917
 - неподписанный installer может показывать предупреждение SmartScreen;
 - независимый cryptographic/application-security audit не выполнен;
 - voice/video calls и screen sharing не входят в `3.3.1`.
+
+
+## Фактический опубликованный выпуск
+
+- release commit/tag: `a7d5a7f020051bb837b67df437de90b2cd96958a` / `v3.3.1`;
+- GitHub Release: https://github.com/Onmaynec/Nexora/releases/tag/v3.3.1;
+- название: **Nexora 3.3.1 — UNSIGNED TEST BUILDS**;
+- опубликован: `2026-07-23T10:19:09Z`;
+- distribution: `UNSIGNED-TEST` prerelease;
+- production updater metadata: не опубликованы;
+- verified assets: `Nexora-3.3.1-source.zip`, `Nexora-3.3.1.spdx.json`, `Nexora-Android-3.3.1-UNSIGNED-TEST.apk`, `Nexora-Client-Setup-3.3.1-UNSIGNED-TEST.exe`, `Nexora-PWA-3.3.1.zip`, `Nexora-Server-Setup-3.3.1-UNSIGNED-TEST.exe`, `SHA256SUMS.txt`.
+
+Машиночитаемое свидетельство с SHA-256 digest, размером и URL каждого artifact сохранено в `release-evidence/v3.3.1.json`.

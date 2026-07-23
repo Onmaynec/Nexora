@@ -64,7 +64,9 @@ Electron Builder корректно создавал installer и `app.asar`, о
 
 ## Распространение
 
-Release workflow публикует подписанные Windows Client/Server artifacts при наличии Authenticode secrets. При их отсутствии Windows и Android binaries публикуются только как явно маркированные `UNSIGNED-TEST` assets без `latest.yml` и `.blockmap`, поэтому production updater не принимает неподписанные сборки.
+GitHub Release опубликован 2026-07-23 как **Nexora 3.3.1 — UNSIGNED TEST BUILDS**. В него входят Windows Client/Server, Android APK, source ZIP, PWA ZIP, SPDX SBOM и SHA-256 checksums. Windows и Android artifacts явно имеют суффикс `UNSIGNED-TEST`. `latest.yml` и `.blockmap` не опубликованы, поэтому production updater не принимает эти сборки.
+
+Release: https://github.com/Onmaynec/Nexora/releases/tag/v3.3.1
 
 ## Известные ограничения
 
