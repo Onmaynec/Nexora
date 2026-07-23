@@ -1,0 +1,38 @@
+name: Sync current Nexora 3.3.1 documentation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/sync-current-docs-3.3.1.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+      - name: Synchronize current documentation
+        run: node scripts/sync-current-docs-3.3.1.cjs
+      - name: Commit documentation and remove one-shot files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm scripts/sync-current-docs-3.3.1.cjs
+          git rm .github/workflows/sync-current-docs-3.3.1.yml
+          git add -A
+          git commit -m "docs(release): synchronize current documentation for 3.3.1 [skip ci]"
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
