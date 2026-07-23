@@ -8,7 +8,7 @@ const { test } = require("node:test");
 
 const root = path.resolve(__dirname, "..");
 
-test("релиз 3.3.0 собирает проверяемые артефакты без native SQLite", () => {
+test("релиз 3.3.1 собирает проверяемые артефакты без native SQLite", () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
   const lock = fs.readFileSync(path.join(root, "package-lock.json"), "utf8");
   const client = fs.readFileSync(path.join(root, "electron-builder.client.yml"), "utf8");
@@ -65,6 +65,20 @@ test("релиз 3.3.0 собирает проверяемые артефакт�
   assert.match(clientMain, /partition:\s*currentPartition/);
   assert.match(ciWorkflow, /android-source:/);
   assert.match(ciWorkflow, /gradle-version:\s*"8\.13"/);
+});
+
+test("Nexora Server installer включает shared-модули, необходимые серверному runtime", () => {
+  const serverConfig = fs.readFileSync(path.join(root, "electron-builder.server.yml"), "utf8");
+  const sandboxService = fs.readFileSync(path.join(root, "server", "pulse-sandbox-service.cjs"), "utf8");
+  const catalogPath = path.join(root, "shared", "pulse-catalog.cjs");
+
+  assert.match(sandboxService, /require\("\.\.\/shared\/pulse-catalog\.cjs"\)/);
+  assert.ok(fs.existsSync(catalogPath), "shared/pulse-catalog.cjs должен существовать в исходном дереве");
+  assert.match(
+    serverConfig,
+    /^\s*-\s+shared\/\*\*\/\*\s*$/m,
+    "electron-builder.server.yml должен упаковывать shared/**/*, иначе Nexora Server падает при запуске с MODULE_NOT_FOUND",
+  );
 });
 
 test("Android и PWA клиенты не обходят TLS и работают только с безопасным transport", () => {

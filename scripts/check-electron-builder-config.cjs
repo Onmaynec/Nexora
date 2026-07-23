@@ -18,10 +18,32 @@ function verifyReleaseIcons() {
   console.log(`Release icons OK: ICO ${ico.readUInt16LE(4)} images, PNG ${png.readUInt32BE(16)}×${png.readUInt32BE(20)}`);
 }
 
+function verifyServerRuntimePayload(configFile) {
+  if (configFile !== "electron-builder.server.yml") return;
+
+  const manifest = fs.readFileSync(path.resolve(configFile), "utf8");
+  if (!/^\s*-\s+shared\/\*\*\/\*\s*$/m.test(manifest)) {
+    throw new Error("electron-builder.server.yml должен включать shared/**/*: server runtime импортирует ../shared/pulse-catalog.cjs");
+  }
+
+  const catalogPath = path.resolve("shared/pulse-catalog.cjs");
+  if (!fs.existsSync(catalogPath)) {
+    throw new Error("Отсутствует обязательный runtime-модуль shared/pulse-catalog.cjs");
+  }
+
+  const catalog = require(catalogPath);
+  if (typeof catalog.catalogItem !== "function" || typeof catalog.publicCatalog !== "function") {
+    throw new Error("shared/pulse-catalog.cjs не экспортирует обязательный Pulse catalog contract");
+  }
+
+  console.log("Nexora Server runtime payload OK: shared/**/* and Pulse catalog are packaged.");
+}
+
 (async () => {
   for (const configFile of configFiles) {
     const config = await getConfig(process.cwd(), path.resolve(configFile));
     await validateConfiguration(config, process.cwd());
+    verifyServerRuntimePayload(configFile);
     console.log(`Electron Builder config OK: ${configFile}`);
   }
   verifyReleaseIcons();

@@ -11,6 +11,7 @@ files:
   - electron/server-shell/**/*
   - electron/update-service.cjs
   - server/**/*
+  - shared/**/*
   - client/dist/**/*
   - package.json
 extraMetadata:

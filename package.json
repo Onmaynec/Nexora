@@ -1,10 +1,10 @@
 {
   "name": "nexora",
-  "version": "3.3.0",
+  "version": "3.3.1",
   "engines": {
     "node": ">=22.16.0"
   },
-  "description": "Nexora self-hosted messenger for Windows, browsers and Android",
+  "description": "Nexora self-hosted messenger for Windows, PWA and Android",
   "author": "Nexora",
   "homepage": "https://github.com/Onmaynec/Nexora#readme",
   "repository": {
