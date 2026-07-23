@@ -20,6 +20,7 @@ const requiredFiles = [
   "game/index.html",
   "game/game.css",
   "game/game.js",
+  "game/smoke.cjs",
 ];
 const requiredRuntimeMarkers = [
   "data-aether",
@@ -132,6 +133,14 @@ if (syntax.status !== 0) {
   throw new Error(`Aether sandbox JavaScript syntax check failed:\n${syntax.stderr || syntax.stdout}`);
 }
 
+const smoke = spawnSync(process.execPath, [path.join(root, "game", "smoke.cjs")], {
+  encoding: "utf8",
+  timeout: 30_000,
+});
+if (smoke.status !== 0) {
+  throw new Error(`Aether sandbox mechanics smoke failed:\n${smoke.stderr || smoke.stdout}`);
+}
+
 const ids = [...sandboxHtml.matchAll(/\sid=["']([^"']+)["']/g)].map((match) => match[1]);
 const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
 if (duplicateIds.length) {
@@ -143,4 +152,5 @@ for (const key of settingKeys) {
   if (!sandboxApp.includes(`${key}:`)) throw new Error(`Setting is missing from defaults: ${key}`);
 }
 
+console.log(smoke.stdout.trim());
 console.log("Nexora website and Aether sandbox validation passed.");
