@@ -1,0 +1,45 @@
+.media-figure {
+  overflow: hidden;
+}
+
+.media-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 680px;
+  object-fit: contain;
+  background: color-mix(in srgb, var(--surface, #0f172a) 92%, transparent);
+}
+
+.media-figure figcaption {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.media-figure figcaption small {
+  color: var(--muted, #94a3b8);
+  font-size: 0.78rem;
+}
+
+.figure-error {
+  min-height: 180px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  color: var(--muted, #94a3b8);
+  text-align: center;
+}
+
+@media (max-width: 480px) {
+  .media-figure figcaption {
+    font-size: 0.86rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .media-figure img {
+    scroll-behavior: auto;
+  }
+}
