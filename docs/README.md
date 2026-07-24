@@ -6,8 +6,8 @@
 
 | Параметр | Значение |
 |---|---|
-| Current repository version | `3.4.0` |
-| Classification | Stable Core release candidate |
+| Current repository version | `3.3.4` |
+| Classification | Post-MLS Baseline release candidate |
 | Publication | Blocked — verified `v3.3.4`, Authenticode/Windows acceptance and independent review are mandatory |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
@@ -15,7 +15,7 @@
 | Local Server database | SQLite schema 8 |
 | Migration | schema 8 is retained; migration is transactional/idempotent and future schemas are rejected |
 
-`3.4.0` retires executable Trust/MLS paths and restores ordinary server-readable messaging as the sole writable core. Legacy ciphertext is preserved without server-side decryption or plaintext conversion. This branch is not a published release until every blocker in `RELEASE_VERIFICATION_3.4.0.md` is closed.
+`3.3.4` retires executable Trust/MLS paths and restores ordinary server-readable messaging as the sole writable core. Legacy ciphertext is preserved without server-side decryption or plaintext conversion. This branch is not a published release until every blocker in `RELEASE_VERIFICATION_3.3.4.md` is closed.
 
 ## Quick navigation
 
@@ -33,19 +33,19 @@
 | Выпустить версию | [Release Policy](RELEASE_POLICY.md), [GitHub Release](GITHUB_RELEASE.md), [Checklist](RELEASE_CHECKLIST.md) |
 | Получить поддержку | [Support Policy](../SUPPORT.md) |
 
-## Stable Core documents
+## Post-MLS Baseline documents
 
 | Документ | Scope | Status |
 |---|---|---|
-| [Release Notes 3.4.0](../RELEASE_NOTES_3.4.0.md) | user-visible changes, compatibility and limitations | Release candidate |
-| [Release Verification 3.4.0](../RELEASE_VERIFICATION_3.4.0.md) | code, tests, CI, signing and publication evidence | In progress |
-| [Security Review 3.4.0](../SECURITY_REVIEW_3.4.0.md) | reviewed scope, findings and external review gate | External review pending |
-| [Architecture](ARCHITECTURE.md) | server-readable core, legacy boundary, devices, updater and storage | Current through 3.4.0 RC |
-| [Security Model](SECURITY_MODEL.md) | threats, controls and residual risks | Current through 3.4.0 RC |
-| [Operations Runbook](OPERATIONS_RUNBOOK.md) | rollout, backup/restore, corrupt DB, updater and emergency stop | Current through 3.4.0 RC |
-| [Project Index](../PROJECT_INDEX.md) | entrypoints, modules, API and tests | Current through 3.4.0 RC |
+| [Release Notes 3.3.4](../RELEASE_NOTES_3.3.4.md) | user-visible changes, compatibility and limitations | Release candidate |
+| [Release Verification 3.3.4](../RELEASE_VERIFICATION_3.3.4.md) | code, tests, CI, signing and publication evidence | In progress |
+| [Security Review 3.3.4](../SECURITY_REVIEW_3.3.4.md) | reviewed scope, findings and external review gate | External review pending |
+| [Architecture](ARCHITECTURE.md) | server-readable core, legacy boundary, devices, updater and storage | Current through 3.3.4 RC |
+| [Security Model](SECURITY_MODEL.md) | threats, controls and residual risks | Current through 3.3.4 RC |
+| [Operations Runbook](OPERATIONS_RUNBOOK.md) | rollout, backup/restore, corrupt DB, updater and emergency stop | Current through 3.3.4 RC |
+| [Project Index](../PROJECT_INDEX.md) | entrypoints, modules, API and tests | Current through 3.3.4 RC |
 
-## Stable Core contract summary
+## Post-MLS Baseline contract summary
 
 ### Writable authority
 

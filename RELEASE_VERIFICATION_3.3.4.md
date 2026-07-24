@@ -1,10 +1,10 @@
-# Release Verification — Nexora 3.4.0 Stable Core
+# Release Verification — Nexora 3.3.4 Post-MLS Baseline
 
 ## Status
 
 | Field | Value |
 |---|---|
-| Branch | `release/3.4.0-stable-core` |
+| Branch | `release/3.3.4-stable-core` |
 | Pull request | `#69` |
 | Classification | Release candidate |
 | Official tag | not created |
@@ -73,7 +73,7 @@ The implementation may be reviewed, but merge/tag/stable publication is prohibit
 | Expected signer subject/thumbprint confirmed | **BLOCKED** | signing owner |
 | Windows 10 clean install/repair/uninstall | **BLOCKED** | installed runtime evidence |
 | Windows 11 clean install/repair/uninstall | **BLOCKED** | installed runtime evidence |
-| Verified 3.3.4→3.4.0 installed upgrade | **BLOCKED** | source and target signed installers |
+| Verified 3.3.4→3.3.4 installed upgrade | **BLOCKED** | source and target signed installers |
 | PWA acceptance | pending | supported browser matrix |
 | Android acceptance | pending | supported device/shell evidence |
 | Independent security review | **BLOCKED** | reviewed commit SHA, scope, findings and closure evidence |
@@ -96,7 +96,7 @@ Without signing policy, the workflow creates only a uniquely named unsigned-test
 
 ## Unresolved release blockers
 
-1. verified published `v3.3.4` baseline is absent;
+1. GitHub publication and asset smoke are pending;
 2. current CI/release gates must be green on the final commit;
 3. signing/Windows installed acceptance is unavailable;
 4. independent security review is pending;

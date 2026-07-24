@@ -1,10 +1,10 @@
-# Nexora 3.4.0 — Stable Core
+# Nexora 3.3.4 — Post-MLS Baseline
 
 **Status:** release candidate. This document does not represent a published release.
 
 ## Product result
 
-Nexora 3.4.0 establishes ordinary server-readable messaging as the only writable messaging core. It removes the executable Trust/MLS runtime while preserving schema 8 legacy records and ciphertext through an explicit read-only compatibility layer.
+Nexora 3.3.4 establishes ordinary server-readable messaging as the only writable messaging core. It removes the executable Trust/MLS runtime while preserving schema 8 legacy records and ciphertext through an explicit read-only compatibility layer.
 
 ## Main changes
 
@@ -77,7 +77,7 @@ Realtime additions: `session.revoked`, `device.updated`, `legacy_secure_history.
 
 ## Upgrade prerequisites
 
-The official stable upgrade is defined as verified `3.3.4 → 3.4.0`. The release workflow refuses stable publication if `v3.3.4` is missing, draft/prerelease or lacks required signed installers/checksums.
+The official stable upgrade is defined as verified `3.3.4 → 3.3.4`. The release workflow refuses stable publication if `v3.3.4` is missing, draft/prerelease or lacks required signed installers/checksums.
 
 Before production rollout:
 
@@ -94,4 +94,4 @@ Before production rollout:
 - Signing credentials and Windows 10/11 acceptance are external prerequisites.
 - Independent security review is pending.
 - Locally decrypted legacy content is available only when a previous client retained it.
-- The branch must remain draft and no official `v3.4.0` tag/release may be created until every release blocker is closed.
+- The branch must remain draft and no official `v3.3.4` tag/release may be created until every release blocker is closed.

@@ -4,15 +4,15 @@
 
 | Параметр | Значение |
 |---|---|
-| Repository version | `3.4.0` |
-| Classification | Release candidate — Stable Core |
-| Publication | Заблокирована до verified `v3.3.4`, Authenticode/Windows acceptance и independent security review |
+| Repository version | `3.3.4` |
+| Classification | Release candidate — Post-MLS Baseline |
+| Publication | Заблокирована до CI, merge, tag, GitHub Release и asset smoke |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
 | Legacy Trust/MLS API | retired; write paths return `410/LEGACY_READ_ONLY` |
 | Local Server database | SQLite schema 8 compatibility layer |
 
-Этот индекс описывает ветку `release/3.4.0-stable-core` и PR #69. До merge он не является описанием опубликованного `main`.
+Этот индекс описывает ветку `release/3.3.4-stable-core` и PR #69. До merge он не является описанием опубликованного `main`.
 
 ## Entry points
 
@@ -30,7 +30,7 @@
 | Файл | Ответственность |
 |---|---|
 | `server/create-server.cjs` | Application API v3, Socket.IO, sessions, rooms, messages, uploads и lifecycle |
-| `server/create-server-v31.cjs` | composition root для Pulse и Stable Core |
+| `server/create-server-v31.cjs` | composition root для Pulse и Post-MLS Baseline |
 | `server/stable-core.cjs` | device inventory/revoke, legacy read-only viewer/export, backup verify и signing status |
 | `server/v3-features.cjs` | sync, drafts, scheduled messages, polls, moderation, bots, webhooks и legacy guards |
 | `server/events.cjs` | monotonic event stream, visibility и notifications |
@@ -72,7 +72,7 @@ Executable Trust Core, MLS transport, recovery routes and E2EE upload runtime ar
 | `.github/workflows/release.yml` | baseline check, signing, n-1→n smoke, immutable tag/assets and re-verification |
 | `android/` | Android source, deep link and strict TLS policy |
 
-## Stable Core API
+## Post-MLS Baseline API
 
 ### Sessions and devices
 
@@ -107,7 +107,7 @@ Mutating browser requests require authentication, Origin/CSRF, resource scope, p
 | `test/stable-core-reliability.test.cjs` | backup verify, rollback, future schema and disk-full failpoint |
 | `test/update-service.test.cjs` | Client/Server channels, tamper errors and no-downgrade |
 | `test/security-hardening-3.2.3.test.cjs` | CSRF, bans, cleanup, admin signing status and retired APIs |
-| `scripts/security-audit.cjs` | Stable Core controls and production dependency audit |
+| `scripts/security-audit.cjs` | Post-MLS Baseline controls and production dependency audit |
 | `test/performance.test.cjs` | schema 8 performance and integrity |
 | `scripts/soak-test.cjs` | long-running state, backup and integrity |
 
@@ -127,7 +127,7 @@ Mutating browser requests require authentication, Origin/CSRF, resource scope, p
 
 ## Release blockers
 
-The branch must remain draft and must not publish `v3.4.0` while any item remains:
+The branch must remain draft and must not publish `v3.3.4` while any item remains:
 
 1. verified published stable `v3.3.4` is absent;
 2. Authenticode credentials/expected signer identity are unavailable;

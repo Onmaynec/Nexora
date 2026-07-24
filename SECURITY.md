@@ -1,12 +1,12 @@
 # Политика безопасности Nexora
 
-> **Stable Core 3.4.0 RC:** ordinary server-readable messaging is writable; legacy Trust/MLS history is read-only. Stable publication remains blocked by verified v3.3.4, signing/Windows acceptance and independent review.
+> **Post-MLS Baseline 3.3.4 RC:** ordinary server-readable messaging is writable; legacy Trust/MLS history is read-only. Stable publication remains blocked by CI, merge, release publication and asset smoke.
 
 ## Supported versions
 
 | Version | Channel | Security status |
 |---|---|---|
-| `3.4.0` | Release candidate / PR #69 | Implementation under validation; no production claim before independent review |
+| `3.3.4` | Release candidate / PR #69 | Implementation under validation; no production claim before independent review |
 | `3.3.3` | Published `UNSIGNED-TEST` prerelease | Supported for regression/security reports; not a signed stable baseline |
 | `3.1.x` | Signed production baseline | Supported |
 | `3.0.x` and older | Historical | Unsupported |
@@ -29,7 +29,7 @@ Provide:
 
 Use the repository security advisory/private reporting channel where available. If that channel is unavailable, contact the maintainer through a private channel listed on the GitHub profile and disclose only the minimum needed to establish contact.
 
-## Scope for 3.4.0 review
+## Scope for 3.3.4 review
 
 - authentication, sessions, device revoke and realtime disconnect;
 - Origin/CSRF and direct API bypass;
@@ -46,7 +46,7 @@ Use the repository security advisory/private reporting channel where available. 
 
 High/critical findings block merge, tag and stable publication. Each finding must record severity, root cause, fix, regression evidence and closure/retest. Public summaries must not expose credentials or weaponized details before coordinated disclosure.
 
-The `SECURITY_REVIEW_3.4.0.md` file is an internal scope/closure ledger, not an independent assessment. The independent review remains a mandatory release blocker.
+The `SECURITY_REVIEW_3.3.4.md` file is an internal scope/closure ledger, not an independent assessment. The independent review remains a mandatory release blocker.
 
 ## Out of scope claims
 

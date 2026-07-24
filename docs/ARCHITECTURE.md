@@ -1,8 +1,8 @@
-# Архитектура Nexora 3.4.0 Stable Core
+# Архитектура Nexora 3.3.4 Post-MLS Baseline
 
 ## Scope and status
 
-This document describes release candidate branch `release/3.4.0-stable-core` and PR #69. It does not claim that `v3.4.0` is published.
+This document describes release candidate branch `release/3.3.4-stable-core` and PR #69. It does not claim that `v3.3.4` is published.
 
 - Application API: v3;
 - writable messaging core: ordinary server-readable conversations;
@@ -34,7 +34,7 @@ flowchart TB
     RT[Socket.IO]
     AUTH[Sessions / CSRF / roles / bans / policies]
     CORE[Rooms / messages / uploads / audit]
-    STABLE[Stable Core devices / legacy viewer / backup verify]
+    STABLE[Post-MLS Baseline devices / legacy viewer / backup verify]
     DB[(SQLite schema 8)]
     FILES[(File store)]
     API --> AUTH --> CORE
@@ -168,7 +168,7 @@ Without signing policy, only a distinct `-unsigned-test.<run>` prerelease is all
 
 ## Realtime visibility
 
-Connections join session/user/conversation scopes only after authentication and current access validation. Membership/session loss removes realtime access. Stable Core events are:
+Connections join session/user/conversation scopes only after authentication and current access validation. Membership/session loss removes realtime access. Post-MLS Baseline events are:
 
 - `session.revoked`;
 - `device.updated`;

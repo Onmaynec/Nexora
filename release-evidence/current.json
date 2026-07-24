@@ -1,47 +1,29 @@
 {
   "schemaVersion": 2,
-  "version": "3.4.0",
+  "version": "3.3.4",
+  "tag": "v3.3.4",
   "status": "release-candidate",
-  "verifiedAt": null,
-  "repository": "Onmaynec/Nexora",
-  "branch": "release/3.4.0-stable-core",
-  "pullRequest": 69,
-  "tag": null,
-  "tagSha": null,
-  "releaseName": "Nexora 3.4.0 — Stable Core",
-  "releaseUrl": null,
   "published": false,
   "signed": false,
-  "draft": true,
-  "prerelease": false,
-  "updaterMetadataPublished": false,
+  "distribution": "pending",
+  "repository": "Onmaynec/Nexora",
+  "branch": "release/3.3.4-post-mls",
+  "baseline": "v3.3.3",
   "blockers": [
-    "verified-v3.3.4",
-    "authenticode-windows-acceptance",
-    "independent-security-review",
-    "final-ci-and-publication-evidence"
+    "ci",
+    "merge",
+    "github-release",
+    "asset-redownload-smoke"
   ],
-  "requiredAssets": [
-    "Nexora-3.4.0-source.zip",
-    "Nexora-PWA-3.4.0.zip",
-    "Nexora-3.4.0.spdx.json",
-    "SHA256SUMS.txt",
-    "Nexora-Client-Setup-3.4.0.exe",
-    "Nexora-Client-Setup-3.4.0.exe.blockmap",
-    "latest.yml",
-    "Nexora-Server-Setup-3.4.0.exe",
-    "Nexora-Server-Setup-3.4.0.exe.blockmap",
-    "server.yml",
-    "Nexora-Android-3.4.0-UNSIGNED-TEST.apk",
-    "AUTHENTICODE-EVIDENCE.json",
-    "RELEASE-EVIDENCE.json"
-  ],
-  "checks": {
-    "implementation": "in-progress",
-    "ci": "in-progress",
-    "independentReview": "blocked",
-    "signedWindowsAcceptance": "blocked",
-    "publication": "blocked"
+  "guarantees": {
+    "ordinaryMessagingWritable": true,
+    "trustMlsRuntime": "retired",
+    "legacySecureHistory": "read-only",
+    "serverDecryptsLegacyCiphertext": false,
+    "unsignedUpdaterMetadataPublished": false
   },
-  "assets": []
+  "assets": [],
+  "verification": {
+    "status": "pending"
+  }
 }

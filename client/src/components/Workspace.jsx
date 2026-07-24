@@ -6,7 +6,6 @@ import {
   ShieldCheck, UserMinus, UserPlus, UsersRound, X,
 } from "lucide-react";
 import { api, patch, post, remove } from "../api";
-import { loadE2eeDraft } from "../crypto/trust-client";
 import HoverDock from "./HoverDock";
 import GlobalSearch from "./GlobalSearch";
 import LegacySecureHistoryPane from "./LegacySecureHistoryPane";

@@ -1,6 +1,6 @@
 # Политика поддержки Nexora
 
-> **Stable Core 3.4.0 RC:** ordinary messaging is writable; legacy Trust/MLS history is read-only. Stable publication remains blocked by verified v3.3.4, signing/Windows acceptance and independent review.
+> **Post-MLS Baseline 3.3.4 RC:** ordinary messaging is writable; legacy Trust/MLS history is read-only. Stable publication remains blocked by CI, merge, release publication and asset smoke.
 
 Nexora is an open-source project supported through the public repository on a best-effort basis; this is not a contractual SLA.
 
@@ -8,7 +8,7 @@ Nexora is an open-source project supported through the public repository on a be
 
 | Version | Status |
 |---|---|
-| `3.4.0` / PR #69 | Release candidate; defect/security reports are accepted, production claims are not |
+| `3.3.4` / PR #69 | Release candidate; defect/security reports are accepted, production claims are not |
 | `3.3.3` | Published `UNSIGNED-TEST` prerelease; regression/security reports are accepted |
 | `3.1.x` | Last confirmed signed production baseline |
 | `3.0.x` and older | Unsupported except migration/security context |
@@ -39,7 +39,7 @@ Include:
 
 Do not attach secrets, production DB/backups or private user content.
 
-## 3.4.0-specific triage
+## 3.3.4-specific triage
 
 State whether the problem reproduces on published 3.3.3 or only PR #69.
 

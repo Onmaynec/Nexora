@@ -1,8 +1,8 @@
-# Security Review — Nexora 3.4.0 Stable Core
+# Security Review — Nexora 3.3.4 Post-MLS Baseline
 
 ## Classification
 
-This is the internal review scope and closure ledger for release candidate `3.4.0`. It is not an independent security assessment. The independent review required by the release contract remains pending.
+This is the internal review scope and closure ledger for release candidate `3.3.4`. It is not an independent security assessment. The independent review required by the release contract remains pending.
 
 ## Reviewed implementation scope
 
@@ -82,7 +82,7 @@ This is the internal review scope and closure ledger for release candidate `3.4.
 - production dependency high/critical audit;
 - recursive redaction and safe operator status.
 
-## Independent review contract
+## Security review scope and automated evidence
 
 Before merge/tag/stable publication, an independent reviewer must record:
 
@@ -100,7 +100,7 @@ Before merge/tag/stable publication, an independent reviewer must record:
 
 - the PR remains draft;
 - no claim of independent review is permitted;
-- no official `v3.4.0` tag or stable GitHub Release may be created.
+- no official `v3.3.4` tag or stable GitHub Release may be created.
 
 ## Residual risks
 
