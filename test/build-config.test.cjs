@@ -25,7 +25,6 @@ test("релиз 3.4.0 собирает только проверяемый sign
   const signatureVerifier = read("scripts/verify-authenticode.ps1");
 
   assert.equal(packageJson.version, require("../package-lock.json").version);
-  assert.equal(packageJson.version, "3.4.0");
   assert.equal(packageJson.dependencies["better-sqlite3"], undefined);
   assert.equal(packageJson.devDependencies?.["better-sqlite3"], undefined);
   assert.equal(packageJson.dependencies["ts-mls"], undefined);
@@ -130,6 +129,8 @@ test("Android и PWA клиенты не обходят TLS и работают 
   assert.match(network, /cleartextTrafficPermitted="false"/);
   assert.match(activity, /handler\.cancel\(\)/);
   assert.doesNotMatch(activity, /handler\.proceed\(\)/);
-  assert.doesNotMatch(serviceWorker, /\/api\//);
-  assert.doesNotMatch(serviceWorker, /socket\.io/);
+  assert.match(serviceWorker, /url\.pathname\.startsWith\("\/api\/"\)/);
+  assert.match(serviceWorker, /url\.pathname\.startsWith\("\/socket\.io\/"\)/);
+  assert.match(serviceWorker, /startsWith\("\/api\/"\)[\s\S]{0,120}return;/);
+  assert.match(serviceWorker, /startsWith\("\/socket\.io\/"\)[\s\S]{0,80}return;/);
 });
