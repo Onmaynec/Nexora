@@ -4,7 +4,22 @@ import { fileURLToPath } from "node:url";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const read = (file) => readFile(path.join(root, file), "utf8");
-const [html, css, app, fixesCss, fixesJs, polishCss, polishJs, audit, build, packageSource, pagesWorkflow] = await Promise.all([
+const [
+  html,
+  css,
+  app,
+  fixesCss,
+  fixesJs,
+  polishCss,
+  polishJs,
+  releaseFallback,
+  networkResilience,
+  fallbackGenerator,
+  audit,
+  build,
+  packageSource,
+  pagesWorkflow,
+] = await Promise.all([
   read("index.html"),
   read("styles.css"),
   read("app.js"),
@@ -12,6 +27,9 @@ const [html, css, app, fixesCss, fixesJs, polishCss, polishJs, audit, build, pac
   read("site-fixes.js"),
   read("site-polish.css"),
   read("site-polish.js"),
+  read("release-fallback.js"),
+  read("network-resilience.js"),
+  read("generate-release-fallback.mjs"),
   read("UX_AUDIT_2026-07-24.md"),
   read("build.json"),
   readFile(path.join(root, "..", "package.json"), "utf8"),
@@ -104,9 +122,38 @@ for (const marker of [
   if (!polishJs.includes(marker)) throw new Error(`Main-site polish runtime marker is missing: ${marker}`);
 }
 
+for (const marker of [
+  "window.NexoraReleaseFallback",
+  'tag_name: "v3.3.3"',
+  'tag_name: "v3.0.0"',
+  "assets: []",
+]) {
+  if (!releaseFallback.includes(marker)) throw new Error(`Release fallback marker is missing: ${marker}`);
+}
+
+for (const marker of [
+  "RELEASE_REQUEST_TIMEOUT_MS",
+  "AbortController",
+  "RELEASE_CACHE_KEY",
+  "NexoraReleaseFallback",
+  "releaseFallbackResponse",
+  "new Response(",
+]) {
+  if (!networkResilience.includes(marker)) throw new Error(`Release network resilience marker is missing: ${marker}`);
+}
+
+for (const marker of [
+  "parseReleaseHistory",
+  "renderFallbackScript",
+  "CHANGELOG.md",
+  "--check",
+]) {
+  if (!fallbackGenerator.includes(marker)) throw new Error(`Release fallback generator marker is missing: ${marker}`);
+}
+
 if (/\bfetch\s*\(/.test(polishJs)) throw new Error("Polish runtime must not add network requests");
-if (/\.innerHTML\s*=/.test(polishJs)) throw new Error("Polish runtime must not inject HTML");
-if (/webgl/i.test(polishJs) || /webgl/i.test(polishCss)) throw new Error("WebGL was added without an approved performance case");
+if (/\.innerHTML\s*=/.test(polishJs + networkResilience)) throw new Error("Website enhancement runtimes must not inject HTML");
+if (/webgl/i.test(polishJs + polishCss + networkResilience)) throw new Error("WebGL was added without an approved performance case");
 
 if (/\.tilt-card\s*\{[^}]*display\s*:\s*none/is.test(fixesCss + polishCss)) {
   throw new Error("Website enhancements must not remove restored 3D cards");
@@ -122,10 +169,25 @@ if (!fixesCss.includes('@media (max-width: 520px)') || !fixesCss.includes('width
 
 const fixesCssCompose = pagesWorkflow.indexOf("cat website/site-fixes.css >> website/styles.css");
 const polishCssCompose = pagesWorkflow.indexOf("cat website/site-polish.css >> website/styles.css");
-const fixesJsCompose = pagesWorkflow.indexOf("cat website/site-fixes.js >> website/app.js");
-const polishJsCompose = pagesWorkflow.indexOf("cat website/site-polish.js >> website/app.js");
 if (fixesCssCompose < 0 || polishCssCompose <= fixesCssCompose) throw new Error("CSS composition order must be base -> fixes -> polish");
-if (fixesJsCompose < 0 || polishJsCompose <= fixesJsCompose) throw new Error("JavaScript composition order must be base -> fixes -> polish");
+
+const fallbackJsCompose = pagesWorkflow.indexOf("cat website/release-fallback.js");
+const resilienceJsCompose = pagesWorkflow.indexOf("cat website/network-resilience.js");
+const appJsCompose = pagesWorkflow.indexOf("cat website/app.js");
+const fixesJsCompose = pagesWorkflow.indexOf("cat website/site-fixes.js");
+const polishJsCompose = pagesWorkflow.indexOf("cat website/site-polish.js");
+if (
+  fallbackJsCompose < 0 ||
+  resilienceJsCompose <= fallbackJsCompose ||
+  appJsCompose <= resilienceJsCompose ||
+  fixesJsCompose <= appJsCompose ||
+  polishJsCompose <= fixesJsCompose
+) {
+  throw new Error("JavaScript composition order must be release fallback -> resilience -> base -> fixes -> polish");
+}
+if (!pagesWorkflow.includes("node --check website/network-resilience.js")) throw new Error("Release resilience JavaScript syntax gate is missing");
+if (!pagesWorkflow.includes("node website/generate-release-fallback.mjs --check")) throw new Error("Release fallback freshness gate is missing");
+if (!pagesWorkflow.includes("node --test website/release-resilience.test.cjs")) throw new Error("Release selector regression test is missing");
 if (!pagesWorkflow.includes("node --check website/site-polish.js")) throw new Error("Polish JavaScript syntax gate is missing");
 
 for (const marker of [
@@ -142,4 +204,4 @@ if (!String(buildData.siteBuild || "").startsWith("main-site-ux-polish-")) {
   throw new Error("Main-site UX polish build marker is missing");
 }
 
-console.log(`Nexora main-site UX, motion and accessibility polish validated for ${packageVersion}.`);
+console.log(`Nexora main-site UX, release resilience, motion and accessibility polish validated for ${packageVersion}.`);
