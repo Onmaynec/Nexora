@@ -11,8 +11,8 @@ android {
         applicationId = "com.nexora.mobile"
         minSdk = 26
         targetSdk = 36
-        versionCode = 30400
-        versionName = "3.4.0"
+        versionCode = 30500
+        versionName = "3.5.0"
     }
 
     buildTypes {
