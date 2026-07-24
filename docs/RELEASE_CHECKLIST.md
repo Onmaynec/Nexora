@@ -1,16 +1,25 @@
-# Nexora 3.3.3 Release Checklist
+# Nexora 3.4.0 Release Checklist
 
 ## 1. Classification и repository state
 
-- [ ] Classification selected: Development, Source/PWA prerelease или Stable signed Windows.
-- [ ] `package.json`, lockfile, Client handshake и Android metadata show `3.3.2`.
-- [ ] Tag is immutable `v3.3.2` and points to verified commit.
-- [ ] `CHANGELOG.md`, release notes, security review и verification are current.
+- [ ] Classification: Stable Core release candidate until all gates complete.
+- [ ] `package.json`, lockfile, Client handshake и Android metadata show `3.4.0`.
+- [ ] PR head is exact reviewed merge candidate.
+- [ ] `CHANGELOG.md`, canonical release notes, security review и verification are current.
 - [ ] README, docs portal, Security Policy, Architecture, Branch Status и Support agree.
-- [ ] Commit has no secrets, databases, backups, user data или temporary patchers.
-- [ ] 3.3.2 is not described as independently audited or signed stable without evidence.
+- [ ] Commit has no secrets, databases, backups, user data, temporary patchers или generated failure logs.
+- [ ] No document describes `3.4.0` as published/signed/independently approved without evidence.
 
-## 2. Automated gates
+## 2. Prerequisite baseline
+
+- [ ] Published non-draft/non-prerelease `v3.3.4` exists.
+- [ ] `v3.3.4` has required Client installer.
+- [ ] `v3.3.4` has required Server installer.
+- [ ] `v3.3.4` has `SHA256SUMS.txt`.
+- [ ] Baseline assets download and verify.
+- [ ] Release branch descends from merged post-MLS baseline commit.
+
+## 3. Automated gates
 
 - [ ] `npm ci` — PASS.
 - [ ] `npm run check` — PASS.
@@ -21,196 +30,148 @@
 - [ ] Linux `npm test` — PASS.
 - [ ] Schema 8 soak — PASS.
 - [ ] Android `assembleDebug` — PASS.
-- [ ] No undocumented high/critical dependency finding.
+- [ ] Focused Nexora 3.4 regressions — PASS.
+- [ ] Introductory website validation/build — PASS.
+- [ ] Advanced Documentation generation/validation/build — PASS.
+- [ ] No high/critical production dependency finding.
 
-## 3. Compatibility
+## 4. Compatibility and Stable Core boundary
 
 - [ ] Application API remains v3.
-- [ ] Trust/MLS/encrypted-media API remains v4-compatible.
 - [ ] Local Server schema remains 8.
-- [ ] No migration required from 3.2.0–3.3.1.
-- [ ] Schema 7 → 8 migration remains tested for 3.1.x data.
-- [ ] Restore-based rollback documented and tested.
-- [ ] Older Client compatibility/failure message verified.
+- [ ] Ordinary messaging is the only writable messaging path.
+- [ ] Executable Trust/MLS runtime and `ts-mls` remain removed.
+- [ ] Legacy schema 8 records remain preserved.
+- [ ] Legacy viewer/export is read-only.
+- [ ] Server never decrypts legacy ciphertext.
+- [ ] Legacy HTTP mutations return `410/LEGACY_READ_ONLY`.
+- [ ] MLS Socket.IO mutations return terminal `LEGACY_READ_ONLY` ack.
+- [ ] Ordinary chats open despite stale/corrupt legacy MLS state.
 
-## 4. Authentication и application security
+## 5. Authentication and authorization
 
 - [ ] Session/Origin/CSRF checks pass.
 - [ ] owner/moderator/member boundaries pass.
+- [ ] Exactly one room owner maintained.
+- [ ] Atomic ownership transfer passes.
 - [ ] Active ban overrides stale membership.
 - [ ] Removed/banned users lose REST/realtime access.
-- [ ] Invitation expiry/limit/concurrent final use pass.
+- [ ] Invite expiry/limit/revocation/concurrent final use pass.
 - [ ] TOTP/recovery codes pass.
-- [ ] Upload size/hash/actual-MIME controls pass.
-- [ ] Bot/webhook scope, SSRF и HMAC pass.
-- [ ] Electron/Android TLS and renderer boundaries pass.
+- [ ] Stable public error envelope does not leak internals.
 
-## 5. Trust devices и resources
+## 6. Devices and sessions
 
-- [ ] BasicCredential exactly binds `{ userId, deviceId }`.
-- [ ] Identity and MLS signature keys are distinct.
-- [ ] Device proof-of-possession required.
-- [ ] First/later device lifecycle correct.
-- [ ] 16 active-device limit atomic.
-- [ ] Duplicate registration idempotent.
-- [ ] Revocation releases capacity and disconnects target.
-- [ ] Local Trust/MLS/cache/draft wipe after revoke.
-- [ ] KeyPackage 25/request limit.
-- [ ] KeyPackage 32/device and 256/user limits atomic.
-- [ ] Expired inventory cleanup.
+- [ ] Device inventory is derived from server sessions.
+- [ ] Device ID/name/platform/version/created/last-seen/expiry exposed safely.
+- [ ] Targeted remote revoke invalidates only target sessions.
+- [ ] `session.revoked` emitted.
+- [ ] Target Socket.IO connections disconnected immediately.
+- [ ] `device.updated` emitted.
+- [ ] Current-device remote revoke returns `STATE_CONFLICT`.
+- [ ] Revoke-all-others preserves current session.
 
-## 6. Rate limits и audit
+## 7. Uploads, images and voice
 
-- [ ] Trust/recovery/E2EE routes use bounded limiter.
-- [ ] Excess returns HTTP `429`.
-- [ ] Stable code `RATE_LIMITED`.
-- [ ] `Retry-After` present.
-- [ ] State remains bounded and stale buckets cleaned.
-- [ ] Trust audit uses action-specific primitive allowlists.
-- [ ] Nested secret-like metadata not persisted.
+- [ ] Authorization and room media restrictions checked server-side.
+- [ ] Size/quota and chunk/file SHA-256 checks pass.
+- [ ] Actual MIME signature checked.
+- [ ] Fake extension/header rejected.
+- [ ] Dangerous/executable content rejected.
+- [ ] Safe filename enforced.
+- [ ] Temporary data removed after cancel/error.
+- [ ] Corrupt image handled safely.
+- [ ] Microphone denial/unsupported format handled.
+- [ ] Voice waveform, played progress, seek and speed pass.
+- [ ] Direct API cannot bypass read-only/slow/media restrictions.
 
-## 7. MLS secure messaging
+## 8. Backup, restore and migration
 
-- [ ] Fixed profile remains `MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519`.
-- [ ] KeyPackage and Welcome one-time/scope-bound.
-- [ ] Epoch monotonicity and replay rejection.
-- [ ] Device-scoped Socket.IO active verified delivery.
-- [ ] Ciphertext-only persistence/serialization/outbox.
-- [ ] Alice/Bob interoperability.
-- [ ] Strict recovery group/sequence/hash/public-state validation.
-- [ ] Invalid recovery never persists partial state.
-- [ ] Unrecoverable state fails explicitly.
+- [ ] Source integrity checked before mutation.
+- [ ] WAL checkpoint and free-space checks pass.
+- [ ] Verified backup created.
+- [ ] Backup verification is non-restoring and server-admin-only.
+- [ ] Backup ID constrained to allowlisted directory.
+- [ ] Future schema blocked before mutation.
+- [ ] Schema 8 migration idempotent.
+- [ ] Disk-full failpoint leaves live state unchanged.
+- [ ] DB/file replacement failure rolls both back.
+- [ ] Temporary staged data cleaned after success/error.
 
-## 8. MLS Welcome recovery 3.3.0+
+## 9. Authenticode and packaging
 
-- [ ] `welcome/request` requires session, Origin/CSRF, access, active-ban and verified device.
-- [ ] Bounded rate limiter applied.
-- [ ] Only active verified group devices receive notification.
-- [ ] Active Client creates signed commit/Welcome.
-- [ ] Pending Client retries bounded one-time claim.
-- [ ] Text, encrypted media and voice use recovered common path.
-- [ ] No active member remains fail-closed.
-- [ ] No private key/plaintext traverses Server.
-- [ ] Duplicate/redundant requests suppressed or bounded.
+- [ ] `WINDOWS_CERTIFICATE_BASE64` configured.
+- [ ] `WINDOWS_CERTIFICATE_PASSWORD` configured.
+- [ ] Expected signer subject configured.
+- [ ] Expected signer thumbprint configured.
+- [ ] Partial signing configuration rejected.
+- [ ] Client installer signed and timestamped.
+- [ ] Server installer signed and timestamped.
+- [ ] Signer subject/thumbprint match policy.
+- [ ] Client blockmap and `latest.yml` complete.
+- [ ] Server blockmap and `server.yml` complete.
+- [ ] Installer/metadata versions equal `3.4.0`.
+- [ ] No unsigned official-release fallback exists.
 
-## 9. Plaintext downgrade
+## 10. Windows installed acceptance
 
-After MLS activation reject:
+- [ ] Windows 10 clean install.
+- [ ] Windows 10 repair/uninstall.
+- [ ] Windows 10 installed `3.3.4 → 3.4.0` upgrade.
+- [ ] Windows 11 clean install.
+- [ ] Windows 11 repair/uninstall.
+- [ ] Windows 11 installed `3.3.4 → 3.4.0` upgrade.
+- [ ] Installed Client product version equals `3.4.0`.
+- [ ] Installed Server product version equals `3.4.0`.
+- [ ] Installed executables pass Authenticode verification.
+- [ ] Machine-readable Windows evidence identifies exact release candidate.
 
-- [ ] legacy send/forward/edit;
-- [ ] server draft/scheduled/poll;
-- [ ] bot message;
-- [ ] multipart/resumable upload;
-- [ ] legacy or mismatched Socket.IO device;
-- [ ] UI fallback to plaintext.
+## 11. Independent security review
 
-## 10. Encrypted files/images/voice
+- [ ] Reviewer and scope recorded.
+- [ ] Reviewed commit is exact release commit or ancestor.
+- [ ] Authentication/authorization/session revocation reviewed.
+- [ ] Legacy read-only/no-plaintext boundary reviewed.
+- [ ] Upload/MIME/hash/quota controls reviewed.
+- [ ] Backup/restore/migration failure paths reviewed.
+- [ ] Updater/signing/tag publication reviewed.
+- [ ] Unresolved critical findings = 0.
+- [ ] Unresolved high findings = 0.
+- [ ] Closure evidence committed in machine-readable file.
 
-- [ ] AES-256-GCM random key/IV.
-- [ ] AAD scope binding.
-- [ ] Plaintext/ciphertext hashes.
-- [ ] Exact ciphertext size/quota by stored bytes.
-- [ ] Private descriptor remains in MLS content.
-- [ ] Pending inaccessible before claim.
-- [ ] Expiry/cancel/idempotent retry.
-- [ ] Scope/hash/size substitution rejected.
-- [ ] One-time claim/reuse rejection.
-- [ ] Local verified preview/playback/download.
-- [ ] Room media restrictions fail-closed.
+## 12. Release assets
 
-## 11. Updater 3.3.0+
+- [ ] Signed Client installer and blockmap.
+- [ ] `latest.yml`.
+- [ ] Signed Server installer and blockmap.
+- [ ] `server.yml`.
+- [ ] Source ZIP.
+- [ ] PWA ZIP.
+- [ ] Android evidence APK.
+- [ ] SPDX SBOM.
+- [ ] Authenticode evidence JSON.
+- [ ] Release evidence JSON.
+- [ ] `SHA256SUMS.txt`.
+- [ ] Canonical release notes used.
 
-- [ ] Service initialized before renderer IPC.
-- [ ] Packaged default provider is official GitHub Releases.
-- [ ] Custom feed requires explicit HTTPS config.
-- [ ] HTTP feed rejected.
-- [ ] Initial and scheduled checks work.
-- [ ] Checks are single-flight.
-- [ ] UI shows checking/progress/current/available/downloaded/error/retry.
-- [ ] Returned-result fallback provides terminal state.
-- [ ] Downgrade/prerelease disabled.
-- [ ] Code-signature verification enabled.
-- [ ] Missing signed assets produce non-installable state.
-- [ ] No stack/internal path disclosure.
+## 13. Tag and publication
 
-## 12. Post-update, test mode и installer
+- [ ] PR ready, review threads resolved, all checks green.
+- [ ] Merge commit subject triggers only Nexora `3.4.0` stable workflow.
+- [ ] Official annotated tag `v3.4.0` points to approved merge commit.
+- [ ] Existing mismatched tag causes failure.
+- [ ] GitHub Release is neither draft nor prerelease.
+- [ ] Published assets are immutable.
 
-- [ ] Summary appears once per version.
-- [ ] “Подробнее” opens exact official tag.
-- [ ] “Закрыть” works.
-- [ ] “Не показывать снова” scopes to version.
-- [ ] Normal shortcut opens no log console.
-- [ ] Test shortcut/`--test-mode`/env switch tail local log.
-- [ ] Console exits with Client.
-- [ ] No DevTools/Node integration/remote debugging.
-- [ ] Log records flattened/length-limited.
-- [ ] Client/Server NSIS use official icon, branded sidebar and Russian language.
-- [ ] Clean install/update/uninstall accepted.
+## 14. Post-publication verification
 
-## 13. Server console
+- [ ] Re-download every asset.
+- [ ] SHA-256 matches `SHA256SUMS.txt`.
+- [ ] Authenticode subject/thumbprint/timestamp verified again.
+- [ ] Client/Server updater metadata verified again.
+- [ ] Source/PWA/SBOM content checks pass.
+- [ ] Release URL, tag SHA, run IDs and digests recorded.
+- [ ] `release-evidence/current.json` updated to published state.
+- [ ] Release branch closed/deleted after provenance retention.
 
-- [ ] Only registered DeveloperCommandService commands execute.
-- [ ] Stable `{ code, message }` crosses IPC.
-- [ ] `<user>`/`[days]` copied placeholders normalize safely.
-- [ ] No shell/eval/filesystem escape.
-- [ ] Mutations audited without argument values.
-
-## 14. Pulse и operations
-
-- [ ] Cloud Identity/MFA/OAuth PKCE.
-- [ ] Signed link/entitlement scope and replay protection.
-- [ ] Ledger/idempotency/non-negative wallet.
-- [ ] Sandbox isolated from production authority.
-- [ ] live/ready/metrics policy.
-- [ ] request IDs and credential redaction.
-- [ ] graceful drain/shutdown.
-- [ ] startup/hourly expired-session/login-history/rate-bucket cleanup.
-- [ ] backup/restore/emergency read-only procedures.
-
-## 15. Platform runtime
-
-### Windows
-
-- [ ] Clean Client/Server install Windows 10.
-- [ ] Clean Client/Server install Windows 11.
-- [ ] Upgrade preserves data/settings/trust.
-- [ ] Signed Authenticode installers/timestamps.
-- [ ] Installed updater n-1 → 3.3.2.
-- [ ] Packaged MLS Welcome recovery for text/media/voice.
-- [ ] Test-mode shortcut on clean account.
-
-### PWA
-
-- [ ] Installed shell update.
-- [ ] No API/Socket.IO Service Worker caching.
-- [ ] Offline authorized cache.
-- [ ] Trust/MLS/recovery after restart/reconnect.
-
-### Android
-
-- [ ] Physical-device matrix.
-- [ ] HTTPS-only deep link and TLS rejection.
-- [ ] File/microphone permissions.
-- [ ] Trust/MLS/encrypted media/recovery.
-- [ ] Signed APK/AAB and upgrade path.
-
-## 16. GitHub release
-
-- [ ] `main`/tags protected and 2FA enabled.
-- [ ] Source/PWA prerelease contains only allowed artifacts.
-- [ ] No unsigned updater assets published.
-- [ ] Stable release contains complete signed set.
-- [ ] Published stable assets immutable.
-- [ ] Release page links correct docs and checksums.
-
-## 17. Stable promotion review
-
-- [ ] Metadata/traffic-analysis review.
-- [ ] Extended simultaneous Welcome/commit/revoke/re-add/corrupted-state matrix.
-- [ ] Longer load/soak/long-offline evidence.
-- [ ] Independent cryptographic review.
-- [ ] Independent application-security review.
-- [ ] No unresolved high/critical findings.
-- [ ] Release owner approval recorded.
-
-Until all stable gates complete, 3.3.2 remains an `UNSIGNED-TEST` prerelease and must not be promoted through stable updater.
+Official `v3.4.0` is complete only when every applicable item is checked with real evidence.
