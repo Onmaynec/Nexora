@@ -1,6 +1,8 @@
 name: One-time repository root cleanup
 
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [chore/repository-root-cleanup]
 
@@ -13,7 +15,9 @@ concurrency:
 
 jobs:
   migrate:
-    if: github.actor != 'github-actions[bot]'
+    if: >-
+      (github.event_name == 'pull_request' && github.head_ref == 'chore/repository-root-cleanup') ||
+      (github.event_name == 'push' && github.actor != 'github-actions[bot]')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -238,9 +242,9 @@ jobs:
           ]
           for version in versions:
               directory = release_root / version
-              notes = f'[{"Release notes"}]({version}/RELEASE_NOTES.md)' if (directory / 'RELEASE_NOTES.md').exists() else '—'
-              verification = f'[{"Verification"}]({version}/RELEASE_VERIFICATION.md)' if (directory / 'RELEASE_VERIFICATION.md').exists() else '—'
-              security = f'[{"Security review"}]({version}/SECURITY_REVIEW.md)' if (directory / 'SECURITY_REVIEW.md').exists() else '—'
+              notes = f'[Release notes]({version}/RELEASE_NOTES.md)' if (directory / 'RELEASE_NOTES.md').exists() else '—'
+              verification = f'[Verification]({version}/RELEASE_VERIFICATION.md)' if (directory / 'RELEASE_VERIFICATION.md').exists() else '—'
+              security = f'[Security review]({version}/SECURITY_REVIEW.md)' if (directory / 'SECURITY_REVIEW.md').exists() else '—'
               evidence_path = Path(f'release-evidence/v{version}.json')
               if evidence_path.exists():
                   evidence = f'[`v{version}.json`](../../release-evidence/v{version}.json)'
