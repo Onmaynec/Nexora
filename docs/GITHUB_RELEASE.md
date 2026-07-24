@@ -1,4 +1,4 @@
-# GitHub Release и обновления Nexora
+# GitHub Release и обновления Nexora 3.4.0
 
 ## 1. Repository controls
 
@@ -8,201 +8,153 @@ Required controls:
 
 - protected `main` и release tags;
 - no force-push/tag replacement;
-- required Windows/Linux/release/soak/Android checks;
+- required CI/release/soak/Android/website checks;
 - maintainer 2FA;
-- protected `windows-release` Environment;
+- protected release environment;
 - restricted signing secrets;
 - immutable published stable release.
 
-## 2. Release classifications
+## 2. Current classification
 
-| Classification | Artifacts | Updater eligible |
-|---|---|---|
-| Source/PWA prerelease | source ZIP, PWA ZIP, SPDX SBOM, checksums | no |
-| Published UNSIGNED-TEST prerelease | Client/Server `.exe`, Android APK, source/PWA/SBOM/checksums; no updater metadata | no |
-| Stable signed Windows | signed Client/Server `.exe`, blockmap, `latest.yml`, source/PWA/SBOM/checksums | yes |
-| Local unsigned build | local test output | no |
+| Version | State |
+|---|---|
+| `3.4.0` | Stable Core release candidate; official tag/release blocked |
+| `3.3.4` | merged post-MLS prerequisite source; published release evidence required |
+| `3.1.2` | last confirmed signed production baseline |
 
-Current status:
+Trust/MLS runtime is retired in current Stable Core. Legacy schema 8 history remains read-only and is not updater/write compatibility.
 
-- `3.3.3` — published `UNSIGNED-TEST` prerelease without `latest.yml` or `.blockmap`;
-- `3.1.2` — last confirmed signed production baseline.
-
-## 3. Secrets
+## 3. Required secrets
 
 Windows signing:
 
 - `WINDOWS_CERTIFICATE_BASE64`;
-- `WINDOWS_CERTIFICATE_PASSWORD`.
+- `WINDOWS_CERTIFICATE_PASSWORD`;
+- `WINDOWS_CERTIFICATE_SUBJECT`;
+- `WINDOWS_CERTIFICATE_THUMBPRINT`.
 
-`GITHUB_TOKEN` supplied by Actions. Do not store secrets in source, `.env`, update config, logs, notes or artifacts. Pulse/provider credentials are separate.
+`GITHUB_TOKEN` is supplied by Actions. Do not store secrets in source, `.env`, update config, logs, notes or artifacts.
+
+Partial signing configuration is forbidden.
 
 ## 4. Version preparation
 
-The following must match:
+The following must match `3.4.0`:
 
 - `package.json`;
 - `package-lock.json`;
 - Client handshake;
-- Android version metadata;
-- README, Project Index, Architecture, Security Model and operational current documents;
-- release notes/security review/verification and current release evidence;
-- release tag.
+- Android versionName/versionCode;
+- README, Project Index, Architecture, Security Model and current operational docs;
+- changelog, release notes, verification and security review;
+- `release-evidence/current.json`;
+- official tag `v3.4.0` after approval.
 
 ```bash
-git switch main
-git pull --ff-only
 npm ci
 npm run release:check
+npm run test:soak
 gradle -p android :app:assembleDebug --no-daemon
 ```
 
-Current tag: `v3.3.3`.
+## 5. Baseline prerequisite
 
-```bash
-git tag -s v3.3.2 -m "Nexora 3.3.2"
-git push origin main
-git push origin v3.3.2
-```
+Before 3.4.0 packaging, workflow verifies published `v3.3.4`:
 
-When signed Git tag unavailable, use annotated tag rather than lightweight.
+- release exists and is not draft/prerelease;
+- Client installer exists;
+- Server installer exists;
+- `SHA256SUMS.txt` exists;
+- downloaded assets match checksums and expected signature policy.
 
-## 5. Release workflow
+Missing or incomplete `v3.3.4` is a terminal release blocker.
+
+## 6. External evidence
+
+Workflow reads:
+
+- `release-evidence/independent-security-review-3.4.0.json`;
+- `release-evidence/windows-acceptance-3.4.0.json`;
+- `release-evidence/current.json`.
+
+Independent review must approve an ancestor of the exact release commit and report zero unresolved high/critical findings.
+
+Windows acceptance must record Windows 10 and Windows 11 installed `3.3.4 → 3.4.0` upgrade results.
+
+## 7. Stable release workflow
 
 `.github/workflows/release.yml`:
 
-1. resolves approved tag/commit;
-2. validates tag/package metadata;
-3. runs release checks;
-4. creates source ZIP, PWA ZIP, SPDX SBOM и checksums;
-5. evaluates Authenticode secrets;
-6. builds/verifies signed Client/Server assets when available;
-7. publishes stable only for complete signed asset set;
-8. otherwise publishes explicit `UNSIGNED-TEST` prerelease without updater metadata.
+1. resolves exact release commit/version;
+2. validates `3.4.0` identity and official tag contract;
+3. verifies published `v3.3.4` baseline;
+4. validates external review/Windows evidence;
+5. requires complete Authenticode policy;
+6. runs `npm run release:check`;
+7. builds source, PWA, Android evidence and SPDX SBOM;
+8. builds signed Client and Server installers;
+9. verifies signer subject, thumbprint and timestamp;
+10. verifies `latest.yml` and `server.yml`;
+11. performs installed package upgrade smoke;
+12. generates release evidence and SHA-256 checksums;
+13. creates immutable annotated tag;
+14. publishes GitHub Release;
+15. re-downloads and verifies every published asset.
 
-Arbitrary untagged state must not be published as release.
+The 3.4.0 workflow has no unsigned official-release fallback.
 
-## 6. Stable Windows asset set
+## 8. Stable asset set
 
-- signed Client installer;
-- Client blockmap;
-- valid `latest.yml`;
-- signed Server installer;
+- `Nexora-Client-Setup-3.4.0.exe`;
+- Client `.blockmap`;
+- `latest.yml`;
+- `Nexora-Server-Setup-3.4.0.exe`;
+- Server `.blockmap`;
+- `server.yml`;
 - source ZIP;
 - PWA ZIP;
+- Android evidence APK;
 - SPDX SBOM;
+- Authenticode evidence;
+- release evidence;
 - `SHA256SUMS.txt`.
 
-Missing/unsigned installer metadata makes release non-installable.
+Missing/unsigned/inconsistent asset makes the release non-publishable.
 
-## 7. Packaged Client updater 3.3.0+
+## 9. Updater behavior
 
-- service initializes before renderer IPC;
-- default provider is GitHub Releases for `Onmaynec/Nexora`;
-- custom generic feed accepted only by explicit HTTPS config;
-- initial check after startup;
-- bounded scheduled checks;
-- single-flight manual/automatic requests;
-- checking/progress/current/available/downloaded/error states;
-- fallback terminal result when updater emits no terminal event;
-- no downgrade/prerelease;
-- `verifyUpdateCodeSignature: true` remains;
-- stable non-installable result when signed asset set absent.
+- Client uses `latest` channel;
+- Server uses `server` channel;
+- downgrade and prerelease updates disabled;
+- installer signature and checksum mismatch → `UPDATE_SIGNATURE_INVALID`;
+- metadata version must equal package/installer version;
+- unsigned local builds are not updater eligible.
 
-Unpackaged development mode intentionally does not perform real automatic update checks.
+## 10. Tag policy
 
-## 8. Feed configuration
+Official tag: `v3.4.0`.
 
-Optional internal feed:
+- create only after approved merge commit;
+- annotated/verified, never lightweight replacement;
+- refuse if existing tag points to another commit;
+- never overwrite published release assets;
+- correction requires a new SemVer release.
 
-```json
-{
-  "clientFeedUrl": "https://updates.example.local/nexora/client",
-  "serverFeedUrl": "https://updates.example.local/nexora/server"
-}
-```
+## 11. Manual dispatch
 
-Or:
+Manual workflow dispatch may target only the exact official tag/version supported by the checked-out release workflow. It must not bypass baseline, signing, Windows or independent-review gates.
 
-- `NEXORA_CLIENT_UPDATE_URL`;
-- `NEXORA_SERVER_UPDATE_URL`.
+## 12. Post-publication verification
 
-HTTP is rejected. Private feed does not bypass signature/no-downgrade policy.
+After publication:
 
-## 9. Updater acceptance
-
-1. install previous signed stable Client;
-2. publish complete signed 3.3.2 asset set;
-3. verify initial check;
-4. verify single-flight manual/automatic checks;
-5. verify progress and terminal state;
-6. download/install/restart;
-7. verify Server trust, sessions/settings preserved;
-8. verify post-update summary;
-9. verify exact official release link;
-10. verify per-version dismissal;
-11. test incomplete/unsigned feed and confirm non-installable state;
-12. test network failure and retry without stack disclosure.
-
-## 10. Post-update notes
-
-3.3.2 displays:
-
-- “Подробнее” — exact official tag;
-- “Закрыть”;
-- “Не показывать снова” — stores version/display state only.
-
-Published release text must be stable and safe for rendering.
-
-## 11. Windows test mode
-
-- `--test-mode`;
-- installer “Nexora Client (Test Mode)” shortcut;
-- `NEXORA_CLIENT_TEST_MODE=1`.
-
-PowerShell tails existing local Client log. It must not enable DevTools, Node integration, remote debugging or privileged IPC.
-
-## 12. NSIS acceptance
-
-Client/Server installer verifies:
-
-- official Nexora icon;
-- branded 164×314 sidebar;
-- Russian language;
-- clean install/update/uninstall;
-- valid Authenticode signature/timestamp for stable release;
-- test-mode shortcut only for Client;
-- Server data preservation according to documented uninstall behavior.
-
-## 13. Server update
-
-Before:
-
-1. verified backup;
-2. current version/schema record;
-3. migration/rollback review;
-4. Client compatibility;
-5. free space;
-6. maintenance/drain.
-
-After:
-
-- live/ready;
-- integrity/schema;
-- login/bootstrap;
-- messaging/realtime;
-- Trust/MLS/Welcome recovery;
-- backup/storage.
-
-Schema 8 rollback is restore-based. Never run unsupported old binary against schema 8.
-
-## 14. Release evidence
-
-3.3.2 evidence is recorded in:
-
-- [Release Notes](../RELEASE_NOTES_3.3.3.md);
-- [Security Review](../SECURITY_REVIEW_3.3.0.md);
-- [Release Verification](../RELEASE_VERIFICATION_3.3.3.md);
-- [Release Checklist](RELEASE_CHECKLIST.md).
-
-Source/PWA prerelease remains non-updater-eligible until signed installed-runtime acceptance completes.
+- verify GitHub Release is not draft/prerelease;
+- verify tag target;
+- re-download all assets;
+- verify SHA-256;
+- verify Authenticode and timestamp;
+- inspect Client/Server updater metadata;
+- verify source/PWA/SBOM contents;
+- record release URL, tag SHA, run IDs and digests;
+- update canonical verification/evidence;
+- close/delete release branch after provenance is retained.
