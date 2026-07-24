@@ -46,6 +46,7 @@ export const navigation = meta.navigation.map((group) => {
   return { ...group, items };
 });
 const sourcePages = [...basePages.map(mergeEnhancement), ...roadmapPages];
+export const contentSourcePages = sourcePages;
 const RAW_PAGE = Symbol.for("nexora.advanced.raw-page");
 
 function selectedVersion() {
@@ -73,6 +74,7 @@ export const pageById = new Map(pages.map((page) => [page.id, page]));
 const PAGE_LINES = {
   "trust-mls": ["3.2", "3.3"],
   "api-v4": ["3.2", "3.3"],
+  "pulse-cloud": ["3.3"],
 };
 
 const INCOMPATIBLE_TERMS = {
@@ -91,6 +93,15 @@ export function appliesToVersion(item, version) {
   if (item.since && lineNumber(version) < lineNumber(item.since)) return false;
   if (item.until && lineNumber(version) > lineNumber(item.until)) return false;
   return true;
+}
+
+function withPageDefaults(page) {
+  const source = page?.[RAW_PAGE] || page;
+  return PAGE_LINES[source?.id] ? { ...source, lines: source.lines || PAGE_LINES[source.id] } : source;
+}
+
+export function isPageAvailable(page, version = "3.3") {
+  return appliesToVersion(withPageDefaults(page), version);
 }
 
 function hasIncompatibleLegacyClaim(block, version) {
@@ -128,8 +139,7 @@ function unavailablePage(page, version) {
 
 export function pageForVersion(page, version = "3.3") {
   if (!page) return page;
-  const source = page[RAW_PAGE] || page;
-  const pageWithDefaults = PAGE_LINES[source.id] ? { ...source, lines: source.lines || PAGE_LINES[source.id] } : source;
+  const pageWithDefaults = withPageDefaults(page);
   if (!appliesToVersion(pageWithDefaults, version)) return unavailablePage(pageWithDefaults, version);
   const sections = (pageWithDefaults.sections || [])
     .filter((section) => appliesToVersion(section, version))
@@ -139,6 +149,12 @@ export function pageForVersion(page, version = "3.3") {
     }))
     .filter((section) => section.blocks.length > 0);
   return { ...pageWithDefaults, sections };
+}
+
+export function pagesForVersion(version = "3.3") {
+  return sourcePages
+    .filter((page) => isPageAvailable(page, version))
+    .map((page) => pageForVersion(page, version));
 }
 
 export function localized(value, language) {
@@ -168,22 +184,17 @@ function buildSearchEntry(sourcePage, language, metaValue, version) {
   const page = pageForVersion(sourcePage, version);
   const sections = (page.sections || []).map((section) => localized(section.title, language)).join(" ");
   const body = (page.sections || []).flatMap((section) => section.blocks || []).map((block) => collectBlockText(block, language)).join(" ");
-  return renderTokens([localized(page.title, language), localized(page.description, language), sections, body, ...(page.keywords || [])].join(" "), metaValue).toLocaleLowerCase(language === "ru" ? "ru" : "en");
+  return {
+    id: page.id,
+    title: localized(page.title, language),
+    description: localized(page.description, language),
+    haystack: renderTokens([localized(page.title, language), localized(page.description, language), sections, body, ...(page.keywords || [])].join(" "), metaValue).toLocaleLowerCase(language === "ru" ? "ru" : "en"),
+  };
 }
 
 export function flattenSearch(language, metaValue, version = null) {
-  return sourcePages.map((sourcePage) => {
-    const entry = {
-      id: sourcePage.id,
-      title: localized(sourcePage.title, language),
-      description: localized(sourcePage.description, language),
-    };
-    Object.defineProperty(entry, "haystack", {
-      enumerable: true,
-      get() {
-        return buildSearchEntry(sourcePage, language, metaValue, version || selectedVersion());
-      },
-    });
-    return entry;
-  });
+  const resolvedVersion = version || selectedVersion();
+  return sourcePages
+    .filter((page) => isPageAvailable(page, resolvedVersion))
+    .map((page) => buildSearchEntry(page, language, metaValue, resolvedVersion));
 }
