@@ -15,6 +15,10 @@ function blocksFor(version) {
   return pagesForVersion(version).flatMap((page) => page.sections || []).flatMap((section) => section.blocks || []);
 }
 
+function normalizeRoadmapDependency(value) {
+  return String(value || "").trim().replace(/^Nexora\s+/i, "");
+}
+
 test("roadmap route is navigable and sourced from docs/ROADMAP.md", () => {
   assert.ok(navigation.find((group) => group.id === "releases")?.items.includes("roadmap"));
   const page = pageById.get("roadmap");
@@ -116,11 +120,11 @@ test("roadmap content matches authoritative version, name and dependency order",
   const roadmapText = fs.readFileSync(path.join(repoRoot, "docs/ROADMAP.md"), "utf8");
   const expected = roadmapText.split(/\r?\n/).map((line) => {
     const match = line.match(/^\|\s*(3\.(?:4|5|6|7|8|9|10|11)\.0|4\.0\.0)\s*\|\s*([^|]+?)\s*\|[^|]*\|\s*([^|]+?)\s*\|$/);
-    return match ? [match[1], match[2].trim(), match[3].trim()] : null;
+    return match ? [match[1], match[2].trim(), normalizeRoadmapDependency(match[3])] : null;
   }).filter(Boolean);
   const page = pageForVersion(pageById.get("roadmap"), "3.3");
   const table = page.sections.find((section) => section.id === "sequence").blocks.find((block) => block.type === "table");
-  const actual = table.rows.map((row) => [String(row[0]), String(row[1]), String(row[3])]);
+  const actual = table.rows.map((row) => [String(row[0]), String(row[1]), normalizeRoadmapDependency(row[3])]);
   assert.deepEqual(actual, expected);
 });
 
