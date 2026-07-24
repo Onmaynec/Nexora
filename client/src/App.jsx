@@ -6,8 +6,8 @@ import GlobalVoiceDock from "./components/GlobalVoiceDock";
 import Workspace from "./components/Workspace";
 import { LoadingScreen } from "./components/ui";
 import { getSocket } from "./socket";
-import { flushOutbox } from "./outbox";
-import { cacheBootstrap, readLastBootstrap, syncSequenceKey } from "./offline-store";
+import { flushOutbox, outboxScope } from "./outbox";
+import { cacheBootstrap, readLastBootstrap, readSyncSequence, writeSyncSequence } from "./offline-store";
 
 function playNotificationSound(name) {
   if (!name || name === "none") return;
@@ -46,6 +46,13 @@ function quietHoursActive(preferences, date = new Date()) {
   return from < until ? minutes >= from && minutes < until : minutes >= from || minutes < until;
 }
 
+function notificationBody(message, preferences) {
+  const policy = preferences?.notificationPreviewPolicy || "generic";
+  if (policy === "full" && message.type === "text") return message.text || "Новое сообщение";
+  if (policy === "sender") return message.type === "voice" ? "Голосовое сообщение" : message.type === "image" ? "Изображение" : message.type === "file" ? "Файл" : "Новое сообщение";
+  return "Новое событие в Nexora";
+}
+
 export default function App() {
   const [authState, setAuthState] = useState("loading");
   const [me, setMe] = useState(null);
@@ -55,6 +62,7 @@ export default function App() {
   const [offlineMode, setOfflineMode] = useState(false);
   const [onlineUserIds, setOnlineUserIds] = useState(new Set());
   const [toast, setToast] = useState(null);
+  const [pwaUpdate, setPwaUpdate] = useState("idle");
   const refreshTimer = useRef(null);
   const toastTimer = useRef(null);
   const bootstrapRef = useRef(null);
@@ -84,6 +92,7 @@ export default function App() {
       let changed = false;
       const conversations = (current.conversations || []).map((conversation) => {
         if (conversation.id !== message.conversationId) return conversation;
+        if (conversation.lastMessage?.id === message.id && conversation.lastMessage?.updatedAt === message.updatedAt) return conversation;
         changed = true;
         return { ...conversation, lastMessage: message, updatedAt: message.createdAt || conversation.updatedAt };
       });
@@ -122,6 +131,12 @@ export default function App() {
   }, [clearAuthenticatedState, me?.id, showToast]);
 
   useEffect(() => {
+    const onPwaUpdate = (event) => setPwaUpdate(event.detail?.state || "idle");
+    window.addEventListener("nexora:pwa-update", onPwaUpdate);
+    return () => window.removeEventListener("nexora:pwa-update", onPwaUpdate);
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     async function check() {
       try {
@@ -150,7 +165,7 @@ export default function App() {
       })
       .catch(async () => {
         const cached = await readLastBootstrap().catch(() => null);
-        if (cached?.me) {
+        if (cached?.me && cached?.server?.id) {
           setMe(cached.me);
           setBootstrap(cached);
           bootstrapRef.current = cached;
@@ -193,28 +208,52 @@ export default function App() {
       if (message.silent || mode === "none" || (mode === "mentions" && !direct) || quietHoursActive(preferences)) return;
       const sound = preferences.notificationSound ?? "subtle";
       if ("Notification" in window && Notification.permission === "granted") {
-        const body = message.type === "encrypted" ? "Legacy secure history обновлена" : message.type === "text" ? message.text : message.type === "voice" ? "Голосовое сообщение" : "Новое вложение";
-        new Notification(message.sender?.displayName || "Nexora", { body, tag: `nexora-${message.conversationId}`, silent: true });
+        new Notification("Nexora", { body: notificationBody(message, preferences), tag: `nexora-${message.conversationId}`, silent: true, data: { conversationId: message.conversationId, messageId: message.id } });
         playNotificationSound(sound);
       }
     };
     const onConnect = async () => {
       setServerOnline(true);
       setOfflineMode(false);
-      const outboxResult = await flushOutbox(socket, me.id);
-      if (outboxResult.sent) scheduleRefresh();
-      if (outboxResult.failed) showToast(`${outboxResult.failed} сообщений ожидают повторной отправки`, "error");
       const snapshot = bootstrapRef.current;
-      if (snapshot?.server?.id) {
-        const key = syncSequenceKey(snapshot.server.id, me.id);
-        const after = Number(localStorage.getItem(key) || snapshot.sync?.latestSequence || 0);
+      const serverId = snapshot?.server?.id;
+      if (!serverId) return scheduleRefresh();
+      const scope = outboxScope({ serverId, userId: me.id });
+      try {
+        const session = await api("/api/auth/me");
+        if (!session?.user || session.user.id !== me.id) throw Object.assign(new Error("Сессия изменилась."), { code: "AUTH_REQUIRED", status: 401 });
+
+        const after = await readSyncSequence(serverId, me.id, snapshot.sync?.latestSequence || 0);
         try {
           const delta = await api(`/api/v3/sync?after=${Math.max(0, after)}&limit=500`);
-          localStorage.setItem(key, String(delta.latestSequence || after));
-          if (delta.resyncRequired || delta.events.length) scheduleRefresh();
+          if (delta.resyncRequired || delta.code === "RESYNC_REQUIRED") {
+            await refresh();
+            await writeSyncSequence(serverId, me.id, delta.latestSequence || 0);
+          } else {
+            await writeSyncSequence(serverId, me.id, delta.latestSequence || after);
+            if (delta.events?.length) scheduleRefresh();
+          }
         } catch (error) {
-          console.debug("Delta sync deferred", error);
+          if (error.code === "RESYNC_REQUIRED") {
+            await refresh();
+            await writeSyncSequence(serverId, me.id, Number(error.details?.latestSequence || 0));
+          } else {
+            throw error;
+          }
         }
+
+        const outboxResult = await flushOutbox(socket, scope, {
+          validateAccess: async () => {
+            const current = await api("/api/auth/me");
+            return current?.user?.id === me.id;
+          },
+          onAccessLost: clearAuthenticatedState,
+        });
+        if (outboxResult.sent) scheduleRefresh();
+        if (outboxResult.failed) showToast(`${outboxResult.failed} сообщений ожидают повторной отправки`, "error");
+      } catch (error) {
+        if (error.status === 401 || error.code === "AUTH_REQUIRED") clearAuthenticatedState();
+        else console.debug("Reconnect continuity deferred", error);
       }
       scheduleRefresh();
     };
@@ -242,6 +281,8 @@ export default function App() {
     socket.on("connect_error", onConnectError);
     socket.on("session.revoked", onSessionRevoked);
     socket.on("device.updated", scheduleRefresh);
+    socket.on("device.push_state", scheduleRefresh);
+    socket.on("upload.session_state", scheduleRefresh);
     socket.on("legacy_secure_history.state", scheduleRefresh);
 
     return () => {
@@ -255,6 +296,8 @@ export default function App() {
       socket.off("connect_error", onConnectError);
       socket.off("session.revoked", onSessionRevoked);
       socket.off("device.updated", scheduleRefresh);
+      socket.off("device.push_state", scheduleRefresh);
+      socket.off("upload.session_state", scheduleRefresh);
       socket.off("legacy_secure_history.state", scheduleRefresh);
     };
   }, [applyMessagePreview, authState, bootstrap?.server?.id, clearAuthenticatedState, me?.id, me?.mustChangePassword, refresh, showToast, socket]);
@@ -292,6 +335,13 @@ export default function App() {
         showToast={showToast}
       />
       {offlineMode && <div className="offline-banner" role="status">Офлайн-режим · история доступна из локального кэша, новые сообщения стоят в очереди</div>}
+      {pwaUpdate === "ready" && (
+        <div className="offline-banner" role="status">
+          Обновление Nexora готово.
+          <button type="button" onClick={() => window.dispatchEvent(new Event("nexora:apply-update"))}>Перезапустить</button>
+        </div>
+      )}
+      {pwaUpdate === "error" && <div className="offline-banner" role="status">Не удалось подготовить обновление PWA. Работа продолжена на текущей версии.</div>}
       <GlobalVoiceDock />
       <div className={`toast${toast ? " visible" : ""}${toast?.type === "error" ? " error" : ""}`} role="status">{toast?.message ?? ""}</div>
     </>
