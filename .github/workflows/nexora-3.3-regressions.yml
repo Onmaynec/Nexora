@@ -9,8 +9,8 @@ permissions:
   contents: write
 
 concurrency:
-  group: nexora-3-4-preparation-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: false
+  group: nexora-3-4-preparation-${{ github.sha }}
+  cancel-in-progress: true
 
 jobs:
   prepare-release-evidence:
