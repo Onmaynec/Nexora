@@ -2,16 +2,16 @@
   "schemaVersion": 1,
   "version": "3.4.0",
   "tag": "v3.4.0-rc.1",
-  "checkedAt": "2026-07-24T19:40:24.263Z",
-  "diagnosticWorkflowRun": "30121310882",
-  "snapshot": "2",
+  "checkedAt": "2026-07-24T19:43:33.515Z",
+  "diagnosticWorkflowRun": "30121454680",
+  "snapshot": "3",
   "publicationRuns": [
     {
-      "conclusion": "failure",
-      "databaseId": 30121237550,
-      "headSha": "fe847ade0376e2d20b8497322838b045c221a0e3",
-      "status": "completed",
-      "url": "https://github.com/Onmaynec/Nexora/actions/runs/30121237550",
+      "conclusion": "",
+      "databaseId": 30121386962,
+      "headSha": "a58a0fb29b1a5da89eac404b4b0f800356bacd65",
+      "status": "in_progress",
+      "url": "https://github.com/Onmaynec/Nexora/actions/runs/30121386962",
       "workflowName": "Publish Nexora 3.4.0 RC1"
     }
   ]
