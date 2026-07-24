@@ -52,7 +52,7 @@ jobs:
           $head = (git rev-parse HEAD).Trim()
           if ($head -ne $env:RC_HEAD) { throw "RC head mismatch: $head" }
           git fetch --tags --force
-          $existingTag = (git tag --list $env:RC_TAG).Trim()
+          $existingTag = (@(git tag --list $env:RC_TAG) -join "").Trim()
           if ($existingTag) {
             $existing = (git rev-list -n 1 $env:RC_TAG).Trim()
             if ($existing -ne $head) { throw "Immutable RC tag already points to another commit" }
@@ -168,7 +168,7 @@ jobs:
           $ErrorActionPreference = "Stop"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          $existingTag = (git tag --list $env:RC_TAG).Trim()
+          $existingTag = (@(git tag --list $env:RC_TAG) -join "").Trim()
           if (-not $existingTag) {
             git tag -a $env:RC_TAG -m "Nexora 3.4.0 RC1 unsigned test build" $env:RC_HEAD
             git push origin "refs/tags/$env:RC_TAG"
