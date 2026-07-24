@@ -17,7 +17,6 @@ New work starts from latest verified `main`, если approved stacked-branch pl
 | `release/3.3.4-post-mls` | Verified post-MLS prerequisite for the planned 3.4.0 line | Draft PR #70; primary 3.3.4 candidate; must pass release gates before merge/tag |
 | `release/3.4.0-stable-core` | Stable Core implementation | Draft PR #69; blocked until an approved 3.3.4 baseline exists |
 | `release/3.3.4` | Earlier 3.3.4 implementation attempt | Draft PR #67; overlaps PR #70 and must not be merged independently without explicit reconciliation |
-| `agent/repository-file-organization` | Repository structure, release-document paths and branch index cleanup | Active maintenance branch; documentation/test-infrastructure scope only |
 
 Active branches are not product documentation and do not change the current release until merged into `main` and accepted by the required gates.
 
