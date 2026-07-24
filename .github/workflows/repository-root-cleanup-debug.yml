@@ -1,0 +1,37 @@
+name: Diagnose repository root cleanup
+
+on:
+  push:
+    branches: [chore/repository-root-cleanup]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    if: github.head_ref == 'chore/repository-root-cleanup' || github.ref_name == 'chore/repository-root-cleanup'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chore/repository-root-cleanup
+          fetch-depth: 1
+          show-progress: false
+      - name: Execute embedded materializer with compact diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/repository-root-cleanup.yml').read_text(encoding='utf-8')
+          marker = "          python - <<'PY'\n"
+          start = workflow.index(marker) + len(marker)
+          end = workflow.index("\n          PY", start)
+          lines = workflow[start:end].splitlines()
+          script = "\n".join(line[10:] if line.startswith("          ") else line for line in lines)
+          exec(compile(script, '<repository-root-cleanup>', 'exec'), {'__name__': '__main__'})
+          PY
