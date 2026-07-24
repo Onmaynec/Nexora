@@ -1,51 +1,53 @@
-# Руководство по приёмочному тестированию Nexora
+# Руководство по приёмочному тестированию Nexora 3.4.0
 
 ## 1. Область проверки
 
-- current version: `3.3.3` published `UNSIGNED-TEST` prerelease;
+- version: `3.4.0` Stable Core release candidate;
+- published prerequisite: verified `v3.3.4` требуется до stable release;
 - signed production baseline: `3.1.2`;
 - Windows Client/Server, Browser/PWA и Android;
 - Application API v3;
-- Trust/MLS/encrypted-media API v4;
+- Trust/MLS runtime retired;
+- legacy secure history read-only;
 - SQLite schema 8.
 
-3.3.2 тестируется с disposable accounts и test data. Она не является signed stable Windows release и не заявляется как independently audited E2EE. Критическая acceptance-проверка: установить Windows Server, запустить его и подтвердить отсутствие `MODULE_NOT_FOUND` для `shared/pulse-catalog.cjs` до открытия Server UI.
+Тестирование выполняется на disposable accounts/test data. Release candidate нельзя описывать как signed stable или independently audited до появления соответствующих evidence.
 
 ## 2. Test record
 
 Зафиксируйте:
 
-- Client, Server и Pulse Cloud versions;
-- commit/tag или asset ID;
-- release channel;
+- Client, Server и Pulse versions;
+- exact branch/commit/tag или asset ID;
+- release channel и signed/unsigned state;
 - OS/browser/device model;
 - deployment profile;
 - Server ID и sanitized fingerprint;
 - schema/integrity/readiness;
-- tester/date;
-- signed/unsigned packaging state.
+- tester и UTC date/time;
+- request IDs для failures.
 
 ## 3. Connection и TLS
 
 Проверьте:
 
 - valid HTTPS URL;
-- Server ID и fingerprint confirmation;
-- changed certificate requires approval;
+- Server ID/fingerprint confirmation;
+- changed certificate требует explicit approval;
 - browser/Android reject untrusted certificate;
-- HTTP/mixed content rejected;
+- HTTP и mixed content rejected;
 - SAN mismatch rejected;
-- incompatible Client receives clear error;
-- external Android links open outside app.
+- incompatible Client получает stable error;
+- external Android links открываются вне app.
 
-## 4. Authentication bootstrap regressions
+## 4. Authentication и bootstrap
 
-- login loads `/api/bootstrap` before Trust enrollment;
-- Workspace does not remain on “Собираем ваши чаты”;
-- Trust scope configured before child draft effects;
-- pre-configuration encrypted-draft read returns safe empty state;
-- real Trust/WebCrypto/IndexedDB errors remain visible;
-- logout/session expiry clears authorized state.
+- login загружает `/api/bootstrap` без Trust enrollment;
+- Workspace не зависает на initial loading;
+- logout/session expiry очищает authorized state;
+- exact Origin и CSRF проверяются на mutations;
+- invalid/expired session получает `AUTH_REQUIRED`;
+- request ID отображается для operator support.
 
 ## 5. Core messaging
 
@@ -55,330 +57,126 @@
 - silent/scheduled send;
 - drafts, archive, mute, filters и search;
 - read state и notifications;
-- offline cache, restart, durable outbox и delta sync without duplicates.
+- offline cache, restart, bounded outbox и delta sync без duplicates;
+- stale/corrupt legacy MLS state не мешает открыть ordinary conversation.
 
 UI acceptance:
 
-- no zero badges;
-- menus/docks remain inside viewport;
-- long names/files/99+ counters do not break layout;
+- zero badges не отображаются;
+- menus/docks остаются внутри viewport;
+- long names/files/99+ counters не ломают layout;
 - keyboard и narrow-window behavior usable;
 - loading, error, offline и restricted states visible;
-- reduced-motion honored.
+- reduced-motion honoured.
 
-## 6. Profiles, contacts и sessions
+## 6. Profiles, contacts, devices и sessions
 
-- profile opens from message/header/list/contact/search/member;
-- null relationship state does not crash;
-- profile update;
-- password change;
-- terminate one session;
-- contact removal preserves history;
-- block/unblock restrictions;
+- profile открывается из message/header/list/contact/search/member;
+- null relationship state не crash;
+- profile и password update;
 - local TOTP и one-time recovery code;
+- server-owned device inventory содержит device ID/name/platform/version/created/last-seen/expiry;
+- targeted remote revoke отключает только target sessions;
+- `session.revoked` и `device.updated` приходят realtime;
+- current-device remote revoke возвращает `STATE_CONFLICT`;
+- “revoke all others” сохраняет текущую session;
 - expired session cleanup.
 
 ## 7. Rooms и moderation
 
-Проверьте public/private rooms:
+Для public/private rooms проверьте:
 
 - direct join, request и invitation;
 - owner/moderator/member boundaries;
+- exactly one owner;
 - moderator appointment/removal;
 - atomic ownership transfer;
-- removal, ban/unban;
+- removal, ban/unban и ban list;
 - active ban overrides stale membership;
-- read-only, slow mode, announcement, pre-approval;
+- read-only, slow mode, announcement и pre-approval;
 - file/image/voice restrictions;
 - invite expiry, usage limit, revocation и concurrent last use;
-- custom roles/categories;
 - reports/appeals/restrictions;
 - audit/system messages.
 
-После removal/ban direct REST и realtime access denied.
+После removal/ban direct REST и realtime access должны быть denied.
 
-## 8. Legacy media
+## 8. Files, images и voice
 
 - multiple upload;
 - cancel/retry;
 - resumable interruption/restart;
-- size, SHA-256, actual MIME;
-- fake extension handling;
+- size/quota и chunk/file SHA-256;
+- actual MIME detection и fake extension/header rejection;
+- dangerous/executable file rejection;
 - image/PDF/text preview;
-- voice record/pause/resume/preview/send;
-- waveform/speed/listened state;
-- global voice dock closes and resets audio state.
+- corrupt image handling;
+- voice record/stop/cancel/preview/send;
+- microphone denial и unsupported format;
+- waveform reacts to amplitude;
+- played progress, seek, speed и listened state;
+- global voice dock closes and resets audio state;
+- room media restrictions cannot be bypassed through direct API.
 
-## 9. Trust devices
+## 9. Legacy secure history
 
-### Credential validation
+Проверьте schema 8 legacy conversation:
 
-- valid registration;
-- mismatched BasicCredential user/device rejected;
-- one Ed25519 key reused for identity/MLS signature rejected;
-- duplicate registration idempotent.
+- открывается dedicated read-only viewer;
+- composer, upload, record, edit и delete отсутствуют;
+- locally retained decrypted IndexedDB data читается только read-only;
+- Server export содержит ciphertext/provenance и `serverDecrypted: false`;
+- отсутствующая local plaintext cache объясняется terminal state;
+- legacy HTTP mutations возвращают `410/LEGACY_READ_ONLY`;
+- MLS Socket.IO mutations возвращают terminal `LEGACY_READ_ONLY` ack;
+- никакой write path не создаёт plaintext message/file.
 
-### Capacity
+## 10. Backup, restore и migration
 
-- devices 1–16 accepted according to lifecycle;
-- 17th active device rejected;
-- concurrent final-capacity attempt allows only valid capacity;
-- revocation releases slot;
-- unverified/revoked device cannot use Trust/MLS API.
+- schema 7 → 8 compatibility migration idempotent;
+- source integrity/WAL/free-space/backup checks выполняются до mutation;
+- disk-full failpoint не изменяет live state;
+- future schema блокируется до mutation;
+- backup verify не заменяет live DB/files;
+- invalid backup ID не выходит из allowlisted directory;
+- restore replacement failure откатывает DB и files;
+- temporary staged/decrypted data удаляется после success/error.
 
-### Verification/revocation
+## 11. Updater и release acceptance
 
-- first-device bootstrap;
-- second-device fingerprint comparison;
-- signed approval;
-- separate one-time challenge;
-- target secure socket disconnect;
-- other devices stay connected;
-- local identity/MLS/KeyPackages/cache/drafts wiped;
-- reenrollment creates new lifecycle.
-
-## 10. KeyPackage governance
-
-- up to 25 items/request accepted;
-- 26 rejected;
-- maximum 32 unclaimed/device;
-- maximum 256 unclaimed/user;
-- overflow batch rolls back atomically;
-- expired packages cleaned;
-- claim is one-time and target-scoped;
-- resource limit error stable.
-
-## 11. MLS messaging
-
-- secure conversation between verified devices;
-- KeyPackage claim one-time;
-- Welcome scoped to user/device/conversation;
-- bidirectional send;
-- restart/reconnect;
-- replay rejected;
-- stale/skipped epoch rejected;
-- server serialization contains no plaintext;
-- unrecoverable private-state loss explicit.
-
-## 12. Strict missed-commit recovery
-
-Positive contiguous recovery and failures for:
-
-- wrong conversation/group;
-- missing/skipped epoch;
-- reordered epochs;
-- duplicate commit hash;
-- payload hash mismatch;
-- intermediate public-state mismatch;
-- final public-state mismatch;
-- replayed chain.
-
-Invalid chain must not persist partial local state.
-
-## 13. MLS Welcome recovery 3.3.0+
-
-### Positive
-
-1. Enroll two verified devices.
-2. Keep one active group member with valid state.
-3. Remove local group state on pending device using test data.
-4. Trigger secure text send.
-5. Confirm one bounded `welcome/request`.
-6. Confirm active member receives scoped notification.
-7. Confirm active member creates commit/Welcome.
-8. Confirm pending device claims Welcome and send completes.
-9. Repeat for encrypted file/image и voice.
-
-### Negative
-
-- unauthenticated request rejected;
-- CSRF/Origin mismatch rejected;
-- non-member rejected;
-- active ban rejected even with stale membership;
-- unverified/revoked device rejected;
-- device outside group receives no event;
-- duplicate redundant requests suppressed/bounded;
-- rate limit returns `429 RATE_LIMITED` и `Retry-After`;
-- no active member results in explicit pending/fail-closed state;
-- no plaintext fallback.
-
-## 14. Plaintext downgrade
-
-After MLS activation direct attempts must fail:
-
-- legacy send;
-- forward;
-- edit;
-- server draft;
-- scheduled message;
-- poll;
-- bot message;
-- multipart upload;
-- resumable upload;
-- legacy/mismatched Socket.IO device.
-
-## 15. Secure files/images/voice
-
-- Client AES-256-GCM encryption;
-- progress/cancel;
-- pending not downloadable before claim;
-- atomic MLS claim;
-- local decrypt/integrity;
-- image preview/voice playback;
-- matching retry idempotent;
-- hash/size/scope substitution rejected;
-- reuse rejected;
-- cancel/expiry cleanup;
-- outbox/cache contains opaque IDs/ciphertext only;
-- disabled room class blocks complete path.
-
-Test raw ciphertext byte limit and quota by actual stored ciphertext size.
-
-## 16. Route rate limiting
-
-For Trust directory, enrollment, KeyPackage, recovery и E2EE upload:
-
-- requests inside window succeed;
-- excess returns `429`;
-- code is `RATE_LIMITED`;
-- `Retry-After` present;
-- request works after window;
-- state remains bounded;
-- one actor does not incorrectly consume unrelated scope;
-- stale persisted bucket cleaned.
-
-## 17. Trust audit и maintenance
-
-- action-specific allowed primitive metadata retained;
-- arbitrary nested object rejected/removed;
-- secret-like nested fields not persisted;
-- expired sessions removed;
-- login history older than 90 days removed;
-- recent history remains;
-- stale rate-limit buckets removed;
-- active state remains valid.
-
-## 18. Windows updater 3.3.0+
-
-Use installed packaged Client.
-
-### Service
-
-- initializes before renderer IPC;
-- default provider points to official GitHub Releases;
-- explicit custom feed requires HTTPS;
-- HTTP feed rejected;
-- initial check occurs;
-- scheduled checks occur;
-- concurrent checks single-flight;
-- downgrade/prerelease disabled;
-- signature verification enabled;
-- missing signed assets return stable non-installable state.
-
-### UI
-
-- “Проверить обновления” shows checking;
-- duplicate button action prevented;
-- progress visible;
-- current/available/downloaded/error terminal states visible;
-- network error actionable and retryable;
-- missing updater metadata understandable;
-- no stack/internal path shown.
-
-### Installed update
-
-- previous signed Client → signed 3.3.2;
-- download/install/restart;
-- trusted server/session/settings preserved;
-- post-update summary appears once;
-- “Подробнее” opens exact official tag;
-- “Закрыть” closes;
-- “Не показывать снова” suppresses same version only.
-
-## 19. Server console 3.3.0+
-
-- known commands execute via registry;
-- unknown command rejected;
-- no shell/eval/filesystem escape;
-- stable `{ code, message }` crosses IPC;
-- `plus grant netrox 1` works;
-- copied `plus grant <netrox> [1]` normalizes safely;
-- equivalent Pulse/Impulse lookups normalize;
-- malicious placeholder text is data, never evaluated;
-- mutation audit exists without argument values.
-
-## 20. Windows test mode и installer
-
-- normal shortcut starts no console;
-- “Nexora Client (Test Mode)” starts Client plus PowerShell log tail;
-- `--test-mode` works;
-- `NEXORA_CLIENT_TEST_MODE=1` works;
-- console closes with Client;
-- no DevTools/Node integration/remote debugging;
-- log lines flattened/length-limited;
-- Client/Server installer uses official icon, branded sidebar и Russian language;
-- clean install/uninstall/upgrade accepted.
-
-## 21. Pulse
-
-- Cloud registration/email/MFA;
-- OAuth PKCE S256/exact redirect;
-- signed one-time Local Account link;
-- sandbox grants and non-negative balance;
-- production disables sandbox authority;
-- checkout/webhook/receipt/cancel;
-- duplicate event/idempotency no-op;
-- outage does not block messaging.
-
-## 22. Operations
-
-- live/ready;
-- readiness `503` during drain;
-- metrics token/loopback policy;
-- request IDs/no secrets in logs;
-- allowlisted commands;
-- emergency read-only;
-- graceful shutdown no SQLite error/dialog;
-- concurrent stop/quit serialized;
-- backup/restore/integrity;
-- startup/hourly maintenance.
-
-## 23. Upgrade и compatibility
-
-### 3.1.x → 3.3.2
-
-- verified schema 7 backup;
-- migration integrity/free-space/WAL/backup;
-- schema 8 result;
-- old data readable but not retroactively encrypted;
-- downgrade blocked;
-- restore rollback tested.
-
-### 3.2.0–3.3.1 → 3.3.2
-
-- no schema migration;
-- schema remains 8;
-- API v3/v4 compatible;
-- existing rooms/Trust devices/media/Plus state retained;
-- updater, console и Welcome patch works.
-
-## 24. Automated gates
+Automated:
 
 ```bash
 npm ci
-npm run check
-npm run test:unit
-npm run test:performance
-npm run audit:security
 npm run release:check
 npm run test:soak
 gradle -p android :app:assembleDebug --no-daemon
 ```
 
-Authoritative evidence: [Release Verification 3.3.2](RELEASE_VERIFICATION_3.3.3.md).
+Signed stable acceptance для `3.4.0`:
 
-## 25. Defect report
+- published verified `v3.3.4` существует;
+- complete Authenticode policy configured;
+- Client channel `latest`, Server channel `server`;
+- downgrade/prerelease consumption rejected;
+- tampered signature/checksum → `UPDATE_SIGNATURE_INVALID`;
+- Client/Server installers, blockmaps и metadata signed/complete;
+- clean install/repair/uninstall на Windows 10 и Windows 11;
+- installed `3.3.4 → 3.4.0` upgrade на обеих ОС;
+- product version после upgrade равна `3.4.0`;
+- published assets повторно скачаны и checksums/signatures verified.
 
-Include version/channel/commit, platform, deployment, reproduction, expected/actual, HTTP/stable code, `Retry-After`, request ID, Trust/group/epoch/update state и sanitized diagnostics.
+## 12. Security acceptance
 
-Never publish passwords, cookies, tokens, recovery codes, invite codes, private keys, complete MLS state, user data или backup passphrase.
+- IDOR и role bypass через direct API rejected;
+- active ban/session revoke fail closed;
+- upload fake MIME и hash mismatch rejected;
+- rate limiting возвращает `429`, `RATE_LIMITED`, `Retry-After`;
+- public error envelope не раскрывает stack/SQL/tokens;
+- logs recursively redact credentials;
+- independent review указывает exact reviewed ancestor commit;
+- unresolved high/critical findings равны zero до stable release.
+
+## 13. Release decision
+
+PR можно переводить в ready только после green CI на exact head. Merge/tag/release `v3.4.0` запрещены, пока не закрыты verified `v3.3.4`, signing, Windows 10/11 acceptance и independent review evidence.
