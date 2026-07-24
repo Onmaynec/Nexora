@@ -50,6 +50,40 @@ function routeGroup(routePath, source) {
   return "application-v3";
 }
 
+function compareVersionsDescending(left, right) {
+  const leftParts = left.split(".").map(Number);
+  const rightParts = right.split(".").map(Number);
+  for (let index = 0; index < 3; index += 1) {
+    if (leftParts[index] !== rightParts[index]) return rightParts[index] - leftParts[index];
+  }
+  return 0;
+}
+
+function collectReleaseNotes() {
+  const byVersion = new Map();
+  const versionedRoot = path.join(repoRoot, "docs", "releases");
+
+  if (fs.existsSync(versionedRoot)) {
+    for (const entry of fs.readdirSync(versionedRoot, { withFileTypes: true })) {
+      if (!entry.isDirectory() || !/^\d+\.\d+\.\d+$/.test(entry.name)) continue;
+      const file = path.join(versionedRoot, entry.name, "RELEASE_NOTES.md");
+      if (fs.existsSync(file)) byVersion.set(entry.name, file);
+    }
+  }
+
+  if (fs.existsSync(repoRoot)) {
+    for (const name of fs.readdirSync(repoRoot)) {
+      const match = /^RELEASE_NOTES_(\d+\.\d+\.\d+)\.md$/.exec(name);
+      if (!match || byVersion.has(match[1])) continue;
+      byVersion.set(match[1], path.join(repoRoot, name));
+    }
+  }
+
+  return [...byVersion.entries()]
+    .map(([version, file]) => ({ version, file }))
+    .sort((left, right) => compareVersionsDescending(left.version, right.version));
+}
+
 const sourceRoots = ["server", "cloud"].map((dir) => path.join(repoRoot, dir));
 const routeFiles = sourceRoots.flatMap((root) => walk(root, new Set([".cjs", ".mjs", ".js"]))).filter((file) => !file.includes(`${path.sep}test${path.sep}`));
 const routes = [];
@@ -110,12 +144,9 @@ const finalReference = hasRepositorySources ? {
 };
 fs.writeFileSync(referencePath, `${JSON.stringify(finalReference, null, 2)}\n`);
 
-const releaseFiles = fs.existsSync(repoRoot)
-  ? fs.readdirSync(repoRoot).filter((name) => /^RELEASE_NOTES_\d+\.\d+\.\d+\.md$/.test(name)).sort().reverse()
-  : [];
-const fallbackReleases = releaseFiles.map((name) => {
-  const version = name.match(/(\d+\.\d+\.\d+)/)?.[1] || "unknown";
-  const body = fs.readFileSync(path.join(repoRoot, name), "utf8").trim().slice(0, 12000);
+const releaseFiles = collectReleaseNotes();
+const fallbackReleases = releaseFiles.map(({ version, file }) => {
+  const body = fs.readFileSync(file, "utf8").trim().slice(0, 12000);
   return {
     tag_name: `v${version}`,
     name: `Nexora ${version}`,

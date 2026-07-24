@@ -19,6 +19,7 @@ const fixtureFiles = [
   "docs/README.md",
   "docs/ARCHITECTURE.md",
   "docs/SECURITY_MODEL.md",
+  "docs/releases/README.md",
   "SECURITY.md",
   "SECURITY_AUDIT.md",
   "SUPPORT.md",
@@ -38,14 +39,17 @@ const fixtureFiles = [
   "website/app.js",
   "website/site-fixes.js",
   "CHANGELOG.md",
-  "RELEASE_HISTORY.md",
   "release-evidence/current.json",
 ];
 
 function copyFixture() {
   const target = fs.mkdtempSync(path.join(os.tmpdir(), "nexora-release-consistency-"));
   const version = require("../package.json").version;
-  for (const relativePath of [...fixtureFiles, `RELEASE_NOTES_${version}.md`, `RELEASE_VERIFICATION_${version}.md`]) {
+  const releaseFiles = [
+    `docs/releases/${version}/RELEASE_NOTES.md`,
+    `docs/releases/${version}/RELEASE_VERIFICATION.md`,
+  ];
+  for (const relativePath of [...fixtureFiles, ...releaseFiles]) {
     const source = path.join(root, relativePath);
     const destination = path.join(target, relativePath);
     fs.mkdirSync(path.dirname(destination), { recursive: true });
@@ -66,7 +70,7 @@ function withFixture(callback) {
 test("release metadata and every current documentation surface use one version", () => {
   const result = checkReleaseConsistency(root);
   assert.equal(result.version, require("../package.json").version);
-  assert.equal(result.currentDocumentCount, 24);
+  assert.equal(result.currentDocumentCount, 25);
 });
 
 test("release consistency gate rejects Android metadata drift", () => {
@@ -93,7 +97,7 @@ test("release consistency gate rejects a stale current Security Policy version",
 test("release consistency gate rejects obsolete current verification links", () => {
   withFixture((fixture) => {
     const support = path.join(fixture, "SUPPORT.md");
-    fs.appendFileSync(support, "\n[obsolete](RELEASE_VERIFICATION_3.2.4.md)\n", "utf8");
+    fs.appendFileSync(support, "\n[obsolete](docs/releases/3.2.4/RELEASE_VERIFICATION.md)\n", "utf8");
     assert.throws(() => checkReleaseConsistency(fixture), /obsolete current verification document/);
   });
 });

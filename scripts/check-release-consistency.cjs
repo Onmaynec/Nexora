@@ -92,7 +92,11 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
   if (currentEvidence.version !== version) fail(`release-evidence/current.json version ${currentEvidence.version} != ${version}`);
   if (currentEvidence.tag !== `v${version}`) fail(`release-evidence/current.json tag ${currentEvidence.tag} != v${version}`);
 
-  for (const relativePath of [`RELEASE_NOTES_${version}.md`, `RELEASE_VERIFICATION_${version}.md`]) {
+  const releaseDirectory = `docs/releases/${version}`;
+  for (const relativePath of [
+    `${releaseDirectory}/RELEASE_NOTES.md`,
+    `${releaseDirectory}/RELEASE_VERIFICATION.md`,
+  ]) {
     const source = read(root, relativePath);
     if (!source.includes(version)) fail(`${relativePath} does not identify ${version}`);
   }
@@ -105,9 +109,11 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
     `does not contain ${version}`,
   );
 
-  const history = read(root, "RELEASE_HISTORY.md");
-  if (!history.includes("CHANGELOG.md")) fail("RELEASE_HISTORY.md does not delegate to CHANGELOG.md");
-  if (/^## \[?\d+\.\d+\.\d+/m.test(history)) fail("RELEASE_HISTORY.md duplicates the canonical version timeline");
+  const releaseIndex = read(root, "docs/releases/README.md");
+  if (!releaseIndex.includes("CHANGELOG.md")) fail("docs/releases/README.md does not delegate to CHANGELOG.md");
+  if (/^## \[?\d+\.\d+\.\d+/m.test(releaseIndex)) {
+    fail("docs/releases/README.md duplicates the canonical version timeline");
+  }
 
   const currentDocuments = [
     "README.md",
@@ -115,6 +121,7 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
     "docs/README.md",
     "docs/ARCHITECTURE.md",
     "docs/SECURITY_MODEL.md",
+    "docs/releases/README.md",
     "android/README.md",
     "SECURITY.md",
     "SECURITY_AUDIT.md",
@@ -136,11 +143,16 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
     "website/site-fixes.js",
   ];
 
-  const obsoleteCurrentVerification = "RELEASE_VERIFICATION_3.2.4.md";
+  const obsoleteCurrentVerificationPaths = [
+    "RELEASE_VERIFICATION_3.2.4.md",
+    "docs/releases/3.2.4/RELEASE_VERIFICATION.md",
+  ];
   for (const relativePath of currentDocuments) {
     const source = read(root, relativePath);
-    if (source.includes(obsoleteCurrentVerification)) {
-      fail(`${relativePath} still links the obsolete current verification document 3.2.4`);
+    for (const obsoletePath of obsoleteCurrentVerificationPaths) {
+      if (source.includes(obsoletePath)) {
+        fail(`${relativePath} still links the obsolete current verification document 3.2.4`);
+      }
     }
   }
 
