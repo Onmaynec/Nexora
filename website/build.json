@@ -1,5 +1,5 @@
 {
-  "siteBuild": "restored-3.2.5-ux-20260723-1",
-  "sourceCommit": "v3.2.5 + targeted localization and layout fixes",
-  "purpose": "Restore the 3.2.5 presentation UX while retaining the 3.3.0 release data"
+  "siteBuild": "main-site-ux-polish-20260724-1",
+  "sourceCommit": "Nexora 3.3.3 main + composable UX/motion polish layer",
+  "purpose": "Improve the existing public main page without changing /advanced/ or the product information architecture"
 }
