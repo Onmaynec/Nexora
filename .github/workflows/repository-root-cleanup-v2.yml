@@ -1,0 +1,56 @@
+name: Repository root cleanup v2
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [chore/repository-root-cleanup]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repository-root-cleanup-v2
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    if: github.head_ref == 'chore/repository-root-cleanup' || github.ref_name == 'chore/repository-root-cleanup'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chore/repository-root-cleanup
+          fetch-depth: 1
+          show-progress: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - name: Materialize complete repository cleanup
+        run: python scripts/repository-root-cleanup.py
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Verify reorganized repository
+        run: |
+          npm run release:check
+          node advanced-website/scripts/generate-reference.mjs
+          node advanced-website/scripts/validate-content.mjs
+          node --test advanced-website/test/*.test.mjs
+      - name: Commit and push cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f \
+            .github/workflows/repository-root-cleanup.yml \
+            .github/workflows/repository-root-cleanup-debug.yml \
+            .github/workflows/patch-root-cleanup-materializer.yml \
+            .github/workflows/repository-root-cleanup-v2.yml \
+            scripts/repository-root-cleanup.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --stat
+          git commit -m "chore(repo): move all release documents out of root"
+          git push origin HEAD:chore/repository-root-cleanup
