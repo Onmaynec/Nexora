@@ -1,0 +1,140 @@
+name: Verify Nexora 3.3.4 publication
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/verify-release-3.3.4.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Wait for GitHub Release and inspect metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p published release-evidence
+          for attempt in $(seq 1 40); do
+            if gh release view v3.3.4 --repo "$GITHUB_REPOSITORY" --json tagName,isDraft,isPrerelease,url,assets > release.json 2>/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 40 ]; then
+              echo "Published v3.3.4 GitHub Release did not appear." >&2
+              exit 1
+            fi
+            sleep 15
+          done
+          node <<'NODE'
+          const fs = require('node:fs');
+          const release = JSON.parse(fs.readFileSync('release.json', 'utf8'));
+          if (release.tagName !== 'v3.3.4') throw new Error('Release tag mismatch');
+          if (release.isDraft) throw new Error('v3.3.4 is still a draft');
+          const names = (release.assets || []).map((asset) => asset.name).sort();
+          const required = [
+            'Nexora-3.3.4-source.zip',
+            'Nexora-PWA-3.3.4.zip',
+            'Nexora-3.3.4.spdx.json',
+            'Nexora-Android-3.3.4-UNSIGNED-TEST.apk',
+            'RELEASE-EVIDENCE.json',
+            'SHA256SUMS.txt',
+          ];
+          for (const name of required) {
+            if (!names.includes(name)) throw new Error(`Missing release asset: ${name}`);
+          }
+          if (!names.some((name) => /^Nexora-Client-Setup-3\.3\.4(?:-UNSIGNED-TEST)?\.exe$/.test(name))) {
+            throw new Error('Missing v3.3.4 Client installer');
+          }
+          if (!names.some((name) => /^Nexora-Server-Setup-3\.3\.4(?:-UNSIGNED-TEST)?\.exe$/.test(name))) {
+            throw new Error('Missing v3.3.4 Server installer');
+          }
+          const unsigned = names.some((name) => name.includes('UNSIGNED-TEST'));
+          if (unsigned && !release.isPrerelease) throw new Error('Unsigned v3.3.4 must be a prerelease');
+          if (unsigned && names.some((name) => name === 'latest.yml' || name === 'server.yml' || name.endsWith('.blockmap'))) {
+            throw new Error('Unsigned v3.3.4 exposes updater metadata');
+          }
+          fs.writeFileSync('release-metadata.json', JSON.stringify({ release, names, unsigned }, null, 2));
+          NODE
+
+      - name: Download and verify immutable assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release download v3.3.4 --repo "$GITHUB_REPOSITORY" --dir published
+          test -s published/SHA256SUMS.txt
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            expected="${line%%  *}"
+            name="${line#*  }"
+            test -f "published/$name"
+            actual="$(sha256sum "published/$name" | awk '{print $1}')"
+            [ "$actual" = "$expected" ] || { echo "Checksum mismatch: $name" >&2; exit 1; }
+          done < published/SHA256SUMS.txt
+
+      - name: Write publication evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const metadata = JSON.parse(fs.readFileSync('release-metadata.json', 'utf8'));
+          const names = metadata.names;
+          const digests = {};
+          for (const name of names) {
+            const file = `published/${name}`;
+            if (!fs.existsSync(file)) throw new Error(`Downloaded asset missing: ${name}`);
+            digests[name] = crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+          }
+          const evidence = {
+            schemaVersion: 1,
+            version: '3.3.4',
+            tag: 'v3.3.4',
+            releaseUrl: metadata.release.url,
+            draft: metadata.release.isDraft,
+            prerelease: metadata.release.isPrerelease,
+            signed: !metadata.unsigned,
+            distribution: metadata.unsigned ? 'unsigned-test' : 'signed',
+            checksumVerification: 'passed',
+            updaterMetadataPublished: names.some((name) => name === 'latest.yml' || name === 'server.yml' || name.endsWith('.blockmap')),
+            assets: names,
+            sha256: digests,
+            verifiedByWorkflowRun: process.env.GITHUB_RUN_ID,
+            verifiedAt: new Date().toISOString(),
+          };
+          fs.writeFileSync('release-evidence/v3.3.4-publication.json', `${JSON.stringify(evidence, null, 2)}\n`);
+          NODE
+
+      - name: Commit verified public evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add release-evidence/v3.3.4-publication.json
+          git diff --cached --check
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "docs(release): record verified v3.3.4 publication"
+          git push origin HEAD:main
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nexora-3.3.4-publication-evidence
+          path: |
+            release-evidence/v3.3.4-publication.json
+            release.json
+            published/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
