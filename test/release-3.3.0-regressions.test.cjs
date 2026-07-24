@@ -63,13 +63,15 @@ test("Pulse Sandbox serves catalog, receipts and room goals without Cloud fallba
   assert.match(sandbox, /WALLET_INSUFFICIENT_FUNDS/);
 });
 
-test("official 3.4.0 release has no unsigned fallback or updater bypass", () => {
+test("official 3.5.0 release has no unsigned Windows fallback or updater bypass", () => {
   const workflow = read(".github/workflows/release.yml");
   const legacySite = read("website/app.js");
   const siteFixes = read("website/site-fixes.js");
   const composedSite = `${legacySite}\n${siteFixes}`;
 
-  assert.match(workflow, /name: Nexora 3\.4\.0 stable release/);
+  assert.match(workflow, /name: Nexora 3\.5\.0 stable release/);
+  assert.match(workflow, /Verify required 3\.4\.0 baseline/);
+  assert.match(workflow, /Verify Android and PWA acceptance evidence/);
   assert.match(workflow, /Require complete Authenticode policy/);
   assert.match(workflow, /Build and verify signed Windows assets/);
   assert.match(workflow, /latest\.yml/);
