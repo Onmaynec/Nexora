@@ -146,4 +146,4 @@ No plaintext fallback is permitted.
 
 Nexora 3.3.0+ does not claim traffic-analysis resistance or independent certification. Existing 3.1.x data is not retroactively encrypted. 3.1.x Client cannot participate in an active secure 3.3.x conversation.
 
-See [Documentation Portal](../docs/README.md), [Security Model](../docs/SECURITY_MODEL.md), [Security Policy](../SECURITY.md) and [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.3.md).
+See [Documentation Portal](../docs/README.md), [Security Model](../docs/SECURITY_MODEL.md), [Security Policy](../SECURITY.md) and [Release Verification 3.3.2](../../docs/releases/3.3.3/RELEASE_VERIFICATION.md).

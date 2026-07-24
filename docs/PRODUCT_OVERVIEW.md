@@ -207,4 +207,4 @@ Nexora 3.3.2 не заявляет:
 7. independent cryptographic/application-security review;
 8. отсутствие unresolved high/critical findings.
 
-Текущий release evidence: [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.3.md).
+Текущий release evidence: [Release Verification 3.3.2](../releases/3.3.3/RELEASE_VERIFICATION.md).

@@ -12,8 +12,8 @@ Nexora 3.3.2 приводит version metadata, весь current documentation s
 - актуализированы Repository README, Documentation Portal, Project Index, Architecture, Security Model и Android README;
 - синхронизированы Security Policy/Audit, Support, Contributing, Admin/Tester guides, Product Overview, Deployment, Operations, Release Policy/Checklist, Branch Index, issue template и публичный сайт;
 - current feature baselines, ранее ошибочно обозначенные как текущая версия 3.2.4, нормализованы как линия `3.3.0+`;
-- устранены current-ссылки на устаревший `RELEASE_VERIFICATION_3.2.4.md`, при этом исторические release-specific документы сохранены;
-- `CHANGELOG.md` закреплён как единственный канонический источник хронологии выпусков, `RELEASE_HISTORY.md` оставлен указателем;
+- устранены current-ссылки на устаревший `../3.2.4/RELEASE_VERIFICATION.md`, при этом исторические release-specific документы сохранены;
+- `CHANGELOG.md` закреплён как единственный канонический источник хронологии выпусков, `../README.md` оставлен указателем;
 - CI gate запрещает несовпадение версии между package, lockfile, Android, 24 current documentation surfaces, website fallbacks и release evidence;
 - release evidence pipeline загружает опубликованные Client, Server, Android и PWA assets, проверяет SHA-256, PE/ZIP integrity и обязательное содержимое;
 - PR #30/#31, obsolete PR #6/#7 и экспериментальный Rust/OpenMLS PR #11 закрыты с сохранением provenance.

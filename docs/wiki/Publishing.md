@@ -47,4 +47,4 @@ After publication:
 2. Check repository-relative links and Mermaid diagrams.
 3. Confirm the current version and distribution classification.
 4. Verify that no development branch is described as released.
-5. Compare the roadmap table with `ROADMAP.md` and `PROJECTS.md`.
+5. Compare the roadmap table with `../ROADMAP.md` and `PROJECTS.md`.

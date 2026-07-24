@@ -62,7 +62,7 @@ A later release must not begin before the previous release is actually published
 
 ## Authoritative sources
 
-- [`ROADMAP.md`](../../ROADMAP.md)
+- [`../ROADMAP.md`](../../../ROADMAP.md)
 - [`PROJECTS.md`](../../PROJECTS.md)
 - [`CHANGELOG.md`](../../CHANGELOG.md)
 - [`docs/releases/`](../releases/)

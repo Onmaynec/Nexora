@@ -10,7 +10,7 @@ on:
       - "cloud/**"
       - "package.json"
       - "package-lock.json"
-      - "RELEASE_NOTES_*.md"
+      - "docs/releases/**"
       - ".github/workflows/pages.yml"
   pull_request:
     paths:
@@ -20,9 +20,8 @@ on:
       - "cloud/**"
       - "package.json"
       - "package-lock.json"
-      - "RELEASE_NOTES_*.md"
+      - "docs/releases/**"
       - ".github/workflows/pages.yml"
-      - "docs/ADVANCED_DOCUMENTATION.md"
   workflow_dispatch:
 
 permissions:
