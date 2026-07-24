@@ -1,110 +1,91 @@
-# Индекс веток Nexora
+# Индекс веток Nexora 3.4.0
 
-Документ фиксирует назначение и lifecycle всех известных сохраняемых веток. Git refs, Pull Request states, tags и branch protection в GitHub остаются authority для repository operations.
+Документ фиксирует назначение и lifecycle сохраняемых веток. Git refs, Pull Request states, tags и branch protection в GitHub остаются authority для repository operations.
 
 ## 1. Authoritative branch
 
 | Branch | Product state | Documentation policy |
 |---|---|---|
-| `main` | Nexora `3.3.3` published `UNSIGNED-TEST` prerelease; signed production baseline `3.1.2` | Единственный current source of truth |
+| `main` | Nexora `3.3.4` post-MLS source baseline; official publication evidence проверяется отдельно | Единственный merged current source of truth |
 
-New work starts from latest verified `main`, если approved stacked-branch plan явно не требует другого.
+New work starts from latest verified `main`, если approved release plan явно не требует отдельной release branch.
 
-## 2. Active development / open provenance
-
-| Branch | Purpose | Status |
-|---|---|---|
-| `agent/nexora-3.2.5-ui-console-performance` | Planned 3.2.5 UX, Pulse persistence, MLS Welcome and Windows-build corrections | Active draft PR #25; not release-approved |
-| `agent/nexora-3.2.0-trust-core` | Early Rust/OpenMLS Trust Core foundation | Closed PR #11; superseded by current `ts-mls` implementation; release prohibited |
-
-The 3.2.5 branch is historical development, not current product documentation. The early Rust/OpenMLS branch remains only as historical provenance and must not merge, tag or publish without a new RFC, rebase and security review.
-
-## 3. Merged release branches
+## 2. Active release candidate
 
 | Branch | Purpose | Status |
 |---|---|---|
-| `agent/nexora-3.1.0-pulse-cloud-foundation` | Pulse Cloud billing/ledger foundation | Merged/superseded by 3.1.0 |
-| `agent/nexora-3.1.0-local-pulse-integration` | Schema 7 and signed Local/Cloud integration | Merged through PR #3 |
-| `agent/nexora-3.1.0-productization` | Cloud Identity and Pulse Center development | Superseded by final 3.1.0 branch |
-| `agent/nexora-3.1.0-final` | Final 3.1.0 materialization | Merged through PR #5 |
-| `agent/nexora-3.1.1-production-hardening` | Health, metrics, redaction, drain, commands | Merged through PR #8 |
-| `agent/nexora-3.1.2-bugfix` | Intermediate 3.1.2 corrections | Superseded by final branch |
-| `agent/nexora-3.1.2-final` | Verified 3.1.2 patch | Merged through PR #10 |
-| `agent/nexora-3.2.0-trust-core-mls` | Trust Core, MLS and encrypted media | Merged through PR #12 |
-| `agent/nexora-3.2.1-login-shutdown-fix` | Login bootstrap and Server shutdown | Merged through PR #16 |
-| `agent/nexora-3.2.1-performance-gate-stabilization` | Warmed Windows performance boundary | Merged through PR #18 |
-| `agent/nexora-3.2.2-trust-bootstrap-race` | Trust configuration lifecycle race | Merged through PR #19 |
-| `agent/nexora-3.2.3-security-hardening` | Trust limits, rate controls, strict recovery, cleanup | Merged through PR #20 |
-| `agent/nexora-3.2.4-updater-mls-recovery` | Updater, Server console, Welcome recovery, Windows UX | Merged through PR #21 |
+| `release/3.4.0-stable-core-v2` | Nexora `3.4.0` Stable Core release candidate | Draft PR #96; merge/tag/release blocked by external evidence |
 
-## 4. Merged website branches
+Эта ветка создана от merge-коммита post-MLS baseline `6202bbdf8ff636711d9874452958df5dd40d9656`. Она не наследует mixed-scope history старого PR #69.
 
-| Branch | Purpose | Status |
+## 3. Superseded release work
+
+| Branch / PR | Purpose | Status |
 |---|---|---|
-| `agent/project-showcase-site` | Static product website and GitHub Pages workflow | Merged through PR #22 |
-| `agent/fix-showcase-logo-pages` | Official logo and Pages workflow correction | Merged through PR #24 |
+| `release/3.4.0-stable-core` / PR #69 | ранняя смешанная реализация 3.4.0 до отдельного prerequisite baseline | PR closed; не использовать для merge/tag/release |
+| `release/3.3.4-post-mls` / PR #70 | post-MLS prerequisite source baseline | merged into `main` as `6202bbdf8ff636711d9874452958df5dd40d9656` |
 
-## 5. Merged documentation branches
+## 4. Historical merged release branches
 
-| Branch | Purpose | Status |
-|---|---|---|
-| `docs/community-standards` | Community Standards and repository documentation | Merged through PR #2 |
-| `docs/sync-3.1.2` | Stable 3.1.2 documentation synchronization | Merged through PR #13 |
-| `docs/branch-status-index` | Initial central branch index | Merged through PR #14 |
-| `docs/official-product-documentation-3.2.0` | Product documentation foundation | Merged through PR #17 |
-| `docs/official-product-documentation-3.2.3` | Security/operations documentation for 3.2.3 | Merged through PR #23 |
-| `docs/reconcile-all-branches-3.2.4` | Historical 3.2.4 documentation and branch reconciliation | Merged through PR #27 |
-| `agent/release-3.3.2-consistency` | Release metadata, documentation and evidence consistency | Merged through PR #42 |
+Исторические ветки 3.1.x–3.3.x сохраняются только как provenance. Они не являются current documentation и не должны обновляться так, чтобы имитировать `main` или `3.4.0`.
 
-## 6. Closed synchronization helper
+Примеры завершённых линий:
 
-| Branch | Purpose | Status |
-|---|---|---|
-| `agent/nexora-3.2.0-main-sync` | Temporary main synchronization | Closed PR #15; no release role |
+- `agent/nexora-3.1.0-final`;
+- `agent/nexora-3.1.1-production-hardening`;
+- `agent/nexora-3.1.2-final`;
+- `agent/nexora-3.2.0-trust-core-mls`;
+- `agent/nexora-3.2.1-login-shutdown-fix`;
+- `agent/nexora-3.2.3-security-hardening`;
+- `agent/nexora-3.2.4-updater-mls-recovery`;
+- historical website/documentation branches merged through their PRs.
 
-## 7. Obsolete automation branches
+Trust/MLS branches описывают историческую реализацию. Executable Trust/MLS runtime в current Stable Core retired; их наличие в historical branch не означает current support.
 
-| Branch | Historical purpose | Required handling |
-|---|---|---|
-| `automation/nexora-3.1.0-tag` | Historical tag automation attempt | Closed obsolete PR #6; do not merge/tag/publish |
-| `automation/nexora-3.1.0-finalize` | Historical finalization attempt | Closed obsolete PR #7; do not merge/tag/publish |
+## 5. Website и documentation branches
 
-These branches should be closed/deleted after required provenance is preserved. Their branch-local documentation identifies them as obsolete.
+Merged website/documentation branches сохраняют provenance. Current website/documentation source берётся только из `main` и активного PR #96.
 
-## 8. Branch documentation state
+Documentation-only PR:
 
-Every branch listed above is required to contain `BRANCH_STATUS.md` with:
+- не меняет product version;
+- не создаёт release/tag;
+- не изменяет runtime/dependencies/migrations без отдельного scope;
+- проходит existing CI и website validation.
+
+## 6. Obsolete automation branches
+
+Automation/helper branches без активного PR или release role должны быть закрыты/удалены после сохранения необходимого provenance. Их нельзя использовать для tag, release или updater metadata.
+
+## 7. Branch documentation requirements
+
+Каждая retained non-main branch должна иметь `BRANCH_STATUS.md` с:
 
 - exact branch name;
 - classification;
-- branch-local scope/version;
+- branch-local version/scope;
 - relationship to PR/release;
 - current source-of-truth pointer;
-- release prohibition where applicable;
-- documentation preservation rule.
+- merge/tag/release prohibition, если применимо;
+- deletion/closure rule.
 
-Current product documents are not copied into historical branches. Historical docs remain branch-local evidence.
+## 8. Governance rules
 
-## 9. Governance rules
+1. `main` — единственный merged current source of truth.
+2. Active development различает implemented, verified и planned scope.
+3. Merged/superseded branches не обновляются, чтобы имитировать current product.
+4. Release claim требует matching SemVer, green CI, evidence, immutable tag и distribution state.
+5. `Stable`, `signed`, `production-ready` и `independently reviewed` не заявляются без фактических evidence.
+6. Branch без активной цели закрывается/удаляется после provenance review.
+7. Security/reliability fixes используют regression-first подход.
+8. Temporary patch/diagnostic workflows удаляются до merge.
 
-1. `main` is the only current product source of truth.
-2. Active development differentiates implemented, verified and planned scope.
-3. Merged/superseded branches are not updated to imitate current `main`.
-4. Release claim requires matching SemVer metadata, CI evidence, tag and distribution state.
-5. Prerelease security claim is not presented as stable or independently audited.
-6. Branch without active purpose is closed/deleted after provenance review.
-7. Documentation-only change does not modify runtime code, dependencies, migrations or workflows.
-8. Security patch retains regression-first and compatibility evidence.
-9. Every retained non-main branch has explicit `BRANCH_STATUS.md`.
-10. Full policy: [Branch Documentation Policy](docs/BRANCH_DOCUMENTATION_POLICY.md).
+## 9. Current product boundary
 
-## 10. Current product boundary
-
-- version: `3.3.2`;
-- distribution: published `UNSIGNED-TEST` prerelease;
-- signed production baseline: `3.1.2`;
+- target version: `3.4.0` release candidate;
+- writable messaging: ordinary server-readable messaging;
+- Trust/MLS runtime: retired;
+- legacy secure history: read-only, no server-side decryption;
 - Application API: v3;
-- Trust/MLS/encrypted-media API: v4;
 - Local Server database: schema 8;
-- migration from 3.2.0–3.3.1: not required;
-- independently audited E2EE claim: not granted.
+- stable publication: blocked by verified `v3.3.4`, Authenticode, Windows 10/11 acceptance, independent review и final green gates.
