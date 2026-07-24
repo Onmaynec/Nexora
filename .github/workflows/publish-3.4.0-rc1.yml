@@ -1,0 +1,210 @@
+name: Publish Nexora 3.4.0 RC1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/publish-3.4.0-rc1.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nexora-3-4-0-rc1-publication
+  cancel-in-progress: false
+
+jobs:
+  publish-rc:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      RC_TAG: v3.4.0-rc.1
+      RC_HEAD: 19c637134c93b93ea1255bf7ccf97ee95f97c33b
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 19c637134c93b93ea1255bf7ccf97ee95f97c33b
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+
+      - name: Verify RC identity and immutable tag
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $version = node -p "require('./package.json').version"
+          if ($version -ne "3.4.0") { throw "RC source version must be 3.4.0, got $version" }
+          $head = (git rev-parse HEAD).Trim()
+          if ($head -ne $env:RC_HEAD) { throw "RC head mismatch: $head" }
+          git fetch --tags --force
+          $existing = git rev-list -n 1 $env:RC_TAG 2>$null
+          if ($LASTEXITCODE -eq 0 -and $existing) {
+            if ($existing.Trim() -ne $head) { throw "Immutable RC tag already points to another commit" }
+            $release = gh release view $env:RC_TAG --json tagName,isDraft,isPrerelease 2>$null
+            if ($LASTEXITCODE -eq 0) { throw "RC release already exists; refusing asset replacement" }
+          }
+
+      - run: npm ci
+      - run: npm run release:check
+
+      - name: Build source, PWA, Android and SPDX evidence
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          git archive --format=zip --output "artifacts/Nexora-3.4.0-rc.1-source.zip" HEAD
+          if (-not (Test-Path "client/dist/index.html")) { throw "Production PWA build is missing" }
+          Compress-Archive -Path "client/dist/*" -DestinationPath "artifacts/Nexora-PWA-3.4.0-rc.1.zip" -CompressionLevel Optimal -Force
+          gradle -p android :app:assembleDebug --no-daemon
+          if ($LASTEXITCODE -ne 0) { throw "Android RC evidence build failed" }
+          $apk = Get-ChildItem "android/app/build/outputs/apk/debug" -Filter "*.apk" | Sort-Object Length -Descending | Select-Object -First 1
+          if (-not $apk) { throw "Android APK was not created" }
+          Copy-Item $apk.FullName "artifacts/Nexora-Android-3.4.0-RC1-UNSIGNED-TEST.apk" -Force
+
+      - name: Generate SPDX SBOM
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="artifacts/Nexora-3.4.0-rc.1.spdx.json"
+          if ! npm sbom --omit=dev --sbom-format=spdx > "$output"; then
+            node scripts/generate-spdx-sbom.cjs "$output"
+          fi
+          node -e "const fs=require('node:fs');const p=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));if(p.spdxVersion!=='SPDX-2.3'||!Array.isArray(p.packages)||!p.packages.length)process.exit(1)" "$output"
+
+      - name: Build explicitly unsigned Windows RC assets
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          npx electron-builder --config electron-builder.client.yml --win nsis --publish never
+          if ($LASTEXITCODE -ne 0) { throw "Unsigned Client RC build failed" }
+          npx electron-builder --config electron-builder.server.yml --win nsis --publish never
+          if ($LASTEXITCODE -ne 0) { throw "Unsigned Server RC build failed" }
+          Copy-Item "release/client/Nexora-Client-Setup-3.4.0.exe" "artifacts/Nexora-Client-Setup-3.4.0-RC1-UNSIGNED-TEST.exe" -Force
+          Copy-Item "release/server/Nexora-Server-Setup-3.4.0.exe" "artifacts/Nexora-Server-Setup-3.4.0-RC1-UNSIGNED-TEST.exe" -Force
+          if (Get-ChildItem artifacts -File | Where-Object { $_.Name -in @("latest.yml", "server.yml") -or $_.Extension -eq ".blockmap" }) {
+            throw "Unsigned RC artifact set contains updater metadata"
+          }
+
+      - name: Installed Windows RC smoke
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $root = "C:\NexoraRcSmoke"
+          $clientDir = "$root\Client"
+          $serverDir = "$root\Server"
+          New-Item -ItemType Directory -Force $root | Out-Null
+          foreach ($item in @(
+            @{ Installer = "artifacts/Nexora-Client-Setup-3.4.0-RC1-UNSIGNED-TEST.exe"; Directory = $clientDir },
+            @{ Installer = "artifacts/Nexora-Server-Setup-3.4.0-RC1-UNSIGNED-TEST.exe"; Directory = $serverDir }
+          )) {
+            $process = Start-Process -FilePath $item.Installer -ArgumentList @("/S", "/D=$($item.Directory)") -Wait -PassThru
+            if ($process.ExitCode -ne 0) { throw "RC installer smoke failed: $($item.Installer) exit $($process.ExitCode)" }
+          }
+          foreach ($exe in @((Join-Path $clientDir "Nexora Client.exe"), (Join-Path $serverDir "Nexora Server.exe"))) {
+            if (-not (Test-Path $exe)) { throw "Installed RC runtime missing: $exe" }
+            $productVersion = (Get-Item $exe).VersionInfo.ProductVersion
+            if ($productVersion -notlike "3.4.0*") { throw "Installed RC version mismatch: $exe -> $productVersion" }
+          }
+
+      - name: Create RC evidence and checksums
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $assetNames = @(Get-ChildItem artifacts -File | ForEach-Object { $_.Name } | Sort-Object)
+          $evidence = [ordered]@{
+            schemaVersion = 1
+            version = "3.4.0"
+            tag = $env:RC_TAG
+            classification = "release-candidate"
+            prerelease = $true
+            signed = $false
+            distribution = "unsigned-test"
+            commit = $env:RC_HEAD
+            baseline = "v3.3.4"
+            baselineRelease = "https://github.com/Onmaynec/Nexora/releases/tag/v3.3.4"
+            internalGateRun = 30120868638
+            focusedRegressionRun = 30120868628
+            websiteRun = 30120868643
+            updaterMetadataPublished = $false
+            remainingStableBlockers = @(
+              "authenticode-signing-policy",
+              "windows-10-installed-upgrade-acceptance",
+              "windows-11-installed-upgrade-acceptance",
+              "independent-security-review"
+            )
+            assets = $assetNames
+            generatedAt = (Get-Date).ToUniversalTime().ToString("o")
+          }
+          $evidence | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 "artifacts/RC-PUBLICATION-EVIDENCE.json"
+          $lines = foreach ($file in Get-ChildItem artifacts -File | Sort-Object Name) {
+            $hash = (Get-FileHash -Algorithm SHA256 $file.FullName).Hash.ToLowerInvariant()
+            "$hash  $($file.Name)"
+          }
+          $lines | Set-Content -Encoding ascii "artifacts/SHA256SUMS.txt"
+
+      - name: Create immutable RC tag and GitHub prerelease
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          $existing = git rev-list -n 1 $env:RC_TAG 2>$null
+          if ($LASTEXITCODE -ne 0 -or -not $existing) {
+            git tag -a $env:RC_TAG -m "Nexora 3.4.0 RC1 unsigned test build" $env:RC_HEAD
+            git push origin "refs/tags/$env:RC_TAG"
+          }
+          @"
+          # Nexora 3.4.0 RC1 — UNSIGNED TEST BUILDS
+
+          This is a real downloadable release candidate built from the fully green Stable Core head `$env:RC_HEAD`.
+
+          **Not a production stable release:** Windows and Android binaries are unsigned test builds. No updater metadata or blockmaps are published. The official `v3.4.0` stable tag remains blocked until Authenticode, Windows 10/11 installed upgrade acceptance and independent security review are complete.
+
+          Canonical details: `docs/releases/3.4.0/RELEASE_NOTES.md`.
+          "@ | Set-Content -Encoding utf8 release-body.md
+          gh release create $env:RC_TAG artifacts/* --prerelease --title "Nexora 3.4.0 RC1 — UNSIGNED TEST BUILDS" --notes-file release-body.md
+
+      - name: Re-download and verify immutable RC assets
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          New-Item -ItemType Directory -Force verified | Out-Null
+          gh release download $env:RC_TAG --dir verified
+          $names = @(Get-ChildItem verified -File | ForEach-Object { $_.Name })
+          foreach ($required in @(
+            "Nexora-3.4.0-rc.1-source.zip",
+            "Nexora-PWA-3.4.0-rc.1.zip",
+            "Nexora-3.4.0-rc.1.spdx.json",
+            "Nexora-Android-3.4.0-RC1-UNSIGNED-TEST.apk",
+            "Nexora-Client-Setup-3.4.0-RC1-UNSIGNED-TEST.exe",
+            "Nexora-Server-Setup-3.4.0-RC1-UNSIGNED-TEST.exe",
+            "RC-PUBLICATION-EVIDENCE.json",
+            "SHA256SUMS.txt"
+          )) {
+            if ($names -notcontains $required) { throw "Published RC is missing $required" }
+          }
+          if ($names | Where-Object { $_ -in @("latest.yml", "server.yml") -or $_ -match "\.blockmap$" }) {
+            throw "Published unsigned RC contains updater metadata"
+          }
+          foreach ($line in Get-Content "verified/SHA256SUMS.txt") {
+            if ([string]::IsNullOrWhiteSpace($line)) { continue }
+            $parts = $line -split "  ", 2
+            if ($parts.Count -ne 2) { throw "Invalid checksum line: $line" }
+            $actual = (Get-FileHash -Algorithm SHA256 (Join-Path verified $parts[1])).Hash.ToLowerInvariant()
+            if ($actual -ne $parts[0].ToLowerInvariant()) { throw "RC checksum mismatch: $($parts[1])" }
+          }
