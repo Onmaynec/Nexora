@@ -9,7 +9,7 @@ export class ApiError extends Error {
   }
 }
 
-export const CLIENT_VERSION = "3.3.4";
+export const CLIENT_VERSION = "3.4.0";
 const DEVICE_ID_KEY = "nexora:device-id";
 
 function safeStorage(name) {
