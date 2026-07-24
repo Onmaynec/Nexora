@@ -7,7 +7,7 @@
   "signed": false,
   "distribution": "blocked-stable",
   "repository": "Onmaynec/Nexora",
-  "branch": "release/3.4.0-stable-core-v2",
+  "branch": "release/3.4.0-stable-promotion",
   "baseline": "v3.3.4",
   "baselineMergeCommit": "6202bbdf8ff636711d9874452958df5dd40d9656",
   "baselinePublication": {
@@ -38,10 +38,10 @@
   "assets": [],
   "verification": {
     "status": "internal-gates-passed",
-    "internalHead": "79cfdc2493370da302468117466a8ce4c4679859",
-    "internalCiRun": 30119009186,
-    "focusedRegressionRun": 30119009259,
-    "websiteRun": 30119009175,
+    "internalHead": "7af836ad7c6c9a7312020d5c7a59372fc182cab3",
+    "internalCiRun": 30124965881,
+    "focusedRegressionRun": 30120868628,
+    "websiteRun": 30120868643,
     "productionDependencyAudit": {
       "high": 0,
       "critical": 0
