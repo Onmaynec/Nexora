@@ -224,7 +224,7 @@ jobs:
           foreach ($asset in $assets) { if (-not (Test-Path -LiteralPath $asset)) { throw "Missing release asset: $asset" } }
           Get-FileHash $assets -Algorithm SHA256 | Sort-Object Path | ForEach-Object { "$($_.Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content -Encoding utf8 artifacts/SHA256SUMS.txt
           $all = @($assets | ForEach-Object { (Resolve-Path $_).Path }) + (Resolve-Path "artifacts/SHA256SUMS.txt").Path
-          $notes = "RELEASE_NOTES_$version.md"
+          $notes = "docs/releases/$version/RELEASE_NOTES.md"
           if (Test-Path -LiteralPath $notes) {
             gh release create $env:RELEASE_TAG $all --verify-tag --title "Nexora $version" --notes-file $notes --latest
           } else {
@@ -252,7 +252,7 @@ jobs:
           }
           Get-FileHash $assets -Algorithm SHA256 | Sort-Object Path | ForEach-Object { "$($_.Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content -Encoding utf8 artifacts/SHA256SUMS.txt
           $all = @($assets | ForEach-Object { (Resolve-Path $_).Path }) + (Resolve-Path "artifacts/SHA256SUMS.txt").Path
-          $notes = "RELEASE_NOTES_$version.md"
+          $notes = "docs/releases/$version/RELEASE_NOTES.md"
           if (Test-Path -LiteralPath $notes) {
             gh release create $env:RELEASE_TAG $all --verify-tag --title "Nexora $version — UNSIGNED TEST BUILDS" --notes-file $notes --prerelease
           } else {
