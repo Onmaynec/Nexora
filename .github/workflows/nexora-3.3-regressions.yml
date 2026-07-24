@@ -1,8 +1,6 @@
 name: Nexora 3.3 regressions
 
 on:
-  push:
-    branches: [release/3.3.4-post-mls]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -16,7 +14,7 @@ concurrency:
 
 jobs:
   sync-main:
-    if: github.event_name == 'push' && github.actor != 'github-actions[bot]'
+    if: github.event_name == 'pull_request' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -55,7 +53,6 @@ jobs:
           git push origin HEAD:release/3.3.4-post-mls
 
   regressions:
-    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
