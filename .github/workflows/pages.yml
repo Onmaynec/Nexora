@@ -10,7 +10,7 @@ on:
       - "cloud/**"
       - "package.json"
       - "package-lock.json"
-      - "RELEASE_NOTES_*.md"
+      - "docs/releases/**"
       - ".github/workflows/pages.yml"
   pull_request:
     paths:
@@ -20,9 +20,8 @@ on:
       - "cloud/**"
       - "package.json"
       - "package-lock.json"
-      - "RELEASE_NOTES_*.md"
+      - "docs/releases/**"
       - ".github/workflows/pages.yml"
-      - "docs/ADVANCED_DOCUMENTATION.md"
   workflow_dispatch:
 
 permissions:
@@ -44,8 +43,13 @@ jobs:
         run: npm ci
       - name: Validate introductory website
         run: |
+          node --check website/release-fallback.js
+          node --check website/network-resilience.js
           node --check website/app.js
           node --check website/site-fixes.js
+          node --check website/site-polish.js
+          node website/generate-release-fallback.mjs --check
+          node --test website/release-resilience.test.cjs
           node website/validate.mjs
           node website/validate-restored.mjs
       - name: Compose introductory website artifact
@@ -54,59 +58,34 @@ jobs:
           set -euo pipefail
           printf '\n\n' >> website/styles.css
           cat website/site-fixes.css >> website/styles.css
-          printf '\n\n' >> website/app.js
-          cat website/site-fixes.js >> website/app.js
+          printf '\n\n' >> website/styles.css
+          cat website/site-polish.css >> website/styles.css
+          {
+            cat website/release-fallback.js
+            printf '\n\n'
+            cat website/network-resilience.js
+            printf '\n\n'
+            cat website/app.js
+            printf '\n\n'
+            cat website/site-fixes.js
+            printf '\n\n'
+            cat website/site-polish.js
+          } > website/app.composed.js
+          mv website/app.composed.js website/app.js
           node --check website/app.js
+          grep -Fq 'NexoraReleaseFallback' website/app.js
+          grep -Fq 'RELEASE_REQUEST_TIMEOUT_MS' website/app.js
           grep -Fq 'class AetherField' website/app.js
-          grep -Fq 'restored-3.2.5-ux-20260723-1' website/build.json
+          grep -Fq 'main-site-ux-polish-release-resilience-20260724-2' website/build.json
+          test -s website/UX_AUDIT_2026-07-24.md
           node advanced-website/scripts/inject-entry-link.mjs website/index.html
           test "$(grep -Fc 'data-advanced-docs' website/index.html)" -eq 1
       - name: Generate advanced reference
         run: node advanced-website/scripts/generate-reference.mjs
-      - name: Validate generated advanced reference
-        id: advanced_validation
-        shell: bash
-        continue-on-error: true
+      - name: Validate advanced documentation
         run: |
-          set +e
-          node advanced-website/scripts/validate-content.mjs > advanced-validation-failures.log 2>&1
-          status=$?
-          cat advanced-validation-failures.log
-          echo "status=$status" >> "$GITHUB_OUTPUT"
-          exit "$status"
-      - name: Upload advanced validation diagnostics
-        if: steps.advanced_validation.outcome == 'failure'
-        uses: actions/upload-artifact@v4
-        with:
-          name: advanced-validation-failures
-          path: advanced-validation-failures.log
-          if-no-files-found: error
-          retention-days: 2
-      - name: Enforce advanced content validation
-        if: steps.advanced_validation.outcome == 'failure'
-        run: exit 1
-      - name: Test advanced documentation contracts
-        id: advanced_tests
-        shell: bash
-        continue-on-error: true
-        run: |
-          set +e
-          node advanced-website/scripts/run-tests.mjs > advanced-test-failures.log 2>&1
-          status=$?
-          cat advanced-test-failures.log
-          echo "status=$status" >> "$GITHUB_OUTPUT"
-          exit "$status"
-      - name: Upload advanced test diagnostics
-        if: steps.advanced_tests.outcome == 'failure'
-        uses: actions/upload-artifact@v4
-        with:
-          name: advanced-test-failures
-          path: advanced-test-failures.log
-          if-no-files-found: error
-          retention-days: 2
-      - name: Enforce advanced documentation contracts
-        if: steps.advanced_tests.outcome == 'failure'
-        run: exit 1
+          node advanced-website/scripts/validate-content.mjs
+          node --test advanced-website/test/*.test.mjs
       - name: Build advanced React portal
         run: npx vite build --config advanced-website/vite.config.mjs
       - name: Verify composed artifact
@@ -155,7 +134,7 @@ jobs:
           for attempt in $(seq 1 30); do
             root="$(curl --fail --silent --show-error --location --header 'Cache-Control: no-cache' "${base}build.json?attempt=${attempt}" || true)"
             advanced="$(curl --fail --silent --show-error --location --header 'Cache-Control: no-cache' "${base}advanced/?attempt=${attempt}" || true)"
-            if grep -Fq 'restored-3.2.5-ux-20260723-1' <<<"$root" && grep -Fq 'Nexora Advanced Documentation' <<<"$advanced"; then
+            if grep -Fq 'main-site-ux-polish-release-resilience-20260724-2' <<<"$root" && grep -Fq 'Nexora Advanced Documentation' <<<"$advanced"; then
               echo "Both Nexora websites verified at ${base} and ${base}advanced/"
               exit 0
             fi
