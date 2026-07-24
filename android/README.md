@@ -1,32 +1,34 @@
 # Nexora for Android
 
-## Статус
+## 1. Статус
 
 | Параметр | Значение |
 |---|---|
-| Current version | `3.3.4` |
-| Distribution | Release candidate; signed when policy exists, otherwise explicit `UNSIGNED-TEST` prerelease |
+| Current version | `3.3.3` |
+| Distribution | Published `UNSIGNED-TEST` APK prerelease |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
-| Trust/MLS runtime | retired; legacy secure history is read-only |
-| Local Server database | schema 8 compatibility layer, server-side |
+| Trust/MLS/encrypted-media API | v4 |
+| Local Server database | schema 8, server-side |
 
-Android application is a controlled WebView shell for the adaptive Nexora Client. CI verifies the source build. Production promotion still requires a signed APK/AAB and physical-device acceptance.
+Android application — controlled WebView shell общего adaptive Nexora Client. CI verifies source build. Stable promotion requires physical-device runtime matrix и signed APK/AAB validation.
 
-## Capabilities
+## 2. Capabilities
 
-- saved HTTPS Local Servers and server picker;
+- saved HTTPS servers и server picker;
 - `nexora://connect?url=...` deep links;
-- authentication, profiles, rooms, ordinary messages, search and notifications;
-- files, images and voice recording/playback through the ordinary server-readable messaging path;
-- offline application shell and authorized local cache;
-- session-derived device inventory and remote session revocation;
-- read-only access to retained legacy secure-history metadata and locally cached decrypted records when they already exist;
-- external links opened outside the WebView.
+- local authentication, profiles, rooms, messages, search и notifications;
+- files, images и voice recording/playback;
+- offline application shell и authorized local cache;
+- Trust device enrollment/verification/revocation;
+- MLS secure messaging и encrypted media;
+- strict commit recovery;
+- automatic MLS Welcome recovery with active verified member;
+- external links opened outside WebView.
 
-The Android shell does not store the Local Server database, Cloud password, payment-card data, Pulse signing keys, Local CA private key or Authenticode material.
+Android shell does not store Local Server database, Cloud password, payment-card data, Pulse signing keys или Local CA private key.
 
-## Build
+## 3. Build
 
 Requirements:
 
@@ -40,111 +42,108 @@ gradle :app:assembleDebug --no-daemon
 gradle :app:assembleRelease --no-daemon
 ```
 
-Release APK/AAB must be signed outside the repository. Never commit a keystore, password or private signing configuration.
+Release APK/AAB must be signed outside repository. Never commit keystore, password or private signing configuration.
 
-## TLS and navigation
+## 4. TLS и navigation
 
-For a private CA, install the operator-provided root certificate into the Android trust store and verify Server ID/fingerprint separately.
+For private CA install operator-provided root certificate into Android trust store and verify Server ID/fingerprint separately.
 
 Policy:
 
 - `onReceivedSslError` cancels;
-- HTTP and mixed content are disabled;
-- file/content access is restricted;
-- third-party cookies are disabled;
-- in-app navigation is limited to the selected Server origin;
-- an external origin opens in the system browser;
-- a deep link accepts valid HTTPS only;
-- certificate changes require the supported trust flow.
+- HTTP and mixed content disabled;
+- file/content access restricted;
+- third-party cookies disabled;
+- in-app navigation limited selected Server origin;
+- external origin opens system browser;
+- deep link accepts valid HTTPS only;
+- certificate change requires supported trust flow.
 
-## Post-MLS data boundary
+## 5. Trust и secure data
 
-- ordinary messages and media are authorized, validated and stored by Local Server;
-- executable Trust/MLS enrollment, KeyPackage, Welcome, commit and encrypted-upload write paths are absent;
-- schema 8 legacy IDs, epochs, timestamps, ciphertext and audit provenance remain intact;
-- legacy history is immutable and server export records `serverDecrypted: false`;
-- legacy HTTP and Socket.IO mutations terminate with `410/LEGACY_READ_ONLY`;
-- the Client never converts retained ciphertext into server-readable plaintext;
-- readable historical plaintext depends on a pre-existing local client cache.
+- private device identity/MLS state remain client-side;
+- local state, KeyPackages, cache и drafts encrypted;
+- message encrypted before durable outbox;
+- file/image/voice encrypted before upload;
+- attachment key/private metadata inside MLS content;
+- Local Server receives opaque ciphertext and service metadata;
+- revocation disconnects and wipes local Trust scope;
+- recovery chain validated before persistence.
 
-## Session and device behavior
+Renderer remains in TCB. Malware, XSS, compromised dependency or malicious binary can access plaintext during authorized use.
 
-The Client sends a stable server-scoped device identifier and safe device metadata. Local Server owns session validity.
+## 6. Resource and recovery behavior
 
-The UI must handle:
+Client must handle:
 
-- active session inventory with device name, platform, Client version, creation and last-seen timestamps;
-- targeted remote revocation;
-- immediate `session.revoked` logout and Socket.IO disconnect;
-- `device.updated` refresh;
-- `STATE_CONFLICT` when attempting to revoke the current device through the remote-device endpoint;
-- expired or otherwise invalid sessions without reconnect loops.
+- 16 active-device account limit;
+- KeyPackage 25/request, 32/device, 256/user limits;
+- `429 RATE_LIMITED` and `Retry-After`;
+- expired session and Trust state;
+- `MLS_WELCOME_PENDING` without retry storm;
+- one bounded Welcome request;
+- fail-closed state when no active group member exists.
 
-## Uploads and voice
+No plaintext fallback is permitted.
 
-- room file/image/voice restrictions are enforced server-side;
-- size, actual MIME type, safe filename and resource ceilings are validated;
-- corrupt images and unsupported formats fail safely;
-- microphone denial/revocation is surfaced without a crash;
-- recording supports start, stop, cancel, preview and send;
-- playback exposes progress, seeking and terminal error state;
-- retired encrypted-upload routes cannot reserve or persist new data.
+## 7. Acceptance
 
-## Acceptance
-
-### Source and installation
+### Source/install
 
 - CI `assembleDebug` passes;
-- release build is produced in a controlled signing environment;
-- clean install/upgrade preserves saved servers and authorized local state;
-- version metadata equals `3.3.4`.
+- release build in controlled signing environment;
+- clean install/upgrade preserves saved servers and authorized state;
+- version metadata equals `3.3.3`.
 
 ### Connection
 
 - manual HTTPS URL;
 - HTTPS deep link;
-- HTTP, invalid, untrusted or changed certificate rejected;
-- external navigation leaves the app.
+- HTTP/invalid/untrusted/changed certificate rejected;
+- external navigation outside app.
 
 ### Core product
 
 - login/bootstrap;
-- profiles, rooms, ordinary messages, search and notifications;
-- files, images and voice;
+- profiles/rooms/messages/search/notifications;
+- legacy media/voice;
 - offline/reconnect;
 - Cloud Identity/Pulse UI without Cloud secrets.
 
-### Legacy history
+### Trust/MLS
 
-- legacy conversation opens without blocking ordinary chats;
-- no composer, upload, recording, edit or delete controls are present;
-- unavailable local plaintext is reported explicitly;
-- export preserves ciphertext and `serverDecrypted: false`;
-- every direct legacy mutation fails with `LEGACY_READ_ONLY`.
+- first/additional device enrollment;
+- fingerprint verify/revoke;
+- active-device capacity behavior;
+- secure send after restart/reconnect;
+- strict missed-commit recovery;
+- Welcome request with active verified group member;
+- no-active-member fail-closed;
+- encrypted file/image/voice preview/playback/download;
+- no plaintext fallback after policy/recovery failure.
 
-### Permissions and lifecycle
+### Permissions/lifecycle
 
 - file picker;
-- microphone allow, deny and revoke;
+- microphone allow/deny/revoke;
 - background/foreground;
 - process death/restart;
 - storage pressure;
 - network switching;
-- long-offline reconnect;
-- remote session revoke while Socket.IO is connected.
+- long-offline reconnect.
 
-## Stable-promotion requirements
+## 8. Stable-promotion requirements
 
 - physical-device matrix;
 - signed APK/AAB and upgrade path;
-- long-offline and session-revocation scenarios;
+- long-offline/recovery scenarios;
 - permission denial/revocation;
 - process-death state consistency;
 - accessibility/responsive review;
 - independent security review relevant to Android runtime.
 
-## Limitations
+## 9. Limitations
 
-Nexora 3.3.4 does not claim traffic-analysis resistance or independent certification. Local Server cannot decrypt retained legacy ciphertext. Absence of Android signing credentials does not block the prerequisite release, but the APK remains explicitly `UNSIGNED-TEST` and is not a production distribution.
+Nexora 3.3.0+ does not claim traffic-analysis resistance or independent certification. Existing 3.1.x data is not retroactively encrypted. 3.1.x Client cannot participate in an active secure 3.3.x conversation.
 
-See [Documentation Portal](../docs/README.md), [Security Model](../docs/SECURITY_MODEL.md), [Security Policy](../SECURITY.md) and [Release Verification 3.3.4](../docs/releases/3.3.4/RELEASE_VERIFICATION.md).
+See [Documentation Portal](../docs/README.md), [Security Model](../docs/SECURITY_MODEL.md), [Security Policy](../SECURITY.md) and [Release Verification 3.3.2](../../docs/releases/3.3.3/RELEASE_VERIFICATION.md).
