@@ -1,0 +1,21 @@
+name: Advanced docs diagnostic
+
+on:
+  pull_request:
+    paths:
+      - 'advanced-website/**'
+      - 'docs/ROADMAP.md'
+      - '.github/workflows/advanced-docs-diagnostic.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          show-progress: false
+      - name: Validate advanced documentation
+        run: node advanced-website/scripts/validate-content.mjs
