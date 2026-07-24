@@ -111,9 +111,9 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
 
   const specificMarkers = [
     ["README.md", new RegExp(`current-${escapedVersion}`), `does not expose current version ${version}`],
-    ["PROJECT_INDEX.md", new RegExp(`Repository version \\| \\`${escapedVersion}\\``), `does not match ${version}`],
-    ["docs/README.md", new RegExp(`Current repository version \\| \\`${escapedVersion}\\``), `does not match ${version}`],
-    ["SECURITY.md", new RegExp(`\\| \\`${escapedVersion}\\` \\| Release candidate`), `supported version does not match ${version}`],
+    ["PROJECT_INDEX.md", new RegExp("Repository version \\| `" + escapedVersion + "`"), `does not match ${version}`],
+    ["docs/README.md", new RegExp("Current repository version \\| `" + escapedVersion + "`"), `does not match ${version}`],
+    ["SECURITY.md", new RegExp("\\| `" + escapedVersion + "` \\| Release candidate"), `supported version does not match ${version}`],
     ["website/index.html", new RegExp(`>${escapedVersion}<`), `static version does not match ${version}`],
     ["website/app.js", new RegExp(`FALLBACK_VERSION\\s*=\\s*"${escapedVersion}"`), `fallback version does not match ${version}`],
     ["website/site-fixes.js", new RegExp(`FALLBACK_VERSION\\s*=\\s*"${escapedVersion}"`), `correction fallback version does not match ${version}`],
