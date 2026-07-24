@@ -35,7 +35,7 @@ jobs:
         run: node --test --test-name-pattern="ordinary voice messages" test/release-3.3.0-regressions.test.cjs
       - name: Contract — post-MLS retirement
         run: node --test --test-name-pattern="post-MLS retirement" test/release-3.3.0-regressions.test.cjs
-      - name: Website validation
+      - name: Website JavaScript and generated catalog
         run: |
           node --check website/release-fallback.js
           node --check website/network-resilience.js
@@ -43,8 +43,11 @@ jobs:
           node --check website/site-fixes.js
           node --check website/site-polish.js
           node website/generate-release-fallback.mjs --check
-          node --test website/release-resilience.test.cjs
-          node website/validate.mjs
-          node website/validate-restored.mjs
+      - name: Website release resilience
+        run: node --test website/release-resilience.test.cjs
+      - name: Website content validation
+        run: node website/validate.mjs
+      - name: Website restored UX validation
+        run: node website/validate-restored.mjs
       - name: Production web build
         run: npm run build:web
