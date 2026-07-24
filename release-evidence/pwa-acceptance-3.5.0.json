@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "version": "3.5.0",
+  "installPassed": false,
+  "offlineStartupPassed": false,
+  "updateDuringDraftPassed": false,
+  "cacheScopeCleanupPassed": false,
+  "evidenceUrl": null,
+  "status": "blocked"
+}

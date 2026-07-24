@@ -11,7 +11,7 @@ function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
 }
 
-test("релиз 3.4.0 собирает только проверяемый signed Stable Core без native SQLite и MLS runtime", () => {
+test("релиз 3.5.0 собирает только проверяемый signed Stable Core без native SQLite и MLS runtime", () => {
   const packageJson = JSON.parse(read("package.json"));
   const lock = read("package-lock.json");
   const client = read("electron-builder.client.yml");

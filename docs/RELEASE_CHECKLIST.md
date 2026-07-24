@@ -175,3 +175,4 @@
 - [ ] Release branch closed/deleted after provenance retention.
 
 Official `v3.4.0` is complete only when every applicable item is checked with real evidence.
+> Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.

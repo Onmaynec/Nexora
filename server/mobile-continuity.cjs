@@ -190,6 +190,15 @@ function mountMobileContinuity({ app, store, io, authRequired, maintenance, data
   const tokenKey = parseTokenKey(pushTokenKey ?? process.env.NEXORA_PUSH_TOKEN_KEY);
   const chunkParser = express.raw({ type: "application/octet-stream", limit: CHUNK_BYTES });
   let cleanupTimer = null;
+  let lastStatus = {
+    enabled: true,
+    schemaVersion: 9,
+    activeUploads: 0,
+    pushSubscriptions: 0,
+    pushTokenKeyConfigured: Boolean(tokenKey),
+    tokenPlaintextStored: false,
+    closed: false,
+  };
 
   function withRequestId(request, response, next) {
     request.mobileRequestId ||= request.pulseRequestId || requestId(request.headers["x-request-id"]);
@@ -478,9 +487,16 @@ function mountMobileContinuity({ app, store, io, authRequired, maintenance, data
 
   return {
     status() {
-      const activeUploads = Number(store.db.prepare("SELECT COUNT(*) AS count FROM mobile_upload_sessions WHERE status='active'").get()?.count || 0);
-      const pushSubscriptions = Number(store.db.prepare("SELECT COUNT(*) AS count FROM mobile_push_subscriptions WHERE revoked_at IS NULL").get()?.count || 0);
-      return { enabled: true, schemaVersion: 9, activeUploads, pushSubscriptions, pushTokenKeyConfigured: Boolean(tokenKey), tokenPlaintextStored: false };
+      if (!store.db) return { ...lastStatus, closed: true };
+      try {
+        const activeUploads = Number(store.db.prepare("SELECT COUNT(*) AS count FROM mobile_upload_sessions WHERE status='active'").get()?.count || 0);
+        const pushSubscriptions = Number(store.db.prepare("SELECT COUNT(*) AS count FROM mobile_push_subscriptions WHERE revoked_at IS NULL").get()?.count || 0);
+        lastStatus = { enabled: true, schemaVersion: 9, activeUploads, pushSubscriptions, pushTokenKeyConfigured: Boolean(tokenKey), tokenPlaintextStored: false, closed: false };
+        return lastStatus;
+      } catch (error) {
+        if (!store.db) return { ...lastStatus, closed: true };
+        throw error;
+      }
     },
     cleanupExpired,
     close() {

@@ -2,30 +2,31 @@
 
 [![Website](https://img.shields.io/badge/website-open-c69cff)](https://onmaynec.github.io/Nexora/)
 [![CI](https://github.com/Onmaynec/Nexora/actions/workflows/ci.yml/badge.svg)](https://github.com/Onmaynec/Nexora/actions/workflows/ci.yml)
-![Current version](https://img.shields.io/badge/current-3.4.0%20RC-c69cff)
+![Current version](https://img.shields.io/badge/current-3.5.0%20RC-c69cff)
 ![Stable signed baseline](https://img.shields.io/badge/stable%20signed-3.1.2-70e6b1)
 ![API](https://img.shields.io/badge/API-v3%20%2B%20legacy%20read--only-70e6b1)
-![Database](https://img.shields.io/badge/SQLite-schema%208-70e6b1)
+![Database](https://img.shields.io/badge/SQLite-schema%209-70e6b1)
 ![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20PWA%20%7C%20Android-9b5cff)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **Nexora** is a self-hosted messaging platform for Windows, browser/PWA and Android. It combines a Local Server, rooms and moderation, ordinary server-readable messaging, voice/media, offline synchronization, operations tooling and the optional Nexora Pulse commercial boundary.
 
-> **Stable Core release candidate:** version `3.4.0` is implemented in PR #96 but is not published. Stable publication is blocked until a verified stable `v3.3.4` baseline exists, Authenticode/Windows acceptance is complete and an independent security review closes all high/critical findings.
+> **Mobile Continuity release candidate:** version `3.5.0` is implemented in the stacked release branch and is not published. Publication is blocked until `v3.4.0` is actually released, Android/PWA/Windows acceptance is complete, signing evidence is available and all security/release gates pass.
 
 ## Product status
 
 | Line | Purpose | Distribution status |
 |---|---|---|
-| `3.4.0` | Stable Core: ordinary messaging, immutable legacy history, devices/sessions, backup verification and signed updater | Release candidate; not merged/tagged/published |
+| `3.5.0` | Mobile Continuity: replay/outbox, profile isolation, PWA lifecycle, Android hardening, privacy-safe push and resumable media | Release candidate; stacked on unpublished 3.4.0 |
+| `3.4.0` | Stable Core: ordinary messaging, immutable legacy history, devices/sessions, backup verification and signed updater | Required baseline; not yet published |
 | `3.3.3` | Goals, voice UX, Pulse purchase effects and MLS recovery | Published `UNSIGNED-TEST` prerelease without updater metadata |
 | `3.1.2` | Messaging and Pulse production hardening | Last confirmed signed production baseline |
 
-Authoritative 3.4.0 documents:
+Authoritative 3.5.0 documents:
 
-- [Release Notes 3.4.0](RELEASE_NOTES_3.4.0.md)
-- [Release Verification 3.4.0](RELEASE_VERIFICATION_3.4.0.md)
-- [Security Review 3.4.0](SECURITY_REVIEW_3.4.0.md)
+- [Release Notes 3.5.0](RELEASE_NOTES_3.5.0.md)
+- [Release Verification 3.5.0](RELEASE_VERIFICATION_3.5.0.md)
+- [Security Model](docs/SECURITY_MODEL.md)
 - [Project Index](PROJECT_INDEX.md)
 - [Documentation Portal](docs/README.md)
 

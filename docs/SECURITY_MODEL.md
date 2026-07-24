@@ -164,3 +164,4 @@ Automated coverage includes:
 - a compromised operator/OS account remains outside application-only protection.
 
 These conditions prohibit merge to a release commit, official `v3.4.0` tag and stable GitHub Release.
+> Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.

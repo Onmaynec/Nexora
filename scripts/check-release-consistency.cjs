@@ -115,14 +115,23 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
   if (evidence.status !== "release-candidate" || evidence.published !== false) {
     fail("current evidence must remain an unpublished release candidate before stable publication");
   }
-  if (evidence.baseline !== "v3.3.4") fail("Stable Core baseline must be v3.3.4");
+  if (evidence.baseline !== "v3.4.0") fail("Mobile Continuity baseline must be v3.4.0");
 
-  const review = parseJson(root, "release-evidence/independent-security-review-3.4.0.json");
-  const windows = parseJson(root, "release-evidence/windows-acceptance-3.4.0.json");
+  const review = parseJson(root, "release-evidence/independent-security-review-3.5.0.json");
+  const windows = parseJson(root, "release-evidence/windows-acceptance-3.5.0.json");
+  const androidAcceptance = parseJson(root, "release-evidence/android-acceptance-3.5.0.json");
+  const pwaAcceptance = parseJson(root, "release-evidence/pwa-acceptance-3.5.0.json");
   if (review.version !== version || windows.version !== version) fail("external evidence version mismatch");
   if (review.status !== "blocked" || review.approved !== false) fail("release-candidate independent review evidence must remain explicitly blocked until approved");
   if (windows.status !== "blocked" || windows.windows10?.installedUpgradePassed || windows.windows11?.installedUpgradePassed) {
     fail("release-candidate Windows acceptance evidence must remain explicitly blocked until completed");
+  }
+  if (androidAcceptance.version !== version || pwaAcceptance.version !== version) fail("mobile platform evidence version mismatch");
+  if (androidAcceptance.status !== "blocked" || androidAcceptance.installPassed || androidAcceptance.signedArtifactVerified) {
+    fail("release-candidate Android acceptance evidence must remain explicitly blocked until completed");
+  }
+  if (pwaAcceptance.status !== "blocked" || pwaAcceptance.installPassed || pwaAcceptance.offlineStartupPassed) {
+    fail("release-candidate PWA acceptance evidence must remain explicitly blocked until completed");
   }
 
   const releaseDirectory = `docs/releases/${version}`;
@@ -160,10 +169,12 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
 
   const releaseWorkflow = read(root, ".github/workflows/release.yml");
   for (const marker of [
-    "name: Nexora 3.4.0 stable release",
-    "Verify required 3.3.4 baseline",
-    "release-evidence/independent-security-review-3.4.0.json",
-    "release-evidence/windows-acceptance-3.4.0.json",
+    "name: Nexora 3.5.0 stable release",
+    "Verify required 3.4.0 baseline",
+    "release-evidence/independent-security-review-3.5.0.json",
+    "release-evidence/windows-acceptance-3.5.0.json",
+    "release-evidence/android-acceptance-3.5.0.json",
+    "release-evidence/pwa-acceptance-3.5.0.json",
     "Require complete Authenticode policy",
     "docs/releases/$version/RELEASE_NOTES.md",
     "Re-download and verify immutable release assets",
@@ -171,7 +182,7 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
     if (!releaseWorkflow.includes(marker)) fail(`.github/workflows/release.yml missing ${JSON.stringify(marker)}`);
   }
   if (releaseWorkflow.includes("official stable tag remains unused") || /PUBLISH_TAG=.*unsigned-test/.test(releaseWorkflow)) {
-    fail("3.4.0 stable workflow must not fall back to an unsigned official release path");
+    fail("3.5.0 stable workflow must not fall back to an unsigned official release path");
   }
 
   for (const temporary of [
