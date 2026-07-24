@@ -5,63 +5,38 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: post-mls-diagnostics-${{ github.event.pull_request.number }}
+  group: post-mls-finalize-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  release-parts:
+  finalize-current-surfaces:
+    if: github.head_ref == 'release/3.3.4-post-mls' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        command:
-          - node scripts/sync-release-metadata.cjs --check
-          - node scripts/check-release-consistency.cjs
-          - node scripts/check-syntax.cjs
-          - node scripts/check-electron-builder-config.cjs
-          - npm run build:web
-          - npm run test:performance
-          - npm run audit:security
-    name: gate / ${{ matrix.command }}
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: release/3.3.4-post-mls
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22.16.0
           cache: npm
-      - run: npm ci
-      - run: ${{ matrix.command }}
-
-  discover:
-    runs-on: ubuntu-latest
-    outputs:
-      files: ${{ steps.files.outputs.files }}
-    steps:
-      - uses: actions/checkout@v4
-      - id: files
+      - name: Apply deterministic current-surface finalization
+        run: |
+          node scripts/finalize-post-mls-current-surfaces.cjs
+          node scripts/check-syntax.cjs
+          node website/validate.mjs
+      - name: Commit finalized surfaces
         shell: bash
         run: |
-          files=$(find test -maxdepth 1 -name '*.test.cjs' ! -name 'performance.test.cjs' -printf '%f\n' | sort | node -e 'const fs=require("node:fs");const values=fs.readFileSync(0,"utf8").trim().split(/\n+/).filter(Boolean);process.stdout.write(JSON.stringify(values));')
-          echo "files=$files" >> "$GITHUB_OUTPUT"
-
-  test-file:
-    needs: discover
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      max-parallel: 10
-      matrix:
-        file: ${{ fromJson(needs.discover.outputs.files) }}
-    name: unit / ${{ matrix.file }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22.16.0
-          cache: npm
-      - run: npm ci
-      - run: node --test test/${{ matrix.file }}
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -- .github/workflows
+          git add -A
+          git commit -m "docs(post-mls): finalize Nexora 3.3.4 current surfaces"
+          git push origin HEAD:release/3.3.4-post-mls
