@@ -1,0 +1,30 @@
+publish-rc	Verify RC identity and immutable tag	﻿2026-07-24T19:35:18.7856855Z ##[group]Run $ErrorActionPreference = "Stop"
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.7857385Z ^[[36;1m$ErrorActionPreference = "Stop"^[[0m
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.7857848Z ^[[36;1m$version = node -p "require('./package.json').version"^[[0m
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.7858389Z ^[[36;1mif ($version -ne "3.4.0") { throw "RC source version must be 3.4.0, got $version" }^[[0m
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.7858858Z ^[[36;1m$head = (git rev-parse HEAD).Trim()^[[0m
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.7859285Z ^[[36;1mif ($head -ne $env:RC_HEAD) { throw "RC head mismatch: $head" }^[[0m
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.7859695Z ^[[36;1mgit fetch --tags --force^[[0m
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.7860070Z ^[[36;1m$existing = git rev-list -n 1 $env:RC_TAG 2>$null^[[0m
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.7860476Z ^[[36;1mif ($LASTEXITCODE -eq 0 -and $existing) {^[[0m
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.7861404Z ^[[36;1m  if ($existing.Trim() -ne $head) { throw "Immutable RC tag already points to another commit" }^[[0m
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.7862072Z ^[[36;1m  $release = gh release view $env:RC_TAG --json tagName,isDraft,isPrerelease 2>$null^[[0m
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.7862775Z ^[[36;1m  if ($LASTEXITCODE -eq 0) { throw "RC release already exists; refusing asset replacement" }^[[0m
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.7864041Z ^[[36;1m}^[[0m
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.8392718Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.8393159Z env:
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.8396008Z   GH_TOKEN: ***
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.8396292Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.8396607Z   RC_TAG: v3.4.0-rc.1
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.8396903Z   RC_HEAD: 19c637134c93b93ea1255bf7ccf97ee95f97c33b
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.8397378Z   JAVA_HOME: C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.19-10\x64
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.8398628Z   JAVA_HOME_17_X64: C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\17.0.19-10\x64
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.8399120Z   GRADLE_ACTION_ID: gradle/actions/setup-gradle
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.8399459Z   GRADLE_USER_HOME: D:\a\.gradle
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.8399780Z   GRADLE_BUILD_ACTION_SETUP_COMPLETED: true
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.8400128Z   GRADLE_BUILD_ACTION_CACHE_RESTORED: true
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.8400599Z   DEVELOCITY_INJECTION_INIT_SCRIPT_NAME: gradle-actions.inject-develocity.init.gradle
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.8401116Z   DEVELOCITY_INJECTION_CUSTOM_VALUE: gradle-actions
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.8401463Z   GITHUB_DEPENDENCY_GRAPH_ENABLED: false
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:18.8401762Z ##[endgroup]
+publish-rc	Verify RC identity and immutable tag	2026-07-24T19:35:19.5747442Z ##[error]Process completed with exit code 1.
