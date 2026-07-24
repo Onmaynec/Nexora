@@ -34,6 +34,10 @@ function compareLines(left, right) {
   return leftMajor === rightMajor ? leftMinor - rightMinor : leftMajor - rightMajor;
 }
 
+function normalizeRoadmapDependency(value) {
+  return String(value || "").trim().replace(/^Nexora\s+/i, "");
+}
+
 function validateApplicability(item, key) {
   if (item.lines !== undefined) {
     if (!Array.isArray(item.lines) || item.lines.length === 0) errors.push(`Invalid lines metadata: ${key}`);
@@ -185,12 +189,12 @@ for (const mediaFile of mediaFiles) {
 const roadmapText = fs.readFileSync(path.join(repoRoot, "docs/ROADMAP.md"), "utf8");
 const expectedRoadmap = roadmapText.split(/\r?\n/).map((line) => {
   const match = line.match(/^\|\s*(3\.(?:4|5|6|7|8|9|10|11)\.0|4\.0\.0)\s*\|\s*([^|]+?)\s*\|[^|]*\|\s*([^|]+?)\s*\|$/);
-  return match ? [match[1], match[2].trim(), match[3].trim()] : null;
+  return match ? [match[1], match[2].trim(), normalizeRoadmapDependency(match[3])] : null;
 }).filter(Boolean);
 const roadmapPage = pageForVersion(pageById.get("roadmap"), "3.3");
 if (roadmapPage.sourcePath !== "docs/ROADMAP.md") errors.push("Roadmap sourcePath must be docs/ROADMAP.md");
 const roadmapTable = roadmapPage.sections.find((section) => section.id === "sequence")?.blocks.find((block) => block.type === "table");
-const actualRoadmap = (roadmapTable?.rows || []).map((row) => [String(row[0]), String(row[1]), String(row[3])]);
+const actualRoadmap = (roadmapTable?.rows || []).map((row) => [String(row[0]), String(row[1]), normalizeRoadmapDependency(row[3])]);
 if (JSON.stringify(actualRoadmap) !== JSON.stringify(expectedRoadmap)) errors.push("Roadmap page version/name/dependency order drifts from docs/ROADMAP.md");
 
 if (errors.length) {
