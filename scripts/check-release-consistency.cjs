@@ -30,43 +30,29 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
   const version = String(packageJson.version || "");
   const semver = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
   if (!semver) fail(`package.json has invalid SemVer ${JSON.stringify(version)}`);
-
   const [, major, minor, patch] = semver.map(Number);
   const expectedAndroidCode = major * 10_000 + minor * 100 + patch;
   const escapedVersion = version.replace(/\./g, "\\.");
 
-  const packageLock = parseJson(root, "package-lock.json");
-  if (packageLock.version !== version) fail(`package-lock.json version ${packageLock.version} != ${version}`);
-  if (packageLock.packages?.[""]?.version !== version) {
-    fail(`package-lock.json root package version ${packageLock.packages?.[""]?.version} != ${version}`);
+  const lock = parseJson(root, "package-lock.json");
+  if (lock.version !== version || lock.packages?.[""]?.version !== version) {
+    fail(`package-lock.json is not synchronized with ${version}`);
   }
-  if (packageJson.dependencies?.["ts-mls"] || packageLock.packages?.["node_modules/ts-mls"]) {
-    fail("ts-mls must not ship in the post-MLS baseline");
+  if (packageJson.dependencies?.["ts-mls"] || lock.packages?.["node_modules/ts-mls"]) {
+    fail("ts-mls must not ship in Stable Core");
   }
 
-  const clientApi = read(root, "client/src/api.js");
   expectMatch(
     "client/src/api.js",
-    clientApi,
+    read(root, "client/src/api.js"),
     new RegExp(`CLIENT_VERSION\\s*=\\s*"${escapedVersion}"`),
     `does not declare Client version ${version}`,
   );
-
   const android = read(root, "android/app/build.gradle.kts");
-  expectMatch(
-    "android/app/build.gradle.kts",
-    android,
-    new RegExp(`versionName\\s*=\\s*"${escapedVersion}"`),
-    `does not declare versionName ${version}`,
-  );
-  expectMatch(
-    "android/app/build.gradle.kts",
-    android,
-    new RegExp(`versionCode\\s*=\\s*${expectedAndroidCode}\\b`),
-    `does not declare versionCode ${expectedAndroidCode}`,
-  );
+  expectMatch("android/app/build.gradle.kts", android, new RegExp(`versionName\\s*=\\s*"${escapedVersion}"`), `does not declare versionName ${version}`);
+  expectMatch("android/app/build.gradle.kts", android, new RegExp(`versionCode\\s*=\\s*${expectedAndroidCode}\\b`), `does not declare versionCode ${expectedAndroidCode}`);
 
-  const removedRuntime = [
+  for (const removed of [
     "server/trust-core.cjs",
     "server/trust-routes.cjs",
     "server/trust-recovery-routes.cjs",
@@ -76,9 +62,8 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
     "client/src/crypto/mls-engine.js",
     "client/src/crypto/trust-client.js",
     "client/src/components/SecureMessagePane.jsx",
-  ];
-  for (const relativePath of removedRuntime) {
-    if (fs.existsSync(path.join(root, relativePath))) fail(`${relativePath} must remain removed`);
+  ]) {
+    if (fs.existsSync(path.join(root, removed))) fail(`${removed} must remain removed`);
   }
 
   const currentDocuments = [
@@ -121,78 +106,72 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
   for (const [relativePath, expression, description] of specificMarkers) {
     expectMatch(relativePath, read(root, relativePath), expression, description);
   }
-
   for (const relativePath of currentDocuments) {
-    const source = read(root, relativePath);
-    if (!source.includes(version)) fail(`${relativePath} does not identify current version ${version}`);
+    if (!read(root, relativePath).includes(version)) fail(`${relativePath} does not identify current version ${version}`);
   }
 
   const evidence = parseJson(root, "release-evidence/current.json");
-  if (evidence.version !== version) fail(`release-evidence/current.json version ${evidence.version} != ${version}`);
-  if (evidence.tag !== `v${version}`) fail(`release-evidence/current.json tag ${evidence.tag} != v${version}`);
+  if (evidence.version !== version || evidence.tag !== `v${version}`) fail("current release evidence identity mismatch");
   if (evidence.status !== "release-candidate" || evidence.published !== false) {
-    fail("release-evidence/current.json must remain an unpublished release candidate before publication");
+    fail("current evidence must remain an unpublished release candidate before stable publication");
+  }
+  if (evidence.baseline !== "v3.3.4") fail("Stable Core baseline must be v3.3.4");
+
+  const review = parseJson(root, "release-evidence/independent-security-review-3.4.0.json");
+  const windows = parseJson(root, "release-evidence/windows-acceptance-3.4.0.json");
+  if (review.version !== version || windows.version !== version) fail("external evidence version mismatch");
+  if (review.status !== "blocked" || review.approved !== false) fail("release-candidate independent review evidence must remain explicitly blocked until approved");
+  if (windows.status !== "blocked" || windows.windows10?.installedUpgradePassed || windows.windows11?.installedUpgradePassed) {
+    fail("release-candidate Windows acceptance evidence must remain explicitly blocked until completed");
   }
 
   const releaseDirectory = `docs/releases/${version}`;
-  for (const relativePath of [
-    `${releaseDirectory}/RELEASE_NOTES.md`,
-    `${releaseDirectory}/RELEASE_VERIFICATION.md`,
-  ]) {
+  for (const relativePath of [`${releaseDirectory}/RELEASE_NOTES.md`, `${releaseDirectory}/RELEASE_VERIFICATION.md`]) {
     const source = read(root, relativePath);
     if (!source.includes(version)) fail(`${relativePath} does not identify ${version}`);
     if (/compatibility pointer/i.test(source)) fail(`${relativePath} must contain canonical content, not a compatibility pointer`);
   }
-
-  const rootPointers = [
+  for (const [relativePath, canonicalPath] of [
     [`RELEASE_NOTES_${version}.md`, `${releaseDirectory}/RELEASE_NOTES.md`],
     [`RELEASE_VERIFICATION_${version}.md`, `${releaseDirectory}/RELEASE_VERIFICATION.md`],
-  ];
-  for (const [relativePath, canonicalPath] of rootPointers) {
+  ]) {
     const source = read(root, relativePath);
     if (!source.includes(canonicalPath) || !/compatibility pointer/i.test(source)) {
       fail(`${relativePath} must be a compatibility pointer to ${canonicalPath}`);
     }
   }
 
-  const changelog = read(root, "CHANGELOG.md");
-  expectMatch(
-    "CHANGELOG.md",
-    changelog,
-    new RegExp(`^## \\[${escapedVersion}\\]`, "m"),
-    `does not contain ${version}`,
-  );
-
+  expectMatch("CHANGELOG.md", read(root, "CHANGELOG.md"), new RegExp(`^## \\[${escapedVersion}\\]`, "m"), `does not contain ${version}`);
   const releaseIndex = read(root, "docs/releases/README.md");
   if (!releaseIndex.includes("CHANGELOG.md")) fail("docs/releases/README.md does not delegate to CHANGELOG.md");
   if (!releaseIndex.includes(`${version}/RELEASE_NOTES.md`) || !releaseIndex.includes(`${version}/RELEASE_VERIFICATION.md`)) {
     fail(`docs/releases/README.md does not index ${version}`);
   }
-  const duplicateVersionHeading = releaseIndex
-    .split(/\r?\n/)
-    .some((line) => /^## [0-9]/.test(line) || /^## \[[0-9]/.test(line));
-  if (duplicateVersionHeading) fail("docs/releases/README.md duplicates the canonical version timeline");
+  if (releaseIndex.split(/\r?\n/).some((line) => /^## [0-9]/.test(line) || /^## \[[0-9]/.test(line))) {
+    fail("docs/releases/README.md duplicates the canonical version timeline");
+  }
 
-  const obsoleteVerificationPaths = [
-    "RELEASE_VERIFICATION_3.2.4.md",
-    "docs/releases/3.2.4/RELEASE_VERIFICATION.md",
-  ];
   for (const relativePath of currentDocuments) {
     const source = read(root, relativePath);
-    for (const obsoletePath of obsoleteVerificationPaths) {
-      if (source.includes(obsoletePath)) {
-        fail(`${relativePath} still links the obsolete current verification document 3.2.4`);
-      }
+    for (const obsolete of ["RELEASE_VERIFICATION_3.2.4.md", "docs/releases/3.2.4/RELEASE_VERIFICATION.md"]) {
+      if (source.includes(obsolete)) fail(`${relativePath} still links the obsolete current verification document 3.2.4`);
     }
   }
 
   const releaseWorkflow = read(root, ".github/workflows/release.yml");
   for (const marker of [
-    "UNSIGNED-TEST prerelease without updater metadata",
+    "name: Nexora 3.4.0 stable release",
+    "Verify required 3.3.4 baseline",
+    "release-evidence/independent-security-review-3.4.0.json",
+    "release-evidence/windows-acceptance-3.4.0.json",
+    "Require complete Authenticode policy",
     "docs/releases/$version/RELEASE_NOTES.md",
     "Re-download and verify immutable release assets",
   ]) {
     if (!releaseWorkflow.includes(marker)) fail(`.github/workflows/release.yml missing ${JSON.stringify(marker)}`);
+  }
+  if (releaseWorkflow.includes("official stable tag remains unused") || /PUBLISH_TAG=.*unsigned-test/.test(releaseWorkflow)) {
+    fail("3.4.0 stable workflow must not fall back to an unsigned official release path");
   }
 
   for (const temporary of [
@@ -204,8 +183,7 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
     "scripts/apply-stable-core-client-retirement.cjs",
     "scripts/apply-stable-core-runtime-retirement.cjs",
     "scripts/apply-stable-core-docs.cjs",
-    "scripts/finalize-post-mls-current-surfaces.cjs",
-    "scripts/finalize-changelog-3.3.4.cjs",
+    "scripts/prepare-3.4-release-docs.cjs",
     "migration-error.log",
     "unit-failures.log",
   ]) {
@@ -218,9 +196,7 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
 if (require.main === module) {
   try {
     const result = checkReleaseConsistency();
-    console.log(
-      `Release consistency ${result.version} is valid (Android versionCode ${result.expectedAndroidCode}, ${result.currentDocumentCount} current documents).`,
-    );
+    console.log(`Release consistency ${result.version} is valid (Android versionCode ${result.expectedAndroidCode}, ${result.currentDocumentCount} current documents).`);
   } catch (error) {
     console.error(error.stack || error.message);
     process.exit(1);
