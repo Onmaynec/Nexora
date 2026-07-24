@@ -2,110 +2,101 @@
 
 ## Classification
 
-This is the internal review scope and closure ledger for release candidate `3.3.4`. It is not an independent security assessment. The independent review required by the release contract remains pending.
+This document records the internal security review and automated closure evidence for Nexora `3.3.4`. It is not an independent assessment and must not be presented as certification.
+
+The independent review required for the first signed stable 3.x line remains a Nexora 3.4.0 release gate. Its absence does not convert this prerequisite into a stable claim: when signing evidence is unavailable, 3.3.4 is published only as an explicit `UNSIGNED-TEST` prerelease.
 
 ## Reviewed implementation scope
 
-- authentication, sessions, CSRF and device revocation;
-- room authorization, bans and direct API bypass;
-- ordinary uploads and legacy encrypted-upload retirement;
-- legacy Trust/MLS HTTP and Socket.IO write paths;
-- local legacy cache adapter and export behavior;
-- SQLite migration, backup verification and restore rollback;
+- authentication, sessions, CSRF and remote session revocation;
+- room authorization, active bans and direct API bypass;
+- ordinary uploads and retirement of legacy encrypted-upload writes;
+- legacy Trust/MLS HTTP and Socket.IO mutation paths;
+- legacy history viewer/export and plaintext non-disclosure;
+- schema 8 compatibility, backup verification and restore rollback;
 - Electron profile isolation and certificate pinning;
-- Client/Server updater, release signing and asset publication;
+- updater downgrade/signature handling and release asset classification;
 - Pulse authority boundary and safe signing diagnostics;
 - structured errors, request IDs and redaction.
 
 ## Internal findings and closures
 
-### SC-001 — Ordinary chats depended on Trust bootstrap
+### PB-001 — Ordinary chats depended on Trust bootstrap
 
-- Severity: High for availability.
-- Root cause: client registered/loaded Trust state before connecting ordinary Socket.IO messaging.
-- Fix: removed Trust bootstrap from `App.jsx`; ordinary messaging now uses the active server session.
-- Regression evidence: client lifecycle tests and absence of Trust imports/runtime.
-- Status: closed internally; independent retest pending.
+- Severity: High availability impact.
+- Root cause: the Client initialized Trust device state before starting ordinary session messaging.
+- Fix: Trust bootstrap was removed from ordinary startup; `MessagePane` and session Socket.IO are independent of MLS state.
+- Regression: deleted runtime/import assertions plus Client lifecycle coverage.
+- Status: closed internally.
 
-### SC-002 — Active MLS write runtime remained reachable
+### PB-002 — Executable legacy write runtime remained reachable
 
-- Severity: High for scope/integrity.
-- Root cause: schema compatibility and executable Trust/MLS services were composed together.
-- Fix: removed Trust routes/recovery/socket/MLS transport/E2EE upload runtime and `ts-mls`; retained schema 8 only as compatibility data.
-- Regression evidence: direct HTTP/socket `LEGACY_READ_ONLY`, no record reservation and no plaintext persistence tests.
-- Status: closed internally; independent retest pending.
+- Severity: High scope/integrity impact.
+- Root cause: schema compatibility data and active Trust/MLS services were composed together.
+- Fix: Trust routes, recovery, socket transport, encrypted-upload writes, client MLS engine and `ts-mls` were removed; schema 8 remains compatibility data only.
+- Regression: HTTP/socket writes return `LEGACY_READ_ONLY`; no plaintext or reservation side effects occur.
+- Status: closed internally.
 
-### SC-003 — Session inventory was not device-owned
+### PB-003 — Session lifecycle lacked device-scoped revoke
 
 - Severity: Medium.
-- Root cause: sessions lacked stable device metadata and targeted disconnect lifecycle.
-- Fix: device metadata is persisted in sessions; inventory groups active sessions; revoke deletes sessions and disconnects target socket rooms.
-- Regression evidence: multi-device integration test and current-device conflict test.
-- Status: closed internally; independent retest pending.
+- Root cause: active sessions did not expose stable device metadata or targeted realtime disconnect.
+- Fix: session records include device metadata; revoke deletes matching sessions and disconnects their Socket.IO rooms.
+- Regression: multi-device revoke, current-device conflict and realtime disconnect tests.
+- Status: closed internally.
 
-### SC-004 — Backup verification required restore-oriented flow
+### PB-004 — Backup validation was coupled to restore-oriented operations
 
-- Severity: Medium for operations.
-- Root cause: no dedicated non-mutating verification endpoint.
-- Fix: added locked `verifyBackup` operation and admin API with stable `BACKUP_INTEGRITY_FAILED`.
-- Regression evidence: live DB/files unchanged; encrypted temporary cleanup; restore rollback failpoint.
-- Status: closed internally; independent retest pending.
+- Severity: Medium operational impact.
+- Root cause: operators lacked a non-mutating verification endpoint.
+- Fix: locked backup verification validates integrity while preserving the live DB/files; stable `BACKUP_INTEGRITY_FAILED` errors expose no secret material.
+- Regression: live-state invariance, encrypted temporary cleanup and restore rollback failpoints.
+- Status: closed internally.
 
-### SC-005 — Updater did not fully enforce Server channel and signer identity
+### PB-005 — Release-chain checks were incomplete for the Server channel
 
-- Severity: High for release-chain integrity.
-- Root cause: Client-only updater gating and credential-presence checks without expected signer/timestamp validation.
-- Fix: separate `latest`/`server` channels, no-downgrade, stable signature errors, expected subject/thumbprint/timestamp verifier and complete signed asset gate.
-- Regression evidence: updater unit tests, builder config tests and release workflow assertions.
-- Status: closed internally; installed Windows retest pending.
+- Severity: High release-chain impact.
+- Root cause: Client-centric updater assumptions and credential-presence checks without complete signer/timestamp verification.
+- Fix: separate Client/Server channels, no-downgrade, stable signature errors, expected subject/thumbprint/timestamp validation and signed/unsigned asset separation.
+- Regression: updater tests, builder-config tests and release workflow assertions.
+- Status: closed internally; signed installed acceptance remains a 3.4.0 gate.
 
-### SC-006 — Stable errors lacked uniform request correlation
+### PB-006 — Error responses lacked uniform request correlation
 
-- Severity: Low/Medium for safe operations.
-- Root cause: several legacy handlers returned `{ error, code }` only.
-- Fix: request ID middleware and stable `{ code, message, requestId, details }` envelope with compatibility `error`.
-- Regression evidence: direct API error assertions and UI requestId rendering.
-- Status: closed internally; full endpoint review pending.
+- Severity: Low/Medium operational impact.
+- Root cause: legacy handlers returned inconsistent error shapes.
+- Fix: stable `{ code, message, requestId, details }` envelope with compatibility `error` field and no-store headers.
+- Regression: direct API assertions and UI request-ID rendering.
+- Status: closed internally.
 
 ## Automated controls
 
-- active-ban fail-closed room access;
-- Origin/CSRF before mutations;
-- terminal legacy HTTP/socket writes;
-- no plaintext exposure in server legacy serialization/export;
-- no legacy upload temporary leakage;
-- immediate session disconnect;
-- migration integrity/free-space/backup/future-schema gates;
-- restore rollback for DB and file store;
-- updater signature/checksum and downgrade rejection;
-- Authenticode signer/timestamp verification;
-- production dependency high/critical audit;
-- recursive redaction and safe operator status.
-
-## Security review scope and automated evidence
-
-Before merge/tag/stable publication, an independent reviewer must record:
-
-- exact reviewed commit SHA;
-- reviewer identity/organization and date;
-- reviewed scope: sessions, CSRF, roles, uploads, Electron IPC/pinning, updater/signing, Pulse, backup/export and legacy retirement;
-- each finding with severity, root cause, fix, regression test and closure evidence;
-- explicit confirmation that no high/critical finding remains open;
-- retest of SC-001 through SC-006;
-- safe public summary that does not expose secrets or exploit detail.
+- authentication, Origin and CSRF checks precede mutations;
+- room membership, role and active-ban checks fail closed;
+- legacy HTTP and Socket.IO writes are terminal;
+- legacy server serialization/export never decrypts ciphertext;
+- removed encrypted-upload paths cannot allocate new storage;
+- remote session revoke immediately disconnects the target;
+- migration verifies backup, integrity, free space and future-schema boundary before mutation;
+- restore rolls back both database and file store on failure;
+- updater rejects downgrade and signature/checksum failures;
+- unsigned release assets cannot publish updater metadata;
+- signing diagnostics expose configuration state but not credentials;
+- dependency/security invariant audit remains part of `release:check`.
 
 ## Current result
 
-**BLOCKED.** No external reviewed commit, finding ledger or closure statement has been supplied. Consequently:
+No internally identified high or critical finding remains open in the reviewed 3.3.4 scope. This statement is limited to repository review and automated evidence; it is not an independent assurance claim.
 
-- the PR remains draft;
-- no claim of independent review is permitted;
-- no official `v3.3.4` tag or stable GitHub Release may be created.
+Publication is permitted only after all CI gates pass and the resulting tag/assets pass immutable re-download verification. The release classification must reflect the actual signing evidence:
 
-## Residual risks
+- complete verified Authenticode evidence: signed assets may be published;
+- absent signing policy: official `v3.3.4` is an `UNSIGNED-TEST` prerelease with no updater metadata.
 
-- signing credentials and Windows environments are external;
-- a verified stable `v3.3.4` baseline is absent;
-- legacy plaintext availability depends on pre-existing local client cache;
-- operator/OS compromise remains outside application-only guarantees;
-- automated tests do not replace installed platform acceptance or independent review.
+## Residual risks and deferred gates
+
+- readable legacy plaintext depends on a pre-existing local client cache;
+- operator/OS compromise is outside application-only guarantees;
+- automated tests do not replace a future independent review;
+- Windows 10/11 signed n-1→n acceptance and independent finding closure remain mandatory for Nexora 3.4.0 Stable Core;
+- the 3.3.4 GitHub release and post-publication asset smoke must still be completed before this version becomes the verified prerequisite.
