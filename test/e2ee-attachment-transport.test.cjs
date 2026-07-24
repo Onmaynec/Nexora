@@ -112,5 +112,6 @@ test("retired MLS transport rejects ciphertext writes without reserving files, m
     legacyHistory: "read_only",
     encryptedAttachments: false,
     deviceScopedRealtime: false,
+    activeGroups: 0,
   });
 });
