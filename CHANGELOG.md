@@ -2,6 +2,35 @@
 
 Формат основан на Keep a Changelog. Версии следуют Semantic Versioning.
 
+## [3.3.4] - Unreleased
+
+### Changed
+- Ordinary server-readable messaging is now the sole writable messaging core; Client bootstrap and ordinary chats no longer depend on Trust enrollment, MLS epochs or Welcome recovery.
+- Executable Trust/MLS routes, recovery workers, Socket.IO transport, encrypted-upload write paths, Client MLS engine and the `ts-mls` dependency are removed.
+- SQLite schema 8 remains an idempotent compatibility layer preserving legacy conversation IDs, epochs, timestamps, ciphertext and audit provenance without plaintext conversion.
+
+### Added
+- Dedicated immutable legacy-history viewer and export endpoints with `serverDecrypted: false`.
+- Session-derived device inventory, targeted remote session revocation and immediate realtime disconnect through `session.revoked`.
+- Non-restoring backup verification and stable request-correlated error envelopes.
+- Official `v3.3.4` release pipeline supporting verified signed assets or explicit `UNSIGNED-TEST` prerelease assets without updater metadata.
+
+### Security
+- Legacy Trust/E2EE HTTP writes and MLS Socket.IO mutations terminate with `410/LEGACY_READ_ONLY`.
+- Current-device remote revocation fails with `STATE_CONFLICT`; revoked sessions are removed and disconnected immediately.
+- Client/Server updater channels reject downgrade and signature/checksum failures; complete signing policy validates subject, thumbprint and timestamp.
+- Unsigned publication forbids `latest.yml`, `server.yml` and blockmaps.
+
+### Fixed
+- Removed dangling Client imports and stale runtime contracts after post-MLS retirement.
+- Updated introductory and advanced documentation, website content, focused regressions and release metadata to the 3.3.4 post-MLS boundary.
+
+### Compatibility
+- Supported upgrade path is published Nexora `3.3.3` → `3.3.4`.
+- Application API v3 and ordinary room/message contracts remain available.
+- No schema version bump is introduced; future schemas still fail before mutation.
+- Independent review and signed Windows 3.3.4→3.4.0 acceptance remain Nexora 3.4.0 gates.
+
 ## [3.3.3] - 2026-07-23
 
 ### Fixed
