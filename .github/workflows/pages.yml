@@ -42,16 +42,37 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
       - name: Validate introductory website
+        id: intro_validation
+        continue-on-error: true
+        shell: bash
         run: |
-          node --check website/release-fallback.js
-          node --check website/network-resilience.js
-          node --check website/app.js
-          node --check website/site-fixes.js
-          node --check website/site-polish.js
-          node website/generate-release-fallback.mjs --check
-          node --test website/release-resilience.test.cjs
-          node website/validate.mjs
-          node website/validate-restored.mjs
+          set +e
+          {
+            node --check website/release-fallback.js
+            node --check website/network-resilience.js
+            node --check website/app.js
+            node --check website/site-fixes.js
+            node --check website/site-polish.js
+            node website/generate-release-fallback.mjs --check
+            node --test website/release-resilience.test.cjs
+            node website/validate.mjs
+            node website/validate-restored.mjs
+          } > intro-validation-failures.log 2>&1
+          status=$?
+          cat intro-validation-failures.log
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit "$status"
+      - name: Upload introductory validation diagnostics
+        if: steps.intro_validation.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: intro-validation-failures
+          path: intro-validation-failures.log
+          if-no-files-found: error
+          retention-days: 2
+      - name: Enforce introductory validation
+        if: steps.intro_validation.outcome == 'failure'
+        run: exit 1
       - name: Compose introductory website artifact
         shell: bash
         run: |
