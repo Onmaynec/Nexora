@@ -1,0 +1,67 @@
+name: Stable Core diagnostics
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: post-mls-diagnostics-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  release-parts:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        command:
+          - node scripts/sync-release-metadata.cjs --check
+          - node scripts/check-release-consistency.cjs
+          - node scripts/check-syntax.cjs
+          - node scripts/check-electron-builder-config.cjs
+          - npm run build:web
+          - npm run test:performance
+          - npm run audit:security
+    name: gate / ${{ matrix.command }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - run: npm ci
+      - run: ${{ matrix.command }}
+
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      files: ${{ steps.files.outputs.files }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: files
+        shell: bash
+        run: |
+          files=$(find test -maxdepth 1 -name '*.test.cjs' ! -name 'performance.test.cjs' -printf '%f\n' | sort | node -e 'const fs=require("node:fs");const values=fs.readFileSync(0,"utf8").trim().split(/\n+/).filter(Boolean);process.stdout.write(JSON.stringify(values));')
+          echo "files=$files" >> "$GITHUB_OUTPUT"
+
+  test-file:
+    needs: discover
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix:
+        file: ${{ fromJson(needs.discover.outputs.files) }}
+    name: unit / ${{ matrix.file }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - run: npm ci
+      - run: node --test test/${{ matrix.file }}
