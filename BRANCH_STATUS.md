@@ -1,52 +1,37 @@
-# Статус выпуска Nexora 3.3.3
+# Статус ветки Nexora 3.3.4 Post-MLS Baseline
 
 ## Классификация
 
 | Параметр | Значение |
 |---|---|
-| Version | `3.3.3` |
-| Release scope | Goals, voice UX, Pulse effects, idempotent billing and MLS recovery |
-| Source Pull Request | PR `#65`, merged |
-| Source release commit | `5b1ca1cae10ab4130f0c163c8785604365b239bc` |
-| Release tag | `v3.3.3` |
-| Distribution | Published `UNSIGNED-TEST` prerelease |
-| Signed production baseline | `3.1.2` |
-| Local Server schema | `8` |
-| Application API | `v3` |
-| Trust/MLS API | `v4` |
-| Database migration | not required |
-| Independent security audit | not performed |
+| Version | `3.3.4` |
+| Branch | `release/3.3.4-post-mls` |
+| Pull Request | `#70` |
+| Baseline | published Nexora `3.3.3` line |
+| Classification | Release candidate; signed when policy exists, otherwise explicit `UNSIGNED-TEST` prerelease |
+| Application API | v3 |
+| Local Server schema | 8 compatibility layer |
+| Trust/MLS runtime | retired; legacy history read-only |
+| Publication | pending final CI, merge, annotated `v3.3.4`, GitHub Release and asset smoke |
 
-## Реализовано
+## Implemented boundary
 
-- исправлено создание коллективных целей с серверной авторизацией owner/moderator, валидацией и атомарными операциями;
-- голосовые получили microphone-level waveform при записи, сохранённые waveform metadata и анимированное воспроизведение;
-- покупки Pulse применяют только server-owned catalog effects и корректно снимаются после истечения;
-- покупки и взносы используют стабильный `Idempotency-Key`, исключающий повторное списание;
-- открытие защищённого чата проверяет MLS epoch и поддерживает fail-closed recovery через новый device-scoped Welcome.
+- ordinary server-readable messaging is the only writable messaging path;
+- executable Trust/MLS services and `ts-mls` are removed;
+- schema 8 legacy ciphertext, IDs, epochs, timestamps and audit provenance are retained;
+- legacy viewer/export is immutable and the server never decrypts ciphertext;
+- legacy REST and Socket.IO mutations fail with `410/LEGACY_READ_ONLY`;
+- session-derived devices support targeted revoke and immediate realtime disconnect;
+- backup verification is non-restoring and restore/migration failure paths are covered;
+- updater and release tooling distinguish signed assets from explicit unsigned test assets.
 
-## Проверка
+## Release completion gates
 
-- `npm run check` — success;
-- `npm run test:unit` — success;
-- `npm run test:performance` — success;
-- `npm run audit:security` — success;
-- `npm run release:check` — success;
-- Windows/Linux/release/schema soak/Android validation gates — success.
+1. final PR CI, focused regressions and website validation pass;
+2. PR #70 is reviewed and merged with release commit identity;
+3. post-merge CI passes;
+4. annotated `v3.3.4` and GitHub Release are created;
+5. checksums and release evidence are published;
+6. all assets are re-downloaded and verified.
 
-Release notes и verification размещаются в [`docs/releases/3.3.3/`](docs/releases/3.3.3/). Машиночитаемое свидетельство публикации хранится в [`release-evidence/current.json`](release-evidence/current.json).
-
-## Security and compatibility
-
-- authorization, room roles, bans, upload policy and wallet ledger remain server-enforced;
-- Pulse effects are resolved only from the server-owned allowlist;
-- MLS recovery affects only the authenticated current device and never enables plaintext fallback;
-- schema 8, API v3 and Trust/MLS API v4 remain compatible;
-- no migration or rollback is required.
-
-## Реальные ограничения
-
-- Windows Client/Server and Android remain unsigned test artifacts unless valid signing credentials are configured;
-- production updater metadata is intentionally absent for unsigned artifacts;
-- independent cryptographic/application-security audit is not completed;
-- physical-device Android and installed Windows acceptance remain external release evidence requirements.
+Authenticode credentials are optional for this prerequisite. Without them, the release remains a clearly marked `UNSIGNED-TEST` prerelease and must not contain updater metadata. Independent review and signed 3.3.4→3.4.0 acceptance remain 3.4.0 gates.

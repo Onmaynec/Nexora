@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const FALLBACK_VERSION = "3.3.3";
+  const FALLBACK_VERSION = "3.3.4";
 
   const ruCorrections = {
     heroLead: "Самостоятельно размещаемая платформа для частных серверов, команд и сообществ. Единый интерфейс для Windows, PWA и Android, локальный сервер как источник полномочий и отдельный контур Pulse.",
@@ -50,8 +50,8 @@
     deliveryFiveTitle: "Доставка",
     deliveryFive: "Только проверенным устройствам участников",
     deliverySixTitle: "Расшифрование",
-    deliverySix: "Локально на устройстве получателя",
-    trustTitle: "Проверяемые ограничения.<br><em>Без вымышленных процентов.</em>",
+    deliverySix: "Realtime, cache and read state",
+    trustTitle: "Проверяемая совместимость.<br><em>Legacy без новых записей.</em>",
     trustLead: "Сайт показывает только ограничения, закреплённые в коде и документации текущей линии Nexora.",
     limitDevices: "Активные доверенные устройства",
     perAccount: "на одну учётную запись",
@@ -64,7 +64,7 @@
     lifeTwoTitle: "Подтверждение владения",
     lifeTwo: "Регистрация подтверждает владение закрытым ключом.",
     lifeThreeTitle: "Проверка",
-    lifeThree: "Дополнительное устройство получает подписанное подтверждение.",
+    lifeThree: "HTTP and Socket.IO writes return LEGACY_READ_ONLY.",
     lifeFourTitle: "Адресная доставка",
     lifeFour: "Шифротекст доставляется конкретным проверенным устройствам.",
     lifeFiveTitle: "Отзыв",

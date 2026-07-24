@@ -40,8 +40,9 @@ function cleanText(value, max = 4_000) {
   return String(value ?? "").replace(/\r\n?/g, "\n").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "").trim().slice(0, max);
 }
 
-function fail(response, status, error, code = "REQUEST_FAILED") {
-  return response.status(status).json({ ok: false, error, code });
+function fail(response, status, error, code = "REQUEST_FAILED", details = {}) {
+  const requestId = response.locals?.requestId || crypto.randomUUID();
+  return response.status(status).json({ ok: false, error, message: error, code, requestId, details });
 }
 
 function activeRoomInvite(invite, now = Date.now()) {
@@ -267,7 +268,7 @@ function mountV3Features(options) {
     const state = store.read();
     const conversation = findConversation(state, request.params.conversationId);
     if (!canAccessConversation(state, conversation, request.nexora.user.id)) return fail(response, 403, "Чат недоступен.", "FORBIDDEN");
-    if (conversationUsesMls(conversation.id)) return fail(response, 409, "Черновик MLS хранится только в зашифрованном локальном хранилище.", "E2EE_DRAFT_LOCAL_ONLY");
+    if (conversationUsesMls(conversation.id)) return fail(response, 410, "Черновик MLS хранится только в зашифрованном локальном хранилище.", "LEGACY_READ_ONLY");
     if (!text) return fail(response, 400, "Пустой черновик следует удалить.", "DRAFT_EMPTY");
     const draft = await store.mutate((current) => {
       const id = `${request.nexora.user.id}:${conversation.id}`;
@@ -312,7 +313,7 @@ function mountV3Features(options) {
     const state = store.read();
     const conversation = findConversation(state, conversationId);
     if (!text || !canAccessConversation(state, conversation, request.nexora.user.id)) return fail(response, 403, "Чат или сообщение недоступны.", "FORBIDDEN");
-    if (conversationUsesMls(conversation.id)) return fail(response, 409, "Отложенная plaintext-отправка недоступна в MLS-диалоге.", "E2EE_SCHEDULE_UNSUPPORTED");
+    if (conversationUsesMls(conversation.id)) return fail(response, 410, "Отложенная plaintext-отправка недоступна в MLS-диалоге.", "LEGACY_READ_ONLY");
     if (!Number.isFinite(scheduledAt) || scheduledAt < Date.now() + 10_000 || scheduledAt > Date.now() + 365 * 24 * 60 * 60 * 1000) return fail(response, 400, "Дата должна быть от 10 секунд до года в будущем.", "SCHEDULE_INVALID");
     const posting = roomPostingError(state, conversation, request.nexora.user.id, "text");
     if (posting) return fail(response, 403, posting.message, posting.code);
@@ -348,7 +349,7 @@ function mountV3Features(options) {
     const state = store.read();
     const conversation = findConversation(state, request.params.id);
     if (!canAccessConversation(state, conversation, request.nexora.user.id)) return fail(response, 403, "Чат недоступен.", "FORBIDDEN");
-    if (conversationUsesMls(conversation.id)) return fail(response, 409, "Опросы требуют отдельного E2EE-формата и пока недоступны в MLS-диалоге.", "E2EE_POLL_UNSUPPORTED");
+    if (conversationUsesMls(conversation.id)) return fail(response, 410, "Опросы требуют отдельного E2EE-формата и пока недоступны в MLS-диалоге.", "LEGACY_READ_ONLY");
     if (question.length < 2 || labels.length < 2 || labels.length > 10 || unique.length !== labels.length) return fail(response, 400, "Опросу нужны вопрос и 2–10 уникальных вариантов.", "POLL_INVALID");
     const posting = roomPostingError(state, conversation, request.nexora.user.id, "text");
     if (posting) return fail(response, 403, posting.message, posting.code);
@@ -708,7 +709,7 @@ function mountV3Features(options) {
     const state = store.read();
     const conversation = findConversation(state, cleanLine(request.body?.conversationId, 64));
     if (!conversation || conversation.roomId !== request.nexoraBot.bot.roomId) return fail(response, 403, "Бот ограничен своей комнатой.", "BOT_ROOM_SCOPE");
-    if (conversationUsesMls(conversation.id)) return fail(response, 409, "Бот не имеет доверенного MLS-устройства и не может отправлять plaintext.", "E2EE_BOT_UNSUPPORTED");
+    if (conversationUsesMls(conversation.id)) return fail(response, 410, "Бот не имеет доверенного MLS-устройства и не может отправлять plaintext.", "LEGACY_READ_ONLY");
     try {
       const result = await createTextMessage({ senderId: request.nexoraBot.user.id, conversationId: conversation.id, text: cleanText(request.body?.text), silent: Boolean(request.body?.silent), clientId: cleanLine(request.body?.clientId, 64) || `bot_${crypto.randomUUID()}` });
       emitMessage(result);
@@ -722,7 +723,7 @@ function mountV3Features(options) {
     const conversation = findConversation(state, request.params.id);
     const size = Math.max(0, Number(request.body?.size) || 0);
     if (!canAccessConversation(state, conversation, request.nexora.user.id)) return fail(response, 403, "Чат недоступен.", "FORBIDDEN");
-    if (conversationUsesMls(conversation.id)) return fail(response, 409, "Вложения в MLS-диалоге должны быть зашифрованы на клиенте.", "E2EE_ATTACHMENT_REQUIRED");
+    if (conversationUsesMls(conversation.id)) return fail(response, 410, "Вложения в MLS-диалоге должны быть зашифрованы на клиенте.", "LEGACY_READ_ONLY");
     if (!Number.isSafeInteger(size) || size < 1 || size > maxFileBytes) return fail(response, 413, "Файл превышает лимит.", "FILE_TOO_LARGE");
     if (size > store.stats().remainingBytes) return fail(response, 507, "Недостаточно места на сервере.", "STORAGE_QUOTA");
     const kind = ["file", "image", "voice"].includes(request.body?.kind) ? request.body.kind : "file";
@@ -746,7 +747,7 @@ function mountV3Features(options) {
 
   app.put("/api/uploads/:id/chunks/:index", authRequired, express.raw({ type: "application/octet-stream", limit: CHUNK_BYTES + 1024 }), async (request, response) => {
     const upload = store.read((state) => state.uploadSessions.find((item) => item.id === request.params.id && item.userId === request.nexora.user.id && item.status === "uploading"));
-    if (upload && conversationUsesMls(upload.conversationId)) return fail(response, 409, "Загрузка отменена: диалог переведён на MLS E2EE.", "E2EE_ATTACHMENT_REQUIRED");
+    if (upload && conversationUsesMls(upload.conversationId)) return fail(response, 410, "Загрузка отменена: диалог переведён на MLS E2EE.", "LEGACY_READ_ONLY");
     const index = Number(request.params.index);
     if (!upload || !Number.isInteger(index) || index < 0 || index >= upload.totalChunks) return fail(response, 404, "Сессия или часть не найдены.", "UPLOAD_CHUNK_INVALID");
     const expected = index === upload.totalChunks - 1 ? upload.size - index * upload.chunkSize : upload.chunkSize;
@@ -771,7 +772,7 @@ function mountV3Features(options) {
     if (upload && conversationUsesMls(upload.conversationId)) {
       await fs.rm(path.join(incomingDir, upload.tempName), { force: true });
       await store.mutate((state) => { const current = state.uploadSessions.find((item) => item.id === upload.id); if (current) current.status = "cancelled"; });
-      return fail(response, 409, "Загрузка отменена: диалог переведён на MLS E2EE.", "E2EE_ATTACHMENT_REQUIRED");
+      return fail(response, 410, "Загрузка отменена: диалог переведён на MLS E2EE.", "LEGACY_READ_ONLY");
     }
     if (!upload || upload.receivedChunks.length !== upload.totalChunks || !Array.from({ length: upload.totalChunks }, (_, index) => index).every((index) => upload.receivedChunks.includes(index))) return fail(response, 409, "Получены не все части файла.", "UPLOAD_INCOMPLETE");
     const temporaryPath = path.join(incomingDir, upload.tempName);

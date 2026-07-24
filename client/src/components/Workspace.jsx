@@ -6,10 +6,10 @@ import {
   ShieldCheck, UserMinus, UserPlus, UsersRound, X,
 } from "lucide-react";
 import { api, patch, post, remove } from "../api";
-import { loadE2eeDraft } from "../crypto/trust-client";
 import HoverDock from "./HoverDock";
 import GlobalSearch from "./GlobalSearch";
-import SecureMessagePane from "./SecureMessagePane";
+import LegacySecureHistoryPane from "./LegacySecureHistoryPane";
+import MessagePane from "./MessagePane";
 import NotificationsPage from "./NotificationsPage";
 import PulsePage from "./PulsePage";
 import AccountSettingsPage from "./SettingsPage";
@@ -22,7 +22,7 @@ function lastMessageLabel(message) {
   if (message.type === "image") return "Изображение";
   if (message.type === "voice") return "Голосовое сообщение";
   if (message.type === "file") return "Файл";
-  if (message.type === "encrypted") return "Защищённое сообщение";
+  if (message.type === "encrypted") return "Legacy secure history · только чтение";
   return message.text;
 }
 
@@ -30,20 +30,7 @@ function ConversationList({ conversations, drafts = [], activeId, onOpen, onOpen
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [menuId, setMenuId] = useState(null);
-  const [draftMap, setDraftMap] = useState({});
-  const conversationIdsKey = conversations.map((conversation) => conversation.id).join("|");
-  useEffect(() => {
-    let cancelled = false;
-    const ids = conversationIdsKey ? conversationIdsKey.split("|") : [];
-    const refresh = async () => {
-      const entries = await Promise.all(ids.map(async (conversationId) => [conversationId, Boolean(await loadE2eeDraft(conversationId).catch(() => ""))]));
-      if (!cancelled) setDraftMap(Object.fromEntries(entries));
-    };
-    refresh();
-    const listener = () => refresh();
-    window.addEventListener("nexora:drafts", listener);
-    return () => { cancelled = true; window.removeEventListener("nexora:drafts", listener); };
-  }, [conversationIdsKey]);
+  const serverDraftIds = new Set((drafts || []).map((draft) => draft.conversationId));
   useEffect(() => { const close = () => setMenuId(null); window.addEventListener("pointerdown", close); return () => window.removeEventListener("pointerdown", close); }, []);
   const unreadTotal = conversations.reduce((sum, item) => sum + item.unreadCount, 0);
   const filtered = conversations.filter((conversation) => {
@@ -65,14 +52,14 @@ function ConversationList({ conversations, drafts = [], activeId, onOpen, onOpen
       ].map(([id, label]) => <button type="button" role="tab" aria-selected={filter === id} className={filter === id ? "active" : ""} key={id} onClick={() => setFilter(id)}>{label}</button>)}</div>
       <div className="conversation-list">
         {filtered.map((conversation) => {
-          const draft = Boolean(draftMap[conversation.id]);
+          const draft = serverDraftIds.has(conversation.id);
           return (
           <div key={conversation.id} className={`conversation-card${conversation.id === activeId ? " active" : ""}${conversation.notificationSettings?.pinned ? " pinned" : ""}`}>
             <button type="button" className="conversation-open" onClick={() => onOpen(conversation.id)}>
               <Avatar user={conversation.peer ?? conversation} online={conversation.online} onClick={conversation.type === "dm" ? (event) => { event.stopPropagation(); onOpenProfile(conversation.peer); } : undefined} />
               <span className="conversation-copy">
                 <span><strong>{conversation.notificationSettings?.pinned && <Pin size={11} fill="currentColor" />}{conversation.title}</strong><time>{formatTime(conversation.updatedAt)}</time></span>
-                <small className={draft ? "draft-label" : ""}>{draft ? "Черновик · зашифрован локально" : lastMessageLabel(conversation.lastMessage)}</small>
+                <small className={draft ? "draft-label" : ""}>{draft ? "Черновик" : lastMessageLabel(conversation.lastMessage)}</small>
               </span>
               {conversation.unreadCount > 0 && <b className="unread-badge">{conversation.unreadCount > 99 ? "99+" : conversation.unreadCount}</b>}
             </button>
@@ -374,7 +361,7 @@ function Modal({ title, children, onClose }) {
   return <div className="modal-backdrop" role="dialog" aria-modal="true" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="modal-card"><header><h2>{title}</h2><button type="button" onClick={onClose}><X size={18} /></button></header>{children}</section></div>;
 }
 
-export default function Workspace({ me, bootstrap, socket, onlineUserIds, trustState, onRefresh, onMeChanged, onLogout, showToast }) {
+export default function Workspace({ me, bootstrap, socket, onlineUserIds, onRefresh, onMeChanged, onLogout, showToast }) {
   const [section, setSection] = useState("chats");
   const [activeConversationId, setActiveConversationId] = useState(bootstrap.conversations[0]?.id ?? null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -439,7 +426,7 @@ export default function Workspace({ me, bootstrap, socket, onlineUserIds, trustS
         <div className="workspace-user"><Avatar user={me} onClick={() => setProfileUser(me)} /><span><strong>{me.displayName}</strong><small>@{me.username}{me.role === "server_admin" ? " · admin" : ""}</small>{me.status && <em>{me.status}</em>}</span></div>
         <div className="rail-content">
           {section === "chats" && <ConversationList conversations={bootstrap.conversations} drafts={bootstrap.drafts} activeId={activeConversationId} onOpen={openConversation} onOpenProfile={setProfileUser} onSetting={(conversation, fields, message) => run(() => patch(`/api/conversations/${conversation.id}/settings`, fields), message)} userId={me.id} />}
-          {section === "search" && <><div className="rail-heading"><div><span>MESSAGE INDEX</span><h2>Поиск</h2></div></div><div className="settings-rail-copy"><Search size={22} /><p>Серверный индекс показывает только legacy-данные. Поиск по MLS E2EE выполняется локально внутри чата.</p></div></>}
+          {section === "search" && <><div className="rail-heading"><div><span>MESSAGE INDEX</span><h2>Поиск</h2></div></div><div className="settings-rail-copy"><Search size={22} /><p>Серверный индекс охватывает обычные server-readable сообщения. Legacy MLS history доступна только через отдельный read-only viewer.</p></div></>}
           {section === "notifications" && <><div className="rail-heading"><div><span>ACTIVITY</span><h2>Уведомления</h2></div>{bootstrap.notificationCount > 0 && <b>{bootstrap.notificationCount}</b>}</div><div className="settings-rail-copy"><BellOff size={22} /><p>Упоминания, ответы и события безопасности собраны в одном месте.</p></div></>}
           {section === "rooms" && <RoomsRail rooms={bootstrap.rooms} onOpen={(room) => room.joined && openConversation(room.conversationId)} onCreate={() => setModal("create-room")} onJoinCode={() => setModal("join-code")} />}
           {section === "contacts" && <ContactsRail contacts={bootstrap.contacts} requests={bootstrap.contactRequests} onOpen={openConversation} onOpenProfile={setProfileUser} onAccept={async (requestItem) => { const result = await run(() => post(`/api/contacts/requests/${requestItem.id}/accept`), "Контакт добавлен"); if (result) openConversation(result.conversationId); }} onReject={(requestItem) => run(() => post(`/api/contacts/requests/${requestItem.id}/reject`), "Заявка отклонена")} />}
@@ -450,7 +437,25 @@ export default function Workspace({ me, bootstrap, socket, onlineUserIds, trustS
       </aside>
 
       <section className={`workspace-main${detailsOpen ? " details-visible" : ""}`}>
-        {section === "chats" && (activeConversation ? <SecureMessagePane key={activeConversation.id} conversation={activeConversation} initialMessageId={jumpTarget?.conversationId === activeConversation.id ? jumpTarget.messageId : null} onJumpHandled={() => setJumpTarget(null)} me={me} socket={socket} onlineUserIds={onlineUserIds} trustState={trustState} onRefresh={onRefresh} onDetails={() => setDetailsOpen((value) => !value)} showToast={showToast} /> : <EmptyState icon={MessageCircleMore} title="Выберите чат" description="Ваши личные диалоги и комнаты появятся слева." />)}
+        {section === "chats" && (activeConversation
+          ? activeConversation.legacySecure
+            ? <LegacySecureHistoryPane key={activeConversation.id} conversation={activeConversation} serverId={bootstrap.server?.id} userId={me.id} onDetails={() => setDetailsOpen((value) => !value)} showToast={showToast} />
+            : <MessagePane
+              key={activeConversation.id}
+              conversation={activeConversation}
+              conversations={bootstrap.conversations}
+              initialDraft={bootstrap.drafts?.find((draft) => draft.conversationId === activeConversation.id)?.text || ""}
+              initialMessageId={jumpTarget?.conversationId === activeConversation.id ? jumpTarget.messageId : null}
+              onJumpHandled={() => setJumpTarget(null)}
+              me={me}
+              socket={socket}
+              onlineUserIds={onlineUserIds}
+              onRefresh={onRefresh}
+              onDetails={() => setDetailsOpen((value) => !value)}
+              onOpenProfile={setProfileUser}
+              showToast={showToast}
+            />
+          : <EmptyState icon={MessageCircleMore} title="Выберите чат" description="Ваши личные диалоги и комнаты появятся слева." />)}
         {section === "search" && <GlobalSearch onOpen={openConversation} onOpenProfile={setProfileUser} showToast={showToast} />}
         {section === "notifications" && <NotificationsPage onOpen={openConversation} showToast={showToast} />}
         {section === "rooms" && <RoomsOverview rooms={bootstrap.rooms} onCreate={() => setModal("create-room")} onOpen={(room) => openConversation(room.conversationId)} onAppeal={setAppealRoom} onJoin={async (room) => {

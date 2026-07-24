@@ -7,7 +7,7 @@
   <meta name="color-scheme" content="dark" />
   <meta name="description" content="Nexora — self-hosted платформа обмена сообщениями для Windows, браузера/PWA и Android." />
   <meta property="og:title" content="Nexora — коммуникации под вашим контролем" />
-  <meta property="og:description" content="Self-hosted messenger, Local Server, Trust Core, MLS, encrypted media and Nexora Pulse." />
+  <meta property="og:description" content="Self-hosted messenger, Local Server, ordinary messaging, read-only legacy secure history and Nexora Pulse." />
   <meta property="og:type" content="website" />
   <meta property="og:image" content="assets/nexora-icon.png" />
   <link rel="icon" href="assets/nexora-icon.png" type="image/png" />
@@ -128,7 +128,7 @@
         <div class="hero-status">
           <span class="status-pulse"></span>
           <span data-i18n="heroStatus">Актуальная линия</span>
-          <strong data-current-version>3.3.3</strong>
+          <strong data-current-version>3.3.4</strong>
           <span class="status-separator"></span>
           <span data-ci-label data-i18n="ciLoading">проверка CI…</span>
         </div>
@@ -154,7 +154,7 @@
 
         <div class="hero-facts">
           <div><small data-i18n="heroFactOneLabel">Платформы</small><strong>Windows · PWA · Android</strong></div>
-          <div><small data-i18n="heroFactTwoLabel">Протоколы</small><strong>API v3 · Trust v4</strong></div>
+          <div><small data-i18n="heroFactTwoLabel">Протоколы</small><strong>API v3 · legacy read-only</strong></div>
           <div><small data-i18n="heroFactThreeLabel">Лицензия</small><strong>MIT Open Source</strong></div>
         </div>
       </div>
@@ -179,18 +179,18 @@
               <div class="conversation-row"><span class="avatar avatar-green">P</span><div><b>Pulse</b><small>Entitlement verified</small></div></div>
               <div class="conversation-row"><span class="avatar avatar-blue">S</span><div><b>Saved Messages</b><small data-i18n="threeDocs">3 документа</small></div></div>
               <div class="sidebar-spacer"></div>
-              <div class="local-server-chip"><i></i><div><b>Local Server</b><small>Schema 8 · API v3/v4</small></div></div>
+              <div class="local-server-chip"><i></i><div><b>Local Server</b><small>Schema 8 · API v3</small></div></div>
             </aside>
             <section class="window-chat">
               <header>
-                <div><strong>Nexora Team</strong><span data-i18n="membersSecure">8 участников · secure conversation</span></div>
+                <div><strong>Nexora Team</strong><span data-i18n="membersSecure">8 участников · server messaging</span></div>
                 <div class="chat-tools"><i></i><i></i><i></i></div>
               </header>
               <div class="window-messages">
                 <div class="day-chip" data-i18n="today">СЕГОДНЯ</div>
                 <article class="mock-message">
                   <span class="avatar">A</span>
-                  <div><header><b>Architecture</b><time>12:38</time></header><p data-i18n="mockOne">Local Server остаётся authority для комнат, ролей и доставки ciphertext.</p><small class="verified">✓ verified</small></div>
+                  <div><header><b>Architecture</b><time>12:38</time></header><p data-i18n="mockOne">Local Server проверяет доступ, сохраняет и доставляет обычные сообщения.</p><small class="verified">✓ verified</small></div>
                 </article>
                 <article class="mock-message">
                   <span class="avatar avatar-green">P</span>
@@ -207,7 +207,7 @@
         </article>
 
         <div class="floating-signal trust-signal" data-parallax="0.12">
-          <span>◇</span><div><small>TRUST CORE</small><b data-i18n="deviceVerified">Device verified</b></div><i></i>
+          <span>◇</span><div><small>LEGACY HISTORY</small><b data-i18n="deviceVerified">Read-only archive</b></div><i></i>
         </div>
         <div class="floating-signal sync-signal" data-parallax="-0.08">
           <span>↻</span><div><small>OFFLINE SYNC</small><b data-i18n="outboxDelivered">Outbox delivered</b></div>
@@ -226,7 +226,7 @@
         </a>
       </div>
       <div class="metric-grid">
-        <article><small data-i18n="metricVersion">Актуальная версия</small><strong data-current-version>3.3.2</strong><span data-i18n="metricVersionHint">main / package metadata</span></article>
+        <article><small data-i18n="metricVersion">Актуальная версия</small><strong data-current-version>3.3.4</strong><span data-i18n="metricVersionHint">main / package metadata</span></article>
         <article><small>GitHub Stars</small><strong data-stat-stars>—</strong><span data-i18n="liveValue">live value</span></article>
         <article><small>Forks</small><strong data-stat-forks>—</strong><span data-i18n="liveValue">live value</span></article>
         <article><small data-i18n="metricIssues">Открытые issues</small><strong data-stat-issues>—</strong><span data-i18n="liveValue">live value</span></article>
@@ -260,7 +260,7 @@
 
     <section class="section section-heading reveal" id="product">
       <div><span class="section-kicker">01 / PRODUCT SYSTEM</span><h2 data-i18n="productTitle">Не просто чат.<br><em>Полный коммуникационный контур.</em></h2></div>
-      <p data-i18n="productLead">Nexora объединяет messaging, комнаты, медиа, offline-first поведение, эксплуатацию, Trust Core и отдельный Cloud authority без обязательной передачи локальных сообщений в централизованное облако.</p>
+      <p data-i18n="productLead">Nexora объединяет messaging, комнаты, медиа, offline-first поведение, эксплуатацию, immutable legacy history и отдельный Cloud authority.</p>
     </section>
 
     <section class="bento-grid section">
@@ -274,9 +274,9 @@
         <span class="tilt-glare" aria-hidden="true"></span>
       </article>
       <article class="bento-card reveal tilt-card" data-tilt>
-        <div class="card-index">02</div><div class="card-icon">◇</div><span>TRUST CORE</span>
-        <h3 data-i18n="trustCardTitle">Device-scoped secure messaging</h3>
-        <p data-i18n="trustCardText">Ed25519 identity, verified devices, MLS epochs, replay protection, ciphertext-only persistence и encrypted local state.</p>
+        <div class="card-index">02</div><div class="card-icon">◇</div><span>LEGACY HISTORY</span>
+        <h3 data-i18n="trustCardTitle">Immutable legacy secure history</h3>
+        <p data-i18n="trustCardText">Legacy ciphertext, IDs, epochs and timestamps remain read-only; new Trust/MLS writes are rejected.</p>
         <div class="state-row"><b>identity</b><i></i><b>verified</b><i></i><b>MLS</b></div>
         <span class="tilt-glare" aria-hidden="true"></span>
       </article>
@@ -289,8 +289,8 @@
       </article>
       <article class="bento-card reveal tilt-card" data-tilt>
         <div class="card-index">04</div><div class="card-icon">▱</div><span>MEDIA</span>
-        <h3 data-i18n="mediaTitle">Validated and encrypted media</h3>
-        <p data-i18n="mediaText">Resumable uploads, actual MIME detection, SHA-256, safe names, previews, voice playback и AES-256-GCM secure attachments.</p>
+        <h3 data-i18n="mediaTitle">Validated ordinary media</h3>
+        <p data-i18n="mediaText">Resumable uploads, actual MIME detection, SHA-256, safe names, previews and responsive voice playback.</p>
         <div class="media-meter"><span></span><b>SHA-256 verified</b></div>
         <span class="tilt-glare" aria-hidden="true"></span>
       </article>
@@ -315,8 +315,8 @@
             <header><span>01</span><b>Client platforms</b></header>
             <div class="chip-row"><i>Windows</i><i>Browser / PWA</i><i>Android</i></div>
             <div class="arch-symbol">⌬</div>
-            <h3>React / Vite + Trust Engine</h3>
-            <p data-i18n="archClient">UI, offline state, device keys, MLS encryption/decryption и verified media preview.</p>
+            <h3>React / Vite + session messaging</h3>
+            <p data-i18n="archClient">UI, offline cache, drafts, bounded outbox, uploads, voice and local legacy-cache viewing.</p>
             <span class="tilt-glare" aria-hidden="true"></span>
           </article>
           <div class="flow-bridge"><small>HTTPS + Socket.IO</small><i><b></b></i></div>
@@ -325,7 +325,7 @@
             <div class="chip-row"><i>Express</i><i>Socket.IO</i><i>SQLite 8</i></div>
             <div class="arch-symbol">⬡</div>
             <h3 data-i18n="archServerTitle">Локальный источник истины</h3>
-            <p data-i18n="archServer">Accounts, sessions, rooms, roles, bans, policies, ordering, ciphertext delivery, storage, audit и backup.</p>
+            <p data-i18n="archServer">Accounts, sessions, rooms, roles, bans, policies, ordinary message delivery, storage, audit and backup.</p>
             <span class="tilt-glare" aria-hidden="true"></span>
           </article>
           <div class="flow-bridge"><small>signed contract</small><i><b></b></i></div>
@@ -339,7 +339,7 @@
           </article>
         </div>
         <div class="authority-matrix">
-          <div><span>CLIENT PRIVATE</span><b data-i18n="matrixClientTitle">Private state</b><p data-i18n="matrixClient">Private MLS state и attachment keys не передаются Local Server.</p></div>
+          <div><span>CLIENT PRIVATE</span><b data-i18n="matrixClientTitle">Private state</b><p data-i18n="matrixClient">Previously decrypted legacy content remains local and read-only; server export keeps ciphertext.</p></div>
           <div><span>SERVER AUTHORITY</span><b data-i18n="matrixServerTitle">Access control</b><p data-i18n="matrixServer">Роли, bans, room restrictions и realtime-доступ проверяются сервером.</p></div>
           <div><span>CLOUD ISOLATION</span><b data-i18n="matrixCloudTitle">Commercial boundary</b><p data-i18n="matrixCloud">Pulse не становится хранилищем локальных сообщений.</p></div>
         </div>
@@ -348,48 +348,48 @@
       <div class="data-path reveal">
         <div class="data-path-copy">
           <span class="section-kicker">MESSAGE DELIVERY PATH</span>
-          <h3 data-i18n="deliveryTitle">От composer до verified device.</h3>
+          <h3 data-i18n="deliveryTitle">От composer до активной сессии.</h3>
           <p data-i18n="deliveryText">Каждый переход показывает реальную границу ответственности, а не маркетинговый рейтинг.</p>
         </div>
         <ol class="delivery-steps">
           <li><span>01</span><b data-i18n="deliveryOneTitle">Compose</b><small data-i18n="deliveryOne">Client validates input</small></li>
-          <li><span>02</span><b data-i18n="deliveryTwoTitle">Encrypt</b><small data-i18n="deliveryTwo">MLS application ciphertext</small></li>
-          <li><span>03</span><b data-i18n="deliveryThreeTitle">Authorize</b><small data-i18n="deliveryThree">Session, device, membership, epoch</small></li>
-          <li><span>04</span><b data-i18n="deliveryFourTitle">Persist</b><small data-i18n="deliveryFour">Ciphertext + delivery state</small></li>
-          <li><span>05</span><b data-i18n="deliveryFiveTitle">Deliver</b><small data-i18n="deliveryFive">Verified member devices only</small></li>
-          <li><span>06</span><b data-i18n="deliverySixTitle">Decrypt</b><small data-i18n="deliverySix">Locally on recipient device</small></li>
+          <li><span>02</span><b data-i18n="deliveryTwoTitle">Validate</b><small data-i18n="deliveryTwo">Input, policy and media validation</small></li>
+          <li><span>03</span><b data-i18n="deliveryThreeTitle">Authorize</b><small data-i18n="deliveryThree">Session, membership, role and ban</small></li>
+          <li><span>04</span><b data-i18n="deliveryFourTitle">Persist</b><small data-i18n="deliveryFour">Message + delivery state</small></li>
+          <li><span>05</span><b data-i18n="deliveryFiveTitle">Deliver</b><small data-i18n="deliveryFive">Active members only</small></li>
+          <li><span>06</span><b data-i18n="deliverySixTitle">Sync</b><small data-i18n="deliverySix">Realtime, cache and read state</small></li>
         </ol>
       </div>
     </section>
 
     <section class="trust-section section" id="trust">
       <div class="section-heading reveal">
-        <div><span class="section-kicker">03 / TRUST & SECURITY</span><h2 data-i18n="trustTitle">Проверяемые ограничения.<br><em>Без вымышленных процентов.</em></h2></div>
-        <p data-i18n="trustLead">Сайт показывает только значения, закреплённые в коде и release-документации Nexora 3.2.x.</p>
+        <div><span class="section-kicker">03 / SECURITY & COMPATIBILITY</span><h2 data-i18n="trustTitle">Проверяемая совместимость.<br><em>Legacy без новых записей.</em></h2></div>
+        <p data-i18n="trustLead">Schema 8 сохраняет legacy metadata и ciphertext, а все новые Trust/MLS mutations завершаются кодом LEGACY_READ_ONLY.</p>
       </div>
 
       <div class="limit-grid">
-        <article class="limit-card reveal"><small data-i18n="limitDevices">Активных Trust devices</small><strong data-count="16">0</strong><span data-i18n="perAccount">на учётную запись</span><i style="--level:64%"></i></article>
-        <article class="limit-card reveal"><small>KeyPackages / request</small><strong data-count="25">0</strong><span data-i18n="atomicLimit">атомарный лимит</span><i style="--level:52%"></i></article>
-        <article class="limit-card reveal"><small>KeyPackages / device</small><strong data-count="32">0</strong><span data-i18n="unclaimed">unclaimed</span><i style="--level:72%"></i></article>
-        <article class="limit-card reveal"><small>KeyPackages / user</small><strong data-count="256">0</strong><span data-i18n="totalInventory">общий inventory</span><i style="--level:92%"></i></article>
+        <article class="limit-card reveal"><small data-i18n="limitDevices">SQLite schema</small><strong data-count="8">0</strong><span data-i18n="perAccount">compatibility layer</span><i style="--level:64%"></i></article>
+        <article class="limit-card reveal"><small>Legacy write status</small><strong data-count="410">0</strong><span data-i18n="atomicLimit">terminal HTTP status</span><i style="--level:84%"></i></article>
+        <article class="limit-card reveal"><small>Ordinary file limit</small><strong data-count="25">0</strong><span data-i18n="unclaimed">MiB per ordinary file</span><i style="--level:72%"></i></article>
+        <article class="limit-card reveal"><small>Voice limit</small><strong data-count="300">0</strong><span data-i18n="totalInventory">seconds per voice message</span><i style="--level:92%"></i></article>
       </div>
 
       <div class="trust-lifecycle reveal">
         <div class="lifecycle-visual">
-          <div class="lifecycle-core"><img src="assets/nexora-icon.png" alt="" /><span>TRUST</span></div>
+          <div class="lifecycle-core"><img src="assets/nexora-icon.png" alt="" /><span>LEGACY</span></div>
           <i class="ring ring-a"></i><i class="ring ring-b"></i><i class="ring ring-c"></i>
           <b class="orbit-dot dot-a"></b><b class="orbit-dot dot-b"></b><b class="orbit-dot dot-c"></b>
         </div>
         <div class="lifecycle-content">
-          <span class="section-kicker">DEVICE TRUST LIFECYCLE</span>
-          <h3 data-i18n="lifecycleTitle">Идентичность устройства становится частью доступа.</h3>
+          <span class="section-kicker">POST-MLS COMPATIBILITY LIFECYCLE</span>
+          <h3 data-i18n="lifecycleTitle">Legacy scope сохраняется без продолжения протокола.</h3>
           <ol>
-            <li><span>01</span><div><b data-i18n="lifeOneTitle">Identity key</b><p data-i18n="lifeOne">Client создаёт non-extractable Ed25519 identity key.</p></div></li>
-            <li><span>02</span><div><b data-i18n="lifeTwoTitle">Proof of possession</b><p data-i18n="lifeTwo">Registration подтверждает владение private key.</p></div></li>
-            <li><span>03</span><div><b data-i18n="lifeThreeTitle">Verification</b><p data-i18n="lifeThree">Дополнительное устройство получает подписанное подтверждение.</p></div></li>
-            <li><span>04</span><div><b data-i18n="lifeFourTitle">Scoped delivery</b><p data-i18n="lifeFour">Ciphertext доставляется конкретным verified devices.</p></div></li>
-            <li><span>05</span><div><b data-i18n="lifeFiveTitle">Revocation</b><p data-i18n="lifeFive">Отзыв немедленно отключает secure socket и очищает local state.</p></div></li>
+            <li><span>01</span><div><b data-i18n="lifeOneTitle">Detect</b><p data-i18n="lifeOne">Schema 8 records identify legacy conversations and ciphertext.</p></div></li>
+            <li><span>02</span><div><b data-i18n="lifeTwoTitle">Preserve</b><p data-i18n="lifeTwo">IDs, epochs, timestamps and audit provenance remain unchanged.</p></div></li>
+            <li><span>03</span><div><b data-i18n="lifeThreeTitle">Lock</b><p data-i18n="lifeThree">HTTP and Socket.IO writes return LEGACY_READ_ONLY.</p></div></li>
+            <li><span>04</span><div><b data-i18n="lifeFourTitle">Read locally</b><p data-i18n="lifeFour">Existing local decrypted cache may be viewed without mutation.</p></div></li>
+            <li><span>05</span><div><b data-i18n="lifeFiveTitle">Export</b><p data-i18n="lifeFive">Immutable export records ciphertext and serverDecrypted=false.</p></div></li>
           </ol>
         </div>
       </div>
@@ -404,7 +404,7 @@
       <div class="release-selector reveal">
         <label for="release-select" data-i18n="versionLabel">Версия</label>
         <select id="release-select" data-release-select>
-          <option value="fallback">3.3.2</option>
+          <option value="fallback">3.3.4</option>
         </select>
         <div><span data-selected-release-state data-i18n="releaseLoading">загрузка release metadata…</span><a data-selected-release-link href="https://github.com/Onmaynec/Nexora/releases" target="_blank" rel="noreferrer">Release notes ↗</a></div>
       </div>
@@ -507,7 +507,7 @@
         </div>
       </div>
       <div class="cta-telemetry">
-        <div><small data-i18n="metricVersion">Актуальная версия</small><strong data-current-version>3.3.2</strong></div>
+        <div><small data-i18n="metricVersion">Актуальная версия</small><strong data-current-version>3.3.4</strong></div>
         <div><small>API</small><strong>v3 / v4</strong></div>
         <div><small>DB</small><strong>Schema 8</strong></div>
         <div><small>License</small><strong>MIT</strong></div>

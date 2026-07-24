@@ -2,297 +2,246 @@
 
 [![Website](https://img.shields.io/badge/website-open-c69cff)](https://onmaynec.github.io/Nexora/)
 [![CI](https://github.com/Onmaynec/Nexora/actions/workflows/ci.yml/badge.svg)](https://github.com/Onmaynec/Nexora/actions/workflows/ci.yml)
-![Current version](https://img.shields.io/badge/current-3.3.3%20UNSIGNED--TEST-c69cff)
+![Current version](https://img.shields.io/badge/current-3.3.4%20RC-c69cff)
 ![Stable signed baseline](https://img.shields.io/badge/stable%20signed-3.1.2-70e6b1)
-![API](https://img.shields.io/badge/API-v3%20%2B%20Trust%20v4-70e6b1)
+![API](https://img.shields.io/badge/API-v3%20%2B%20legacy%20read--only-70e6b1)
 ![Database](https://img.shields.io/badge/SQLite-schema%208-70e6b1)
 ![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20PWA%20%7C%20Android-9b5cff)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Nexora** — self-hosted платформа обмена сообщениями для Windows, браузера/PWA и Android. Система объединяет локальный сервер, многоплатформенный клиент, комнаты и модерацию, офлайн-синхронизацию, защищённые сообщения и медиа, эксплуатационные инструменты, а также отдельный коммерческий контур Nexora Pulse.
+**Nexora** is a self-hosted messaging platform for Windows, browser/PWA and Android. It combines a Local Server, rooms and moderation, ordinary server-readable messaging, voice/media, offline synchronization, operations tooling and the optional Nexora Pulse commercial boundary.
 
-**Сайт проекта:** [onmaynec.github.io/Nexora](https://onmaynec.github.io/Nexora/) — интерактивная презентация, архитектурные схемы, актуальные GitHub-метрики, документация и загрузки по версиям.
+> **Post-MLS Baseline release candidate:** version `3.3.4` is implemented in PR #70. Completion requires green final CI, merge, the official `v3.3.4` GitHub Release and successful asset re-download verification. Signed stable promotion, independent review and signed n-1→n acceptance remain Nexora 3.4.0 gates.
 
-## Статус продукта
+## Product status
 
-| Линия | Назначение | Статус распространения |
+| Line | Purpose | Distribution status |
 |---|---|---|
-| `3.3.3` | Goal workflow, Telegram-style voice UX, effective Pulse purchases and safe MLS recovery | Опубликованный UNSIGNED-TEST prerelease без updater metadata |
-| `3.3.2` | Release Consistency: единая версия, current docs, release evidence и asset smoke gate | Опубликованный UNSIGNED-TEST prerelease без updater metadata |
-| `3.3.1` | Исправление запуска Windows Server: shared Pulse runtime включён в installer и проверяется release gate | Заменён 3.3.2 |
-| `3.3.0` | Trust recovery, расходуемые Импульсы, обновлённый Client UX, сайт и полный artifact pipeline | Заменён 3.3.1: Server installer не содержал обязательный shared runtime module |
-| `3.1.2` | Основной messaging-контур, Pulse Cloud и production hardening | Последняя подтверждённая signed production baseline |
+| `3.3.4` | Post-MLS Baseline: ordinary messaging, immutable legacy history, devices/sessions, backup verification and signed updater | Release candidate; not merged/tagged/published |
+| `3.3.3` | Goals, voice UX, Pulse purchase effects and MLS recovery | Published `UNSIGNED-TEST` prerelease without updater metadata |
+| `3.1.2` | Messaging and Pulse production hardening | Last confirmed signed production baseline |
 
-`3.3.3` исправляет создание коллективных целей, голосовые сообщения, применение Pulse-покупок, idempotent purchase flow и восстановление MLS-состояния. Windows Client/Server публикуются как явно маркированные `UNSIGNED-TEST` assets; updater metadata отсутствует. Авторитетные документы текущей линии:
+Authoritative 3.3.4 documents:
 
-- [Release Notes 3.3.3](docs/releases/3.3.3/RELEASE_NOTES.md);
-- [Release Verification 3.3.3](docs/releases/3.3.3/RELEASE_VERIFICATION.md);
-- [Security Review 3.3.0](docs/releases/3.3.0/SECURITY_REVIEW.md) — security boundary не изменён.
+- [Release Notes 3.3.4](RELEASE_NOTES_3.3.4.md)
+- [Release Verification 3.3.4](RELEASE_VERIFICATION_3.3.4.md)
+- [Security Review 3.3.4](SECURITY_REVIEW_3.3.4.md)
+- [Project Index](PROJECT_INDEX.md)
+- [Documentation Portal](docs/README.md)
 
-## Возможности
+## Post-MLS Baseline
 
-### Общение и совместная работа
+### Ordinary messaging
 
-- личные диалоги, Saved Messages и комнаты;
-- ответы, ветки, реакции, упоминания и опросы;
-- редактирование, удаление, пересылка, закрепление и закладки;
-- silent и scheduled send, серверные черновики и история изменений;
-- глобальный поиск, уведомления, архивирование и фильтры;
-- IndexedDB cache, delta sync и durable outbox для восстановления после потери связи.
+- personal dialogs, Saved Messages and rooms;
+- replies, threads, reactions, mentions, polls and bookmarks;
+- edit/delete/forward/pin and scheduled/silent send;
+- ordinary files, images and voice messages;
+- IndexedDB cache, delta sync and bounded durable outbox;
+- server-side authorization for REST and Socket.IO.
 
-### Комнаты и администрирование
+Ordinary chats connect using the current server session and no longer depend on Trust enrollment, MLS epoch synchronization or Welcome recovery.
 
-- роли `owner`, `moderator`, `member` и custom roles;
-- атомарная передача владения и управление модераторами;
-- удаление участника, бан, разбан и room ban list;
-- заявки на вступление и несколько приглашений;
-- срок действия, лимит использований и отзыв приглашений;
-- read-only, slow mode, announcement и pre-approval;
-- ограничения файлов, изображений и голосовых;
-- административный журнал и системные сообщения;
-- server-side authorization для REST и realtime-операций.
+### Legacy Trust/MLS history
 
-### Файлы, изображения и голосовые
+Executable Trust Core, recovery routes, MLS transport, encrypted-upload write runtime, client MLS engine and the `ts-mls` dependency are removed.
 
-Для обычных диалогов доступны resumable uploads с проверкой размера, SHA-256 и фактического MIME-типа, previews и voice playback.
+Schema 8 remains as a compatibility layer so legacy IDs, timestamps, epochs, ciphertext and audit provenance are not lost.
 
-В secure conversations:
+- legacy conversations open in a dedicated read-only viewer;
+- the server never decrypts or converts ciphertext into plaintext;
+- pre-existing locally decrypted IndexedDB records may be read through readonly transactions;
+- export combines immutable server evidence and available local content on the client;
+- all legacy HTTP writes return `410/LEGACY_READ_ONLY`;
+- `mls:message` and `mls:message-edit` are rejected with the same stable code.
 
-- Client шифрует данные AES-256-GCM до загрузки;
-- Local Server хранит opaque ciphertext;
-- API проверяет фактический размер ciphertext и SHA-256;
-- pending attachment недоступен до атомарной привязки к MLS-message;
-- поддерживаются progress, cancel, idempotent retry и one-time claim;
-- preview, playback и download выполняются после локальной проверки и расшифровки;
-- при запрете любого класса `files/images/voice` secure-media path блокируется fail-closed.
+### Sessions and devices
 
-### Trust Core и MLS
+The Local Server builds a device inventory from active sessions with device ID, name, platform, client version, creation, last-seen and expiry.
 
-- Ed25519 device identity с proof-of-possession;
-- отдельные ключи для identity proof и MLS signatures;
-- строгая привязка MLS BasicCredential к `{ userId, deviceId }`;
-- сравнение fingerprint, подписанное подтверждение и отзыв устройств;
-- one-time KeyPackages и device/conversation-scoped Welcome delivery;
-- monotonic epochs, signed commits и replay protection;
-- device-scoped Socket.IO delivery только активным verified devices;
-- ciphertext-only persistence и durable MLS outbox;
-- encrypted IndexedDB для private MLS state, KeyPackages, decrypted cache и drafts;
-- missed-commit recovery с проверкой scope, последовательности epoch, hashes и public-state chain;
-- server-side guards против plaintext downgrade через legacy send/edit/forward/draft/scheduled/poll/bot/upload paths.
+- revoke one remote device;
+- revoke all except current;
+- immediate `session.revoked` event and Socket.IO disconnect;
+- `device.updated` inventory refresh;
+- current-device remote revoke is rejected with `STATE_CONFLICT`; logout is explicit.
 
-Фиксированный MLS profile: `MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519`.
+Electron isolates cookies, IndexedDB, cache and certificate pinning by Server ID. Certificate/identity changes require explicit confirmation; silent repin is prohibited.
 
-### Release 3.3.3
+### Rooms and administration
 
-- owner и moderator создают валидируемые коллективные цели; одновременно активна только одна цель комнаты;
-- voice waveform реагирует на микрофон, сохраняется в MLS media descriptor и анимируется при playback;
-- покупки Pulse применяют server-owned profile, message, reaction и room effects;
-- purchase requests защищены стабильным Idempotency-Key и повторное выполнение не списывает баланс дважды;
-- MLS open path принудительно сверяет epoch и безопасно запрашивает fresh Welcome без plaintext fallback.
+- roles `owner`, `moderator`, `member` and existing custom roles;
+- atomic ownership transfer and moderator management;
+- remove, ban/unban and ban list;
+- join requests and invitations with expiration/usage limits/revocation;
+- read-only, slow mode, announcement and pre-approval;
+- restrictions for files, images and voice;
+- administrative audit and system messages;
+- active-ban fail-closed authorization.
 
-### Release 3.3.2
+### Backup and migration
 
-- package, lockfile, Client handshake и Android metadata синхронизированы одной версией;
-- Architecture, Security Model, Android README, Project Index и Documentation Portal актуализированы;
-- `CHANGELOG.md` закреплён как единственный источник release history;
-- CI блокирует version drift и старые current verification links;
-- release evidence pipeline скачивает и smoke-проверяет Client, Server, Android и PWA assets.
+- SQLite WAL/FULL with integrity checks;
+- schema 8 migration checks source integrity, WAL checkpoint, free space and verified backup before transaction;
+- migration is transactional/idempotent and future schemas are blocked;
+- backup verification is available without restore;
+- restore stages DB and file store separately and rolls both back on failure;
+- temporary decrypted/staged data is cleaned on success and failure;
+- graceful shutdown is serialized and bounded.
 
-### Release 3.3.1
+### Stable errors and diagnostics
 
-- исправлен crash установленного Nexora Server из-за отсутствующего `shared/pulse-catalog.cjs`;
-- `shared/**/*` включён в Windows Server `app.asar`;
-- release gate проверяет Server runtime payload и Pulse catalog contract;
-- schema 8, API v3 и Trust/MLS API v4 сохранены без миграции.
+Errors use a stable safe envelope:
 
-### Release 3.3.0
-
-- conversation-scoped MLS Welcome limiting, Client coalescing, backoff и Retry-After;
-- расходуемый Impulse catalog с atomic ledger purchases и signed/local entitlements;
-- самостоятельные Sandbox goals, contributions и refunds без Cloud 503/409;
-- in-app confirmation dialogs для обычных и защищённых сообщений;
-- RMS/peak voice waveform с played color, animation, seek и playback rate;
-- исправленные Pulse overflow и account fallback states;
-- переработанный bilingual website с direct GitHub Release downloads;
-- signed production artifacts или явно маркированные UNSIGNED TEST installers без updater metadata.
-
-### Security hardening 3.2.3
-
-- не более 16 активных Trust devices на локальную учётную запись;
-- не более 25 KeyPackages в одном запросе, 32 unclaimed packages на устройство и 256 на пользователя;
-- атомарное применение лимитов в SQLite;
-- bounded route-specific rate limits для Trust, recovery и E2EE upload routes;
-- стабильная ошибка `RATE_LIMITED` с `Retry-After`;
-- action-specific allowlists для Trust audit metadata;
-- fail-closed room access при активном бане даже при stale membership;
-- startup/hourly cleanup expired sessions, login history старше 90 дней и stale rate-limit buckets.
-
-### Nexora Plus и Pulse
-
-- отдельная Cloud Identity с email verification, MFA и OAuth 2.1 Authorization Code + PKCE;
-- Nexora Plus, Impulse double-entry ledger, receipts, billing portal, room goals и расходуемый catalog;
-- персональные и room-scoped entitlements с server-defined price и idempotent purchase;
-- signed Local Account ↔ Cloud Account linking;
-- production entitlements только от отдельного Pulse Cloud;
-- локальный sandbox для QA/demo без реальных платежей и production signatures.
-
-### Эксплуатация
-
-- liveness, readiness и защищённые Prometheus metrics;
-- request IDs и recursive credential redaction;
-- graceful drain и сериализованный shutdown;
-- audited developer command registry без shell/eval;
-- SQLite WAL/FULL, integrity checks, backup/restore, retention и quota;
-- очистка устаревших security records при старте и каждый час;
-- отдельные Windows Client/Server shells, PWA и Android WebView shell.
-
-## Архитектура
-
-```mermaid
-flowchart TB
-  classDef platform fill:#181221,stroke:#b978ff,stroke-width:1.5px,color:#f7f3ff;
-  classDef client fill:#211533,stroke:#c994ff,stroke-width:1.5px,color:#ffffff;
-  classDef server fill:#0f1c25,stroke:#70d8ff,stroke-width:1.5px,color:#f4fbff;
-  classDef data fill:#101a17,stroke:#65e4b0,stroke-width:1.5px,color:#f4fff9;
-  classDef cloud fill:#241a14,stroke:#f1c666,stroke-width:1.5px,color:#fff8e8;
-  classDef external fill:#181818,stroke:#9299a8,stroke-width:1px,color:#f2f2f2;
-
-  subgraph PLATFORMS["01 · КЛИЕНТСКИЕ ПЛАТФОРМЫ"]
-    direction LR
-    WIN["Windows Client"]
-    PWA["Browser / PWA"]
-    AND["Android"]
-  end
-
-  subgraph CLIENT["02 · КЛИЕНТСКОЕ ПРИЛОЖЕНИЕ"]
-    direction LR
-    UI["React + Vite<br/>интерфейс · offline state · outbox"]
-    TRUST["Trust Core + MLS<br/>device identity · E2EE · recovery"]
-    LOCAL[("Encrypted IndexedDB<br/>ключи · private MLS state · drafts")]
-    UI --> TRUST --> LOCAL
-  end
-
-  subgraph SERVER["03 · ЛОКАЛЬНЫЙ СЕРВЕР"]
-    direction LR
-    EDGE["API + Realtime<br/>REST v3 · Trust v4 · Socket.IO"]
-    CONTROL["Контроль доступа<br/>sessions · CSRF · roles · bans · limits"]
-    DB[("SQLite schema 8<br/>rooms · ciphertext · audit")]
-    SERVICES["Медиа и эксплуатация<br/>uploads · health · backup · maintenance"]
-    EDGE --> CONTROL --> DB
-    EDGE --> SERVICES
-  end
-
-  subgraph CLOUD["04 · NEXORA PULSE CLOUD"]
-    direction LR
-    ID["Cloud Identity<br/>email · MFA · OAuth 2.1 + PKCE"]
-    COMMERCE["Коммерческий контур<br/>Plus · Impulse ledger · receipts"]
-    ENT["Signed entitlements<br/>подписки и покупки"]
-    PAY["Payment provider"]
-    ID --> COMMERCE --> ENT
-    COMMERCE --> PAY
-  end
-
-  WIN --> UI
-  PWA --> UI
-  AND --> UI
-  TRUST <-->|"HTTPS · MLS ciphertext · verified device channel"| EDGE
-  EDGE <-->|"signed HTTPS contract"| ID
-
-  class WIN,PWA,AND platform;
-  class UI,TRUST client;
-  class LOCAL,DB data;
-  class EDGE,CONTROL,SERVICES server;
-  class ID,COMMERCE,ENT cloud;
-  class PAY external;
-
-  style PLATFORMS fill:#0b0910,stroke:#6f568b,stroke-width:1px
-  style CLIENT fill:#0d0914,stroke:#9c67d3,stroke-width:1px
-  style SERVER fill:#081116,stroke:#4d91aa,stroke-width:1px
-  style CLOUD fill:#151008,stroke:#a98643,stroke-width:1px
+```json
+{
+  "ok": false,
+  "code": "STATE_CONFLICT",
+  "message": "Safe user-facing message",
+  "requestId": "correlation-id",
+  "details": {}
+}
 ```
 
-Local Server является источником истины для локальных аккаунтов, комнат, ролей, доступа, порядка доставки и хранения ciphertext. Pulse Cloud является отдельным authority для Cloud Identity, billing, ledger и production entitlements.
+The compatibility `error` field mirrors the safe message. Stack traces, SQL, filesystem paths, tokens, keys and provider secrets are not returned.
 
-Local Server не получает private MLS state, plaintext secure-message content или ключи secure attachments. При этом сервер видит service metadata: account/device identifiers, membership, conversation scope, timing, IP/network context, ciphertext size, attachment ID и delivery events. Nexora `3.3.2` не заявляет защиту от traffic analysis.
+### Signed updater and release chain
 
-Полное описание: [Architecture](docs/ARCHITECTURE.md), [Security Model](docs/SECURITY_MODEL.md) и [Project Index](PROJECT_INDEX.md).
+Windows Client uses the `latest` metadata channel; Windows Server uses `server`.
 
-## Требования
+- signature verification is mandatory;
+- custom feeds must use HTTPS;
+- prerelease/downgrade states are rejected;
+- signature/checksum failures map to `UPDATE_SIGNATURE_INVALID`;
+- stable signing requires expected certificate subject, thumbprint and timestamp;
+- the workflow verifies a signed `3.3.4 → 3.3.4` installed upgrade;
+- source, PWA, Client, Server, Android evidence, SPDX SBOM and SHA-256 assets are re-downloaded and verified.
 
-- Node.js `22.16+` и npm;
-- Windows 10/11 для Electron Client/Server;
-- JDK 17, Android SDK 36 и Gradle 8.13 для Android source build;
-- HTTPS для PWA, Android и публичных развёртываний;
-- отдельная Cloud-среда и provider credentials только для production Pulse.
+Without complete signing policy, only a distinct `v3.3.4-unsigned-test.<run>` prerelease is allowed and updater metadata/blockmaps are forbidden.
 
-## Быстрый старт для разработки
+## Architecture
+
+```mermaid
+flowchart LR
+  C[Windows / PWA / Android] --> UI[React + Vite]
+  UI -->|HTTPS + cookies + CSRF| API[Local Server API v3]
+  UI -->|session-scoped Socket.IO| RT[Realtime]
+  API --> AUTH[Sessions / roles / bans / policies]
+  RT --> AUTH
+  AUTH --> CORE[Rooms / ordinary messages / uploads / audit]
+  CORE --> DB[(SQLite schema 8)]
+  CORE --> FILES[(File store)]
+  UI --> LEGACY[Read-only local legacy cache]
+  API --> HIST[Immutable legacy ciphertext API]
+  API <-->|signed contract| PULSE[Optional Pulse Cloud]
+```
+
+Detailed architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Quick start for development
+
+Requirements:
+
+- Node.js `22.16+`;
+- npm;
+- Java 17 and Gradle 8.13 for Android;
+- Windows signing environment only for signed production packages.
 
 ```bash
-git clone https://github.com/Onmaynec/Nexora.git
-cd Nexora
 npm ci
 npm run dev
 ```
 
-Полный release-sensitive gate:
+Local Server only:
 
 ```bash
+npm run dev:server
+```
+
+Web client only:
+
+```bash
+npm run dev:web
+```
+
+Production web build:
+
+```bash
+npm run build:web
+```
+
+## Verification
+
+```bash
+npm run check
+npm run test:unit
+npm run test:performance
+npm run audit:security
+npm run release:consistency
 npm run release:check
+npm run test:soak
 gradle -p android :app:assembleDebug --no-daemon
 ```
 
-| Команда | Назначение |
-|---|---|
-| `npm run check` | syntax, Electron Builder config и production web build |
-| `npm test` | web build, unit/API/integration и performance suites |
-| `npm run test:unit` | функциональные unit/API/integration tests |
-| `npm run test:performance` | изолированный performance smoke |
-| `npm run audit:security` | security invariants и dependency audit |
-| `npm run test:soak` | долговременная проверка состояния, backup и SQLite integrity |
-| `npm run dist:windows` | локальные тестовые NSIS Client/Server builds |
-| `npm run release:windows` | release gate и локальные Windows installers без обязательной подписи |
-| `npm run release:windows:signed` | release gate, signing gate и подписанные production installers |
+Signed Windows packages require protected credentials:
 
-## Развёртывание
+```bash
+npm run release:windows:signed
+```
 
-Публичный Local Server размещайте только за HTTPS reverse proxy с ограниченным firewall, явным `allowedOrigins`, мониторингом и регулярными резервными копиями. Прямой port forwarding локального server port не является поддерживаемой production-топологией.
+The official release workflow additionally verifies baseline `v3.3.4`, Authenticode identity/timestamp, installed n-1→n upgrade, immutable tag/assets and post-publication hashes.
 
-Перед подключением пользователя передайте по доверенному каналу:
+## API additions in 3.3.4
 
-1. полный HTTPS-адрес;
-2. Server ID;
-3. SHA-256 certificate fingerprint.
+### Devices
 
+- `GET /api/v3/devices`
+- `DELETE /api/v3/devices/:deviceId/sessions`
+- `DELETE /api/v3/devices/sessions/others`
 
-Electron Client закрепляет fingerprint за Server ID. Для браузера/PWA и Android Local CA необходимо установить в доверенное хранилище операционной системы. TLS errors не должны обходиться.
+Realtime: `session.revoked`, `device.updated`.
 
-Инструкции: [Deployment Guide](docs/DEPLOYMENT.md), [Administrator Guide](ADMIN_GUIDE.md) и [Operations Runbook](docs/OPERATIONS_RUNBOOK.md).
+### Legacy history
 
-## Документация
+- `GET /api/v3/legacy-secure/conversations`
+- `GET /api/v3/legacy-secure/conversations/:conversationId/messages`
+- `POST /api/v3/legacy-secure/conversations/:conversationId/export`
 
-Центральный каталог: **[Nexora Documentation](docs/README.md)**.
+Realtime state: `legacy_secure_history.state`.
 
-| Раздел | Документы |
-|---|---|
-| Продукт | [Product Overview](docs/PRODUCT_OVERVIEW.md), [Roadmap](docs/ROADMAP.md), [Current Release Status](BRANCH_STATUS.md) |
-| Архитектура | [Architecture](docs/ARCHITECTURE.md), [Project Index](PROJECT_INDEX.md) |
-| Безопасность | [Security Policy](SECURITY.md), [Security Model](docs/SECURITY_MODEL.md), [Security Verification](SECURITY_AUDIT.md) |
-| Развёртывание | [Deployment](docs/DEPLOYMENT.md), [Administrator Guide](ADMIN_GUIDE.md), [Operations Runbook](docs/OPERATIONS_RUNBOOK.md) |
-| Тестирование | [Acceptance Test Guide](TESTER_GUIDE.md), [3.3.2 Verification](docs/releases/3.3.3/RELEASE_VERIFICATION.md) |
-| Trust / MLS | [Trust Core 3.2.0 foundation](docs/TRUST_CORE_3.2.0.md), [Security Review 3.3.0](docs/releases/3.3.0/SECURITY_REVIEW.md) |
-| Миграция | [Schema 8 Migration](docs/MIGRATION_3.2.0.md) |
-| Plus / Pulse | [Pulse](docs/PULSE.md), [Pulse Cloud](docs/PULSE_CLOUD.md) |
-| Выпуски | [Release Policy](docs/RELEASE_POLICY.md), [Release Checklist](docs/RELEASE_CHECKLIST.md), [Release History](docs/releases/README.md), [Changelog](CHANGELOG.md) |
-| Репозиторий | [Branch Index](BRANCHES.md), [Contributing](CONTRIBUTING.md), [Support](SUPPORT.md) |
+### Operations
 
-## Поддержка и участие
+- `POST /api/v3/admin/backups/verify`
+- `GET /api/admin/release/signing-status`
 
-- ошибки: [Bug report](https://github.com/Onmaynec/Nexora/issues/new?template=bug_report.yml);
-- предложения: [Feature request](https://github.com/Onmaynec/Nexora/issues/new?template=feature_request.yml);
-- установка и эксплуатация: [SUPPORT.md](SUPPORT.md);
-- уязвимости: только приватно по инструкции в [SECURITY.md](SECURITY.md);
-- правила участия: [CONTRIBUTING.md](CONTRIBUTING.md) и [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+## Security boundary
 
-## Лицензия
+The Local Server is authoritative for ordinary messages, sessions, rooms, roles, bans, upload policy, audit and realtime visibility. Every mutation validates authentication, Origin/CSRF, resource scope, membership/permission, ban/policy, input and resource limits before side effects.
 
-Код и документация распространяются по лицензии [MIT](LICENSE).
+See [Security Model](docs/SECURITY_MODEL.md) and [Security Policy](SECURITY.md).
+
+## Documentation
+
+- [Documentation Portal](docs/README.md)
+- [Project Index](PROJECT_INDEX.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Security Model](docs/SECURITY_MODEL.md)
+- [Deployment](docs/DEPLOYMENT.md)
+- [Operations Runbook](docs/OPERATIONS_RUNBOOK.md)
+- [Administrator Guide](ADMIN_GUIDE.md)
+- [Tester Guide](TESTER_GUIDE.md)
+- [Release Policy](docs/RELEASE_POLICY.md)
+- [Release Checklist](docs/RELEASE_CHECKLIST.md)
+
+## Release blockers
+
+PR #70 must remain draft and no official `v3.3.4` tag/release may be created while any item remains:
+
+1. verified published stable `v3.3.4` is absent;
+2. CI/release gates are not green on the final commit;
+3. Authenticode credentials and Windows 10/11 installed acceptance are unavailable;
+4. independent security review is pending;
+5. PR review, merge, post-merge CI and immutable release evidence are incomplete.
+
+## License
+
+[MIT](LICENSE)

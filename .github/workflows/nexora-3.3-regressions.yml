@@ -27,20 +27,20 @@ jobs:
         run: node --test test/pulse-sandbox-service.test.cjs
       - name: Pulse Cloud catalog
         run: node --test test/pulse-catalog-3.3.test.cjs
-      - name: Contract — delete dialogs
-        run: node --test --test-name-pattern="regular and secure" test/release-3.3.0-regressions.test.cjs
-      - name: Contract — secure composer
-        run: node --test --test-name-pattern="secure composer" test/release-3.3.0-regressions.test.cjs
-      - name: Contract — voice waveform
-        run: node --test --test-name-pattern="voice messages" test/release-3.3.0-regressions.test.cjs
-      - name: Contract — MLS recovery
-        run: node --test --test-name-pattern="MLS Welcome" test/release-3.3.0-regressions.test.cjs
+      - name: Contract — ordinary delete and immutable legacy history
+        run: node --test --test-name-pattern="regular deletion" test/release-3.3.0-regressions.test.cjs
+      - name: Contract — legacy viewer has no write controls
+        run: node --test --test-name-pattern="legacy secure viewer" test/release-3.3.0-regressions.test.cjs
+      - name: Contract — ordinary voice waveform
+        run: node --test --test-name-pattern="ordinary voice messages" test/release-3.3.0-regressions.test.cjs
+      - name: Contract — post-MLS retirement
+        run: node --test --test-name-pattern="post-MLS retirement" test/release-3.3.0-regressions.test.cjs
       - name: Contract — Pulse Sandbox routes
         run: node --test --test-name-pattern="Pulse Sandbox serves" test/release-3.3.0-regressions.test.cjs
       - name: Contract — unsigned distribution
         run: node --test --test-name-pattern="unsigned test binaries" test/release-3.3.0-regressions.test.cjs
       - name: Contract — website
-        run: node --test --test-name-pattern="website 3.3" test/release-3.3.0-regressions.test.cjs
+        run: node --test --test-name-pattern="website keeps" test/release-3.3.0-regressions.test.cjs
       - name: Contract — raw Stripe body
         run: node --test --test-name-pattern="raw Stripe" test/release-3.3.0-regressions.test.cjs
       - name: Website validation

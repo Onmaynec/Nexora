@@ -37,6 +37,40 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  unit-diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - run: npm ci
+      - name: Run unit suite with retained diagnostics
+        id: unit
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          log="$RUNNER_TEMP/unit-failures.log"
+          npm run test:unit > "$log" 2>&1
+          status=$?
+          cat "$log"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit "$status"
+      - name: Upload unit diagnostics
+        if: steps.unit.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-failures
+          path: ${{ runner.temp }}/unit-failures.log
+          if-no-files-found: error
+          retention-days: 2
+      - name: Enforce unit suite
+        if: steps.unit.outcome == 'failure'
+        run: exit 1
+
   release-gate:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -47,7 +81,60 @@ jobs:
           node-version: 22.16.0
           cache: npm
       - run: npm ci
-      - run: npm run release:check
+      - name: Verify synchronized release metadata
+        run: node scripts/sync-release-metadata.cjs --check
+      - name: Verify release consistency
+        id: consistency
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          log="$RUNNER_TEMP/release-consistency.log"
+          npm run release:consistency > "$log" 2>&1
+          status=$?
+          cat "$log"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit "$status"
+      - name: Upload release consistency diagnostics
+        if: steps.consistency.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-consistency-failures
+          path: ${{ runner.temp }}/release-consistency.log
+          if-no-files-found: error
+          retention-days: 2
+      - name: Enforce release consistency
+        if: steps.consistency.outcome == 'failure'
+        run: exit 1
+      - name: Verify syntax, builder config and web build
+        run: npm run check
+      - name: Run unit, API, integration and realtime tests
+        run: npm run test:unit
+      - name: Run performance test
+        run: npm run test:performance
+      - name: Run security invariant and dependency audit
+        id: security
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          log="$RUNNER_TEMP/security-audit.log"
+          npm run audit:security > "$log" 2>&1
+          status=$?
+          cat "$log"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit "$status"
+      - name: Upload security diagnostics
+        if: steps.security.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-audit-failures
+          path: ${{ runner.temp }}/security-audit.log
+          if-no-files-found: error
+          retention-days: 2
+      - name: Enforce security audit
+        if: steps.security.outcome == 'failure'
+        run: exit 1
 
   schema8-soak:
     runs-on: ubuntu-latest

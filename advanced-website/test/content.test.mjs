@@ -37,10 +37,13 @@ test("search index includes technical terms in both languages", () => {
   assert.ok(en.some((entry) => entry.haystack.includes("authorization")));
 });
 
-test("generated reference has unique method/path/source keys", () => {
+test("generated reference has unique keys and no active Trust/MLS v4 routes", () => {
   const keys = reference.routes.map((route) => `${route.method} ${route.path} ${route.source}`);
   assert.equal(keys.length, new Set(keys).size);
-  assert.ok(reference.routes.some((route) => route.path.startsWith("/api/v4/trust")));
+  assert.ok(reference.routes.some((route) => route.path === "/api/v3/devices"));
+  assert.ok(reference.routes.some((route) => route.path.startsWith("/api/v3/legacy-secure")));
+  assert.equal(reference.routes.some((route) => route.path.startsWith("/api/v4/trust")), false);
+  assert.equal(reference.routes.some((route) => route.path.startsWith("/api/v4/e2ee")), false);
 });
 
 test("release fallback uses canonical versioned notes instead of root compatibility pointers", () => {

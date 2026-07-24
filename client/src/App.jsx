@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, clearCsrfToken, CLIENT_VERSION, post } from "./api";
 import AuthScreen from "./components/AuthScreen";
 import ForcedPasswordChange from "./components/ForcedPasswordChange";
@@ -8,7 +8,6 @@ import { LoadingScreen } from "./components/ui";
 import { getSocket } from "./socket";
 import { flushOutbox } from "./outbox";
 import { cacheBootstrap, readLastBootstrap, syncSequenceKey } from "./offline-store";
-import { configureTrust, ensureTrustDevice, handleTrustDeviceRevoked, handleWelcomeRequest, processCommitEvent } from "./crypto/trust-client";
 
 function playNotificationSound(name) {
   if (!name || name === "none") return;
@@ -29,8 +28,10 @@ function playNotificationSound(name) {
       oscillator.start(start);
       oscillator.stop(start + 0.14);
     });
-    setTimeout(() => context.close(), 700);
-  } catch {}
+    setTimeout(() => context.close().catch((error) => console.debug("Notification audio cleanup failed", error)), 700);
+  } catch (error) {
+    console.debug("Notification sound unavailable", error);
+  }
 }
 
 function quietHoursActive(preferences, date = new Date()) {
@@ -53,7 +54,6 @@ export default function App() {
   const [serverInfo, setServerInfo] = useState(null);
   const [offlineMode, setOfflineMode] = useState(false);
   const [onlineUserIds, setOnlineUserIds] = useState(new Set());
-  const [trustState, setTrustState] = useState({ status: "idle", device: null, error: null });
   const [toast, setToast] = useState(null);
   const refreshTimer = useRef(null);
   const toastTimer = useRef(null);
@@ -66,6 +66,17 @@ export default function App() {
     toastTimer.current = setTimeout(() => setToast(null), 3_000);
   }, []);
 
+  const clearAuthenticatedState = useCallback(() => {
+    socket.disconnect();
+    setMe(null);
+    setBootstrap(null);
+    bootstrapRef.current = null;
+    setOnlineUserIds(new Set());
+    setOfflineMode(false);
+    setAuthState("anonymous");
+    clearCsrfToken();
+  }, [socket]);
+
   const applyMessagePreview = useCallback((message) => {
     if (!message?.conversationId) return;
     setBootstrap((current) => {
@@ -74,16 +85,12 @@ export default function App() {
       const conversations = (current.conversations || []).map((conversation) => {
         if (conversation.id !== message.conversationId) return conversation;
         changed = true;
-        return {
-          ...conversation,
-          lastMessage: message,
-          updatedAt: message.createdAt || conversation.updatedAt,
-        };
+        return { ...conversation, lastMessage: message, updatedAt: message.createdAt || conversation.updatedAt };
       });
       if (!changed) return current;
       const next = { ...current, conversations };
       bootstrapRef.current = next;
-      cacheBootstrap(next).catch(() => {});
+      cacheBootstrap(next).catch((error) => console.debug("Bootstrap cache update failed", error));
       return next;
     });
   }, []);
@@ -94,7 +101,7 @@ export default function App() {
       const result = await api("/api/bootstrap");
       setBootstrap(result);
       bootstrapRef.current = result;
-      cacheBootstrap(result).catch(() => {});
+      cacheBootstrap(result).catch((error) => console.debug("Bootstrap cache update failed", error));
       setOfflineMode(false);
       setMe((current) => current?.id === result.me.id
         && current.displayName === result.me.displayName
@@ -104,38 +111,40 @@ export default function App() {
       setOnlineUserIds(new Set(result.onlineUserIds));
       return result;
     } catch (error) {
-      if (error.status === 401) {
-        setMe(null);
-        setBootstrap(null);
-        bootstrapRef.current = null;
-        setAuthState("anonymous");
-        socket.disconnect();
+      if (error.status === 401 || error.code === "AUTH_REQUIRED") {
+        clearAuthenticatedState();
       } else {
         setOfflineMode(true);
-        if (!bootstrapRef.current) showToast(error.message, "error");
+        if (!bootstrapRef.current) showToast(`${error.message}${error.requestId ? ` · requestId ${error.requestId}` : ""}`, "error");
       }
       return null;
     }
-  }, [me?.id, showToast, socket]);
+  }, [clearAuthenticatedState, me?.id, showToast]);
 
   useEffect(() => {
     let cancelled = false;
     async function check() {
       try {
         const result = await api("/api/health");
-        if (!cancelled) { setServerOnline(true); setServerInfo(result); }
+        if (!cancelled) {
+          setServerOnline(true);
+          setServerInfo(result);
+        }
       } catch {
         if (!cancelled) setServerOnline(false);
       }
     }
     check();
     const timer = setInterval(check, 5_000);
-    return () => { cancelled = true; clearInterval(timer); };
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
   }, []);
 
   useEffect(() => {
     api("/api/auth/me")
-      .then(async (result) => {
+      .then((result) => {
         setMe(result.user);
         setAuthState(result.user ? "authenticated" : "anonymous");
       })
@@ -148,7 +157,9 @@ export default function App() {
           setOnlineUserIds(new Set());
           setOfflineMode(true);
           setAuthState("authenticated");
-        } else setAuthState("anonymous");
+        } else {
+          setAuthState("anonymous");
+        }
       });
   }, []);
 
@@ -158,34 +169,10 @@ export default function App() {
     return undefined;
   }, [authState, bootstrap, me?.id, me?.mustChangePassword, refresh]);
 
-  useLayoutEffect(() => {
-    const serverId = bootstrap?.server?.id;
-    if (!me?.id || !serverId || me.mustChangePassword) return undefined;
-    configureTrust({ serverId, user: me });
-    return undefined;
-  }, [bootstrap?.server?.id, me?.id, me?.mustChangePassword]);
-
   useEffect(() => {
-    const serverId = bootstrap?.server?.id;
-    if (!me?.id || !serverId || me.mustChangePassword) return undefined;
-    let cancelled = false;
-    setTrustState((current) => ({ ...current, status: "initializing", error: null }));
-    ensureTrustDevice()
-      .then((device) => {
-        if (!cancelled) setTrustState({ status: device.trustState === "verified" ? "ready" : "verification_required", device, error: null });
-      })
-      .catch((error) => {
-        if (!cancelled) setTrustState({ status: "error", device: null, error: error.code || error.message });
-      });
-    return () => { cancelled = true; };
-  }, [bootstrap?.server?.id, me?.id, me?.mustChangePassword]);
+    if (authState !== "authenticated" || !me?.id || me.mustChangePassword || !bootstrap?.server?.id) return undefined;
 
-  useEffect(() => {
-    const deviceId = trustState.device?.id;
-    if (!me || me.mustChangePassword || !deviceId) return undefined;
-    if (socket.connected && socket.auth?.deviceId !== deviceId) socket.disconnect();
-    socket.auth = { ...(socket.auth || {}), deviceId, clientVersion: CLIENT_VERSION };
-    refresh();
+    socket.auth = { clientVersion: CLIENT_VERSION };
     socket.connect();
 
     const scheduleRefresh = () => {
@@ -195,7 +182,7 @@ export default function App() {
     const onPresence = (ids) => setOnlineUserIds(new Set(ids));
     const onMessage = (message) => {
       applyMessagePreview(message);
-      if (message.sender.id === me.id || document.visibilityState === "visible") return;
+      if (message.sender?.id === me.id || document.visibilityState === "visible") return;
       if (localStorage.getItem("nexora:notifications") === "off") return;
       const snapshot = bootstrapRef.current;
       const conversation = snapshot?.conversations?.find((item) => item.id === message.conversationId);
@@ -206,31 +193,17 @@ export default function App() {
       if (message.silent || mode === "none" || (mode === "mentions" && !direct) || quietHoursActive(preferences)) return;
       const sound = preferences.notificationSound ?? "subtle";
       if ("Notification" in window && Notification.permission === "granted") {
-        const body = message.type === "encrypted" ? "Новое защищённое сообщение" : message.type === "text" ? message.text : message.type === "voice" ? "Голосовое сообщение" : "Новое вложение";
-        new Notification(message.sender.displayName, { body, tag: `nexora-${message.conversationId}`, silent: true });
+        const body = message.type === "encrypted" ? "Legacy secure history обновлена" : message.type === "text" ? message.text : message.type === "voice" ? "Голосовое сообщение" : "Новое вложение";
+        new Notification(message.sender?.displayName || "Nexora", { body, tag: `nexora-${message.conversationId}`, silent: true });
         playNotificationSound(sound);
       }
-    };
-    const onWelcomeRequested = (event) => {
-      if (!event?.conversationId || String(event.requesterDeviceId || "") === String(deviceId)) return;
-      const conversation = bootstrapRef.current?.conversations?.find((item) => item.id === event.conversationId);
-      if (!conversation) return;
-      handleWelcomeRequest(conversation)
-        .then((changed) => { if (changed) scheduleRefresh(); })
-        .catch((error) => showToast(error.message || "Не удалось подготовить MLS Welcome", "error"));
-    };
-    const onMlsCommit = (event) => {
-      processCommitEvent(event)
-        .then((changed) => { if (changed) scheduleRefresh(); })
-        .catch((error) => showToast(error.message || "Не удалось применить MLS commit", "error"));
     };
     const onConnect = async () => {
       setServerOnline(true);
       setOfflineMode(false);
-      flushOutbox(socket, me.id).then((result) => {
-        if (result.sent) scheduleRefresh();
-        if (result.failed) showToast(`${result.failed} сообщений ожидают повторной отправки`, "error");
-      });
+      const outboxResult = await flushOutbox(socket, me.id);
+      if (outboxResult.sent) scheduleRefresh();
+      if (outboxResult.failed) showToast(`${outboxResult.failed} сообщений ожидают повторной отправки`, "error");
       const snapshot = bootstrapRef.current;
       if (snapshot?.server?.id) {
         const key = syncSequenceKey(snapshot.server.id, me.id);
@@ -239,60 +212,52 @@ export default function App() {
           const delta = await api(`/api/v3/sync?after=${Math.max(0, after)}&limit=500`);
           localStorage.setItem(key, String(delta.latestSequence || after));
           if (delta.resyncRequired || delta.events.length) scheduleRefresh();
-        } catch {}
+        } catch (error) {
+          console.debug("Delta sync deferred", error);
+        }
       }
       scheduleRefresh();
     };
-    const onDisconnect = () => { setServerOnline(false); setOfflineMode(true); };
-    const onConnectError = async (error) => {
+    const onDisconnect = () => {
+      setServerOnline(false);
+      setOfflineMode(true);
+    };
+    const onConnectError = (error) => {
       setServerOnline(false);
       const code = error.data?.code || error.message;
-      if (["TRUST_DEVICE_REVOKED", "TRUST_DEVICE_NOT_FOUND", "TRUST_SOCKET_AUTH_FAILED"].includes(code)) {
-        await handleTrustDeviceRevoked(deviceId).catch(() => {});
-        setTrustState({ status: "error", device: null, error: "Доверие этого устройства отозвано. Выполните повторный вход и регистрацию устройства." });
-        socket.disconnect();
-        showToast("Доверие устройства отозвано; локальные ключи удалены.", "error");
-        return;
-      }
-      if (code === "UNAUTHORIZED") {
-        setMe(null);
-        setBootstrap(null);
-        bootstrapRef.current = null;
-        setAuthState("anonymous");
-      }
+      if (["AUTH_REQUIRED", "UNAUTHORIZED"].includes(code)) clearAuthenticatedState();
+      else if (code === "CLIENT_VERSION_INCOMPATIBLE") showToast("Версия клиента несовместима с Local Server.", "error");
     };
-    const onTrustDeviceRevoked = async (event) => {
-      if (String(event?.deviceId || "") !== String(deviceId)) return;
-      await handleTrustDeviceRevoked(deviceId).catch(() => {});
-      setTrustState({ status: "error", device: null, error: "Доверие этого устройства отозвано. Локальные ключи и MLS state удалены." });
-      socket.disconnect();
-      showToast("Доверие устройства отозвано; защищённая доставка остановлена.", "error");
+    const onSessionRevoked = (event) => {
+      clearAuthenticatedState();
+      showToast(`Сессия отозвана${event?.reason ? `: ${event.reason}` : "."}`, "error");
     };
 
     socket.on("data:refresh", scheduleRefresh);
     socket.on("message:new", onMessage);
     socket.on("message:updated", applyMessagePreview);
-    socket.on("mls.commit", onMlsCommit);
-    socket.on("mls.welcome_requested", onWelcomeRequested);
     socket.on("presence:update", onPresence);
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
     socket.on("connect_error", onConnectError);
-    socket.on("trust.device_revoked", onTrustDeviceRevoked);
+    socket.on("session.revoked", onSessionRevoked);
+    socket.on("device.updated", scheduleRefresh);
+    socket.on("legacy_secure_history.state", scheduleRefresh);
+
     return () => {
       clearTimeout(refreshTimer.current);
       socket.off("data:refresh", scheduleRefresh);
       socket.off("message:new", onMessage);
       socket.off("message:updated", applyMessagePreview);
-      socket.off("mls.commit", onMlsCommit);
-      socket.off("mls.welcome_requested", onWelcomeRequested);
       socket.off("presence:update", onPresence);
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
       socket.off("connect_error", onConnectError);
-      socket.off("trust.device_revoked", onTrustDeviceRevoked);
+      socket.off("session.revoked", onSessionRevoked);
+      socket.off("device.updated", scheduleRefresh);
+      socket.off("legacy_secure_history.state", scheduleRefresh);
     };
-  }, [applyMessagePreview, me?.id, me?.mustChangePassword, refresh, socket, showToast, trustState.device?.id]);
+  }, [applyMessagePreview, authState, bootstrap?.server?.id, clearAuthenticatedState, me?.id, me?.mustChangePassword, refresh, showToast, socket]);
 
   async function authenticated(result) {
     setMe(result.user);
@@ -301,14 +266,12 @@ export default function App() {
   }
 
   async function logout() {
-    try { await post("/api/auth/logout"); } catch {}
-    socket.disconnect();
-    setMe(null);
-    setBootstrap(null);
-    bootstrapRef.current = null;
-    setTrustState({ status: "idle", device: null, error: null });
-    setAuthState("anonymous");
-    clearCsrfToken();
+    try {
+      await post("/api/auth/logout");
+    } catch (error) {
+      console.debug("Remote logout failed; clearing the local session state", error);
+    }
+    clearAuthenticatedState();
   }
 
   if (authState === "loading") return <LoadingScreen />;
@@ -323,7 +286,6 @@ export default function App() {
         bootstrap={bootstrap}
         socket={socket}
         onlineUserIds={onlineUserIds}
-        trustState={trustState}
         onRefresh={refresh}
         onMeChanged={(user) => { setMe(user); setBootstrap((current) => current ? { ...current, me: user } : current); }}
         onLogout={logout}

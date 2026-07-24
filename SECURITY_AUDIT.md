@@ -1,163 +1,126 @@
 # Nexora Security Verification Summary
 
-**Дата документа:** 23 июля 2026  
-**Текущая версия:** `3.3.2`  
-**Канал:** Published `UNSIGNED-TEST` prerelease  
+**Дата документа:** 24 июля 2026  
+**Текущая версия:** `3.3.4`  
+**Канал:** release candidate; signed when policy exists, otherwise explicit `UNSIGNED-TEST` prerelease  
 **Signed production baseline:** `3.1.2`
 
 ## 1. Область
 
-Документ суммирует automated security и architecture verification текущего `main`. Он не является independent penetration test, cryptographic certification, supply-chain audit или production approval.
+Документ суммирует automated security, architecture и reliability verification Nexora 3.3.4 Post-MLS Baseline. Он не является independent penetration test, cryptographic certification, supply-chain audit или production approval.
 
 Авторитетные материалы:
 
-- [Security Review 3.3.0](docs/releases/3.3.0/SECURITY_REVIEW.md) — security boundary, unchanged by 3.3.2;
-- [Release Verification 3.3.2](docs/releases/3.3.3/RELEASE_VERIFICATION.md);
-- [Release Notes 3.3.2](docs/releases/3.3.3/RELEASE_NOTES.md);
-- [Security Review 3.2.3](docs/releases/3.2.3/SECURITY_REVIEW.md);
-- [Security Model](docs/SECURITY_MODEL.md).
+- [Security Review 3.3.4](SECURITY_REVIEW_3.3.4.md);
+- [Release Verification 3.3.4](docs/releases/3.3.4/RELEASE_VERIFICATION.md);
+- [Release Notes 3.3.4](docs/releases/3.3.4/RELEASE_NOTES.md);
+- [Security Model](docs/SECURITY_MODEL.md);
+- [Release Checklist](docs/RELEASE_CHECKLIST.md).
 
 ## 2. Версионная база
 
 | Параметр | Значение |
 |---|---|
-| Version | `3.3.2` |
+| Version | `3.3.4` |
 | Application API | v3 |
-| Trust/MLS/encrypted-media API | v4 |
+| Writable messaging | ordinary server-readable messaging |
+| Trust/MLS runtime | retired |
+| Legacy secure history | read-only compatibility layer |
 | Local Server database | SQLite schema 8 |
-| Local Server migration from 3.2.0–3.3.1 | не требуется |
-| Stable signed Windows approval | не предоставлен |
+| Stable signed Windows approval | не предоставлен для prerequisite release |
 
-## 3. Release evidence
+## 3. Post-MLS security boundary
 
-Для 3.3.2 обязательны стандартные Windows/Linux/release/soak/Android gates, version-consistency regression и post-publication asset smoke. Конкретные run IDs и digests записываются в `release-evidence/v3.3.2.json` и `release-evidence/post-release-main-gate.json`.
+- executable Trust Core, MLS recovery/transport, Trust routes and encrypted-upload write runtime are removed;
+- `ts-mls` is absent from package and lockfile;
+- schema 8 retains legacy IDs, epochs, timestamps, ciphertext and audit provenance;
+- retained ciphertext is never converted into server-readable plaintext;
+- legacy export records `serverDecrypted: false`;
+- Trust/E2EE HTTP mutations return `410/LEGACY_READ_ONLY`;
+- MLS Socket.IO mutations return terminal `LEGACY_READ_ONLY` acknowledgements;
+- legacy UI contains no composer, upload, record, edit or delete actions;
+- ordinary conversations no longer depend on local MLS state and cannot be blocked by corrupt/missing MLS data.
 
-Проверены:
-
-| Gate | Result |
-|---|---|
-| Windows `npm run check` | PASS |
-| Windows `npm run test:unit` | PASS |
-| Windows `npm run test:performance` | PASS |
-| Windows `npm run audit:security` | PASS |
-| Linux `npm test` | PASS |
-| `npm run release:check` | PASS |
-| Schema 8 soak | PASS |
-| Android `assembleDebug` | PASS |
-
-Acceptance contract, consistency gate и asset smoke описаны в [Release Verification 3.3.2](docs/releases/3.3.3/RELEASE_VERIFICATION.md). Выпуск 3.3.2 не расширяет security boundary и не изменяет runtime authorization, Trust/MLS или storage behavior.
-
-## 4. Application security
+## 4. Authentication, authorization and sessions
 
 Проверяемая реализация включает:
 
-- secure session cookie, Origin и CSRF validation;
-- persistent login limits/lock;
-- local TOTP и one-time recovery codes;
-- server-side roles, bans, restrictions и room-policy checks;
-- immediate REST/realtime access loss после removal или ban;
-- SQLite WAL/FULL, transactional mutation и integrity checks;
-- schema 7 → 8 migration, backup и downgrade protection;
-- upload size/hash/actual-MIME validation;
-- bot token hashing/scopes/expiry;
-- webhook HTTPS, destination validation, SSRF и HMAC controls;
-- protected metrics, request IDs и recursive credential redaction;
-- audited developer-command allowlist без shell/eval;
-- Electron context/session isolation и certificate pinning;
-- Android cleartext/mixed-content/TLS-error rejection.
+- secure session cookie, exact Origin and CSRF validation;
+- server-side resource existence, membership, role, permission, ban and room-policy checks;
+- active-ban precedence over stale membership;
+- immediate REST/realtime access loss after removal, ban or session revocation;
+- session-owned device ID, name, platform, Client version, creation and last-seen timestamps;
+- targeted remote session revoke;
+- immediate `session.revoked` event and Socket.IO disconnect;
+- `device.updated` refresh;
+- current-device remote revoke rejection with `STATE_CONFLICT`;
+- stable request correlation through `X-Request-ID` and response `requestId`.
 
-## 5. Trust/MLS hardening inherited from 3.2.3
+## 5. Stable errors
 
-- exact MLS BasicCredential binding к `{ userId, deviceId }`;
-- distinct Ed25519 identity и MLS signature keys;
-- maximum 16 active devices per user;
-- KeyPackage limits 25/request, 32/device и 256/user;
-- atomic inventory enforcement;
-- bounded Trust/recovery/E2EE rate limiting;
-- stable `429 RATE_LIMITED` и `Retry-After`;
-- action-specific primitive Trust audit allowlists;
-- active-ban fail-closed behavior;
-- strict recovery scope, epoch, hash и public-state validation;
-- startup/hourly expired security-state cleanup.
+Expected failures are separated by stable code and safe message, including:
 
-## 6. Historical 3.2.4 patch verification
+- `AUTH_REQUIRED`;
+- `FORBIDDEN`;
+- `RESOURCE_NOT_FOUND`;
+- `VALIDATION_FAILED`;
+- `STATE_CONFLICT`;
+- `RATE_LIMITED` with `Retry-After`;
+- `LEGACY_READ_ONLY`;
+- `BACKUP_INTEGRITY_FAILED`;
+- `UPDATE_SIGNATURE_INVALID`;
+- `TEMPORARY_UNAVAILABLE`.
 
-### Client updater
+Stack traces, SQL, tokens, cookies, passwords, certificate material and private payloads are not exposed through the public error envelope.
 
-- packaged Client defaults to official GitHub Releases provider;
-- custom feed requires explicit HTTPS configuration;
-- downgrade и prerelease update channels disabled;
-- code-signature verification retained;
-- manual/automatic lifecycle exposes terminal states and stable errors;
-- unsigned `.exe`, `.blockmap` и `latest.yml` не становятся trusted fallback.
+## 6. Uploads and media
 
-### Server console
+- authorization and room restrictions are checked server-side on every upload/action;
+- size, actual MIME type, safe filename, hash and quota controls remain active;
+- dangerous/executable content is rejected;
+- temporary data is removed after failed or cancelled operations;
+- corrupt images fail safely;
+- microphone denial/unsupported format paths do not crash the Client;
+- ordinary voice messages retain recording, cancellation, preview, send, amplitude and playback behavior;
+- retired encrypted-upload routes cannot reserve, upload or claim new data.
 
-- only `DeveloperCommandService` registry executes;
-- IPC returns stable `{ code, message }`;
-- `<user>` и `[days]` placeholders treated as inert data;
-- no shell, eval или arbitrary filesystem execution;
-- mutations remain audited without argument values.
+## 7. Backup, restore and migration reliability
 
-### MLS Welcome recovery
+- source database integrity and WAL checkpoint are checked before migration-sensitive operations;
+- free-space failure occurs before mutation;
+- backup verification is available without replacing live DB/files;
+- selected backup IDs are allowlisted against the controlled backup directory;
+- encrypted temporary material is removed after success and failure;
+- restore replacement failure rolls back database and files;
+- future schema versions fail before mutation;
+- schema 8 compatibility migration remains idempotent;
+- fault-injection tests cover disk-full and replacement failure paths.
 
-- endpoint requires session, Origin/CSRF, conversation access, active-ban check и verified device;
-- request uses bounded recovery limiter;
-- notifications go only to active verified MLS member devices;
-- active Client creates RFC 9420 commit/Welcome;
-- Server routes scoped identifiers и opaque artifacts only;
-- no active member means fail-closed pending state, not plaintext fallback.
+## 8. Updater and release integrity
 
-### Post-update и test mode
+- Client and Server use separate update channels (`latest` and `server`);
+- downgrade and prerelease upgrade consumption are disabled;
+- signature/checksum failures map to `UPDATE_SIGNATURE_INVALID`;
+- partial signing configuration is rejected;
+- complete signing policy verifies expected Authenticode subject, thumbprint and timestamp;
+- without signing credentials, `v3.3.4` is an explicit `UNSIGNED-TEST` prerelease;
+- unsigned publication forbids `latest.yml`, `server.yml` and blockmaps;
+- source, PWA, Android, SPDX SBOM, release evidence and SHA-256 checksums are produced;
+- published assets are re-downloaded and verified;
+- official tag is immutable.
 
-- official release-tag link only;
-- dismissal stores version/display state only;
-- test mode is opt-in;
-- PowerShell tails existing local log;
-- no DevTools, renderer Node integration, remote debugging or admin IPC is enabled.
+## 9. Electron, Android and browser boundaries
 
-## 7. Encrypted media
+- renderer Node integration, arbitrary shell execution and remote debugging remain disabled;
+- Server console executes only registered commands;
+- Client/Server profiles remain isolated by Server identity/certificate context;
+- Android rejects cleartext, mixed content and TLS errors;
+- deep links accept valid HTTPS only;
+- Service Worker/offline cache must not bypass authorization or cache API/Socket.IO traffic as public content.
 
-- AES-256-GCM Client encryption;
-- AAD binding to conversation, attachment и media kind;
-- exact ciphertext size и SHA-256 validation;
-- pending data unavailable before atomic message claim;
-- expiry/cancel cleanup;
-- idempotent matching retry;
-- scope/hash/size substitution rejection;
-- one-time claim/reuse rejection;
-- verified local decrypt, preview, playback и download;
-- fail-closed room media restrictions.
+## 10. Verification gates
 
-## 8. Pulse и Cloud Identity
-
-- scrypt Cloud passwords;
-- encrypted Cloud TOTP secrets;
-- hashed email/session/OAuth tokens;
-- OAuth 2.1 Authorization Code + PKCE S256;
-- exact redirect URI validation;
-- one-time signed Local Account linking;
-- Ed25519 envelope/entitlement verification;
-- provider-event replay/idempotency controls;
-- double-entry ledger/non-negative wallet invariant;
-- Local sandbox isolated from production authority.
-
-## 9. Server-visible metadata
-
-Secure messaging does not provide metadata confidentiality. Local Server can observe account/device IDs, membership, sender/uploader, group/epoch, attachment IDs, ciphertext sizes, timestamps, IP/network context, delivery order, Welcome request timing и traffic patterns.
-
-## 10. Residual risks
-
-- Client/OS/browser/runtime compromise can expose plaintext during authorized use;
-- complete loss of private device state may be unrecoverable;
-- existing 3.1.x data is not retroactively encrypted;
-- public deployment depends on external TLS proxy, firewall, monitoring и DDoS controls;
-- signing and provider environments are external trust boundaries;
-- installed Windows updater acceptance still requires signed assets and runtime testing;
-- Android/PWA stable promotion requires physical/installed runtime evidence;
-- automated verification does not replace independent cryptographic/application-security review.
-
-## 11. Reproduction
+Required final release-commit evidence:
 
 ```bash
 npm ci
@@ -170,4 +133,16 @@ npm run test:soak
 gradle -p android :app:assembleDebug --no-daemon
 ```
 
-Запускайте команды на exact release commit/tag. Evidence другой revision не является release evidence.
+Дополнительно обязательны focused 3.3 regressions, introductory/advanced website validation, installed Windows package smoke and post-publication asset verification.
+
+## 11. Residual risks and deferred 3.4.0 gates
+
+- Local Server cannot decrypt retained legacy ciphertext;
+- readable historical plaintext depends on a pre-existing local Client cache;
+- Client/OS/browser compromise can expose plaintext during authorized use;
+- public deployment depends on external TLS proxy, firewall, monitoring and DDoS controls;
+- Android/PWA production promotion requires physical/installed runtime evidence;
+- automated verification does not replace independent application-security review;
+- Authenticode-backed stable Windows promotion, independent review and signed 3.3.4 → 3.4.0 acceptance remain mandatory Nexora 3.4.0 gates.
+
+Evidence другой revision не является release evidence. До merge, post-merge CI, annotated tag, GitHub Release и re-download smoke версия 3.3.4 остаётся release candidate.

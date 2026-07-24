@@ -1,27 +1,29 @@
 {
-  "schemaVersion": 1,
-  "version": "3.3.3",
-  "status": "candidate",
-  "verifiedAt": null,
+  "schemaVersion": 2,
+  "version": "3.3.4",
+  "tag": "v3.3.4",
+  "status": "release-candidate",
+  "published": false,
+  "signed": false,
+  "distribution": "pending",
   "repository": "Onmaynec/Nexora",
-  "tag": "v3.3.3",
-  "tagSha": null,
-  "releaseName": "Nexora 3.3.3 — UNSIGNED TEST BUILDS",
-  "releaseUrl": "https://github.com/Onmaynec/Nexora/releases/tag/v3.3.3",
-  "draft": true,
-  "prerelease": true,
-  "distribution": "unsigned-test",
-  "updaterMetadataPublished": false,
-  "requiredAssets": [
-    "Nexora-3.3.3-source.zip",
-    "Nexora-PWA-3.3.3.zip",
-    "Nexora-3.3.3.spdx.json",
-    "SHA256SUMS.txt",
-    "Nexora-Client-Setup-3.3.3-UNSIGNED-TEST.exe",
-    "Nexora-Server-Setup-3.3.3-UNSIGNED-TEST.exe"
+  "branch": "release/3.3.4-post-mls",
+  "baseline": "v3.3.3",
+  "blockers": [
+    "ci",
+    "merge",
+    "github-release",
+    "asset-redownload-smoke"
   ],
-  "smoke": {
-    "status": "pending"
+  "guarantees": {
+    "ordinaryMessagingWritable": true,
+    "trustMlsRuntime": "retired",
+    "legacySecureHistory": "read-only",
+    "serverDecryptsLegacyCiphertext": false,
+    "unsignedUpdaterMetadataPublished": false
   },
-  "assets": []
+  "assets": [],
+  "verification": {
+    "status": "pending"
+  }
 }

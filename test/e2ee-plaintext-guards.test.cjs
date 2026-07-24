@@ -6,31 +6,46 @@ const path = require("node:path");
 const { test } = require("node:test");
 
 const root = path.resolve(__dirname, "..");
+const composition = fs.readFileSync(path.join(root, "server/create-server-v31.cjs"), "utf8");
+const stableCore = fs.readFileSync(path.join(root, "server/stable-core.cjs"), "utf8");
 const createServer = fs.readFileSync(path.join(root, "server/create-server.cjs"), "utf8");
 const v3 = fs.readFileSync(path.join(root, "server/v3-features.cjs"), "utf8");
 
-function requireCode(source, code, context) {
-  assert.match(source, new RegExp(`conversationUsesMls[\\s\\S]{0,900}${code}|${code}[\\s\\S]{0,900}conversationUsesMls`), `${context} must reject plaintext after MLS activation`);
+function count(source, token) {
+  return source.split(token).length - 1;
 }
 
-test("legacy Socket.IO plaintext and forwards cannot bypass an active MLS group", () => {
-  requireCode(createServer, "E2EE_REQUIRED", "message:send");
-  requireCode(createServer, "E2EE_FORWARD_REQUIRED", "message:forward");
-  requireCode(createServer, "E2EE_ATTACHMENT_REQUIRED", "legacy uploads");
+test("Trust and MLS executable runtime is absent from the composition root", () => {
+  for (const forbidden of [
+    "new TrustCore",
+    "mountTrustRoutes",
+    "mountTrustRecoveryRoutes",
+    "mountTrustSocketAuthorization",
+    "mountMlsTransport",
+    "mountE2eeAttachments",
+  ]) {
+    assert.equal(composition.includes(forbidden), false, `${forbidden} must not be mounted`);
+  }
+  assert.match(composition, /mountStableCore/);
+  assert.match(composition, /runtime: "retired"/);
+  assert.match(composition, /legacyHistory: "read_only"/);
 });
 
-test("v3 drafts, schedules, polls, bots and resumable uploads are guarded", () => {
-  requireCode(v3, "E2EE_DRAFT_LOCAL_ONLY", "server drafts");
-  requireCode(v3, "E2EE_SCHEDULE_UNSUPPORTED", "scheduled messages");
-  requireCode(v3, "E2EE_POLL_UNSUPPORTED", "poll creation");
-  requireCode(v3, "E2EE_BOT_UNSUPPORTED", "bot messages");
-  const attachmentGuards = v3.match(/E2EE_ATTACHMENT_REQUIRED/g) || [];
-  assert.ok(attachmentGuards.length >= 3, "resumable upload create/chunk/complete must all reject MLS plaintext");
+test("all legacy Trust, E2EE and MLS write surfaces converge on LEGACY_READ_ONLY", () => {
+  assert.match(stableCore, /LEGACY_WRITE_PATTERN/);
+  assert.match(stableCore, /response\.status\(status\)\.json/);
+  assert.match(stableCore, /410,[\s\S]{0,160}"LEGACY_READ_ONLY"/);
+  assert.match(stableCore, /socket\.on\("mls:message", reject\)/);
+  assert.match(stableCore, /socket\.on\("mls:message-edit", reject\)/);
+  assert.ok(count(createServer, "LEGACY_READ_ONLY") >= 3, "legacy Socket.IO and upload compatibility guards must use the stable code");
+  assert.ok(count(v3, "LEGACY_READ_ONLY") >= 7, "draft, schedule, poll, bot and resumable upload guards must use the stable code");
 });
 
-test("encrypted message serialization exposes ciphertext but never stored plaintext", () => {
+test("legacy serialization and export expose ciphertext but never stored plaintext", () => {
   const model = fs.readFileSync(path.join(root, "server/model.cjs"), "utf8");
   assert.match(model, /message\.type === "encrypted" \? "" : message\.text/);
   assert.match(model, /ciphertext: message\.mlsEnvelope\.ciphertext/);
-  assert.match(model, /messageHash: message\.mlsEnvelope\.messageHash/);
+  assert.match(stableCore, /ciphertext: envelope\.ciphertext \|\| envelope\.message \|\| null/);
+  assert.match(stableCore, /serverDecrypted: false/);
+  assert.equal(/text:\s*message\.text/.test(stableCore), false);
 });

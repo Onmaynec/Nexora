@@ -12,10 +12,25 @@ export function getSocket() {
 
 export function emitAck(socketInstance, event, payload, timeout = 7_000) {
   return new Promise((resolve, reject) => {
-    socketInstance.timeout(timeout).emit(event, payload, (error, result) => {
-      if (error) reject(new Error("Сервер не ответил вовремя."));
-      else if (!result?.ok) reject(new Error(result?.error ?? "Операция не выполнена."));
-      else resolve(result);
+    socketInstance.timeout(timeout).emit(event, payload, (timeoutError, result) => {
+      if (timeoutError) {
+        const error = new Error("Сервер не ответил вовремя.");
+        error.code = "TEMPORARY_UNAVAILABLE";
+        error.retryable = true;
+        reject(error);
+        return;
+      }
+      if (!result?.ok) {
+        const error = new Error(result?.message ?? result?.error ?? "Операция не выполнена.");
+        error.code = result?.code || "REQUEST_FAILED";
+        error.details = result?.details || {};
+        error.requestId = result?.requestId || null;
+        error.retryAfter = Number(result?.retryAfter || result?.details?.retryAfter || 0) || null;
+        error.retryable = result?.retryable !== false;
+        reject(error);
+        return;
+      }
+      resolve(result);
     });
   });
 }

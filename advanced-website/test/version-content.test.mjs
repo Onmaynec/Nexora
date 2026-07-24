@@ -22,12 +22,13 @@ test("roadmap route is navigable and sourced from docs/ROADMAP.md", () => {
   assert.ok(pageForVersion(page, "3.3").sections.some((section) => section.id === "sequence"));
 });
 
-test("version selector excludes unavailable pages from navigation and search", () => {
+test("version selector excludes unavailable pages and exposes the post-MLS compatibility boundary", () => {
   const v31 = pageForVersion(pageById.get("api-v4"), "3.1");
   const v33 = pageForVersion(pageById.get("api-v4"), "3.3");
   assert.equal(v31.sections.length, 1);
   assert.equal(v31.sections[0].id, "version-applicability");
-  assert.ok(v33.sections.some((section) => section.id === "routes"));
+  assert.ok(v33.sections.some((section) => section.id === "compatibility-routes"));
+  assert.ok(v33.sections.some((section) => section.id === "retirement"));
 
   const pageIds31 = new Set(pagesForVersion("3.1").map((page) => page.id));
   assert.equal(pageIds31.has("api-v4"), false);
@@ -44,7 +45,9 @@ test("version selector excludes unavailable pages from navigation and search", (
   assert.equal(search31.find((entry) => entry.id === "api-v4"), undefined);
   assert.equal(search31.find((entry) => entry.id === "trust-mls"), undefined);
   assert.equal(search31.find((entry) => entry.id === "pulse-cloud"), undefined);
-  assert.ok(search33.find((entry) => entry.id === "api-v4")?.haystack.includes("keypackage"));
+  const compatibility = search33.find((entry) => entry.id === "api-v4")?.haystack || "";
+  assert.match(compatibility, /legacy_read_only|legacy read-only|ciphertext/);
+  assert.doesNotMatch(compatibility, /create mls group|keypackage upload|welcome claim/);
 });
 
 test("figures are local, bilingual and dimensioned", () => {

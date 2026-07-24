@@ -61,56 +61,59 @@ test("3.2.5: release announcement is renderer-driven and persisted per version",
   assert.equal(fsImpl.value().dismissedNotesVersion, "3.2.5");
 });
 
-test("3.2.5: Client uses an in-app modal and contains the interactive network inside chat history", () => {
+test("Stable Core preserves in-app release UX without injecting particle canvases into navigation", () => {
   const main = fs.readFileSync(path.join(root, "client", "src", "main.jsx"), "utf8");
   const announcement = fs.readFileSync(path.join(root, "client", "src", "components", "ReleaseAnnouncement.jsx"), "utf8");
-  const pane = fs.readFileSync(path.join(root, "client", "src", "components", "SecureMessagePane.jsx"), "utf8");
   const workspace = fs.readFileSync(path.join(root, "client", "src", "components", "Workspace.jsx"), "utf8");
   const particles = fs.readFileSync(path.join(root, "client", "src", "components", "ParticleField.jsx"), "utf8");
   assert.match(main, /ReleaseAnnouncement/);
   assert.match(announcement, /release-announcement/);
   assert.match(announcement, /Не показывать снова/);
-  assert.match(pane, /<ParticleField contained/);
   assert.doesNotMatch(workspace, /<ParticleField/);
   assert.match(particles, /ResizeObserver/);
   assert.match(particles, /contained/);
 });
 
-test("3.2.5: message rendering avoids full chat reloads and restores automatic media presentation", () => {
-  const pane = fs.readFileSync(path.join(root, "client", "src", "components", "SecureMessagePane.jsx"), "utf8");
-  assert.match(pane, /memo\(function SecureMessage/);
-  assert.match(pane, /SecureVoicePlayer/);
-  assert.match(pane, /\["image", "voice"\]\.includes/);
-  assert.doesNotMatch(pane, /await onRefresh\(\);/);
-  assert.match(pane, /conversationRef\.current/);
-  assert.match(pane, /nearBottom/);
+test("ordinary server-readable message rendering keeps voice, lazy media and local updates", () => {
+  const pane = fs.readFileSync(path.join(root, "client", "src", "components", "MessagePane.jsx"), "utf8");
+  assert.match(pane, /VoicePlayer/);
+  assert.match(pane, /loading="lazy"/);
+  assert.match(pane, /cacheMessages/);
+  assert.match(pane, /readCachedMessages/);
+  assert.match(pane, /flushOutbox/);
 });
 
-test("3.2.5: MLS group creation race waits for recovery instead of failing immediately", () => {
-  const trust = fs.readFileSync(path.join(root, "client", "src", "crypto", "trust-client.js"), "utf8");
-  assert.match(trust, /claimWelcomeSafely\(device, conversation\.id\)\s*\|\|\s*await requestWelcomeAndWait/);
-  assert.doesNotMatch(trust, /const joined = await claimWelcome\(device, conversation\.id\)/);
+test("legacy history is routed to a read-only viewer instead of MLS group creation recovery", () => {
+  const workspace = fs.readFileSync(path.join(root, "client", "src", "components", "Workspace.jsx"), "utf8");
+  const viewer = fs.readFileSync(path.join(root, "client", "src", "components", "LegacySecureHistoryPane.jsx"), "utf8");
+  assert.match(workspace, /activeConversation\.legacySecure/);
+  assert.match(viewer, /LEGACY_READ_ONLY/);
+  assert.match(viewer, /server-side расшифровка не выполнялась/);
+  assert.doesNotMatch(workspace, /requestWelcome|claimWelcome|SecureMessagePane/);
 });
 
-test("3.2.5: message delivery does not force a full bootstrap refresh", () => {
-  const transport = fs.readFileSync(path.join(root, "server", "mls-transport.cjs"), "utf8");
-  const pane = fs.readFileSync(path.join(root, "client", "src", "components", "SecureMessagePane.jsx"), "utf8");
+test("message delivery updates previews without forcing full bootstrap per event", () => {
   const app = fs.readFileSync(path.join(root, "client", "src", "App.jsx"), "utf8");
-  assert.doesNotMatch(transport, /emit\("data:refresh"\)/);
+  const pane = fs.readFileSync(path.join(root, "client", "src", "components", "MessagePane.jsx"), "utf8");
   assert.match(app, /applyMessagePreview\(message\)/);
+  assert.match(app, /socket\.on\("message:new", onMessage\)/);
   assert.doesNotMatch(pane, /result\.failed[\s\S]{0,180}onRefresh/);
 });
 
-test("3.2.5: local Windows release build is available without weakening signed publication", () => {
+test("local Windows test build remains separate from signed stable publication", () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
   const workflow = fs.readFileSync(path.join(root, ".github", "workflows", "release.yml"), "utf8");
   assert.doesNotMatch(pkg.scripts["release:windows"], /signing-check/);
   assert.match(pkg.scripts["release:windows:signed"], /signing-check/);
   assert.match(workflow, /release:signing-check/);
   assert.match(workflow, /WINDOWS_CERTIFICATE_BASE64/);
+  assert.match(workflow, /PUBLISH_TAG=\$officialTag/);
+  assert.match(workflow, /UNSIGNED-TEST prerelease without updater metadata/);
+  assert.match(workflow, /--prerelease/);
+  assert.doesNotMatch(workflow, /Unsigned artifact set contains updater metadata[\s\S]{0,240}latest\.yml/);
 });
 
-test("3.2.5: Server control plane styles disabled controls and scrollbars inside the product theme", () => {
+test("Server control plane styles disabled controls and scrollbars inside the product theme", () => {
   const extras = fs.readFileSync(path.join(root, "electron", "server-shell", "extras.css"), "utf8");
   assert.match(extras, /button:disabled/);
   assert.match(extras, /::-webkit-scrollbar-thumb/);

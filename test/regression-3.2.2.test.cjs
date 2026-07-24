@@ -6,34 +6,36 @@ const path = require("node:path");
 const { test } = require("node:test");
 
 const root = path.resolve(__dirname, "..");
+const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
 
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, relativePath), "utf8");
-}
-
-test("Trust configuration is committed before Workspace child passive effects can read encrypted drafts", () => {
+test("Stable Core client connects ordinary chats without Trust bootstrap", () => {
   const appSource = read("client/src/App.jsx");
-  assert.match(appSource, /import \{[^}]*useLayoutEffect[^}]*\} from "react";/);
-  assert.match(
-    appSource,
-    /useLayoutEffect\(\(\) => \{\s*const serverId = bootstrap\?\.server\?\.id;\s*if \(!me\?\.id \|\| !serverId \|\| me\.mustChangePassword\) return undefined;\s*configureTrust\(\{ serverId, user: me \}\);\s*return undefined;\s*\}, \[bootstrap\?\.server\?\.id, me\?\.id, me\?\.mustChangePassword\]\);/,
-    "App must configure Trust in a layout effect before Workspace passive effects run",
-  );
+  assert.doesNotMatch(appSource, /configureTrust|ensureTrustDevice|trustState|trust-client/);
+  assert.match(appSource, /socket\.auth = \{ clientVersion: CLIENT_VERSION \}/);
+  assert.match(appSource, /socket\.connect\(\)/);
+  assert.match(appSource, /session\.revoked/);
 });
 
-test("encrypted draft reads are safe during the pre-configuration lifecycle window", () => {
-  const trustSource = read("client/src/crypto/trust-client.js");
-  assert.match(
-    trustSource,
-    /export function loadE2eeDraft\(conversationId\) \{\s*if \(!trustConfigured\(\)\) return Promise\.resolve\(""\);\s*const \{ serverId, userId \} = current\(\);\s*return loadEncryptedDraft\(serverId, userId, conversationId\);\s*\}/,
-    "A child draft effect must not synchronously throw TRUST_NOT_CONFIGURED before the parent Trust lifecycle is committed",
-  );
+test("Workspace routes legacy MLS conversations to an immutable viewer", () => {
+  const workspace = read("client/src/components/Workspace.jsx");
+  assert.doesNotMatch(workspace, /SecureMessagePane|loadE2eeDraft|trustState/);
+  assert.match(workspace, /activeConversation\.legacySecure/);
+  assert.match(workspace, /LegacySecureHistoryPane/);
+  assert.match(workspace, /MessagePane/);
 });
 
-test("Trust initialization remains explicit and does not hide platform or registration failures", () => {
-  const appSource = read("client/src/App.jsx");
-  assert.match(appSource, /ensureTrustDevice\(\)[\s\S]*setTrustState\(\{ status: "error", device: null, error: error\.code \|\| error\.message \}\)/);
-  const trustSource = read("client/src/crypto/trust-client.js");
-  assert.match(trustSource, /if \(!crypto\?\.subtle \|\| !globalThis\.indexedDB\) throw Object\.assign/);
-  assert.match(trustSource, /TRUST_PLATFORM_UNSUPPORTED/);
+test("legacy local storage adapter is read-only and never creates wrapping keys", () => {
+  const adapter = read("client/src/legacy/legacy-trust-store.js");
+  assert.match(adapter, /indexedDB\.open\(DB_NAME\)/);
+  assert.match(adapter, /transaction\(MESSAGE_STORE, "readonly"\)/);
+  assert.match(adapter, /transaction\(META_STORE, "readonly"\)/);
+  assert.doesNotMatch(adapter, /generateKey|put\(|add\(|readwrite/);
+});
+
+test("retired MLS outbox entries are archived terminally and never sent as plaintext", () => {
+  const outbox = read("client/src/outbox.js");
+  assert.match(outbox, /entry\?\.kind === "mls-message"/);
+  assert.match(outbox, /state: "retired"/);
+  assert.match(outbox, /error: "LEGACY_READ_ONLY"/);
+  assert.doesNotMatch(outbox, /mls:message/);
 });
