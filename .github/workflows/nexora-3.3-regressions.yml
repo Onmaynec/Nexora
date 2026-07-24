@@ -1,19 +1,47 @@
 name: Nexora 3.3 regressions
 
 on:
+  push:
+    branches: [release/3.3.4-post-mls]
   pull_request:
     branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: nexora-3.3-regressions-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  finalize-release-workflow:
+    if: github.event_name == 'push' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/3.3.4-post-mls
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+      - name: Apply canonical release notes path
+        run: node scripts/finalize-release-workflow-3.3.4.cjs
+      - name: Commit finalized workflow source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -- .github/workflows/nexora-3.3-regressions.yml
+          git add -A
+          git commit -m "fix(release): publish canonical Nexora 3.3.4 notes"
+          git push origin HEAD:release/3.3.4-post-mls
+
   regressions:
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
