@@ -37,6 +37,39 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  unit-diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - run: npm ci
+      - name: Run unit suite with retained diagnostics
+        id: unit
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          npm run test:unit > unit-failures.log 2>&1
+          status=$?
+          cat unit-failures.log
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit "$status"
+      - name: Upload unit diagnostics
+        if: steps.unit.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-failures
+          path: unit-failures.log
+          if-no-files-found: error
+          retention-days: 2
+      - name: Enforce unit suite
+        if: steps.unit.outcome == 'failure'
+        run: exit 1
+
   release-gate:
     runs-on: ubuntu-latest
     timeout-minutes: 30
