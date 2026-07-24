@@ -1,4 +1,4 @@
-# Политика выпусков Nexora
+# Политика выпусков Nexora 3.4.0
 
 ## 1. Semantic Versioning
 
@@ -8,7 +8,7 @@ Nexora использует SemVer:
 - `MINOR` — backward-compatible functionality;
 - `PATCH` — backward-compatible defect, security или operational hardening.
 
-Metadata синхронизируется в package, lockfile, Client handshake, Android, current README/documentation, release notes, verification, release evidence и tag.
+Release metadata синхронизируется в package, lockfile, Client handshake, Android, current documentation, release notes, verification, machine-readable evidence и tag.
 
 ## 2. Release classifications
 
@@ -16,70 +16,89 @@ Metadata синхронизируется в package, lockfile, Client handshake
 
 Implementation incomplete или имеет unresolved blockers. Не распространяется как product release.
 
-### Source/PWA prerelease
+### Source/PWA release candidate
 
-Verified source, production web build и automated gates. Допустимы:
-
-- source ZIP;
-- built PWA ZIP;
-- SPDX SBOM;
-- SHA-256 checksums.
-
-Не означает signed Windows installers, updater eligibility, packaged runtime E2E, external certification или high-risk production suitability.
+Verified source, production web build и automated gates. Допустимы source/PWA/SBOM/checksum artifacts, но это не означает signed Windows installers, updater eligibility или production approval.
 
 ### Stable signed Windows
 
 Требует:
 
-- full automated gates;
-- manual platform/runtime acceptance;
-- verified migration/rollback;
-- valid Authenticode signatures;
-- complete installer/blockmap/`latest.yml`;
-- updater n-1 → n;
+- full automated gates на exact commit;
+- verified migration/backup/rollback;
+- valid Authenticode signatures и timestamp;
+- complete Client/Server installers, blockmaps и updater metadata;
+- installed n-1 → n acceptance на supported Windows versions;
 - no unresolved release blockers;
-- approved security/operations evidence.
+- approved security/operations evidence;
+- immutable tag и post-publication asset verification.
 
 ### Security patch
 
 Требует regression-first reproduction, root cause, correction, tests, compatibility statement, supported-version update и coordinated disclosure when applicable.
 
-### Documentation-only release support
+### Documentation-only
 
-Documentation-only PR не меняет version metadata и не создаёт новый product release. Он должен пройти existing CI и не изменять runtime code, dependencies, migrations или workflows.
+Documentation-only PR не меняет version metadata и не создаёт product release. Он проходит existing CI и не изменяет runtime, dependencies, migrations или workflows без отдельного scope.
 
-## 3. Automated gates
+## 3. Nexora 3.4.0 classification
+
+`3.4.0` является Stable Core release candidate до закрытия всех gates:
+
+- published verified `v3.3.4` prerequisite;
+- complete Authenticode policy;
+- signed Client/Server assets and updater metadata;
+- Windows 10/11 installed `3.3.4 → 3.4.0` acceptance;
+- independent review без unresolved high/critical findings;
+- final CI/security/soak/Android/websites gates;
+- immutable publication and redownload verification.
+
+Official `v3.4.0` tag запрещён до закрытия этих пунктов.
+
+## 4. Automated gates
 
 ```bash
 npm ci
 npm run release:check
+npm run test:soak
 gradle -p android :app:assembleDebug --no-daemon
 ```
 
-Release gate includes syntax, builder config, production web build, unit/API/integration, performance, security invariants/dependency audit и metadata synchronization.
+Release gate включает:
 
-Release-sensitive changes additionally run relevant soak, migration, Cloud, Pulse, Trust/MLS, updater и platform suites.
+- metadata synchronization;
+- release consistency;
+- syntax и Electron builder config;
+- production web build;
+- unit/API/integration/realtime suites;
+- performance;
+- security invariant and dependency audit;
+- Linux full tests;
+- schema 8 soak;
+- Android source build;
+- introductory/Advanced Documentation website validation.
 
-## 4. Manual gates
+## 5. Manual and external gates
 
 Depending on classification:
 
-- clean install/upgrade Windows 10/11;
-- signed Client/Server verification;
+- clean install/repair/uninstall Windows 10/11;
+- installed signed Client/Server verification;
 - updater n-1 → n;
-- NSIS visual/runtime acceptance;
-- test-mode shortcut/log-tail acceptance;
+- NSIS runtime acceptance;
 - installed PWA/offline behavior;
 - physical Android matrix;
 - backup/restore/migration drill;
 - public HTTPS smoke;
 - Pulse provider sandbox/reconciliation;
-- multi-device MLS commit/Welcome/revoke/re-add/recovery;
-- accessibility/responsive review.
+- accessibility/responsive review;
+- independent security review.
 
-## 5. Security claims
+For `3.4.0`, Windows and independent-review results are stored as machine-readable release evidence and must identify the exact reviewed ancestor commit.
 
-Release documentation distinguishes:
+## 6. Security claims
+
+Documentation distinguishes:
 
 1. functionality in source;
 2. automated evidence;
@@ -87,63 +106,56 @@ Release documentation distinguishes:
 4. signing/distribution evidence;
 5. independent review evidence.
 
-“Stable”, “production-ready”, “audited”, “secure” и “E2EE” use requires exact version, feature path и completed evidence.
+`Stable`, `production-ready`, `signed`, `audited`, `secure` и `E2EE` require exact version, feature path and completed evidence. Historical Trust/MLS records being retained does not mean current writable E2EE support.
 
-## 6. Tag и artifacts
+## 7. Tag and artifacts
 
 - immutable SemVer tags;
 - package version equals tag;
 - published stable assets never replaced;
-- correction uses new patch version;
-- unsigned `.exe`, blockmap и `latest.yml` not published;
-- updater consumes only complete signed stable set;
-- prerelease explicitly marked;
-- release links point to official `Onmaynec/Nexora` tag.
+- correction uses a new patch version;
+- partial/unsigned stable asset set is forbidden;
+- updater consumes only complete signed stable metadata;
+- source, PWA, Android evidence, SPDX SBOM and SHA-256 checksums are included;
+- release notes come from canonical `docs/releases/<version>/RELEASE_NOTES.md`;
+- published assets are re-downloaded and verified.
 
-## 7. Database compatibility
+## 8. Updater policy
 
-Schema change requires:
+- Client channel: `latest`;
+- Server channel: `server`;
+- downgrade and prerelease consumption disabled;
+- signature/checksum mismatch maps to `UPDATE_SIGNATURE_INVALID`;
+- partial signing configuration rejected;
+- unsigned local/test builds never publish `latest.yml`, `server.yml` or blockmaps;
+- stable metadata must correspond to exact signed installer and version.
 
-- source integrity;
-- verified backup;
-- free-space check;
-- transactional/idempotent migration;
-- destination integrity;
-- rollback/restore procedure;
-- downgrade protection;
-- tests from supported source schemas.
+## 9. Baseline policy
 
-3.3.2 keeps schema 8. Migration from 3.2.0–3.3.1 is not required.
+Nexora 3.4.0 stable upgrade is defined as verified `3.3.4 → 3.4.0`.
 
-## 8. Branch policy
+The release workflow must fail before packaging if `v3.3.4` is missing, draft/prerelease or lacks required Client/Server/checksum assets.
 
-- `main` is only current product source;
-- development branch has explicit `BRANCH_STATUS.md`;
-- merged/superseded branch preserves provenance;
-- obsolete automation branch is not merged/tagged/published;
-- historical docs are not rewritten to imitate current release;
-- details: [Branch Documentation Policy](BRANCH_DOCUMENTATION_POLICY.md).
+## 10. Review and merge
 
-## 9. Current release decision
+Release PR remains draft until internal gates are green and external evidence exists. Before merge:
 
-### 3.3.3
+- no unresolved review threads;
+- no high/critical security findings;
+- no temporary scripts/workflows/failure logs;
+- PR body contains exact head SHA and gate results;
+- release notes, verification, changelog and current evidence agree.
 
-Patch release: goals, voice UX, Pulse entitlements, idempotent purchases and MLS recovery. Distribution remains UNSIGNED-TEST without updater metadata.
+Merge commit subject must match release workflow trigger and point to the exact approved head.
 
-### 3.3.2
+## 11. Post-publication
 
-- classification: Published `UNSIGNED-TEST` prerelease;
-- automated multi-platform gate: passed;
-- schema: 8;
-- API: v3/v4;
-- database migration from 3.2.0–3.3.1: none;
-- signed stable Windows approval: not granted;
-- independent security review: not completed.
+After stable publication:
 
-### 3.1.2
-
-- classification: last confirmed signed production baseline;
-- schema: 7;
-- secure-message E2EE from Local Server operator: not provided.
-
-Authoritative evidence: [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.3.md).
+- verify tag points to release commit;
+- re-download all assets;
+- verify SHA-256 and Authenticode;
+- verify updater metadata and channels;
+- record release URL, tag SHA, asset digests and smoke result;
+- update `release-evidence/current.json` from release-candidate to published state;
+- close/delete completed release branch after provenance is preserved.
