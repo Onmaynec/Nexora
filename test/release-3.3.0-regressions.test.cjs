@@ -63,17 +63,24 @@ test("Pulse Sandbox serves catalog, receipts and room goals without Cloud fallba
   assert.match(sandbox, /WALLET_INSUFFICIENT_FUNDS/);
 });
 
-test("unsigned test binaries remain downloadable without updater metadata", () => {
+test("official 3.4.0 release has no unsigned fallback or updater bypass", () => {
   const workflow = read(".github/workflows/release.yml");
   const legacySite = read("website/app.js");
   const siteFixes = read("website/site-fixes.js");
   const composedSite = `${legacySite}\n${siteFixes}`;
-  assert.ok(workflow.includes("Nexora-Client-Setup-$version-UNSIGNED-TEST.exe"));
-  assert.ok(workflow.includes("Nexora-Server-Setup-$version-UNSIGNED-TEST.exe"));
-  assert.ok(workflow.includes("Nexora-Android-$version-UNSIGNED-TEST.apk"));
-  assert.ok(workflow.includes("UNSIGNED-TEST prerelease without updater metadata"));
-  assert.ok(workflow.includes('if ($names -contains "latest.yml"'));
-  assert.ok(workflow.includes("\\.blockmap$"));
+
+  assert.match(workflow, /name: Nexora 3\.4\.0 stable release/);
+  assert.match(workflow, /Require complete Authenticode policy/);
+  assert.match(workflow, /Build and verify signed Windows assets/);
+  assert.match(workflow, /latest\.yml/);
+  assert.match(workflow, /server\.yml/);
+  assert.match(workflow, /verify-authenticode\.ps1/);
+  assert.doesNotMatch(workflow, /Nexora-Client-Setup-\$version-UNSIGNED-TEST\.exe/);
+  assert.doesNotMatch(workflow, /Nexora-Server-Setup-\$version-UNSIGNED-TEST\.exe/);
+  assert.doesNotMatch(workflow, /UNSIGNED-TEST prerelease without updater metadata/);
+  assert.doesNotMatch(workflow, /--prerelease/);
+  assert.doesNotMatch(workflow, /PUBLISH_TAG=.*unsigned-test/);
+
   assert.ok(composedSite.includes("function signatureState"));
   assert.ok(composedSite.includes("unsigned[-_ ]?test|test-build|test\\.exe"));
   assert.ok(composedSite.includes("dataset.signature"));
