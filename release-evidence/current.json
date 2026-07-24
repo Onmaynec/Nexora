@@ -7,11 +7,11 @@
   "signed": false,
   "distribution": "pending",
   "repository": "Onmaynec/Nexora",
-  "branch": "release/3.3.4-post-mls",
+  "branch": "main",
   "baseline": "v3.3.3",
+  "sourceMergeCommit": "6202bbdf8ff636711d9874452958df5dd40d9656",
   "blockers": [
     "ci",
-    "merge",
     "github-release",
     "asset-redownload-smoke"
   ],
@@ -24,6 +24,9 @@
   },
   "assets": [],
   "verification": {
-    "status": "pending"
+    "status": "release-workflow-requested",
+    "pr": 70,
+    "sourceHead": "54907da60fa5d81bf0e597cf48c98124246ace67",
+    "sourceGateRun": 30107879438
   }
 }
