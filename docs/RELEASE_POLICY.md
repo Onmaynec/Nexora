@@ -146,4 +146,4 @@ Patch release: goals, voice UX, Pulse entitlements, idempotent purchases and MLS
 - schema: 7;
 - secure-message E2EE from Local Server operator: not provided.
 
-Authoritative evidence: [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.3.md).
+Authoritative evidence: [Release Verification 3.3.2](../releases/3.3.3/RELEASE_VERIFICATION.md).

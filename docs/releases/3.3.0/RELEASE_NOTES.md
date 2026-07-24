@@ -132,7 +132,7 @@ Unsigned prerelease намеренно не содержит `latest.yml` и `.b
 
 ## Проверка
 
-Авторитетные результаты находятся в `RELEASE_VERIFICATION_3.3.0.md` и GitHub Actions Pull Request/Release runs. Release публикуется только после прохождения build, unit/API/integration, performance, security, schema soak, Android, website и Windows artifact gates.
+Авторитетные результаты находятся в `RELEASE_VERIFICATION.md` и GitHub Actions Pull Request/Release runs. Release публикуется только после прохождения build, unit/API/integration, performance, security, schema soak, Android, website и Windows artifact gates.
 
 ## Известные ограничения
 

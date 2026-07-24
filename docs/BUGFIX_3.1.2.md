@@ -79,4 +79,4 @@ impulses revoke <user> <amount> [reason]
 - GitHub CI Android source build — success;
 - `npm run audit:security` — success.
 
-Подробный итог: [RELEASE_VERIFICATION_3.1.2.md](../RELEASE_VERIFICATION_3.1.2.md).
+Подробный итог: [releases/3.1.2/RELEASE_VERIFICATION.md](../releases/3.1.2/RELEASE_VERIFICATION.md).

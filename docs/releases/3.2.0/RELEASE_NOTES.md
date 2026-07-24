@@ -83,7 +83,7 @@ Migration behavior:
 - idempotent schema creation;
 - downgrade protection during normal persistence and restore.
 
-Rollback is restore-from-backup, not an in-place downgrade. See [docs/MIGRATION_3.2.0.md](docs/MIGRATION_3.2.0.md).
+Rollback is restore-from-backup, not an in-place downgrade. See [docs/MIGRATION_3.2.0.md](../../MIGRATION_3.2.0.md).
 
 ## Reliability and performance fixes
 
@@ -128,7 +128,7 @@ GitHub Actions CI run `#250` (`29921551883`) passed on implementation commit `9a
 - one-minute schema 8 soak;
 - Android `gradle -p android :app:assembleDebug --no-daemon`.
 
-The retained evidence and classification are documented in [RELEASE_VERIFICATION_3.2.0.md](RELEASE_VERIFICATION_3.2.0.md).
+The retained evidence and classification are documented in [RELEASE_VERIFICATION.md](RELEASE_VERIFICATION.md).
 
 ## Compatibility
 

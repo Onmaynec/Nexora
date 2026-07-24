@@ -296,6 +296,6 @@ Traffic-analysis resistance не заявляется.
 
 ## 17. Verification и reporting
 
-См. [Security Policy](../SECURITY.md), [Security Verification Summary](../SECURITY_AUDIT.md), [Security Review 3.3.0](../SECURITY_REVIEW_3.3.0.md) и [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.3.md).
+См. [Security Policy](../SECURITY.md), [Security Verification Summary](../SECURITY_AUDIT.md), [Security Review 3.3.0](../releases/3.3.0/SECURITY_REVIEW.md) и [Release Verification 3.3.2](../releases/3.3.3/RELEASE_VERIFICATION.md).
 
 Branch-local security claims регулируются [Branch Documentation Policy](BRANCH_DOCUMENTATION_POLICY.md).

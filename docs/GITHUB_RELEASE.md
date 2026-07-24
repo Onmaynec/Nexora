@@ -200,9 +200,9 @@ Schema 8 rollback is restore-based. Never run unsupported old binary against sch
 
 3.3.2 evidence is recorded in:
 
-- [Release Notes](../RELEASE_NOTES_3.3.3.md);
-- [Security Review](../SECURITY_REVIEW_3.3.0.md);
-- [Release Verification](../RELEASE_VERIFICATION_3.3.3.md);
+- [Release Notes](../releases/3.3.3/RELEASE_NOTES.md);
+- [Security Review](../releases/3.3.0/SECURITY_REVIEW.md);
+- [Release Verification](../releases/3.3.3/RELEASE_VERIFICATION.md);
 - [Release Checklist](RELEASE_CHECKLIST.md).
 
 Source/PWA prerelease remains non-updater-eligible until signed installed-runtime acceptance completes.

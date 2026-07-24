@@ -14,10 +14,10 @@ function blocksFor(version) {
   return pages.flatMap((page) => pageForVersion(page, version).sections || []).flatMap((section) => section.blocks || []);
 }
 
-test("roadmap route is navigable and sourced from ROADMAP.md", () => {
+test("roadmap route is navigable and sourced from docs/ROADMAP.md", () => {
   assert.ok(navigation.find((group) => group.id === "releases")?.items.includes("roadmap"));
   const page = pageById.get("roadmap");
-  assert.equal(page.sourcePath, "ROADMAP.md");
+  assert.equal(page.sourcePath, "docs/ROADMAP.md");
   assert.ok(page.sections.some((section) => section.id === "sequence"));
 });
 
@@ -65,8 +65,8 @@ test("figure renderer keeps strict local media and lazy loading", () => {
   assert.doesNotMatch(source, /dangerouslySetInnerHTML/);
 });
 
-test("roadmap content order matches authoritative ROADMAP.md", () => {
-  const roadmapText = fs.readFileSync(path.join(repoRoot, "ROADMAP.md"), "utf8");
+test("roadmap content order matches authoritative docs/ROADMAP.md", () => {
+  const roadmapText = fs.readFileSync(path.join(repoRoot, "docs/ROADMAP.md"), "utf8");
   const expected = [...roadmapText.matchAll(/^\|\s*(3\.(?:4|5|6|7|8|9|10|11)\.0|4\.0\.0)\s*\|\s*([^|]+?)\s*\|/gm)]
     .map((match) => [match[1], match[2].trim()]);
   const page = pageForVersion(pageById.get("roadmap"), "3.3");

@@ -375,7 +375,7 @@ npm run test:soak
 gradle -p android :app:assembleDebug --no-daemon
 ```
 
-Authoritative evidence: [Release Verification 3.3.2](RELEASE_VERIFICATION_3.3.3.md).
+Authoritative evidence: [Release Verification 3.3.2](docs/releases/3.3.3/RELEASE_VERIFICATION.md).
 
 ## 25. Defect report
 

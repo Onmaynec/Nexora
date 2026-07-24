@@ -101,3 +101,11 @@ test("release consistency gate rejects obsolete current verification links", () 
     assert.throws(() => checkReleaseConsistency(fixture), /obsolete current verification document/);
   });
 });
+
+
+test("release consistency gate rejects versioned documents in the repository root", () => {
+  withFixture((fixture) => {
+    fs.writeFileSync(path.join(fixture, "RELEASE_NOTES_9.9.9.md"), "# misplaced\n", "utf8");
+    assert.throws(() => checkReleaseConsistency(fixture), /repository root contains misplaced documentation/);
+  });
+});

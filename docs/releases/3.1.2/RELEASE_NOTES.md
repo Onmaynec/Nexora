@@ -84,7 +84,7 @@ Release branch прошёл:
 - Linux `npm test`;
 - Android `:app:assembleDebug`.
 
-Полный отчёт: [RELEASE_VERIFICATION_3.1.2.md](RELEASE_VERIFICATION_3.1.2.md).
+Полный отчёт: [RELEASE_VERIFICATION.md](RELEASE_VERIFICATION.md).
 
 ## Известные границы
 
