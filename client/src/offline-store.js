@@ -1,6 +1,7 @@
 const DATABASE = "nexora-offline-v3";
 const VERSION = 2;
 const STORE = "records";
+const ACTIVE_SERVER_PREFIX = "nexora:active-server:";
 
 function openDatabase() {
   if (!("indexedDB" in globalThis)) return Promise.resolve(null);
@@ -34,10 +35,30 @@ function cleanScopePart(value, fallback) {
   return candidate ? encodeURIComponent(candidate.slice(0, 200)) : fallback;
 }
 
+function activeServerId(userId) {
+  try {
+    return localStorage.getItem(`${ACTIVE_SERVER_PREFIX}${String(userId || "anonymous")}`) || location.origin;
+  } catch {
+    return location.origin;
+  }
+}
+
+export function setActiveProfileScope(serverId, userId) {
+  if (!serverId || !userId) return;
+  try {
+    localStorage.setItem(`${ACTIVE_SERVER_PREFIX}${String(userId)}`, String(serverId));
+  } catch {}
+}
+
+export function clearActiveProfileScope(userId) {
+  if (!userId) return;
+  try { localStorage.removeItem(`${ACTIVE_SERVER_PREFIX}${String(userId)}`); } catch {}
+}
+
 export function profileScope(serverId, userId) {
   return {
     origin: location.origin,
-    serverId: String(serverId || location.origin),
+    serverId: String(serverId || activeServerId(userId)),
     userId: String(userId || "anonymous"),
   };
 }
@@ -61,6 +82,7 @@ function bootstrapPointerKey() {
 export async function cacheBootstrap(value) {
   if (!value?.me?.id || !value?.server?.id) return;
   const scope = profileScope(value.server.id, value.me.id);
+  setActiveProfileScope(scope.serverId, scope.userId);
   const record = { key: scoped("bootstrap", scope, value.server.id), scope, value, updatedAt: new Date().toISOString() };
   await operation("readwrite", (store) => store.put(record));
   await operation("readwrite", (store) => store.put({
@@ -79,10 +101,11 @@ export async function readLastBootstrap(expected = {}) {
   const record = await operation("readonly", (store) => store.get(reference.key)).catch(() => null);
   if (!record?.value?.me?.id || !record?.value?.server?.id) return null;
   if (record.value.me.id !== reference.userId || record.value.server.id !== reference.serverId) return null;
+  setActiveProfileScope(reference.serverId, reference.userId);
   return record.value;
 }
 
-export async function cacheMessages(userId, conversationId, messages, serverId = location.origin) {
+export async function cacheMessages(userId, conversationId, messages, serverId) {
   if (!userId || !conversationId || !Array.isArray(messages)) return;
   const scope = profileScope(serverId, userId);
   await operation("readwrite", (store) => store.put({
@@ -93,7 +116,7 @@ export async function cacheMessages(userId, conversationId, messages, serverId =
   }));
 }
 
-export async function readCachedMessages(userId, conversationId, serverId = location.origin) {
+export async function readCachedMessages(userId, conversationId, serverId) {
   const scope = profileScope(serverId, userId);
   const record = await operation("readonly", (store) => store.get(scoped("messages", scope, conversationId))).catch(() => null);
   return Array.isArray(record?.value) ? record.value : [];
