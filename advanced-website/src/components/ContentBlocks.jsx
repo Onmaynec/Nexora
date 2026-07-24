@@ -1,6 +1,8 @@
 import React from "react";
-import { Check, Clipboard, ExternalLink, Info, ShieldAlert, Terminal, TriangleAlert } from "lucide-react";
+import { Check, Clipboard, ExternalLink, ImageOff, Info, ShieldAlert, Terminal, TriangleAlert } from "lucide-react";
 import { localized, renderTokens } from "../content.mjs";
+
+const LOCAL_MEDIA = /^docs-media\/[a-z0-9][a-z0-9._/-]*\.(?:svg|png|webp)$/i;
 
 function localizeCell(value, language, meta) {
   return renderTokens(localized(value, language), meta);
@@ -111,6 +113,40 @@ export function MermaidDiagram({ block, language, theme }) {
   );
 }
 
+export function FigureBlock({ block, language }) {
+  const [failed, setFailed] = React.useState(false);
+  const safePath = typeof block.src === "string" && LOCAL_MEDIA.test(block.src) ? block.src : null;
+  const src = safePath ? `${import.meta.env.BASE_URL}${safePath}` : null;
+  const caption = localized(block.caption, language);
+  const source = block.source ? localized(block.source, language) : "";
+  const version = block.version ? String(block.version) : "";
+
+  return (
+    <figure className="diagram-card media-figure">
+      {src && !failed ? (
+        <img
+          src={src}
+          alt={localized(block.alt, language)}
+          loading="lazy"
+          decoding="async"
+          width={block.width}
+          height={block.height}
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <div className="figure-error" role="status">
+          <ImageOff size={24} aria-hidden="true" />
+          <span>{language === "ru" ? "Локальный media asset недоступен." : "The local media asset is unavailable."}</span>
+        </div>
+      )}
+      <figcaption>
+        <span>{caption}</span>
+        {source || version ? <small>{[source, version ? `Nexora ${version}` : ""].filter(Boolean).join(" · ")}</small> : null}
+      </figcaption>
+    </figure>
+  );
+}
+
 export function ContentBlock({ block, language, meta, theme }) {
   switch (block.type) {
     case "paragraph":
@@ -127,6 +163,9 @@ export function ContentBlock({ block, language, meta, theme }) {
       return <DataTable block={block} language={language} meta={meta} />;
     case "mermaid":
       return <MermaidDiagram block={block} language={language} theme={theme} />;
+    case "image":
+    case "figure":
+      return <FigureBlock block={block} language={language} />;
     default:
       return null;
   }
