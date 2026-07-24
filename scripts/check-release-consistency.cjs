@@ -31,6 +31,14 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
   const semver = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
   if (!semver) fail(`package.json has invalid SemVer ${JSON.stringify(version)}`);
 
+  const forbiddenRootDocuments = fs.readdirSync(root)
+    .filter((name) => /^(?:RELEASE_NOTES|RELEASE_VERIFICATION|SECURITY_REVIEW)_\d+\.\d+\.\d+\.md$/.test(name)
+      || name === "RELEASE_HISTORY.md"
+      || name === "ROADMAP.md");
+  if (forbiddenRootDocuments.length) {
+    fail(`repository root contains misplaced documentation: ${forbiddenRootDocuments.join(", ")}`);
+  }
+
   const [, major, minor, patch] = semver.map(Number);
   const expectedAndroidCode = major * 10_000 + minor * 100 + patch;
   const escapedVersion = version.replace(/\./g, "\\.");
@@ -144,7 +152,6 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
   ];
 
   const obsoleteCurrentVerificationPaths = [
-    "RELEASE_VERIFICATION_3.2.4.md",
     "docs/releases/3.2.4/RELEASE_VERIFICATION.md",
   ];
   for (const relativePath of currentDocuments) {

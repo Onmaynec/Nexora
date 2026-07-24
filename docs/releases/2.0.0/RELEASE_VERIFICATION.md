@@ -45,4 +45,4 @@ Security audit отдельно проверяет CSRF/Origin, постоянн
 3. Выполнить ручную чистую установку и upgrade на Windows 10/11, включая Radmin VPN, firewall, browser CA и микрофон.
 4. Для реальных платежей выбрать provider, развернуть Pulse Cloud/ledger/webhooks, пройти legal/KYC/refund/security review. До этого Plus работает только в `sandbox`, а production monetization остаётся выключенной.
 
-Полный ручной список находится в [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
+Полный ручной список находится в [docs/RELEASE_CHECKLIST.md](../../RELEASE_CHECKLIST.md).

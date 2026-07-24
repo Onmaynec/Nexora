@@ -15,7 +15,7 @@
 - [README](../../README.md)
 - [Documentation Portal](../README.md)
 - [Project Portfolio](../../PROJECTS.md)
-- [Roadmap](../../ROADMAP.md)
+- [Roadmap](../../../ROADMAP.md)
 - [Contributing](../../CONTRIBUTING.md)
 - [Security Policy](../../SECURITY.md)
 - [Support](../../SUPPORT.md)

@@ -22,6 +22,7 @@ Nexora 3.3.3 — исправляющий выпуск для Electron и Web/PW
 | Задача | Документ |
 |---|---|
 | Понять продукт | [Product Overview](PRODUCT_OVERVIEW.md) |
+| Посмотреть план развития | [Roadmap](ROADMAP.md) |
 | Запустить development environment | [Repository README](../README.md#быстрый-старт-для-разработки) |
 | Развернуть Local Server | [Deployment Guide](DEPLOYMENT.md) |
 | Администрировать | [Administrator Guide](../ADMIN_GUIDE.md) |
@@ -49,9 +50,9 @@ Nexora 3.3.3 — исправляющий выпуск для Electron и Web/PW
 |---|---|---|
 | [Security Policy](../SECURITY.md) | supported versions and private disclosure | Current through 3.3.3 |
 | [Security Verification Summary](../SECURITY_AUDIT.md) | automated verification and residual risk | Current through 3.3.3 |
-| [Security Review 3.3.0](../SECURITY_REVIEW_3.3.0.md) | security foundation inherited and extended by 3.3.3 fixes | Historical release-specific |
+| [Security Review 3.3.0](../releases/3.3.0/SECURITY_REVIEW.md) | security foundation inherited and extended by 3.3.3 fixes | Historical release-specific |
 | [Release Verification 3.3.3](releases/3.3.3/RELEASE_VERIFICATION.md) | test, security invariant and publication contract | Release-specific current |
-| [Security Review 3.2.3](../SECURITY_REVIEW_3.2.3.md) | resource governance hardening | Historical release-specific |
+| [Security Review 3.2.3](../releases/3.2.3/SECURITY_REVIEW.md) | resource governance hardening | Historical release-specific |
 | [Trust Core 3.2.0](TRUST_CORE_3.2.0.md) | original Trust/MLS foundation | Historical foundation |
 | [Schema 8 Migration](MIGRATION_3.2.0.md) | schema 7 → 8 and rollback | Current schema history |
 

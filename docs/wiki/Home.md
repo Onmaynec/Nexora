@@ -54,7 +54,7 @@ The roadmap is sequential: `3.3.4 → 3.4.0 → 3.5.0 → 3.6.0 → 3.7.0 → 3.
 
 - Portfolio index: [`PROJECTS.md`](../../PROJECTS.md)
 - Central tracking issue: [#84](https://github.com/Onmaynec/Nexora/issues/84)
-- Authoritative roadmap: [`ROADMAP.md`](../../ROADMAP.md)
+- Authoritative roadmap: [`../ROADMAP.md`](../../../ROADMAP.md)
 
 ## Documentation rules
 

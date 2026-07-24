@@ -29,7 +29,7 @@
 - добавлен release consistency gate для package, lockfile, Android metadata, Client handshake, 24 current documentation surfaces, website fallbacks и release evidence;
 - добавлены негативные регрессии для Android version drift, stale Security Policy и устаревшей current verification-ссылки;
 - release evidence workflow скачивает опубликованные Client, Server, Android и PWA assets, проверяет SHA-256, PE/ZIP integrity и обязательное содержимое;
-- `CHANGELOG.md` закреплён как единственный канонический release history, а `RELEASE_HISTORY.md` оставлен указателем.
+- `CHANGELOG.md` закреплён как единственный канонический release history, а `docs/releases/README.md` оставлен указателем.
 
 ### Организационная очистка
 

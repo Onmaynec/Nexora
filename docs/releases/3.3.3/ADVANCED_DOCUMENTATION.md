@@ -8,7 +8,7 @@ This release evidence records the content-only development of `https://onmaynec.
 
 - functional 3.1.x / 3.2.x / 3.3.x content applicability and version-aware search;
 - safe local bilingual `image`/`figure` blocks with lazy rendering, fixed dimensions and asset validation;
-- roadmap route `#/roadmap`, sourced and parity-checked against `ROADMAP.md`;
+- roadmap route `#/roadmap`, sourced and parity-checked against `../../ROADMAP.md`;
 - current 3.3.3 release classification without stale patch duplication in content JSON;
 - architecture, authority, data, realtime/offline, rooms, media, Trust/MLS, Pulse, security, operations, development and release diagrams;
 - ten sanitised local SVG illustrations;

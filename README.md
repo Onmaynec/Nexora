@@ -25,9 +25,9 @@
 
 `3.3.3` исправляет создание коллективных целей, голосовые сообщения, применение Pulse-покупок, idempotent purchase flow и восстановление MLS-состояния. Windows Client/Server публикуются как явно маркированные `UNSIGNED-TEST` assets; updater metadata отсутствует. Авторитетные документы текущей линии:
 
-- [Release Notes 3.3.3](RELEASE_NOTES_3.3.3.md);
-- [Release Verification 3.3.3](RELEASE_VERIFICATION_3.3.3.md);
-- [Security Review 3.3.0](SECURITY_REVIEW_3.3.0.md) — security boundary не изменён.
+- [Release Notes 3.3.3](docs/releases/3.3.3/RELEASE_NOTES.md);
+- [Release Verification 3.3.3](docs/releases/3.3.3/RELEASE_VERIFICATION.md);
+- [Security Review 3.3.0](docs/releases/3.3.0/SECURITY_REVIEW.md) — security boundary не изменён.
 
 ## Возможности
 
@@ -274,15 +274,15 @@ Electron Client закрепляет fingerprint за Server ID. Для брау
 
 | Раздел | Документы |
 |---|---|
-| Продукт | [Product Overview](docs/PRODUCT_OVERVIEW.md), [Current Release Status](BRANCH_STATUS.md) |
+| Продукт | [Product Overview](docs/PRODUCT_OVERVIEW.md), [Roadmap](docs/ROADMAP.md), [Current Release Status](BRANCH_STATUS.md) |
 | Архитектура | [Architecture](docs/ARCHITECTURE.md), [Project Index](PROJECT_INDEX.md) |
 | Безопасность | [Security Policy](SECURITY.md), [Security Model](docs/SECURITY_MODEL.md), [Security Verification](SECURITY_AUDIT.md) |
 | Развёртывание | [Deployment](docs/DEPLOYMENT.md), [Administrator Guide](ADMIN_GUIDE.md), [Operations Runbook](docs/OPERATIONS_RUNBOOK.md) |
-| Тестирование | [Acceptance Test Guide](TESTER_GUIDE.md), [3.3.2 Verification](RELEASE_VERIFICATION_3.3.3.md) |
-| Trust / MLS | [Trust Core 3.2.0 foundation](docs/TRUST_CORE_3.2.0.md), [Security Review 3.3.0](SECURITY_REVIEW_3.3.0.md) |
+| Тестирование | [Acceptance Test Guide](TESTER_GUIDE.md), [3.3.2 Verification](docs/releases/3.3.3/RELEASE_VERIFICATION.md) |
+| Trust / MLS | [Trust Core 3.2.0 foundation](docs/TRUST_CORE_3.2.0.md), [Security Review 3.3.0](docs/releases/3.3.0/SECURITY_REVIEW.md) |
 | Миграция | [Schema 8 Migration](docs/MIGRATION_3.2.0.md) |
 | Plus / Pulse | [Pulse](docs/PULSE.md), [Pulse Cloud](docs/PULSE_CLOUD.md) |
-| Выпуски | [Release Policy](docs/RELEASE_POLICY.md), [Release Checklist](docs/RELEASE_CHECKLIST.md), [Release History](RELEASE_HISTORY.md), [Changelog](CHANGELOG.md) |
+| Выпуски | [Release Policy](docs/RELEASE_POLICY.md), [Release Checklist](docs/RELEASE_CHECKLIST.md), [Release History](docs/releases/README.md), [Changelog](CHANGELOG.md) |
 | Репозиторий | [Branch Index](BRANCHES.md), [Contributing](CONTRIBUTING.md), [Support](SUPPORT.md) |
 
 ## Поддержка и участие

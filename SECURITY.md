@@ -105,7 +105,7 @@ Direct form: <https://github.com/Onmaynec/Nexora/security/advisories/new>.
 - audited Server console без shell/eval;
 - startup/hourly cleanup expired sessions, old login history и stale rate-limit buckets.
 
-Подробности: [Security Model](docs/SECURITY_MODEL.md), [Security Review 3.3.0](SECURITY_REVIEW_3.3.0.md), [Release Verification 3.3.2](RELEASE_VERIFICATION_3.3.3.md).
+Подробности: [Security Model](docs/SECURITY_MODEL.md), [Security Review 3.3.0](docs/releases/3.3.0/SECURITY_REVIEW.md), [Release Verification 3.3.2](docs/releases/3.3.3/RELEASE_VERIFICATION.md).
 
 ## 6. Trusted computing base
 

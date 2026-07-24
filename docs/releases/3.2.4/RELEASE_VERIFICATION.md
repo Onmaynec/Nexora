@@ -110,7 +110,7 @@ PR #21 was merged by squash into `main` as `ebfda9e401d352f6686f8d3bb337190ac9e6
 
 ## Security review
 
-The release-specific analysis is recorded in [SECURITY_REVIEW_3.2.4.md](SECURITY_REVIEW_3.2.4.md). Key preserved boundaries:
+The release-specific analysis is recorded in [SECURITY_REVIEW.md](SECURITY_REVIEW.md). Key preserved boundaries:
 
 - no unsigned-update fallback or downgrade;
 - no shell/eval console execution;

@@ -103,13 +103,13 @@ if (reference.currentVersion !== pkg.version) errors.push(`Reference version ${r
 const releasesSource = fs.readFileSync(path.join(appRoot, "src", "content-data", "releases.json"), "utf8");
 if (releasesSource.includes(`"${pkg.version}"`)) errors.push("releases.json hardcodes the current patch; use {{version}}");
 
-const roadmapText = fs.readFileSync(path.join(repoRoot, "ROADMAP.md"), "utf8");
+const roadmapText = fs.readFileSync(path.join(repoRoot, "docs/ROADMAP.md"), "utf8");
 const expectedRoadmap = [...roadmapText.matchAll(/^\|\s*(3\.(?:4|5|6|7|8|9|10|11)\.0|4\.0\.0)\s*\|\s*([^|]+?)\s*\|/gm)]
   .map((match) => [match[1], match[2].trim()]);
 const roadmapPage = pageForVersion(pageById.get("roadmap"), "3.3");
 const roadmapTable = roadmapPage.sections.find((section) => section.id === "sequence")?.blocks.find((block) => block.type === "table");
 const actualRoadmap = (roadmapTable?.rows || []).map((row) => [String(row[0]), String(row[1])]);
-if (JSON.stringify(actualRoadmap) !== JSON.stringify(expectedRoadmap)) errors.push("Roadmap page versions/names/order drift from ROADMAP.md");
+if (JSON.stringify(actualRoadmap) !== JSON.stringify(expectedRoadmap)) errors.push("Roadmap page versions/names/order drift from docs/ROADMAP.md");
 
 const view31 = pageForVersion(pageById.get("api-v4"), "3.1");
 if (!JSON.stringify(view31).includes("version-applicability")) errors.push("API v4 is not blocked in the 3.1.x view");
