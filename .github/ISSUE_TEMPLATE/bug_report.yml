@@ -14,14 +14,14 @@ body:
       value: |
         Use this form for reproducible product defects. Do not publish vulnerabilities, secrets, private keys, message content or user data here. Follow SECURITY.md and use a private Security Advisory for security issues.
 
-        Current version: 3.3.3 published UNSIGNED-TEST prerelease. Signed production baseline: 3.1.2. Versions 3.2.0–3.3.1 are superseded; reproduce on 3.3.2 when possible. For historical branches, include the exact branch and commit.
+        Current version: 3.3.4 release candidate. Distribution is signed when policy exists; otherwise the official release is an explicit UNSIGNED-TEST prerelease. Signed production baseline: 3.1.2. Trust/MLS runtime is retired and legacy secure history is read-only.
 
   - type: input
     id: versions
     attributes:
       label: Client, Local Server and Pulse Cloud versions
       description: Include every affected component, release channel and commit/tag for source builds.
-      placeholder: "Client 3.3.2 UNSIGNED-TEST / Server 3.3.2 / Cloud disabled / tag v3.3.2"
+      placeholder: "Client 3.3.4 RC / Server 3.3.4 / Cloud disabled / commit or tag"
     validations:
       required: true
 
@@ -29,8 +29,8 @@ body:
     id: branch
     attributes:
       label: Branch, tag or release asset
-      description: Use main/v3.3.2 for current reports, or provide the exact historical/development branch.
-      placeholder: "main / v3.3.2 / agent/..."
+      description: Provide the exact branch, commit, tag or published asset name.
+      placeholder: "main / release/3.3.4-post-mls / v3.3.4 / commit SHA"
     validations:
       required: true
 
@@ -41,95 +41,23 @@ body:
       options:
         - Signed stable release
         - Published UNSIGNED-TEST prerelease
+        - Release candidate source build
         - Installed packaged Windows Client/Server
-        - Local source build
-        - Local unsigned Windows build
-        - Development or historical branch
-        - Not sure
-    validations:
-      required: true
-
-  - type: dropdown
-    id: surface
-    attributes:
-      label: Component
-      options:
-        - Windows Client
-        - Windows Local Server
-        - Browser / PWA
-        - Android
-        - Local Server API / Socket.IO
-        - Authentication / bootstrap / sessions
-        - Rooms / roles / bans / invitations
-        - Trust device enrollment / verification / revocation
-        - Trust resource limits / KeyPackages
-        - MLS message / commit recovery
-        - MLS Welcome request / recovery
-        - Encrypted files / images / voice
-        - Client updater / release assets
-        - Post-update notes / Windows test mode
-        - Server developer console
-        - Pulse Cloud / Cloud Identity / OAuth
-        - Plus / Impulse sandbox
-        - Database migration / backup / restore
-        - Maintenance / retention / rate limits
-        - Project website / GitHub Pages
-        - Documentation / branch status
-        - Other
-    validations:
-      required: true
-
-  - type: dropdown
-    id: environment
-    attributes:
-      label: Environment
-      options:
-        - Windows 11
-        - Windows 10
-        - Android physical device
-        - Android emulator
-        - Linux Local Server
-        - Browser / installed PWA
-        - Pulse Cloud deployment
-        - GitHub Actions / release workflow
-        - Other
-    validations:
-      required: true
-
-  - type: dropdown
-    id: deployment
-    attributes:
-      label: Deployment profile
-      options:
-        - localhost
-        - LAN
-        - Radmin VPN / private VPN
-        - Public HTTPS domain
-        - Local Pulse sandbox
-        - Production Pulse Cloud
-        - GitHub Releases updater
-        - Custom HTTPS update feed
-        - Not applicable
+        - Browser/PWA
+        - Android test build
     validations:
       required: true
 
   - type: textarea
-    id: summary
-    attributes:
-      label: Summary and impact
-      description: What is broken, who is affected and what operation cannot be completed safely or correctly?
-    validations:
-      required: true
-
-  - type: textarea
-    id: steps
+    id: reproduction
     attributes:
       label: Reproduction steps
+      description: Include prerequisite account, room, role, session/device and network state.
       placeholder: |
-        1. Start ...
-        2. Open ...
-        3. Perform ...
-        4. Observe ...
+        1. Start Server...
+        2. Sign in as...
+        3. Open...
+        4. Perform...
     validations:
       required: true
 
@@ -144,39 +72,52 @@ body:
     id: actual
     attributes:
       label: Actual result
-      description: Include HTTP status, stable error code/message and Retry-After when available.
+      description: Include stable error code, HTTP status and request ID when available. Remove private data.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Authentication or sessions/devices
+        - Rooms, roles, bans or invites
+        - Ordinary messages or realtime
+        - Files, images or voice
+        - Legacy secure-history read-only layer
+        - Backup, restore or migration
+        - Updater, signing or installer
+        - Pulse Cloud or billing
+        - Windows Client/Server
+        - Browser/PWA or websites
+        - Android
+        - Documentation or release evidence
     validations:
       required: true
 
   - type: textarea
-    id: state
+    id: environment
     attributes:
-      label: Relevant sanitized state
-      description: Include schema, room role/policy, Trust device count/state, KeyPackage count, MLS group/epoch, Welcome pending state, updater state or Pulse mode. Do not include private keys or message content.
+      label: Environment
+      description: OS/browser/device, deployment profile, schema/readiness and sanitized Server ID/fingerprint.
+    validations:
+      required: true
 
   - type: textarea
-    id: diagnostics
+    id: evidence
     attributes:
-      label: Sanitized diagnostics
-      description: Attach request ID, short log excerpt, screenshot or video. Remove passwords, cookies, OAuth/session tokens, TOTP/recovery codes, API/signing/private keys, invite codes, user content and personal data.
-      render: shell
-
-  - type: textarea
-    id: regression
-    attributes:
-      label: Regression and workaround
-      description: Did this work in a previous version? Is there a safe temporary workaround without bypassing TLS, authorization, signing or MLS?
+      label: Safe evidence
+      description: Sanitized screenshots/logs/request IDs only. Never attach databases, backups, tokens, keys or private user content.
 
   - type: checkboxes
     id: checks
     attributes:
-      label: Submission checks
+      label: Confirmation
       options:
-        - label: I searched existing Issues and did not find a duplicate.
+        - label: I reproduced this on the exact version/commit stated above.
           required: true
-        - label: I reproduced on 3.3.2 or supplied the exact branch/commit and explained why an older branch is required.
+        - label: This report contains no secrets, private keys, tokens, passwords or private user content.
           required: true
-        - label: I removed passwords, tokens, private keys, invite codes, message content and personal data.
-          required: true
-        - label: This is not a private vulnerability report.
+        - label: This is not a vulnerability report; security issues will be submitted privately.
           required: true

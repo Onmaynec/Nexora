@@ -1,294 +1,117 @@
 # Руководство администратора Nexora
 
-## 1. Область
+## Область
 
 | Параметр | Значение |
 |---|---|
-| Repository version | `3.3.3` |
-| Distribution | Published `UNSIGNED-TEST` prerelease |
+| Repository version | `3.3.4` release candidate |
+| Distribution | signed when policy exists; otherwise explicit `UNSIGNED-TEST` prerelease |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
-| Trust/MLS/encrypted-media API | v4 |
+| Trust/MLS runtime | retired; legacy secure history read-only |
 | Local Server database | SQLite schema 8 |
 
-`3.3.2` опубликована как controlled `UNSIGNED-TEST` prerelease. Signed production deployment должен использовать подтверждённую signed release classification и полный набор updater assets.
+Nexora 3.3.4 — обязательный post-MLS baseline для последующей линии 3.4.0. Он не является signed stable release до фактического подтверждения подписи, installed acceptance и release evidence.
 
-## 2. Deployment requirements
+## Deployment requirements
 
-Local Server поддерживает localhost, LAN, private VPN и public HTTPS.
+Local Server поддерживает localhost, private LAN/VPN и public HTTPS. Для public deployment обязательны trusted HTTPS reverse proxy, restricted firewall exposure, exact `allowedOrigins`, monitoring, backups, protected OS account и disk encryption. Не размещайте production secrets в repository или logs.
 
-Для public deployment:
+Network access не является trust. Каждая операция проверяет session, Origin/CSRF, resource existence, membership, role, active ban/restriction, room policy, input scope, rate limit и resource ceiling.
 
-- trusted HTTPS reverse proxy;
-- restricted firewall exposure;
-- exact `allowedOrigins`;
-- monitoring и backups;
-- protected OS account и disk encryption;
-- production secrets вне repository/logs;
-- no direct Local Server port forwarding.
+## Startup и readiness
 
-Network access не является trust. Каждая операция проверяет session, Origin/CSRF, membership, role, active ban/restriction, room policy, input scope, rate limit и resource ceiling.
+Перед запуском:
 
-## 3. Installation и startup
+1. проверьте Node.js `22.16+` и writable data directory;
+2. проверьте свободное место для SQLite/WAL/uploads/backups;
+3. проверьте TLS SAN, Server ID и fingerprint;
+4. настройте exact origins и интерфейс прослушивания;
+5. создайте и проверьте backup;
+6. запустите readiness/health checks;
+7. убедитесь, что Client и Server используют одну release line.
 
-Source:
+Не публикуйте Local Server напрямую через port forwarding без reverse proxy, firewall и monitoring.
 
-```bash
-npm ci
-npm start
-```
+## Аккаунты, роли и комнаты
 
-После запуска проверьте:
+Роли комнаты: `owner`, `moderator`, `member`. В комнате всегда ровно один owner.
 
-- process state;
-- full HTTPS URL;
-- Server ID;
-- SHA-256 certificate fingerprint;
-- `/healthz/live`;
-- `/healthz/ready`;
-- SQLite integrity и schema 8;
-- available storage;
-- configured Pulse mode.
+- только owner передаёт владение и назначает/снимает moderators;
+- moderator не воздействует на owner и не назначает других moderators без отдельного разрешения;
+- removal/ban немедленно отзывают REST и realtime access;
+- blocked user не может повторно вступить, писать или загружать через прямой API;
+- read-only, slow mode и media restrictions проверяются Server при каждом действии;
+- invite expiry/use limit и join выполняются атомарно;
+- administrative mutations создают audit record и system message.
 
-First local account получает server-administrator privileges.
+Опасные действия подтверждаются в UI, но безопасность обеспечивается Server checks.
 
-## 4. Client trust
+## Sessions и devices
 
-Передайте пользователю по trusted channel:
+`GET /api/v3/devices` показывает server-owned inventory активных sessions: device ID/name, platform, Client version, created/last-seen/expiry.
 
-1. HTTPS URL;
-2. Server ID;
-3. SHA-256 certificate fingerprint.
+- targeted revoke удаляет sessions выбранного device;
+- Server отправляет `session.revoked` и отключает session Socket.IO room;
+- `device.updated` обновляет inventory;
+- текущий device нельзя отозвать remote endpoint — возвращается `STATE_CONFLICT`;
+- после revoke Client должен перейти в terminal logged-out state без reconnect loop.
 
-Electron Client pins fingerprint к Server ID. Browser/PWA/Android используют OS trust store. TLS warning не обходится.
+## Обычные сообщения и uploads
 
-## 5. Health, metrics и logs
+Ordinary server-readable messaging — единственный writable messaging path.
 
-- `GET /healthz/live` — process liveness;
-- `GET /healthz/ready` — database/schema/runtime readiness;
-- `GET /metrics` — Prometheus format.
+Server проверяет auth, membership, ban, room policy, actual MIME, byte size, safe filename, quota и rate limits. Temporary upload data удаляется после failed/cancelled operations. Corrupt images и unsupported voice formats завершаются safe errors.
 
-Remote metrics требует `NEXORA_METRICS_TOKEN`; без token endpoint должен оставаться loopback-only.
+## Legacy secure history
 
-Operational logs используют request IDs и credential redaction. Перед передачей удалите cookies, passwords, tokens, keys, message content и personal data.
+Trust Core, MLS transport/recovery и encrypted-upload write runtime удалены.
 
-Graceful shutdown переводит readiness в `503` до остановки workers, HTTP, Socket.IO и SQLite.
+- schema 8 legacy IDs, epochs, timestamps, ciphertext и provenance сохраняются;
+- legacy viewer/export только read-only;
+- Server export фиксирует `serverDecrypted: false`;
+- readable plaintext возможен только из ранее существовавшего local Client cache;
+- `/api/v4/trust*`, `/api/v4/e2ee*` и MLS Socket.IO mutations возвращают `LEGACY_READ_ONLY`;
+- нельзя включать legacy writes обратно configuration switch или ручным редактированием БД.
 
-## 6. Users и sessions
+## Backup, restore и migration
 
-Администратор может:
+Перед schema-sensitive операцией:
 
-- disable local account;
-- issue temporary password;
-- terminate sessions;
-- inspect safe login/audit information.
+1. source integrity check;
+2. WAL checkpoint;
+3. free-space preflight;
+4. verified backup;
+5. staged/transactional mutation;
+6. destination integrity check;
+7. rollback/restore readiness.
 
-Users управляют profile, password, local TOTP/recovery codes, preferences и active sessions.
+`POST /api/v3/admin/backups/verify` проверяет allowlisted backup без замены live DB/files. Restore failure не должен оставлять mixed database/uploads state. Future schema version блокируется до mutation.
 
-Startup/hourly maintenance удаляет expired sessions, login history older than 90 days и stale rate-limit buckets.
+## Errors и observability
 
-## 7. Rooms и moderation
+Errors содержат stable `code`, safe `message`, `requestId` и безопасные `details`. Не раскрываются stack, SQL, tokens, cookies, passwords или certificate material.
 
-Roles:
+Основные классы: `AUTH_REQUIRED`, `FORBIDDEN`, `RESOURCE_NOT_FOUND`, `VALIDATION_FAILED`, `STATE_CONFLICT`, `RATE_LIMITED`, `LEGACY_READ_ONLY`, `BACKUP_INTEGRITY_FAILED`, `UPDATE_SIGNATURE_INVALID`, `TEMPORARY_UNAVAILABLE`.
 
-- `owner` — exactly one;
-- `moderator` — delegated moderation;
-- `member` — standard participant.
+Используйте request ID для корреляции, не копируйте sensitive payload в public issue.
 
-Operations:
+## Release и updater
 
-- moderator appointment/removal;
-- atomic ownership transfer;
-- removal, ban и unban;
-- join requests;
-- invitations с expiry, usage limit и revocation;
-- read-only, slow mode, announcement и pre-approval;
-- file/image/voice restrictions;
-- custom roles/categories;
-- reports, appeals и temporary restrictions;
-- audit log и system messages.
+Client channel — `latest`, Server channel — `server`. Downgrade запрещён. Partial signing policy отклоняется.
 
-Removed/banned user немедленно теряет REST и realtime access. Active ban имеет приоритет над stale membership.
+Без Authenticode policy `v3.3.4` публикуется только как явный `UNSIGNED-TEST` prerelease без `latest.yml`, `server.yml` и blockmaps. Такой release не потребляется production updater.
 
-## 8. Database, migration и backup
+## Incident response
 
-Current database — SQLite schema 8 с WAL и `synchronous=FULL`.
+При incident:
 
-Upgrade 7 → 8 выполняет:
+1. зафиксируйте version/commit/time/request IDs;
+2. ограничьте доступ или переведите Server в controlled read-only mode;
+3. сохраните sanitized evidence;
+4. создайте verified backup;
+5. исправьте root cause и добавьте regression test;
+6. проверьте restore/recovery;
+7. обновите security/release documentation.
 
-- source integrity;
-- free-space calculation;
-- WAL checkpoint;
-- verified pre-migration backup;
-- transactional/idempotent migration;
-- destination integrity;
-- downgrade protection.
-
-Upgrade 3.2.0–3.3.1 → 3.3.2 не требует migration.
-
-Rollback schema 8 — restore verified backup. In-place downgrade не поддерживается.
-
-Backup rules:
-
-- verified backup перед upgrade;
-- минимум одна off-host copy;
-- не копировать active SQLite file вручную;
-- хранить passphrase отдельно;
-- после restore проверять integrity/schema/readiness.
-
-## 9. Trust devices
-
-### Enrollment
-
-- first device bootstrap verification;
-- later device signed approval active verified device;
-- exact BasicCredential `{ userId, deviceId }`;
-- distinct identity и MLS signature keys;
-- fingerprint comparison.
-
-### Limits
-
-- maximum 16 active devices/user;
-- 25 KeyPackages/request;
-- 32 unclaimed/device;
-- 256 unclaimed/user.
-
-Limit responses используют stable code; route throttling возвращает `429 RATE_LIMITED` и `Retry-After`.
-
-### Revocation
-
-Target socket disconnects immediately. Client wipes identity, MLS state, KeyPackages, decrypted cache и drafts before reenrollment.
-
-## 10. MLS Welcome recovery 3.3.0+
-
-Verified device в `MLS_WELCOME_PENDING` может request recovery. Server:
-
-- validates session, Origin/CSRF, conversation access, ban, verified device и rate limit;
-- notifies active verified group devices only;
-- routes identifiers/opaque artifacts only.
-
-Active Client creates RFC 9420 commit/Welcome. If no active member exists, send remains blocked; plaintext fallback запрещён.
-
-Operator should verify:
-
-- at least one active verified group device online;
-- same conversation/group scope;
-- compatible 3.3.0+ Client;
-- no `RATE_LIMITED` retry before `Retry-After`;
-- no repeated concurrent manual recovery attempts.
-
-## 11. Files, images и voice
-
-Legacy path uses size/hash/MIME/quota validation.
-
-Secure path:
-
-- Client AES-256-GCM encryption;
-- opaque Server storage;
-- exact ciphertext size/SHA-256;
-- pending inaccessible before message claim;
-- idempotent retry, expiry/cancel;
-- one-time claim/reuse rejection;
-- local verified decrypt.
-
-Any disabled room class `files/images/voice` blocks complete secure-media path fail-closed.
-
-## 12. Nexora Plus и Pulse
-
-Modes:
-
-| Mode | Purpose | Real payments |
-|---|---|---|
-| `disabled` | messaging without commercial features | no |
-| `sandbox` | QA/demo Plus/Impulses | no |
-| `production` | separate Pulse Cloud/provider | Cloud only |
-
-Sandbox commands:
-
-```text
-pulse sandbox on|off
-pulse user <user>
-plus grant <user> [days]
-plus revoke <user>
-impulses grant <user> <amount> [reason]
-impulses revoke <user> <amount> [reason]
-```
-
-Help brackets are placeholders. Both `plus grant netrox 1` and copied `plus grant <netrox> [1]` are normalized as inert data.
-
-Sandbox cannot create production signatures, checkout or negative balance.
-
-## 13. Audited Server console
-
-Console executes only registered commands. It does not provide shell, eval, arbitrary filesystem access or Node execution.
-
-Errors return stable `{ code, message }`. Mutating commands are audited without secret argument values.
-
-## 14. Windows updater
-
-Packaged Client:
-
-- uses official GitHub Releases provider by default;
-- starts update service before renderer IPC;
-- performs startup and scheduled checks;
-- prevents duplicate checks;
-- displays checking/progress/current/available/downloaded/error/retry states;
-- allows custom generic feed only via explicit HTTPS config;
-- disallows downgrade/prerelease;
-- requires signed installable asset set.
-
-Unpackaged development mode intentionally does not perform real automatic updates.
-
-Post-update summary opens exact official release tag. `--test-mode` tails local Client log only and does not enable DevTools or remote debugging.
-
-## 15. Update procedure
-
-Before update:
-
-1. verified backup;
-2. current version/schema record;
-3. release classification check;
-4. Client compatibility review;
-5. free-space check;
-6. planned maintenance/drain.
-
-After update:
-
-- live/ready;
-- SQLite integrity/schema;
-- Client login/bootstrap;
-- Trust device state;
-- legacy и secure messaging;
-- Welcome recovery;
-- backup/storage access;
-- updater state on packaged Client.
-
-## 16. Incident response
-
-Collect:
-
-- Client/Server/Cloud versions;
-- release channel/tag/commit;
-- Server ID/request ID;
-- timestamps;
-- network/deployment profile;
-- live/ready results;
-- schema/integrity;
-- Trust device/KeyPackage/epoch scope;
-- updater state;
-- sanitized logs.
-
-Never share secrets, cookies, OAuth tokens, TOTP/recovery codes, invite codes, CA/device/signing keys, complete MLS state, production database или backup passphrase.
-
-Detailed procedures: [Operations Runbook](docs/OPERATIONS_RUNBOOK.md).
-
-## 17. Verification
-
-```bash
-npm ci
-npm run release:check
-npm run test:soak
-gradle -p android :app:assembleDebug --no-daemon
-```
-
-Stable Windows promotion additionally requires installed signed Client/Server, updater n-1 → n, installer UX, test-mode shortcut и packaged MLS Welcome recovery acceptance.
+См. [Operations Runbook](docs/OPERATIONS_RUNBOOK.md), [Security Model](docs/SECURITY_MODEL.md) и [Release Verification 3.3.4](docs/releases/3.3.4/RELEASE_VERIFICATION.md).
