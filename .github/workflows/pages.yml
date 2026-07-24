@@ -66,7 +66,27 @@ jobs:
       - name: Validate generated advanced reference
         run: node advanced-website/scripts/validate-content.mjs
       - name: Test advanced documentation contracts
-        run: node advanced-website/scripts/run-tests.mjs
+        id: advanced_tests
+        shell: bash
+        continue-on-error: true
+        run: |
+          set +e
+          node advanced-website/scripts/run-tests.mjs > advanced-test-failures.log 2>&1
+          status=$?
+          cat advanced-test-failures.log
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit "$status"
+      - name: Upload advanced test diagnostics
+        if: steps.advanced_tests.outputs.status != '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: advanced-test-failures
+          path: advanced-test-failures.log
+          if-no-files-found: error
+          retention-days: 2
+      - name: Enforce advanced documentation contracts
+        if: steps.advanced_tests.outputs.status != '0'
+        run: exit 1
       - name: Build advanced React portal
         run: npx vite build --config advanced-website/vite.config.mjs
       - name: Verify composed artifact
