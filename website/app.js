@@ -4,7 +4,7 @@
   const REPO = "Onmaynec/Nexora";
   const API = `https://api.github.com/repos/${REPO}`;
   const RAW_PACKAGE = `https://raw.githubusercontent.com/${REPO}/main/package.json`;
-  const FALLBACK_VERSION = "3.3.4";
+  const FALLBACK_VERSION = "3.4.0";
   const FALLBACK_RELEASE_URL = `https://github.com/${REPO}/releases`;
   const safeStorage = {
     get(key) {
@@ -151,7 +151,7 @@
       boundariesLabel: "ТЕКУЩИЕ ГРАНИЦЫ",
       boundariesTitle: "Prerelease и metadata visibility",
       boundaryOneTitle: "Independent audit",
-      boundaryOne: "3.3.4 является post-MLS prerequisite и не заявляется как независимо проверенный stable-релиз.",
+      boundaryOne: "3.4.0 является post-MLS prerequisite и не заявляется как независимо проверенный stable-релиз.",
       boundaryTwoTitle: "Traffic metadata",
       boundaryTwo: "Сервер хранит обычные сообщения и видит membership, timing, IP context и delivery events.",
       boundaryThreeTitle: "Windows signing",

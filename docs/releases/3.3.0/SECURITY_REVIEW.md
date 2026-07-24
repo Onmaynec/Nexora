@@ -1,6 +1,6 @@
 # Security Review — Nexora 3.3.0
 
-Дата: 2026-07-23  
+Дата: 2026-07-23
 Область: изменения Trust/MLS recovery, Pulse catalog/ledger/goals, Client confirmation UX, voice media, release distribution и website.
 
 ## Итоговая классификация

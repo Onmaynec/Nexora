@@ -1,37 +1,48 @@
-# Статус ветки Nexora 3.3.4 Post-MLS Baseline
+# Статус ветки `release/3.4.0-stable-core-v2`
 
 ## Классификация
 
 | Параметр | Значение |
 |---|---|
-| Version | `3.3.4` |
-| Branch | `release/3.3.4-post-mls` |
-| Pull Request | `#70` |
-| Baseline | published Nexora `3.3.3` line |
-| Classification | Release candidate; signed when policy exists, otherwise explicit `UNSIGNED-TEST` prerelease |
-| Application API | v3 |
-| Local Server schema | 8 compatibility layer |
-| Trust/MLS runtime | retired; legacy history read-only |
-| Publication | pending final CI, merge, annotated `v3.3.4`, GitHub Release and asset smoke |
+| Classification | Active development / blocked draft release |
+| Target version | Nexora `3.4.0` |
+| Required baseline | Verified and published Nexora `3.3.4` |
+| Pull Request | Draft PR `#96` |
+| Current product source of truth | `main`, Nexora `3.3.3` |
+| Release state | Blocked, not approved, not tagged, not published |
+| Package metadata | `3.4.0` on this branch only |
 
-## Implemented boundary
+## Scope
 
-- ordinary server-readable messaging is the only writable messaging path;
-- executable Trust/MLS services and `ts-mls` are removed;
-- schema 8 legacy ciphertext, IDs, epochs, timestamps and audit provenance are retained;
-- legacy viewer/export is immutable and the server never decrypts ciphertext;
-- legacy REST and Socket.IO mutations fail with `410/LEGACY_READ_ONLY`;
-- session-derived devices support targeted revoke and immediate realtime disconnect;
-- backup verification is non-restoring and restore/migration failure paths are covered;
-- updater and release tooling distinguish signed assets from explicit unsigned test assets.
+- implement the approved Stable Core contract;
+- retire executable Trust/MLS runtime while preserving schema 8 legacy ciphertext;
+- expose read-only legacy secure history and export paths;
+- add server-owned device/session inventory and immediate revocation;
+- add backup verification and safe signing diagnostics;
+- harden signed Client/Server updater and release evidence;
+- synchronize Client, Server, Android, documentation and version metadata.
 
-## Release completion gates
+## Blocking dependency
 
-1. final PR CI, focused regressions and website validation pass;
-2. PR #70 is reviewed and merged with release commit identity;
-3. post-merge CI passes;
-4. annotated `v3.3.4` and GitHub Release are created;
-5. checksums and release evidence are published;
-6. all assets are re-downloaded and verified.
+This branch must not merge, tag or publish until the 3.3.4 prerequisite is approved and the branch is rebased or otherwise reconciled against that exact verified baseline. Current package metadata alone does not make 3.4.0 a release candidate.
 
-Authenticode credentials are optional for this prerequisite. Without them, the release remains a clearly marked `UNSIGNED-TEST` prerelease and must not contain updater metadata. Independent review and signed 3.3.4→3.4.0 acceptance remain 3.4.0 gates.
+## Required verification
+
+- migration and schema 8 compatibility tests;
+- legacy ciphertext read-only/export tests;
+- authorization, device revocation and session invalidation tests;
+- backup restore and integrity verification;
+- signed updater and n-1 → n installed acceptance;
+- unit, API, integration, performance, security and artifact gates;
+- independent security review and closure evidence.
+
+## Security boundary
+
+Historical encrypted records must not be silently decrypted, rewritten or deleted. Device/session revocation and all privileged operations remain server-authoritative. Signing credentials, tokens and private data must not be committed or logged.
+
+## Real limitations
+
+- the mandatory 3.3.4 baseline is not yet merged and published;
+- Authenticode credentials and Windows 10/11 installed acceptance are external release prerequisites;
+- independent review is incomplete;
+- `main` 3.3.3 remains the only current product source of truth.

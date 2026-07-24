@@ -1,16 +1,22 @@
 {
   "schemaVersion": 2,
-  "version": "3.3.4",
-  "tag": "v3.3.4",
+  "version": "3.4.0",
+  "tag": "v3.4.0",
   "status": "release-candidate",
   "published": false,
   "signed": false,
-  "distribution": "pending",
+  "distribution": "blocked-stable",
   "repository": "Onmaynec/Nexora",
-  "branch": "release/3.3.4-post-mls",
-  "baseline": "v3.3.3",
+  "branch": "release/3.4.0-stable-core-v2",
+  "baseline": "v3.3.4",
+  "baselineMergeCommit": "6202bbdf8ff636711d9874452958df5dd40d9656",
   "blockers": [
-    "ci",
+    "published-v3.3.4-tag-release-assets",
+    "authenticode-signing-policy",
+    "windows-10-installed-upgrade-acceptance",
+    "windows-11-installed-upgrade-acceptance",
+    "independent-security-review",
+    "final-ci",
     "merge",
     "github-release",
     "asset-redownload-smoke"
@@ -20,7 +26,8 @@
     "trustMlsRuntime": "retired",
     "legacySecureHistory": "read-only",
     "serverDecryptsLegacyCiphertext": false,
-    "unsignedUpdaterMetadataPublished": false
+    "stableReleaseRequiresSignedAssets": true,
+    "unsignedOfficialTagPublished": false
   },
   "assets": [],
   "verification": {

@@ -1,10 +1,10 @@
-# Модель безопасности Nexora 3.3.4 Post-MLS Baseline
+# Модель безопасности Nexora 3.4.0 Stable Core
 
 ## Status and scope
 
 | Параметр | Значение |
 |---|---|
-| Version | `3.3.4` release candidate |
+| Version | `3.4.0` release candidate |
 | Distribution | not published; stable publication is blocked |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
@@ -163,4 +163,4 @@ Automated coverage includes:
 - legacy ciphertext can be human-readable only when a previous client retained locally decrypted cache;
 - a compromised operator/OS account remains outside application-only protection.
 
-These conditions prohibit merge to a release commit, official `v3.3.4` tag and stable GitHub Release.
+These conditions prohibit merge to a release commit, official `v3.4.0` tag and stable GitHub Release.
