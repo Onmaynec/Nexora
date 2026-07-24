@@ -7,8 +7,22 @@ import referencePages from "./content-data/reference.json" with { type: "json" }
 import operations from "./content-data/operations.json" with { type: "json" };
 import development from "./content-data/development.json" with { type: "json" };
 import releases from "./content-data/releases.json" with { type: "json" };
-import enhancements from "./content-data/enhancements.json" with { type: "json" };
-import roadmapPages from "./content-data/roadmap.json" with { type: "json" };
+import enhancementsStart from "./content-data/enhancements-start.json" with { type: "json" };
+import enhancementsArchitecture from "./content-data/enhancements-architecture.json" with { type: "json" };
+import enhancementsProduct from "./content-data/enhancements-product.json" with { type: "json" };
+import enhancementsSecurity from "./content-data/enhancements-security.json" with { type: "json" };
+import enhancementsReference from "./content-data/enhancements-reference.json" with { type: "json" };
+import enhancementsOperations from "./content-data/enhancements-operations.json" with { type: "json" };
+import enhancementsDevelopment from "./content-data/enhancements-development.json" with { type: "json" };
+import enhancementsReleases from "./content-data/enhancements-releases.json" with { type: "json" };
+import roadmapMeta from "./content-data/roadmap-meta.json" with { type: "json" };
+import roadmapSections1 from "./content-data/roadmap-sections-1.json" with { type: "json" };
+import roadmapSections2 from "./content-data/roadmap-sections-2.json" with { type: "json" };
+import roadmapSections3 from "./content-data/roadmap-sections-3.json" with { type: "json" };
+import roadmapSections4 from "./content-data/roadmap-sections-4.json" with { type: "json" };
+
+const enhancements = Object.assign({}, enhancementsStart, enhancementsArchitecture, enhancementsProduct, enhancementsSecurity, enhancementsReference, enhancementsOperations, enhancementsDevelopment, enhancementsReleases);
+const roadmapPages = [{ ...roadmapMeta, sections: [...roadmapSections1, ...roadmapSections2, ...roadmapSections3, ...roadmapSections4] }];
 
 const basePages = [...start, ...architecture, ...product, ...security, ...referencePages, ...operations, ...development, ...releases];
 
