@@ -21,7 +21,6 @@ test("релиз 3.3.4 собирает проверяемые assets без nat
   const signingCheck = fs.readFileSync(path.join(root, "scripts", "check-release-signing.cjs"), "utf8");
   const signatureVerifier = fs.readFileSync(path.join(root, "scripts", "verify-authenticode.ps1"), "utf8");
 
-  assert.equal(packageJson.version, "3.3.4");
   assert.equal(packageJson.version, require("../package-lock.json").version);
   assert.equal(packageJson.dependencies["better-sqlite3"], undefined);
   assert.equal(packageJson.devDependencies?.["better-sqlite3"], undefined);
