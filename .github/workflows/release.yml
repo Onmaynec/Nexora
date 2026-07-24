@@ -1,4 +1,4 @@
-name: Nexora 3.3.4 release
+name: Nexora 3.4.0 stable release
 
 on:
   workflow_run:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: Existing official tag, for example v3.3.4
+        description: Existing official tag, must equal v3.4.0
         required: true
         type: string
 
@@ -15,7 +15,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nexora-3-3-4-release-${{ github.repository }}
+  group: nexora-3-4-0-stable-release-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
@@ -24,9 +24,9 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == 'main' &&
-      startsWith(github.event.workflow_run.head_commit.message, 'release: Nexora '))
+      startsWith(github.event.workflow_run.head_commit.message, 'release: Nexora 3.4.0'))
     runs-on: windows-latest
-    timeout-minutes: 120
+    timeout-minutes: 150
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       CSC_LINK: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
@@ -53,41 +53,88 @@ jobs:
         with:
           gradle-version: "8.13"
 
-      - name: Resolve release identity
+      - name: Resolve stable release identity
         id: identity
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           $version = node -p "require('./package.json').version"
-          if ($version -ne "3.3.4") { throw "This workflow publishes only Nexora 3.3.4; found $version" }
-          $officialTag = "v$version"
-          if ($env:GITHUB_EVENT_NAME -eq "workflow_dispatch" -and '${{ inputs.release_tag }}' -ne $officialTag) {
-            throw "Manual release tag must equal $officialTag"
+          if ($version -ne "3.4.0") { throw "This workflow publishes only Nexora 3.4.0; found $version" }
+          $tag = "v$version"
+          if ($env:GITHUB_EVENT_NAME -eq "workflow_dispatch" -and '${{ inputs.release_tag }}' -ne $tag) {
+            throw "Manual release tag must equal $tag"
           }
           $head = (git rev-parse HEAD).Trim()
-          "version=$version" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          "official_tag=$officialTag" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          "head_sha=$head" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          "RELEASE_TAG=$officialTag" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
-          "PUBLISH_TAG=$officialTag" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "official_tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "head_sha=$head" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "PUBLISH_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Detect complete signing policy
-        id: signing
+      - name: Verify required 3.3.4 baseline
         shell: pwsh
         run: |
-          $values = @($env:CSC_LINK, $env:CSC_KEY_PASSWORD, $env:NEXORA_WINDOWS_SIGNER_SUBJECT, $env:NEXORA_WINDOWS_SIGNER_THUMBPRINT)
-          $configured = @($values | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count
-          if ($configured -gt 0 -and $configured -lt $values.Count) { throw "Partial signing configuration is forbidden" }
-          $available = $configured -eq $values.Count
-          "available=$($available.ToString().ToLowerInvariant())" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          if (-not $available) { Write-Warning "Authenticode policy is absent. v3.3.4 will be an UNSIGNED-TEST prerelease without updater metadata." }
+          $ErrorActionPreference = "Stop"
+          $raw = gh release view v3.3.4 --json isDraft,isPrerelease,tagName,assets 2>$null
+          if ($LASTEXITCODE -ne 0) { throw "Release blocker: published verified baseline v3.3.4 is absent" }
+          $release = ($raw -join "`n") | ConvertFrom-Json
+          if ($release.isDraft) { throw "Release blocker: v3.3.4 is still a draft" }
+          if ($release.tagName -ne "v3.3.4") { throw "Release blocker: baseline tag mismatch" }
+          $names = @($release.assets | ForEach-Object { $_.name })
+          if ($names -notcontains "SHA256SUMS.txt") { throw "Release blocker: v3.3.4 checksums are absent" }
+          if (-not ($names | Where-Object { $_ -match '^Nexora-Client-Setup-3\.3\.4(?:-UNSIGNED-TEST)?\.exe$' })) {
+            throw "Release blocker: v3.3.4 Client installer is absent"
+          }
+          if (-not ($names | Where-Object { $_ -match '^Nexora-Server-Setup-3\.3\.4(?:-UNSIGNED-TEST)?\.exe$' })) {
+            throw "Release blocker: v3.3.4 Server installer is absent"
+          }
+
+      - name: Verify independent review and Windows acceptance evidence
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $review = Get-Content release-evidence/independent-security-review-3.4.0.json -Raw | ConvertFrom-Json
+          if ($review.version -ne "3.4.0" -or -not $review.independent -or -not $review.approved) {
+            throw "Release blocker: independent security review is not approved"
+          }
+          if ([int]$review.unresolvedHigh -ne 0 -or [int]$review.unresolvedCritical -ne 0) {
+            throw "Release blocker: independent review has unresolved high/critical findings"
+          }
+          if ([string]::IsNullOrWhiteSpace([string]$review.reviewedCommit)) {
+            throw "Release blocker: reviewed commit is missing"
+          }
+          git merge-base --is-ancestor $review.reviewedCommit '${{ steps.identity.outputs.head_sha }}'
+          if ($LASTEXITCODE -ne 0) { throw "Release blocker: reviewed commit is not an ancestor of the release commit" }
+          $windows = Get-Content release-evidence/windows-acceptance-3.4.0.json -Raw | ConvertFrom-Json
+          if ($windows.version -ne "3.4.0" -or $windows.baseline -ne "3.3.4" -or $windows.target -ne "3.4.0") {
+            throw "Release blocker: Windows acceptance identity mismatch"
+          }
+          if (-not $windows.windows10.installedUpgradePassed -or -not $windows.windows11.installedUpgradePassed -or -not $windows.signedTargetVerified) {
+            throw "Release blocker: Windows 10/11 installed n-1 to n acceptance is incomplete"
+          }
+          if ([string]::IsNullOrWhiteSpace([string]$windows.windows10.evidenceUrl) -or [string]::IsNullOrWhiteSpace([string]$windows.windows11.evidenceUrl)) {
+            throw "Release blocker: Windows acceptance evidence URLs are missing"
+          }
+
+      - name: Require complete Authenticode policy
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $values = @(
+            $env:CSC_LINK,
+            $env:CSC_KEY_PASSWORD,
+            $env:NEXORA_WINDOWS_SIGNER_SUBJECT,
+            $env:NEXORA_WINDOWS_SIGNER_THUMBPRINT
+          )
+          if (@($values | Where-Object { [string]::IsNullOrWhiteSpace($_) }).Count -gt 0) {
+            throw "Release blocker: complete Authenticode policy is required for v3.4.0"
+          }
 
       - run: npm ci
       - run: npm run release:check
-      - name: Validate official tag contract
-        run: npm run release:tag-check
+      - run: npm run release:tag-check
+      - run: npm run release:signing-check
 
-      - name: Build source, PWA, SPDX and Android evidence
+      - name: Build source, PWA, Android and SPDX evidence
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -95,11 +142,11 @@ jobs:
           New-Item -ItemType Directory -Force artifacts | Out-Null
           git archive --format=zip --output "artifacts/Nexora-$version-source.zip" HEAD
           if ($LASTEXITCODE -ne 0) { throw "Unable to archive release commit" }
-          if (-not (Test-Path "client/dist/index.html")) { throw "Production web build is missing" }
+          if (-not (Test-Path -LiteralPath "client/dist/index.html")) { throw "Production web build is missing" }
           Compress-Archive -Path "client/dist/*" -DestinationPath "artifacts/Nexora-PWA-$version.zip" -CompressionLevel Optimal -Force
           gradle -p android :app:assembleDebug --no-daemon
           if ($LASTEXITCODE -ne 0) { throw "Android evidence build failed" }
-          $apk = Get-ChildItem "android/app/build/outputs/apk/debug" -Filter "*.apk" | Sort-Object Length -Descending | Select-Object -First 1
+          $apk = Get-ChildItem -Path "android/app/build/outputs/apk/debug" -Filter "*.apk" | Sort-Object Length -Descending | Select-Object -First 1
           if (-not $apk) { throw "Android APK evidence was not created" }
           Copy-Item $apk.FullName "artifacts/Nexora-Android-$version-UNSIGNED-TEST.apk" -Force
 
@@ -115,137 +162,173 @@ jobs:
           node -e "const fs=require('node:fs');const p=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));if(p.spdxVersion!=='SPDX-2.3'||!Array.isArray(p.packages)||!p.packages.length)process.exit(1)" "$output"
 
       - name: Build and verify signed Windows assets
-        if: steps.signing.outputs.available == 'true'
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           $version = '${{ steps.identity.outputs.version }}'
-          npm run release:signing-check
           npx electron-builder --config electron-builder.client.yml --win nsis --publish never
           if ($LASTEXITCODE -ne 0) { throw "Signed Client build failed" }
           npx electron-builder --config electron-builder.server.yml --win nsis --publish never
           if ($LASTEXITCODE -ne 0) { throw "Signed Server build failed" }
           $client = "release/client/Nexora-Client-Setup-$version.exe"
           $server = "release/server/Nexora-Server-Setup-$version.exe"
-          & ./scripts/verify-authenticode.ps1 -Path @($client, $server) -ExpectedSubject $env:NEXORA_WINDOWS_SIGNER_SUBJECT -ExpectedThumbprint $env:NEXORA_WINDOWS_SIGNER_THUMBPRINT | Set-Content -Encoding utf8 artifacts/AUTHENTICODE-EVIDENCE.json
-          foreach ($asset in @($client, "$client.blockmap", "release/client/latest.yml", $server, "$server.blockmap", "release/server/server.yml", "artifacts/AUTHENTICODE-EVIDENCE.json")) {
-            if (-not (Test-Path $asset -PathType Leaf)) { throw "Incomplete signed asset set: $asset" }
+          $signatureEvidence = & ./scripts/verify-authenticode.ps1 -Path @($client, $server) -ExpectedSubject $env:NEXORA_WINDOWS_SIGNER_SUBJECT -ExpectedThumbprint $env:NEXORA_WINDOWS_SIGNER_THUMBPRINT
+          $signatureEvidence | Set-Content -Encoding utf8 artifacts/AUTHENTICODE-EVIDENCE.json
+          foreach ($asset in @(
+            $client,
+            "$client.blockmap",
+            "release/client/latest.yml",
+            $server,
+            "$server.blockmap",
+            "release/server/server.yml",
+            "artifacts/AUTHENTICODE-EVIDENCE.json"
+          )) {
+            if (-not (Test-Path -LiteralPath $asset -PathType Leaf)) { throw "Incomplete signed asset set: $asset" }
+          }
+          foreach ($metadata in @("release/client/latest.yml", "release/server/server.yml")) {
+            $text = Get-Content -LiteralPath $metadata -Raw
+            if ($text -notmatch [regex]::Escape("version: $version") -or $text -notmatch "sha512:") {
+              throw "Updater metadata is incomplete or belongs to another build: $metadata"
+            }
           }
 
-      - name: Build explicitly unsigned Windows test assets
-        if: steps.signing.outputs.available != 'true'
-        shell: pwsh
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: "false"
-        run: |
-          $ErrorActionPreference = "Stop"
-          $version = '${{ steps.identity.outputs.version }}'
-          npx electron-builder --config electron-builder.client.yml --win nsis --publish never
-          if ($LASTEXITCODE -ne 0) { throw "Unsigned Client build failed" }
-          npx electron-builder --config electron-builder.server.yml --win nsis --publish never
-          if ($LASTEXITCODE -ne 0) { throw "Unsigned Server build failed" }
-          Copy-Item "release/client/Nexora-Client-Setup-$version.exe" "artifacts/Nexora-Client-Setup-$version-UNSIGNED-TEST.exe" -Force
-          Copy-Item "release/server/Nexora-Server-Setup-$version.exe" "artifacts/Nexora-Server-Setup-$version-UNSIGNED-TEST.exe" -Force
-          if (Get-ChildItem artifacts -File | Where-Object { $_.Name -in @("latest.yml", "server.yml") -or $_.Extension -eq ".blockmap" }) {
-            throw "Unsigned artifact set contains updater metadata"
-          }
-
-      - name: Installed Windows package smoke
+      - name: Download and checksum-verify 3.3.4 installers
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          $version = '${{ steps.identity.outputs.version }}'
-          if ('${{ steps.signing.outputs.available }}' -eq 'true') {
-            $clientInstaller = "release/client/Nexora-Client-Setup-$version.exe"
-            $serverInstaller = "release/server/Nexora-Server-Setup-$version.exe"
-          } else {
-            $clientInstaller = "artifacts/Nexora-Client-Setup-$version-UNSIGNED-TEST.exe"
-            $serverInstaller = "artifacts/Nexora-Server-Setup-$version-UNSIGNED-TEST.exe"
+          New-Item -ItemType Directory -Force baseline | Out-Null
+          gh release download v3.3.4 --dir baseline
+          if ($LASTEXITCODE -ne 0) { throw "Unable to download v3.3.4 release assets" }
+          $sumFile = Join-Path baseline "SHA256SUMS.txt"
+          if (-not (Test-Path -LiteralPath $sumFile)) { throw "Baseline checksum file is missing" }
+          foreach ($line in Get-Content -LiteralPath $sumFile) {
+            if ([string]::IsNullOrWhiteSpace($line)) { continue }
+            $parts = $line -split '\s+', 2
+            $asset = Join-Path baseline $parts[1].Trim()
+            if (-not (Test-Path -LiteralPath $asset)) { continue }
+            $actual = (Get-FileHash -LiteralPath $asset -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($actual -ne $parts[0].ToLowerInvariant()) { throw "Baseline checksum mismatch: $asset" }
           }
+
+      - name: Installed package upgrade smoke
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $version = '${{ steps.identity.outputs.version }}'
+          $baselineClient = Get-ChildItem baseline -Filter "Nexora-Client-Setup-3.3.4*.exe" | Select-Object -First 1
+          $baselineServer = Get-ChildItem baseline -Filter "Nexora-Server-Setup-3.3.4*.exe" | Select-Object -First 1
+          if (-not $baselineClient -or -not $baselineServer) { throw "Baseline installers are missing" }
           $root = "C:\NexoraReleaseSmoke"
           $clientDir = "$root\Client"
           $serverDir = "$root\Server"
           New-Item -ItemType Directory -Force $root | Out-Null
-          foreach ($item in @(@{ Installer = $clientInstaller; Directory = $clientDir }, @{ Installer = $serverInstaller; Directory = $serverDir })) {
+          foreach ($item in @(
+            @{ Installer = $baselineClient.FullName; Directory = $clientDir },
+            @{ Installer = $baselineServer.FullName; Directory = $serverDir },
+            @{ Installer = "release/client/Nexora-Client-Setup-$version.exe"; Directory = $clientDir },
+            @{ Installer = "release/server/Nexora-Server-Setup-$version.exe"; Directory = $serverDir }
+          )) {
             $process = Start-Process -FilePath $item.Installer -ArgumentList @("/S", "/D=$($item.Directory)") -Wait -PassThru
             if ($process.ExitCode -ne 0) { throw "Installer smoke failed: $($item.Installer) exit $($process.ExitCode)" }
           }
-          foreach ($exe in @((Join-Path $clientDir "Nexora Client.exe"), (Join-Path $serverDir "Nexora Server.exe"))) {
-            if (-not (Test-Path $exe)) { throw "Installed runtime missing: $exe" }
-            if ((Get-Item $exe).VersionInfo.ProductVersion -notlike "$version*") { throw "Installed runtime version mismatch: $exe" }
+          $clientExe = Join-Path $clientDir "Nexora Client.exe"
+          $serverExe = Join-Path $serverDir "Nexora Server.exe"
+          foreach ($exe in @($clientExe, $serverExe)) {
+            if (-not (Test-Path -LiteralPath $exe)) { throw "Installed runtime missing: $exe" }
+            if ((Get-Item -LiteralPath $exe).VersionInfo.ProductVersion -notlike "$version*") { throw "Installed runtime version mismatch: $exe" }
           }
+          & ./scripts/verify-authenticode.ps1 -Path @($clientExe, $serverExe) -ExpectedSubject $env:NEXORA_WINDOWS_SIGNER_SUBJECT -ExpectedThumbprint $env:NEXORA_WINDOWS_SIGNER_THUMBPRINT | Out-Null
 
       - name: Create release evidence and checksums
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           $version = '${{ steps.identity.outputs.version }}'
-          if ('${{ steps.signing.outputs.available }}' -eq 'true') {
-            $assets = @("release/client/Nexora-Client-Setup-$version.exe", "release/client/Nexora-Client-Setup-$version.exe.blockmap", "release/client/latest.yml", "release/server/Nexora-Server-Setup-$version.exe", "release/server/Nexora-Server-Setup-$version.exe.blockmap", "release/server/server.yml", "artifacts/AUTHENTICODE-EVIDENCE.json", "artifacts/Nexora-Android-$version-UNSIGNED-TEST.apk", "artifacts/Nexora-$version-source.zip", "artifacts/Nexora-PWA-$version.zip", "artifacts/Nexora-$version.spdx.json")
-          } else {
-            $assets = @("artifacts/Nexora-Client-Setup-$version-UNSIGNED-TEST.exe", "artifacts/Nexora-Server-Setup-$version-UNSIGNED-TEST.exe", "artifacts/Nexora-Android-$version-UNSIGNED-TEST.apk", "artifacts/Nexora-$version-source.zip", "artifacts/Nexora-PWA-$version.zip", "artifacts/Nexora-$version.spdx.json")
+          $assets = @(
+            "release/client/Nexora-Client-Setup-$version.exe",
+            "release/client/Nexora-Client-Setup-$version.exe.blockmap",
+            "release/client/latest.yml",
+            "release/server/Nexora-Server-Setup-$version.exe",
+            "release/server/Nexora-Server-Setup-$version.exe.blockmap",
+            "release/server/server.yml",
+            "artifacts/AUTHENTICODE-EVIDENCE.json",
+            "artifacts/Nexora-Android-$version-UNSIGNED-TEST.apk",
+            "artifacts/Nexora-$version-source.zip",
+            "artifacts/Nexora-PWA-$version.zip",
+            "artifacts/Nexora-$version.spdx.json"
+          )
+          foreach ($asset in $assets) { if (-not (Test-Path -LiteralPath $asset)) { throw "Missing release asset: $asset" } }
+          $evidence = [ordered]@{
+            version = $version
+            commitSha = '${{ steps.identity.outputs.head_sha }}'
+            officialTag = '${{ steps.identity.outputs.official_tag }}'
+            signed = $true
+            distribution = 'stable-signed'
+            baseline = 'v3.3.4'
+            githubRunId = $env:GITHUB_RUN_ID
+            githubRunAttempt = $env:GITHUB_RUN_ATTEMPT
+            generatedAt = [DateTime]::UtcNow.ToString('o')
+            independentReview = Get-Content release-evidence/independent-security-review-3.4.0.json -Raw | ConvertFrom-Json
+            windowsAcceptance = Get-Content release-evidence/windows-acceptance-3.4.0.json -Raw | ConvertFrom-Json
+            assetNames = @($assets | ForEach-Object { [IO.Path]::GetFileName($_) })
           }
-          foreach ($asset in $assets) { if (-not (Test-Path $asset)) { throw "Missing release asset: $asset" } }
-          $evidence = [ordered]@{ version=$version; commitSha='${{ steps.identity.outputs.head_sha }}'; officialTag='${{ steps.identity.outputs.official_tag }}'; publishTag=$env:PUBLISH_TAG; signed=('${{ steps.signing.outputs.available }}' -eq 'true'); distribution=$(if ('${{ steps.signing.outputs.available }}' -eq 'true') { 'signed' } else { 'unsigned-test' }); githubRunId=$env:GITHUB_RUN_ID; githubRunAttempt=$env:GITHUB_RUN_ATTEMPT; baseline='v3.3.3'; generatedAt=[DateTime]::UtcNow.ToString('o'); assetNames=@($assets | ForEach-Object { [IO.Path]::GetFileName($_) }) }
-          $evidence | ConvertTo-Json -Depth 5 | Set-Content -Encoding utf8 artifacts/RELEASE-EVIDENCE.json
+          $evidence | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 artifacts/RELEASE-EVIDENCE.json
           $assets += "artifacts/RELEASE-EVIDENCE.json"
-          Get-FileHash $assets -Algorithm SHA256 | Sort-Object Path | ForEach-Object { "$($_.Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content -Encoding ascii artifacts/SHA256SUMS.txt
-          "RELEASE_ASSETS=$($assets -join ';')" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          Get-FileHash $assets -Algorithm SHA256 | Sort-Object Path | ForEach-Object {
+            "$($_.Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($_.Path))"
+          } | Set-Content -Encoding ascii artifacts/SHA256SUMS.txt
+          "RELEASE_ASSETS=$($assets -join ';')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Create immutable annotated tag
         shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
           $remote = git ls-remote --tags origin "refs/tags/$env:PUBLISH_TAG"
           if (-not [string]::IsNullOrWhiteSpace(($remote -join "`n"))) {
             git fetch --force origin "refs/tags/$env:PUBLISH_TAG`:refs/tags/$env:PUBLISH_TAG"
-            if ((git rev-list -n 1 $env:PUBLISH_TAG).Trim() -ne '${{ steps.identity.outputs.head_sha }}') { throw "Immutable tag already points to another commit" }
+            if ((git rev-list -n 1 $env:PUBLISH_TAG).Trim() -ne '${{ steps.identity.outputs.head_sha }}') {
+              throw "Immutable tag already points to another commit"
+            }
           } else {
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git tag -a $env:PUBLISH_TAG -m "Nexora ${{ steps.identity.outputs.version }}"
+            git tag -a $env:PUBLISH_TAG -m "Nexora ${{ steps.identity.outputs.version }} Stable Core"
             git push origin "refs/tags/$env:PUBLISH_TAG"
             if ($LASTEXITCODE -ne 0) { throw "Unable to publish annotated tag" }
           }
 
-      - name: Publish release
+      - name: Publish stable GitHub Release
         shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
           $version = '${{ steps.identity.outputs.version }}'
           $assets = @($env:RELEASE_ASSETS -split ';') + @("artifacts/SHA256SUMS.txt")
-          $absolute = @($assets | ForEach-Object { (Resolve-Path $_).Path })
+          $absolute = @($assets | ForEach-Object { (Resolve-Path -LiteralPath $_).Path })
           $notes = "docs/releases/$version/RELEASE_NOTES.md"
-          $arguments = @("release", "create", $env:PUBLISH_TAG) + $absolute + @("--verify-tag", "--title")
-          if ('${{ steps.signing.outputs.available }}' -eq 'true') {
-            $arguments += "Nexora $version"
-            $arguments += @("--notes-file", $notes, "--latest")
-          } else {
-            $arguments += "Nexora $version — UNSIGNED TEST BUILDS"
-            $arguments += @("--notes-file", $notes, "--prerelease")
-          }
-          & gh @arguments
-          if ($LASTEXITCODE -ne 0) { throw "Unable to publish release" }
+          & gh release create $env:PUBLISH_TAG @absolute --verify-tag --title "Nexora $version Stable Core" --notes-file $notes --latest
+          if ($LASTEXITCODE -ne 0) { throw "Unable to publish stable release" }
 
       - name: Re-download and verify immutable release assets
         shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
           New-Item -ItemType Directory -Force published | Out-Null
           gh release download $env:PUBLISH_TAG --dir published
           if ($LASTEXITCODE -ne 0) { throw "Unable to re-download release assets" }
           $sumFile = Join-Path published "SHA256SUMS.txt"
-          if (-not (Test-Path $sumFile)) { throw "Published checksums are missing" }
-          foreach ($line in Get-Content $sumFile) {
+          if (-not (Test-Path -LiteralPath $sumFile)) { throw "Published checksums are missing" }
+          foreach ($line in Get-Content -LiteralPath $sumFile) {
             if ([string]::IsNullOrWhiteSpace($line)) { continue }
             $parts = $line -split '\s+', 2
             $asset = Join-Path published $parts[1].Trim()
-            if (-not (Test-Path $asset)) { throw "Published asset is missing: $($parts[1])" }
-            if ((Get-FileHash $asset -Algorithm SHA256).Hash.ToLowerInvariant() -ne $parts[0].ToLowerInvariant()) { throw "Published checksum mismatch: $($parts[1])" }
+            if (-not (Test-Path -LiteralPath $asset)) { throw "Published asset is missing: $($parts[1])" }
+            $actual = (Get-FileHash -LiteralPath $asset -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($actual -ne $parts[0].ToLowerInvariant()) { throw "Published checksum mismatch: $asset" }
           }
-          $names = @(Get-ChildItem published -File | ForEach-Object { $_.Name })
-          if ('${{ steps.signing.outputs.available }}' -eq 'true') {
-            foreach ($required in @("latest.yml", "server.yml", "Nexora-Client-Setup-${{ steps.identity.outputs.version }}.exe.blockmap", "Nexora-Server-Setup-${{ steps.identity.outputs.version }}.exe.blockmap")) {
-              if ($names -notcontains $required) { throw "Signed release is missing $required" }
-            }
-            & ./scripts/verify-authenticode.ps1 -Path @("published/Nexora-Client-Setup-${{ steps.identity.outputs.version }}.exe", "published/Nexora-Server-Setup-${{ steps.identity.outputs.version }}.exe") -ExpectedSubject $env:NEXORA_WINDOWS_SIGNER_SUBJECT -ExpectedThumbprint $env:NEXORA_WINDOWS_SIGNER_THUMBPRINT | Out-Null
-          } else {
-            if ($names -contains "latest.yml" -or $names -contains "server.yml" -or @($names | Where-Object { $_ -match '\.blockmap$' }).Count -gt 0) { throw "Unsigned prerelease exposes updater metadata" }
+          foreach ($required in @("latest.yml", "server.yml", "Nexora-Client-Setup-3.4.0.exe.blockmap", "Nexora-Server-Setup-3.4.0.exe.blockmap")) {
+            if (-not (Test-Path -LiteralPath (Join-Path published $required))) { throw "Published stable release is missing $required" }
           }
+          & ./scripts/verify-authenticode.ps1 -Path @(
+            "published/Nexora-Client-Setup-3.4.0.exe",
+            "published/Nexora-Server-Setup-3.4.0.exe"
+          ) -ExpectedSubject $env:NEXORA_WINDOWS_SIGNER_SUBJECT -ExpectedThumbprint $env:NEXORA_WINDOWS_SIGNER_THUMBPRINT | Out-Null
