@@ -37,7 +37,7 @@
   },
   "assets": [],
   "verification": {
-    "status": "internal-gates-passed",
+    "status": "rc-published-internal-gates-passed",
     "internalHead": "79cfdc2493370da302468117466a8ce4c4679859",
     "internalCiRun": 30119009186,
     "focusedRegressionRun": 30119009259,
@@ -45,6 +45,21 @@
     "productionDependencyAudit": {
       "high": 0,
       "critical": 0
-    }
+    },
+    "rcPublicationRun": 30121386962,
+    "rcChecksumVerification": "passed"
+  },
+  "rcPublication": {
+    "tag": "v3.4.0-rc.1",
+    "releaseUrl": "https://github.com/Onmaynec/Nexora/releases/tag/v3.4.0-rc.1",
+    "commit": "19c637134c93b93ea1255bf7ccf97ee95f97c33b",
+    "classification": "release-candidate",
+    "signed": false,
+    "distribution": "unsigned-test",
+    "checksumVerification": "passed",
+    "updaterMetadataPublished": false,
+    "installedWindowsSmoke": "passed",
+    "publicationRun": 30121386962,
+    "evidence": "release-evidence/v3.4.0-rc.1-publication.json"
   }
 }
