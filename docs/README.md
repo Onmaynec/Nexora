@@ -12,10 +12,10 @@
 | Application API | v3 |
 | Trust/MLS/encrypted-media API | v4 |
 | Local Server database | SQLite schema 8 |
-| Local Server migration from 3.2.0–3.3.1 | не требуется |
+| Local Server migration from 3.2.0–3.3.2 | не требуется |
 | Independent E2EE/security audit | не завершён |
 
-3.3.2 является текущим исправляющим выпуском Release Consistency: runtime 3.3.1 не меняется, а package/lock/Android/current docs/release evidence синхронизируются и защищаются CI gate. Security boundary, schema 8, API v3 и Trust/MLS API v4 не изменены.
+Nexora 3.3.3 — исправляющий выпуск для Electron и Web/PWA: исправлены коллективные цели, UX голосовых, применение Pulse effects, идемпотентность списаний и fail-closed MLS recovery. Security boundary, schema 8, API v3 и Trust/MLS API v4 сохранены.
 
 ## 2. Быстрый выбор
 
@@ -29,6 +29,7 @@
 | Провести acceptance | [Tester Guide](../TESTER_GUIDE.md) |
 | Проверить security boundary | [Security Model](SECURITY_MODEL.md) |
 | Выпустить версию | [Release Policy](RELEASE_POLICY.md) и [Checklist](RELEASE_CHECKLIST.md) |
+| Найти release-specific материалы | [Release Documentation](releases/README.md) |
 | Понять статус ветки | [Branch Index](../BRANCHES.md) и [Branch Documentation Policy](BRANCH_DOCUMENTATION_POLICY.md) |
 | Получить поддержку | [Support Policy](../SUPPORT.md) |
 
@@ -36,20 +37,20 @@
 
 | Документ | Scope | Status |
 |---|---|---|
-| [Product Overview](PRODUCT_OVERVIEW.md) | purpose, platforms, capabilities, boundaries | Current through 3.3.2 |
-| [Architecture](ARCHITECTURE.md) | components, data flow, storage, updater, Trust/MLS | Current through 3.3.2 |
-| [Project Index](../PROJECT_INDEX.md) | entrypoints, modules, API, tests | Current through 3.3.2 |
-| [Security Model](SECURITY_MODEL.md) | threat model, controls, metadata, residual risk | Current through 3.3.2 |
+| [Product Overview](PRODUCT_OVERVIEW.md) | purpose, platforms, capabilities, boundaries | Current through 3.3.3 |
+| [Architecture](ARCHITECTURE.md) | components, data flow, storage, updater, Trust/MLS | Current through 3.3.3 |
+| [Project Index](../PROJECT_INDEX.md) | entrypoints, modules, API, tests | Current through 3.3.3 |
+| [Security Model](SECURITY_MODEL.md) | threat model, controls, metadata, residual risk | Current through 3.3.3 |
 | [Pulse Cloud Boundary ADR](ADR_0001_PULSE_CLOUD_BOUNDARY.md) | Local Server / Cloud authority separation | Current decision |
 
 ## 4. Security
 
 | Документ | Назначение | Status |
 |---|---|---|
-| [Security Policy](../SECURITY.md) | supported versions and private disclosure | Current through 3.3.2 |
-| [Security Verification Summary](../SECURITY_AUDIT.md) | automated verification and residual risk | Current through 3.3.2 |
-| [Security Review 3.3.0](../SECURITY_REVIEW_3.3.0.md) | current security boundary inherited unchanged by 3.3.2 | Release-specific current |
-| [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.3.md) | test-first regression, CI, release and asset evidence | Release-specific current |
+| [Security Policy](../SECURITY.md) | supported versions and private disclosure | Current through 3.3.3 |
+| [Security Verification Summary](../SECURITY_AUDIT.md) | automated verification and residual risk | Current through 3.3.3 |
+| [Security Review 3.3.0](../SECURITY_REVIEW_3.3.0.md) | security foundation inherited and extended by 3.3.3 fixes | Historical release-specific |
+| [Release Verification 3.3.3](releases/3.3.3/RELEASE_VERIFICATION.md) | test, security invariant and publication contract | Release-specific current |
 | [Security Review 3.2.3](../SECURITY_REVIEW_3.2.3.md) | resource governance hardening | Historical release-specific |
 | [Trust Core 3.2.0](TRUST_CORE_3.2.0.md) | original Trust/MLS foundation | Historical foundation |
 | [Schema 8 Migration](MIGRATION_3.2.0.md) | schema 7 → 8 and rollback | Current schema history |
@@ -67,7 +68,7 @@
 ## 6. Testing
 
 - [Acceptance Test Guide](../TESTER_GUIDE.md);
-- [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.3.md);
+- [Release Verification 3.3.3](releases/3.3.3/RELEASE_VERIFICATION.md);
 - [Security Verification Summary](../SECURITY_AUDIT.md);
 - `npm run release:check`;
 - `npm run test:soak`;
@@ -86,13 +87,13 @@
 
 | Документ | Назначение |
 |---|---|
-| [Release Notes 3.3.2](../RELEASE_NOTES_3.3.3.md) | current release consistency scope |
-| [Security Review 3.3.0](../SECURITY_REVIEW_3.3.0.md) | security boundary inherited unchanged by 3.3.2 |
-| [Release Verification 3.3.2](../RELEASE_VERIFICATION_3.3.3.md) | authoritative test and publication evidence |
-| [Release History](../RELEASE_HISTORY.md) | pointer to the canonical [Changelog](../CHANGELOG.md) |
+| [Release Notes 3.3.3](releases/3.3.3/RELEASE_NOTES.md) | current patch scope and user impact |
+| [Release Verification 3.3.3](releases/3.3.3/RELEASE_VERIFICATION.md) | authoritative gate and security invariants |
+| [Release Documentation Index](releases/README.md) | versioned release material and storage rules |
+| [Changelog](../CHANGELOG.md) | canonical chronological release history |
 | [Release Policy](RELEASE_POLICY.md) | SemVer/classifications/gates |
 | [GitHub Release Guide](GITHUB_RELEASE.md) | tags/assets/updater |
-| [Current Release Status](../BRANCH_STATUS.md) | current classification/blockers |
+| [Current Release Status](../BRANCH_STATUS.md) | current classification and limitations |
 
 ## 9. Platforms и integrations
 
@@ -111,7 +112,7 @@
 - Superseded;
 - Obsolete automation.
 
-Historical branch documentation describes that branch only. It is not updated to claim current 3.3.2 behavior. Complete rules: [Branch Documentation Policy](BRANCH_DOCUMENTATION_POLICY.md). Central lifecycle index: [BRANCHES.md](../BRANCHES.md).
+Historical branch documentation describes that branch only. It is not updated to claim current 3.3.3 behavior. Complete rules: [Branch Documentation Policy](BRANCH_DOCUMENTATION_POLICY.md). Central lifecycle index: [BRANCHES.md](../BRANCHES.md).
 
 ## 11. Document status vocabulary
 
@@ -132,4 +133,5 @@ Historical branch documentation describes that branch only. It is not updated to
 5. Use relative links.
 6. Never include secrets, private keys, databases, backups or real user data.
 7. Update guides, policy, notes, verification and changelog when behavior changes.
-8. Documentation-only work must not modify runtime code, dependencies, migrations or workflows.
+8. Release-specific documents belong in `docs/releases/<version>/`.
+9. Documentation-only work must not modify runtime code, dependencies, migrations or release behavior.
