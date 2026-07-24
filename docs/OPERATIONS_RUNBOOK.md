@@ -1,14 +1,15 @@
-# Nexora Operations Runbook
+# Nexora 3.4.0 Operations Runbook
 
 ## 1. Область
 
-Runbook относится к Nexora `3.3.3`:
+Runbook относится к Nexora `3.4.0` Stable Core release candidate:
 
 - Local Server schema 8;
 - Application API v3;
-- Trust/MLS/encrypted-media API v4;
-- published `UNSIGNED-TEST` prerelease;
-- signed production baseline `3.1.2`.
+- ordinary server-readable messaging as writable core;
+- Trust/MLS runtime retired;
+- legacy secure history read-only;
+- stable publication blocked by external evidence.
 
 Цель — repeatable startup, monitoring, maintenance, backup, restore, upgrade и incident procedures.
 
@@ -18,14 +19,14 @@ Runbook относится к Nexora `3.3.3`:
 
 - Node.js `22.16+`;
 - writable data directory;
-- free space for SQLite/WAL/attachments/backups;
+- free space для SQLite/WAL/attachments/backups;
 - HTTPS certificate, SAN, Server ID и fingerprint;
 - exact `allowedOrigins`;
 - firewall/interface;
 - no production secrets in repository/logs;
 - verified backup и known restore procedure;
 - Pulse mode;
-- release classification и Client compatibility.
+- exact release classification и Client compatibility.
 
 ## 3. Startup
 
@@ -44,7 +45,7 @@ GET /healthz/ready
 Confirm:
 
 - schema 8;
-- `PRAGMA integrity_check = ok` through supported tooling;
+- integrity check success;
 - no unexpected migration;
 - storage available;
 - Socket.IO/realtime ready;
@@ -57,13 +58,11 @@ Observe:
 
 - process liveness/readiness;
 - HTTP/Socket.IO error rate;
-- `RATE_LIMITED` volume;
+- `RATE_LIMITED` volume и `Retry-After`;
 - SQLite storage/WAL/integrity;
 - backup age/success;
-- session and login-history cleanup;
-- Trust device count and KeyPackage inventory;
-- pending Welcome/commit/recovery state;
-- pending/orphan attachment state;
+- session/device inventory и revoke events;
+- pending/orphan upload state;
 - Pulse workers/provider reconciliation;
 - certificate expiry;
 - release/update failures.
@@ -72,282 +71,134 @@ Remote metrics require Bearer token; otherwise endpoint remains loopback-only.
 
 ## 5. Scheduled maintenance
 
-Startup and hourly maintenance remove:
+Startup/hourly maintenance removes or reconciles:
 
 - expired sessions;
-- login history older than 90 days;
-- stale persisted rate-limit buckets;
-- expired Trust challenges;
-- expired/unclaimed KeyPackages according to TTL;
-- expired pending encrypted attachments;
-- orphaned storage according to retention policy.
+- login history older than retention window;
+- stale rate-limit buckets;
+- expired invitations/requests where policy requires;
+- orphan temporary uploads;
+- expired staged backup/restore data;
+- stale Pulse worker leases/events.
 
-Maintenance failure must be observable. Do not suppress unexpected SQLite errors.
+Retired Trust/MLS runtime jobs must not restart. Legacy records remain immutable compatibility data.
 
-## 6. Resource governance
+## 6. Users, devices и access incidents
 
-Limits:
+For compromised account/device:
 
-| Resource | Limit |
-|---|---|
-| Active Trust devices | 16/user |
-| KeyPackages upload | 25/request |
-| Unclaimed KeyPackages | 32/device |
-| Unclaimed KeyPackages | 256/user |
+1. identify exact user/device/session and request IDs;
+2. revoke target session/device server-side;
+3. verify `session.revoked` and Socket.IO disconnect;
+4. verify `device.updated` inventory refresh;
+5. rotate password/TOTP recovery material when applicable;
+6. review audit/login history;
+7. preserve sanitized incident evidence.
 
-Route throttling returns HTTP `429`, code `RATE_LIMITED` и `Retry-After`.
+Current-device remote revoke must return `STATE_CONFLICT`; use logout/credential reset instead.
 
-Operator response:
+## 7. Rooms и moderation incidents
 
-1. identify scope/request ID;
-2. stop client retry storm;
-3. wait `Retry-After`;
-4. inspect abuse/automation;
-5. do not raise limit without capacity/security review.
+For role/ban/invite issues:
 
-## 7. Backup
+- verify room existence and exactly one owner;
+- inspect membership, role, active ban/restriction and audit entries;
+- confirm removed/banned user lost REST and realtime access;
+- revoke compromised invites;
+- check expiry/usage limit/concurrent last-use behavior;
+- verify system messages and administrative log.
 
-Before release-sensitive change:
+Never rely on hidden UI controls as authorization evidence.
 
-1. enter planned maintenance/read-only if required;
-2. confirm integrity;
-3. checkpoint WAL through supported backup path;
-4. create encrypted verified backup;
-5. verify backup metadata/readability;
-6. copy at least one instance off-host;
-7. record version/schema/time/operator;
-8. protect passphrase separately.
+## 8. Upload/media incidents
 
-Never manually copy active SQLite database as a backup procedure.
+For rejected/corrupt upload:
 
-## 8. Restore
+- record stable code/request ID;
+- verify room media policy and membership;
+- compare declared vs actual MIME signature;
+- verify expected chunk/file SHA-256 and size/quota;
+- confirm dangerous/executable content rejection;
+- confirm temporary data cleanup;
+- do not disable server validation to unblock a client.
 
-1. stop traffic/process;
-2. preserve failed-state evidence;
-3. select verified backup;
-4. restore via supported path;
-5. start isolated/controlled;
-6. verify integrity/schema;
-7. verify users/rooms/messages/files/audit;
-8. verify Trust/Pulse state appropriate to backup version;
-9. verify live/ready;
-10. reopen traffic.
+For microphone denial/unsupported format, confirm Client shows actionable terminal state without crash.
 
-Schema 8 rollback is restore-based. Do not run schema 7 binary against schema 8 database.
+## 9. Legacy history operations
 
-## 9. Upgrade to 3.3.2
+Legacy secure history is read-only:
 
-### From 3.1.x/schema 7 to 3.3.2
+- viewer may show ciphertext metadata or retained local decrypted cache;
+- export must report `serverDecrypted: false`;
+- Server must not decrypt/convert/rewrite legacy ciphertext;
+- legacy HTTP writes return `410/LEGACY_READ_ONLY`;
+- MLS Socket.IO writes return terminal `LEGACY_READ_ONLY` ack.
 
-- verified backup required;
-- migration performs integrity/free-space/WAL/transactional checks;
-- confirm schema 8 and old data readability;
-- old history is not retroactively encrypted;
-- downgrade blocked.
+A successful legacy mutation or plaintext conversion is a security incident.
 
-### From 3.2.0–3.3.1
+## 10. Backup verification
 
-- no database migration;
-- schema remains 8;
-- API v3/v4 compatible;
-- verify updater, Server console и Welcome recovery behavior;
-- retain existing Trust/media/Pulse state.
+Before upgrade/restore:
 
-## 10. Graceful shutdown
+1. run integrity and WAL checkpoint;
+2. confirm free disk space;
+3. create verified backup;
+4. use allowlisted backup ID;
+5. execute non-restoring verification;
+6. record exact version/commit and result.
 
-Expected order:
+Backup verification must not replace live DB/files. Invalid/future/corrupt backup fails without mutation and staged data is removed.
 
-1. set readiness `503`;
-2. stop new work;
-3. drain workers;
-4. close Socket.IO/HTTP;
-5. flush storage queue;
-6. close SQLite;
-7. publish stopped snapshot without reopening closed store.
+## 11. Restore
 
-Concurrent stop/quit is serialized. Unexpected shutdown error is recorded, not hidden.
+Restore procedure:
 
-## 11. Emergency read-only
+1. stop or drain writes through supported control plane;
+2. stage DB and file store;
+3. verify staged integrity/version;
+4. replace atomically;
+5. rollback both DB and files on any failure;
+6. restart and verify readiness/integrity;
+7. validate representative accounts/rooms/messages/uploads.
 
-Use for investigation when reads must remain available and writes must stop.
+Do not mix restored DB with current unrelated attachment store.
 
-Confirm:
+## 12. Upgrade `3.3.4 → 3.4.0`
 
-- mutations rejected with stable error;
-- reads remain authorized;
-- no background monetary/moderation/storage write bypass;
-- incident/audit record created.
+Stable upgrade requires:
 
-Read-only does not replace backup/restore.
+- published verified `v3.3.4` installers/checksums;
+- verified backup/restore drill;
+- complete Authenticode policy;
+- signed `3.4.0` Client/Server artifacts and metadata;
+- installed upgrade smoke on Windows 10 and Windows 11;
+- product version/signature verification after upgrade;
+- final CI and independent review evidence.
 
-## 12. Database incident
+Without these, run only source/dev acceptance; do not claim stable production rollout.
 
-Indicators:
+## 13. Release failure
 
-- integrity failure;
-- schema mismatch/downgrade block;
-- repeated SQLite I/O error;
-- missing/invalid backup;
-- failed mutation queue/flush.
+If release workflow fails:
 
-Procedure:
+- do not create/replace official tag manually;
+- preserve exact run/job/log/artifact IDs;
+- distinguish source test failure from external signing/review blocker;
+- fix root cause on branch and rerun full gates;
+- never publish partial updater metadata;
+- verify no unsigned asset is exposed through stable channels.
 
-1. stop writes;
-2. preserve sanitized logs/request IDs;
-3. stop service if integrity uncertain;
-4. do not run manual schema edits;
-5. select latest verified backup;
-6. restore in controlled environment;
-7. verify integrity and application invariants;
-8. document root cause and data window.
-
-## 13. Trust/MLS incident
-
-Collect without private keys/content:
-
-- version/commit;
-- Server ID;
-- user/device IDs as sanitized identifiers;
-- conversation/group ID;
-- epoch;
-- verification/revocation state;
-- KeyPackage inventory;
-- stable error/request ID;
-- event sequence/timing.
-
-Possible responses:
-
-- revoke compromised device;
-- confirm targeted disconnect;
-- require new enrollment;
-- preserve audit;
-- block sending on unrecoverable state;
-- do not downgrade to plaintext.
-
-## 14. MLS Welcome recovery incident
-
-Symptoms: verified device remains `MLS_WELCOME_PENDING`.
-
-Check:
-
-1. Client/Server both 3.3.0+-compatible;
-2. pending device active/verified;
-3. conversation access and no active ban;
-4. at least one active verified group device online;
-5. no `RATE_LIMITED` before retry;
-6. scoped `mls.welcome_requested` reaches eligible device;
-7. active device creates commit/Welcome;
-8. pending device retries one-time claim.
-
-If no active member is available, preserve fail-closed state. Do not enable legacy send.
-
-## 15. Encrypted attachment incident
-
-Check:
-
-- ciphertext actual size;
-- expected `plaintextSize + GCM tag` relationship;
-- SHA-256;
-- conversation/uploader/attachment scope;
-- pending/claimed/cancelled/expired state;
-- room media policy;
-- quota by actual stored bytes;
-- no attachment reuse.
-
-Server must not decrypt payload to inspect plaintext.
-
-## 16. Updater incident
+## 14. Incident record
 
 Record:
 
-- installed Client version;
-- packaged/unpackaged state;
-- provider/feed URL class without secret;
-- updater state/error code;
-- release tag/assets;
-- Authenticode/signature result;
-- availability of installer/blockmap/`latest.yml`.
-
-Verify:
-
-- official GitHub Releases provider or explicit HTTPS feed;
-- no downgrade/prerelease;
-- code-signature verification;
-- complete signed asset set;
-- no duplicate concurrent checks;
-- UI terminal state and retry.
-
-Unpackaged development mode not performing automatic update is expected.
-
-## 17. Windows test mode incident
-
-`--test-mode` should only tail local Client log.
-
-Check:
-
-- started intentionally;
-- PowerShell process exits with Client;
-- no DevTools/remote debugging/Node integration;
-- log has no secrets/user content before sharing;
-- renderer records length-limited/flattened.
-
-## 18. Server console incident
-
-- capture command name, stable code/message и request context;
-- do not paste secrets;
-- verify command exists in allowlist;
-- copied `<...>`/`[...]` placeholders may be normalized;
-- confirm no shell/eval path;
-- confirm mutation audit without argument values.
-
-## 19. Pulse outage
-
-Expected:
-
-- local messaging remains available;
-- cached entitlements are used only if previously verified and valid;
-- no new unauthorized monetary success;
-- workers retry boundedly;
-- provider events remain idempotent;
-- sandbox never becomes production authority.
-
-## 20. Credential leak
-
-1. revoke/rotate affected credential;
-2. terminate relevant sessions;
-3. disable compromised integration/device;
-4. inspect audit/request IDs;
-5. remove public material where possible;
-6. assess data/operation scope;
-7. use private Security Advisory;
-8. issue patch/new release if code or artifact affected.
-
-Never commit replacement secret.
-
-## 21. Release verification
-
-Before deployment:
-
-```bash
-npm ci
-npm run release:check
-npm run test:soak
-gradle -p android :app:assembleDebug --no-daemon
-```
-
-Stable Windows requires signed installers, installed runtime/update acceptance и complete asset set.
-
-## 22. Incident report template
-
-- severity and impact;
-- detection time;
-- affected versions/platforms;
+- UTC time;
+- exact version/commit/tag;
 - deployment profile;
-- stable codes/request IDs;
-- sanitized timeline;
+- affected user/room/device;
+- request ID and stable code;
+- sanitized logs;
 - containment;
-- data/security impact;
 - root cause;
-- correction/tests;
-- migration/rollback;
-- remaining risk.
+- regression test;
+- recovery/closure evidence.
