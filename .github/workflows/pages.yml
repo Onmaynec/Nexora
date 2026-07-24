@@ -63,10 +63,10 @@ jobs:
           test "$(grep -Fc 'data-advanced-docs' website/index.html)" -eq 1
       - name: Generate advanced reference
         run: node advanced-website/scripts/generate-reference.mjs
-      - name: Validate advanced documentation
-        run: |
-          node advanced-website/scripts/validate-content.mjs
-          node --test advanced-website/test/*.test.mjs
+      - name: Validate generated advanced reference
+        run: node advanced-website/scripts/validate-content.mjs
+      - name: Test advanced documentation contracts
+        run: node --test advanced-website/test/*.test.mjs
       - name: Build advanced React portal
         run: npx vite build --config advanced-website/vite.config.mjs
       - name: Verify composed artifact
