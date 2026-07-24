@@ -189,7 +189,7 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
   const releaseWorkflow = read(root, ".github/workflows/release.yml");
   for (const marker of [
     "UNSIGNED-TEST prerelease without updater metadata",
-    `docs/releases/${version}/RELEASE_NOTES.md`,
+    "docs/releases/$version/RELEASE_NOTES.md",
     "Re-download and verify immutable release assets",
   ]) {
     if (!releaseWorkflow.includes(marker)) fail(`.github/workflows/release.yml missing ${JSON.stringify(marker)}`);
