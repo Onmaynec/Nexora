@@ -15,7 +15,8 @@ During the Pages build, an idempotent script adds one **Продвинутая �
 
 1. Current repository source and tests.
 2. Current `PROJECT_INDEX.md`, `docs/ARCHITECTURE.md`, `docs/SECURITY_MODEL.md`, operator runbooks and release evidence.
-3. The 17 July 2026 Documentation Kit as historical audit and target-design provenance only.
+3. `ROADMAP.md` for planned releases after the approved prerequisite.
+4. The 17 July 2026 Documentation Kit as historical audit and target-design provenance only.
 
 The Documentation Kit was prepared against an older 0.3.0 line. Its target endpoints, schema assumptions and roadmap claims are not presented as current implementation unless verified against the release-candidate source.
 
@@ -31,7 +32,36 @@ Current legacy reference rules:
 - server export records `serverDecrypted: false`;
 - removed runtime files and `ts-mls` are not part of the generated reference.
 
-## Build pipeline
+## Content model
+
+Pages are stored in `advanced-website/src/content-data/`. Existing block types remain `paragraph`, `bullets`, `steps`, `code`, `callout`, `table` and `mermaid`.
+
+The portal additionally supports a strict local `image`/`figure` block:
+
+```json
+{
+  "type": "image",
+  "src": "docs-media/example.svg",
+  "alt": {"ru": "Meaningful alternative text", "en": "Meaningful alternative text"},
+  "caption": {"ru": "What is shown and what to verify", "en": "What is shown and what to verify"},
+  "width": 1200,
+  "height": 675,
+  "version": "3.3.3"
+}
+```
+
+Rules:
+
+- `src` is relative to `advanced-website/public/` and must match the allowlist `svg|png|webp`;
+- remote URLs, `data:`, `javascript:`, HTML, scripts, iframes and event handlers are rejected;
+- `alt` and `caption` are mandatory in RU and EN;
+- width and height are mandatory to prevent layout shift;
+- images render with `loading="lazy"` and `decoding="async"`;
+- Mermaid remains `securityLevel: "strict"` with a text fallback.
+
+Pages, sections and blocks may declare `lines`, `since` or `until`. The selected 3.1/3.2/3.3 line filters rendered sections and the search haystack. Trust/MLS API v4 is unavailable in the 3.1.x view, while 3.3-only goals, voice and Pulse material is excluded from older views.
+
+## Generated and authoritative data
 
 `advanced-website/scripts/generate-reference.mjs` scans current `server/` and `cloud/` JavaScript sources and generates:
 
@@ -40,7 +70,7 @@ Current legacy reference rules:
 - current package SemVer;
 - release-note fallback data.
 
-`advanced-website/scripts/validate-content.mjs` verifies bilingual page metadata, navigation integrity, unique section anchors, generated reference presence and package-version consistency.
+The roadmap page is located at `#/roadmap`, appears in **Versions and sources**, and uses `ROADMAP.md` as its edit/source link. Validation compares the published version/name/order table with the authoritative Markdown table and fails on drift.
 
 `advanced-website/scripts/run-tests.mjs` runs every advanced documentation contract and emits concise failing subtests, locations and assertions without suppressing the exit status.
 
@@ -49,17 +79,16 @@ The Pages workflow validates both sites, builds the React/Vite portal with base 
 ## Portal capabilities
 
 - RU/EN language switch with persisted preference;
-- 3.1.x, 3.2.x and 3.3.x documentation line selector;
+- functional 3.1.x, 3.2.x and 3.3.x content selector;
 - current SemVer injected from root `package.json`;
-- `Ctrl/Cmd + K` full-text search;
+- `Ctrl/Cmd + K` version-aware full-text search including captions and alt text;
 - nested left navigation, breadcrumbs and right-side page table of contents;
 - anchor links, previous/next navigation and code-copy controls;
 - generated Application API v3, legacy compatibility and Socket.IO reference;
 - Mermaid diagrams with a safe text fallback;
 - live GitHub Releases with repository fallback;
 - Edit on GitHub and issue-report links;
-- keyboard, focus, reduced-motion and responsive mobile states;
-- bounded high-DPI particle background using spatial buckets instead of all-pairs connection checks.
+- keyboard, focus, reduced-motion and responsive mobile states.
 
 ## Verification
 
@@ -71,6 +100,8 @@ node advanced-website/scripts/generate-reference.mjs
 node advanced-website/scripts/validate-content.mjs
 node advanced-website/scripts/run-tests.mjs
 npx vite build --config advanced-website/vite.config.mjs
+npm run check
+npm run release:consistency
 ```
 
 The build must produce `website/advanced/index.html`; the composed introductory page must contain exactly one `data-advanced-docs` entry; and no current page may claim an active Trust/MLS runtime.
