@@ -177,6 +177,9 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
   for (const temporary of [
     ".github/workflows/stable-core-migration.yml",
     ".github/workflows/stable-core-diagnostics.yml",
+    ".github/workflows/dispatch-release-3.3.4.yml",
+    ".github/workflows/verify-release-3.3.4.yml",
+    ".github/workflows/diagnose-release-3.3.4.yml",
     "scripts/apply-stable-core-3.4.cjs",
     "scripts/apply-stable-core-error-contracts.cjs",
     "scripts/apply-stable-core-bootstrap.cjs",
