@@ -1,0 +1,612 @@
+/* Nexora main-site UX, motion and interaction polish.
+   Composed after site-fixes.css by the Pages workflow. The layer deliberately
+   extends existing components instead of replacing the restored presentation. */
+
+:root {
+  --motion-micro: 160ms;
+  --motion-component: 320ms;
+  --motion-reveal: 620ms;
+  --motion-ambient: 18s;
+  --ease-standard: cubic-bezier(.2, .8, .2, 1);
+  --ease-emphasized: cubic-bezier(.22, 1, .36, 1);
+  --motion-lift: 2px;
+  --motion-distance: 18px;
+  --control-ring: 0 0 0 3px rgba(201, 148, 255, .2);
+  --surface-hover: rgba(169, 104, 255, .055);
+  --surface-pressed: rgba(169, 104, 255, .095);
+  --polish-glow: 0 18px 52px rgba(92, 35, 150, .2);
+}
+
+.page-grid::before,
+.page-grid::after {
+  content: "";
+  position: absolute;
+  inset: -18vh -12vw;
+  pointer-events: none;
+  opacity: .5;
+  transform: translate3d(0, 0, 0);
+}
+
+.page-grid::before {
+  background:
+    radial-gradient(circle at 22% 20%, rgba(186, 113, 255, .09), transparent 23%),
+    radial-gradient(circle at 75% 36%, rgba(93, 54, 164, .08), transparent 26%),
+    radial-gradient(circle at 52% 78%, rgba(65, 171, 205, .035), transparent 24%);
+  animation: nexoraLightField var(--motion-ambient) ease-in-out infinite alternate;
+}
+
+.page-grid::after {
+  opacity: .16;
+  background-image:
+    linear-gradient(115deg, transparent 20%, rgba(255,255,255,.035) 46%, transparent 72%),
+    radial-gradient(circle, rgba(255,255,255,.16) .55px, transparent .8px);
+  background-size: 100% 100%, 7px 7px;
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,.9), transparent 88%);
+}
+
+.site-header {
+  transition:
+    background var(--motion-component) var(--ease-standard),
+    border-color var(--motion-component) var(--ease-standard),
+    height var(--motion-component) var(--ease-emphasized),
+    box-shadow var(--motion-component) var(--ease-standard);
+}
+
+.site-header.scrolled {
+  box-shadow: 0 12px 42px rgba(0, 0, 0, .22);
+}
+
+.brand img {
+  transition: transform var(--motion-component) var(--ease-emphasized), box-shadow var(--motion-component) ease-out;
+}
+
+.brand:hover img,
+.brand:focus-visible img {
+  transform: translateY(-1px) rotate(-2deg) scale(1.025);
+  box-shadow: 0 0 30px rgba(169, 104, 255, .32);
+}
+
+.site-nav a,
+.header-github,
+.header-game,
+.language-switch button,
+.menu-button {
+  transition-duration: var(--motion-micro);
+  transition-timing-function: var(--ease-standard);
+}
+
+.site-nav a::after {
+  height: 2px;
+  border-radius: 99px;
+  box-shadow: 0 0 12px rgba(201, 148, 255, .38);
+}
+
+.site-nav a.active,
+.site-nav a[aria-current="page"] {
+  color: #fff;
+}
+
+.site-nav a.active::after,
+.site-nav a[aria-current="page"]::after {
+  right: 0;
+}
+
+.header-github:active,
+.header-game:active,
+.language-switch button:active,
+.menu-button:active,
+.is-pressed {
+  transform: translateY(0) scale(.975) !important;
+}
+
+.language-switch button {
+  min-width: 36px;
+  min-height: 34px;
+  transition: color var(--motion-micro), background var(--motion-micro), transform var(--motion-micro);
+}
+
+.language-switch button.active {
+  box-shadow: inset 0 0 0 1px rgba(201, 148, 255, .12);
+}
+
+.menu-button[aria-expanded="true"] i:nth-child(1) {
+  transform: translateY(5px) rotate(45deg);
+}
+
+.menu-button[aria-expanded="true"] i:nth-child(2) {
+  opacity: 0;
+  transform: scaleX(.3);
+}
+
+.menu-button[aria-expanded="true"] i:nth-child(3) {
+  transform: translateY(-5px) rotate(-45deg);
+}
+
+:where(a, button, select):focus-visible {
+  outline: 2px solid var(--violet-pale);
+  outline-offset: 3px;
+  box-shadow: var(--control-ring);
+}
+
+html[data-ux-polish="ready"] .hero-copy.visible > .hero-status,
+html[data-ux-polish="ready"] .hero-copy.visible > h1,
+html[data-ux-polish="ready"] .hero-copy.visible > .hero-lead,
+html[data-ux-polish="ready"] .hero-copy.visible > .hero-actions,
+html[data-ux-polish="ready"] .hero-copy.visible > .hero-facts {
+  animation: nexoraHeroIn var(--motion-reveal) var(--ease-emphasized) both;
+}
+
+html[data-ux-polish="ready"] .hero-copy.visible > h1 { animation-delay: 70ms; }
+html[data-ux-polish="ready"] .hero-copy.visible > .hero-lead { animation-delay: 130ms; }
+html[data-ux-polish="ready"] .hero-copy.visible > .hero-actions { animation-delay: 190ms; }
+html[data-ux-polish="ready"] .hero-copy.visible > .hero-facts { animation-delay: 250ms; }
+
+.button {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  transition:
+    transform var(--motion-micro) var(--ease-standard),
+    border-color var(--motion-micro),
+    background var(--motion-micro),
+    box-shadow var(--motion-component) var(--ease-standard),
+    color var(--motion-micro);
+}
+
+.button::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -1px;
+  opacity: 0;
+  background: linear-gradient(110deg, transparent 18%, rgba(255,255,255,.28) 48%, transparent 72%);
+  transform: translateX(-75%);
+  transition: opacity var(--motion-micro), transform 520ms var(--ease-emphasized);
+}
+
+.button:hover::before,
+.button:focus-visible::before {
+  opacity: .55;
+  transform: translateX(75%);
+}
+
+.button:active {
+  transform: translateY(0) scale(.98);
+}
+
+.button svg {
+  transition: transform var(--motion-micro) var(--ease-standard);
+}
+
+.button-primary:hover svg,
+.button-primary:focus-visible svg {
+  transform: translateY(2px);
+}
+
+.button-secondary:hover svg,
+.button-secondary:focus-visible svg {
+  transform: translate(2px, -2px);
+}
+
+.hero-facts div {
+  transition: background var(--motion-component), color var(--motion-micro);
+}
+
+.hero-facts div:hover {
+  background: rgba(169, 104, 255, .055);
+}
+
+.hero-stage::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: min(78%, 680px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  opacity: .58;
+  background: conic-gradient(from 210deg, transparent, rgba(169,104,255,.11), transparent 36%, rgba(112,216,255,.045), transparent 64%);
+  filter: blur(20px);
+  animation: nexoraAmbientRotate 34s linear infinite;
+}
+
+.product-window {
+  box-shadow:
+    var(--shadow),
+    0 0 0 1px rgba(255,255,255,.025) inset,
+    0 36px 100px rgba(67, 24, 105, .2);
+  transition: border-color var(--motion-component), box-shadow var(--motion-component), filter var(--motion-component);
+}
+
+.product-window:hover {
+  border-color: rgba(201, 148, 255, .28);
+  box-shadow: var(--shadow), 0 0 0 1px rgba(255,255,255,.035) inset, var(--polish-glow);
+}
+
+.product-window .conversation-row.active {
+  animation: nexoraActiveConversation 4.6s ease-in-out infinite;
+}
+
+.product-window .verified,
+.product-window .local-server-chip > i,
+.product-window .floating-signal > i {
+  animation: nexoraSoftPulse 3.6s ease-in-out infinite;
+}
+
+.product-window .mock-composer i:last-child {
+  animation: nexoraComposerSignal 2.8s ease-in-out infinite;
+}
+
+:where(.live-panel, .activity-card, .bento-card, .architecture-board, .data-path, .limit-card,
+  .trust-lifecycle, .release-selector, .download-card, .assessment-card, .doc-link, .final-cta) {
+  transition:
+    transform var(--motion-component) var(--ease-emphasized),
+    border-color var(--motion-component),
+    background-color var(--motion-component),
+    box-shadow var(--motion-component) var(--ease-standard);
+}
+
+:where(.live-panel, .activity-card, .architecture-board, .data-path, .trust-lifecycle, .release-selector, .final-cta):hover {
+  border-color: rgba(201, 148, 255, .21);
+  box-shadow: 0 24px 70px rgba(0,0,0,.2);
+}
+
+.bento-card:hover,
+.download-card:hover,
+.limit-card:hover,
+.assessment-card:hover {
+  border-color: var(--line-strong);
+  background-color: #110d17;
+  box-shadow: 0 20px 60px rgba(0,0,0,.22);
+}
+
+.bento-card:hover .card-icon,
+.download-card:hover .platform-symbol,
+.assessment-card:hover > header > span {
+  transform: translateY(-2px) scale(1.035);
+  border-color: rgba(201, 148, 255, .28);
+}
+
+.card-icon,
+.platform-symbol,
+.assessment-card > header > span {
+  transition: transform var(--motion-component) var(--ease-emphasized), border-color var(--motion-component), background var(--motion-component);
+}
+
+.bento-card:hover .mini-flow i,
+.bento-card:focus-within .mini-flow i {
+  animation: nexoraMeterRise 900ms var(--ease-emphasized) both;
+  animation-delay: calc(var(--meter-index, 0) * 45ms);
+}
+
+.mini-flow i:nth-child(1) { --meter-index: 0; }
+.mini-flow i:nth-child(2) { --meter-index: 1; }
+.mini-flow i:nth-child(3) { --meter-index: 2; }
+.mini-flow i:nth-child(4) { --meter-index: 3; }
+.mini-flow i:nth-child(5) { --meter-index: 4; }
+
+.bento-card:hover .policy-bars i,
+.bento-card:focus-within .policy-bars i {
+  animation: nexoraPolicySweep 620ms var(--ease-emphasized) both;
+}
+
+.bento-card:hover .state-row i,
+.bento-card:hover .pulse-topology i {
+  background-size: 220% 100%;
+  animation: nexoraFlowSweep 1.8s linear infinite;
+}
+
+.arch-node,
+.delivery-steps li,
+.lifecycle-content li,
+.authority-matrix > div {
+  transition: border-color var(--motion-component), background var(--motion-component), transform var(--motion-component) var(--ease-emphasized);
+}
+
+.arch-node:hover,
+.delivery-steps li:hover,
+.authority-matrix > div:hover {
+  border-color: rgba(201, 148, 255, .22);
+  background: #120e19;
+  transform: translateY(-2px);
+}
+
+.delivery-steps li::after {
+  transform-origin: left;
+  animation: nexoraPathBreathe 3.4s ease-in-out infinite;
+}
+
+.lifecycle-content li:hover {
+  transform: translateX(3px);
+}
+
+.metric-grid article {
+  transition: background var(--motion-component), box-shadow var(--motion-component);
+}
+
+.metric-grid article:hover {
+  background: #100c16;
+  box-shadow: inset 0 0 0 1px rgba(201,148,255,.08);
+}
+
+.release-selector select {
+  min-height: 44px;
+  cursor: pointer;
+  transition: border-color var(--motion-micro), background var(--motion-micro), box-shadow var(--motion-micro);
+}
+
+.release-selector select:hover {
+  border-color: var(--line-strong);
+  background: #0d0912;
+}
+
+.release-selector [data-selected-release-state] {
+  transition: opacity var(--motion-micro), color var(--motion-micro);
+}
+
+.download-card[data-asset-state="loading"] {
+  opacity: .82;
+}
+
+.download-card[data-asset-state="loading"] .download-meta {
+  position: relative;
+  overflow: hidden;
+}
+
+.download-card[data-asset-state="loading"] .download-meta::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.055), transparent);
+  transform: translateX(-100%);
+  animation: nexoraLoadingSweep 1.4s ease-in-out infinite;
+}
+
+.download-card[data-asset-state="available"] > a {
+  box-shadow: 0 12px 30px rgba(169,104,255,.14);
+}
+
+.download-card[data-asset-state="unavailable"] {
+  border-style: dashed;
+}
+
+.download-card[data-asset-state="unavailable"] > a {
+  border: 1px solid var(--line-soft);
+}
+
+.download-card > a {
+  min-height: 44px;
+  transition: transform var(--motion-micro), background var(--motion-micro), color var(--motion-micro), box-shadow var(--motion-component);
+}
+
+.download-card > a:hover,
+.download-card > a:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 34px rgba(169,104,255,.2);
+}
+
+.download-card > a:active {
+  transform: scale(.98);
+}
+
+.doc-link > b {
+  transition: transform var(--motion-micro) var(--ease-standard);
+}
+
+.doc-link:hover > b,
+.doc-link:focus-visible > b {
+  transform: translate(3px, -2px);
+}
+
+.doc-link:active {
+  transform: translateY(-1px) scale(.992);
+}
+
+.site-footer nav a {
+  position: relative;
+  padding-block: .35rem;
+  transition: color var(--motion-micro);
+}
+
+.site-footer nav a::after {
+  content: "";
+  position: absolute;
+  right: 100%;
+  bottom: .15rem;
+  left: 0;
+  height: 1px;
+  background: var(--violet-bright);
+  transition: right var(--motion-micro) var(--ease-standard);
+}
+
+.site-footer nav a:hover::after,
+.site-footer nav a:focus-visible::after {
+  right: 0;
+}
+
+.hero-stage[data-ux-offscreen="true"]::before,
+[data-ux-offscreen="true"] .stage-orbit,
+[data-ux-offscreen="true"] .flow-bridge b,
+[data-ux-offscreen="true"] .delivery-steps li::after,
+[data-ux-offscreen="true"] .orbit-dot,
+[data-ux-offscreen="true"] .conversation-row.active,
+[data-ux-offscreen="true"] .verified,
+[data-ux-offscreen="true"] .local-server-chip > i,
+html[data-page-hidden="true"] .page-grid::before,
+html[data-page-hidden="true"] .stage-orbit,
+html[data-page-hidden="true"] .flow-bridge b,
+html[data-page-hidden="true"] .delivery-steps li::after,
+html[data-page-hidden="true"] .orbit-dot {
+  animation-play-state: paused !important;
+}
+
+html[data-performance="reduced"] .page-grid::before {
+  opacity: .28;
+  animation-duration: 30s;
+}
+
+html[data-performance="reduced"] .hero-stage::before,
+html[data-performance="reduced"] .product-window .conversation-row.active,
+html[data-performance="reduced"] .product-window .mock-composer i:last-child {
+  animation-play-state: paused;
+}
+
+@keyframes nexoraHeroIn {
+  from { opacity: 0; transform: translateY(var(--motion-distance)); filter: blur(5px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+@keyframes nexoraLightField {
+  from { transform: translate3d(-1.5%, -1%, 0) scale(1); }
+  to { transform: translate3d(1.5%, 1%, 0) scale(1.035); }
+}
+
+@keyframes nexoraAmbientRotate { to { transform: rotate(360deg); } }
+
+@keyframes nexoraActiveConversation {
+  0%, 100% { box-shadow: inset 0 0 0 1px transparent; }
+  50% { box-shadow: inset 0 0 0 1px rgba(201,148,255,.12), 0 0 20px rgba(169,104,255,.04); }
+}
+
+@keyframes nexoraSoftPulse {
+  0%, 100% { opacity: .72; filter: brightness(.95); }
+  50% { opacity: 1; filter: brightness(1.08); }
+}
+
+@keyframes nexoraComposerSignal {
+  0%, 100% { transform: scale(.9); opacity: .45; }
+  50% { transform: scale(1); opacity: .8; }
+}
+
+@keyframes nexoraMeterRise {
+  from { transform: scaleY(.72); opacity: .55; }
+  to { transform: scaleY(1); opacity: 1; }
+}
+
+@keyframes nexoraPolicySweep {
+  from { transform: scaleX(.6); transform-origin: left; opacity: .55; }
+  to { transform: scaleX(1); transform-origin: left; opacity: 1; }
+}
+
+@keyframes nexoraFlowSweep {
+  to { background-position: -220% 0; }
+}
+
+@keyframes nexoraPathBreathe {
+  0%, 100% { opacity: .45; transform: scaleX(.72); }
+  50% { opacity: 1; transform: scaleX(1); }
+}
+
+@keyframes nexoraLoadingSweep { to { transform: translateX(100%); } }
+
+@media (max-width: 1040px) {
+  .site-nav {
+    transform-origin: top right;
+    transition: opacity var(--motion-component) var(--ease-standard), transform var(--motion-component) var(--ease-emphasized), visibility var(--motion-component);
+    visibility: hidden;
+  }
+
+  .site-nav.open {
+    visibility: visible;
+  }
+
+  .site-nav a {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  .site-nav a.active,
+  .site-nav a[aria-current="page"] {
+    background: rgba(169,104,255,.11);
+    box-shadow: inset 2px 0 0 var(--violet-bright);
+  }
+}
+
+@media (max-width: 760px) {
+  :root {
+    --motion-distance: 12px;
+  }
+
+  .site-header {
+    padding-left: max(.75rem, env(safe-area-inset-left));
+    padding-right: max(.75rem, env(safe-area-inset-right));
+  }
+
+  .menu-button,
+  .language-switch button,
+  .hero-actions .button,
+  .download-card > a {
+    min-height: 44px;
+  }
+
+  .page-grid::after {
+    opacity: .1;
+  }
+
+  .hero-stage::before {
+    opacity: .34;
+  }
+
+  .bento-card:hover,
+  .download-card:hover,
+  .limit-card:hover,
+  .assessment-card:hover,
+  .arch-node:hover,
+  .delivery-steps li:hover,
+  .authority-matrix > div:hover {
+    transform: none;
+  }
+
+  .download-card,
+  .assessment-card,
+  .doc-link {
+    min-height: auto;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  :where(.button, .download-card > a, .doc-link, .header-game, .header-github):active {
+    transform: scale(.985);
+  }
+
+  .button::before,
+  .page-grid::after {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-ux-polish="ready"] .hero-copy.visible > * {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    filter: none !important;
+  }
+
+  .page-grid::before,
+  .hero-stage::before,
+  .product-window .conversation-row.active,
+  .product-window .verified,
+  .product-window .local-server-chip > i,
+  .product-window .mock-composer i:last-child,
+  .delivery-steps li::after,
+  .mini-flow i,
+  .policy-bars i {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  :where(.button, .doc-link, .download-card > a, .brand img, .bento-card, .arch-node, .delivery-steps li) {
+    transition-duration: 1ms !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :where(.button, .download-card > a, .doc-link, .release-selector select, .site-nav a) {
+    border: 1px solid ButtonText;
+  }
+
+  .site-nav a.active,
+  .site-nav a[aria-current="page"] {
+    outline: 2px solid Highlight;
+  }
+}
