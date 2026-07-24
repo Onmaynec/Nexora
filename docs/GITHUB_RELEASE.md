@@ -1,55 +1,160 @@
-# GitHub Release и обновления Nexora
+# GitHub Release и обновления Nexora 3.4.0
 
-## Current release candidate
+## 1. Repository controls
 
-| Параметр | Значение |
+Repository: [`Onmaynec/Nexora`](https://github.com/Onmaynec/Nexora).
+
+Required controls:
+
+- protected `main` и release tags;
+- no force-push/tag replacement;
+- required CI/release/soak/Android/website checks;
+- maintainer 2FA;
+- protected release environment;
+- restricted signing secrets;
+- immutable published stable release.
+
+## 2. Current classification
+
+| Version | State |
 |---|---|
-| Version | `3.3.4` |
-| Branch | `release/3.3.4-post-mls` |
-| Pull request | `#70` |
-| Official tag | pending annotated `v3.3.4` |
-| Baseline | published `v3.3.3` line |
-| Signed baseline | `3.1.2` |
+| `3.4.0` | Stable Core release candidate; official tag/release blocked |
+| `3.3.4` | merged post-MLS prerequisite source; published release evidence required |
+| `3.1.2` | last confirmed signed production baseline |
 
-## Publication contract
+Trust/MLS runtime is retired in current Stable Core. Legacy schema 8 history remains read-only and is not updater/write compatibility.
 
-The release workflow accepts only package version `3.3.4` and official tag `v3.3.4`. It always runs `npm run release:check`, builds source/PWA/Android/SBOM/Windows evidence, performs installed package smoke, publishes SHA-256 checksums and re-downloads the immutable release assets.
+## 3. Required secrets
 
-### Complete signing policy
+Windows signing:
 
-When certificate, password, expected subject and expected thumbprint are all configured:
+- `WINDOWS_CERTIFICATE_BASE64`;
+- `WINDOWS_CERTIFICATE_PASSWORD`;
+- `WINDOWS_CERTIFICATE_SUBJECT`;
+- `WINDOWS_CERTIFICATE_THUMBPRINT`.
 
-- Client and Server installers are Authenticode-verified;
-- signer subject, thumbprint and timestamp are validated;
-- Client `latest.yml`, Server `server.yml` and blockmaps may be published;
-- the release may be updater-eligible according to its actual evidence.
+`GITHUB_TOKEN` is supplied by Actions. Do not store secrets in source, `.env`, update config, logs, notes or artifacts.
 
-Partial signing configuration is rejected.
+Partial signing configuration is forbidden.
 
-### Missing signing policy
+## 4. Version preparation
 
-When signing policy is absent:
+The following must match `3.4.0`:
 
-- the official tag remains `v3.3.4`;
-- GitHub Release is an explicit `UNSIGNED-TEST` prerelease;
-- Windows and Android assets include `UNSIGNED-TEST` in their names;
-- `latest.yml`, `server.yml` and all blockmaps are forbidden;
-- production updater cannot consume the release.
+- `package.json`;
+- `package-lock.json`;
+- Client handshake;
+- Android versionName/versionCode;
+- README, Project Index, Architecture, Security Model and current operational docs;
+- changelog, release notes, verification and security review;
+- `release-evidence/current.json`;
+- official tag `v3.4.0` after approval.
 
-## Immutable evidence
+```bash
+npm ci
+npm run release:check
+npm run test:soak
+gradle -p android :app:assembleDebug --no-daemon
+```
 
-Required common assets:
+## 5. Baseline prerequisite
 
+Before 3.4.0 packaging, workflow verifies published `v3.3.4`:
+
+- release exists and is not draft/prerelease;
+- Client installer exists;
+- Server installer exists;
+- `SHA256SUMS.txt` exists;
+- downloaded assets match checksums and expected signature policy.
+
+Missing or incomplete `v3.3.4` is a terminal release blocker.
+
+## 6. External evidence
+
+Workflow reads:
+
+- `release-evidence/independent-security-review-3.4.0.json`;
+- `release-evidence/windows-acceptance-3.4.0.json`;
+- `release-evidence/current.json`.
+
+Independent review must approve an ancestor of the exact release commit and report zero unresolved high/critical findings.
+
+Windows acceptance must record Windows 10 and Windows 11 installed `3.3.4 → 3.4.0` upgrade results.
+
+## 7. Stable release workflow
+
+`.github/workflows/release.yml`:
+
+1. resolves exact release commit/version;
+2. validates `3.4.0` identity and official tag contract;
+3. verifies published `v3.3.4` baseline;
+4. validates external review/Windows evidence;
+5. requires complete Authenticode policy;
+6. runs `npm run release:check`;
+7. builds source, PWA, Android evidence and SPDX SBOM;
+8. builds signed Client and Server installers;
+9. verifies signer subject, thumbprint and timestamp;
+10. verifies `latest.yml` and `server.yml`;
+11. performs installed package upgrade smoke;
+12. generates release evidence and SHA-256 checksums;
+13. creates immutable annotated tag;
+14. publishes GitHub Release;
+15. re-downloads and verifies every published asset.
+
+The 3.4.0 workflow has no unsigned official-release fallback.
+
+## 8. Stable asset set
+
+- `Nexora-Client-Setup-3.4.0.exe`;
+- Client `.blockmap`;
+- `latest.yml`;
+- `Nexora-Server-Setup-3.4.0.exe`;
+- Server `.blockmap`;
+- `server.yml`;
 - source ZIP;
 - PWA ZIP;
-- Android test APK;
-- SPDX 2.3 SBOM;
-- machine-readable release evidence;
-- `SHA256SUMS.txt`;
-- Client and Server installers in the applicable signing class.
+- Android evidence APK;
+- SPDX SBOM;
+- Authenticode evidence;
+- release evidence;
+- `SHA256SUMS.txt`.
 
-After publication the workflow downloads every asset again, verifies SHA-256 values and rechecks signed/unsigned channel invariants. Existing tags cannot be moved to another commit.
+Missing/unsigned/inconsistent asset makes the release non-publishable.
 
-## Separation from 3.4.0
+## 9. Updater behavior
 
-Nexora 3.3.4 removes the prerequisite blocker by creating the verified post-MLS baseline. Independent security review, signed Windows 10/11 n-1→n acceptance and first stable signed 3.x promotion remain mandatory Nexora 3.4.0 gates.
+- Client uses `latest` channel;
+- Server uses `server` channel;
+- downgrade and prerelease updates disabled;
+- installer signature and checksum mismatch → `UPDATE_SIGNATURE_INVALID`;
+- metadata version must equal package/installer version;
+- unsigned local builds are not updater eligible.
+
+## 10. Tag policy
+
+Official tag: `v3.4.0`.
+
+- create only after approved merge commit;
+- annotated/verified, never lightweight replacement;
+- refuse if existing tag points to another commit;
+- never overwrite published release assets;
+- correction requires a new SemVer release.
+
+## 11. Manual dispatch
+
+Manual workflow dispatch may target only the exact official tag/version supported by the checked-out release workflow. It must not bypass baseline, signing, Windows or independent-review gates.
+
+## 12. Post-publication verification
+
+After publication:
+
+- verify GitHub Release is not draft/prerelease;
+- verify tag target;
+- re-download all assets;
+- verify SHA-256;
+- verify Authenticode and timestamp;
+- inspect Client/Server updater metadata;
+- verify source/PWA/SBOM contents;
+- record release URL, tag SHA, run IDs and digests;
+- update canonical verification/evidence;
+- close/delete release branch after provenance is retained.

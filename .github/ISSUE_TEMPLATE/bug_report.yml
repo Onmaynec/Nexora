@@ -14,14 +14,14 @@ body:
       value: |
         Use this form for reproducible product defects. Do not publish vulnerabilities, secrets, private keys, message content or user data here. Follow SECURITY.md and use a private Security Advisory for security issues.
 
-        Current version: 3.3.4 release candidate. Distribution is signed when policy exists; otherwise the official release is an explicit UNSIGNED-TEST prerelease. Signed production baseline: 3.1.2. Trust/MLS runtime is retired and legacy secure history is read-only.
+        Current target: Nexora 3.4.0 Stable Core release candidate (PR #96). Merged source baseline: 3.3.4 post-MLS. Official stable publication remains blocked by signing, Windows acceptance and independent review evidence.
 
   - type: input
     id: versions
     attributes:
       label: Client, Local Server and Pulse Cloud versions
-      description: Include every affected component, release channel and commit/tag for source builds.
-      placeholder: "Client 3.3.4 RC / Server 3.3.4 / Cloud disabled / commit or tag"
+      description: Include every affected component, release channel and exact commit/tag for source builds.
+      placeholder: "Client 3.4.0 RC / Server 3.4.0 RC / Cloud disabled / commit abc123"
     validations:
       required: true
 
@@ -29,8 +29,8 @@ body:
     id: branch
     attributes:
       label: Branch, tag or release asset
-      description: Provide the exact branch, commit, tag or published asset name.
-      placeholder: "main / release/3.3.4-post-mls / v3.3.4 / commit SHA"
+      description: Use PR #96 branch/commit for 3.4.0 reports, main/v3.3.4 for prerequisite regressions, or exact historical branch.
+      placeholder: "release/3.4.0-stable-core-v2 / commit ... / main"
     validations:
       required: true
 
@@ -39,25 +39,97 @@ body:
     attributes:
       label: Release channel
       options:
-        - Signed stable release
-        - Published UNSIGNED-TEST prerelease
-        - Release candidate source build
+        - Stable Core 3.4.0 release candidate source
+        - Published signed stable release
+        - Published prerequisite release
         - Installed packaged Windows Client/Server
-        - Browser/PWA
-        - Android test build
+        - Local source build
+        - Local unsigned Windows build
+        - Development or historical branch
+        - Not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Component
+      options:
+        - Windows Client
+        - Windows Local Server
+        - Browser / PWA
+        - Android
+        - Local Server API / Socket.IO
+        - Authentication / bootstrap / sessions
+        - Devices / remote session revocation
+        - Rooms / roles / bans / invitations
+        - Ordinary messages / drafts / scheduled messages
+        - Files / images / voice
+        - Legacy secure history viewer / export
+        - Unexpected Trust / MLS / encrypted-write behavior
+        - Client / Server updater and signing
+        - Windows installer / upgrade
+        - Server developer console
+        - Pulse Cloud / Cloud Identity / OAuth
+        - Plus / Impulse sandbox
+        - Database migration / backup / restore
+        - Maintenance / retention / rate limits
+        - Project website / GitHub Pages
+        - Documentation / branch status
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - Windows 11
+        - Windows 10
+        - Android physical device
+        - Android emulator
+        - Linux Local Server
+        - Browser / installed PWA
+        - Pulse Cloud deployment
+        - GitHub Actions / release workflow
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment profile
+      options:
+        - localhost
+        - LAN
+        - Radmin VPN / private VPN
+        - Public HTTPS domain
+        - Local Pulse sandbox
+        - Production Pulse Cloud
+        - GitHub Releases updater
+        - Not applicable
     validations:
       required: true
 
   - type: textarea
-    id: reproduction
+    id: summary
+    attributes:
+      label: Summary and impact
+      description: What is broken, who is affected and what operation cannot be completed safely or correctly?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
     attributes:
       label: Reproduction steps
-      description: Include prerequisite account, room, role, session/device and network state.
       placeholder: |
-        1. Start Server...
-        2. Sign in as...
-        3. Open...
-        4. Perform...
+        1. Start ...
+        2. Open ...
+        3. Perform ...
+        4. Observe ...
     validations:
       required: true
 
@@ -72,52 +144,39 @@ body:
     id: actual
     attributes:
       label: Actual result
-      description: Include stable error code, HTTP status and request ID when available. Remove private data.
-    validations:
-      required: true
-
-  - type: dropdown
-    id: area
-    attributes:
-      label: Affected area
-      options:
-        - Authentication or sessions/devices
-        - Rooms, roles, bans or invites
-        - Ordinary messages or realtime
-        - Files, images or voice
-        - Legacy secure-history read-only layer
-        - Backup, restore or migration
-        - Updater, signing or installer
-        - Pulse Cloud or billing
-        - Windows Client/Server
-        - Browser/PWA or websites
-        - Android
-        - Documentation or release evidence
+      description: Include HTTP status, stable error code/message, request ID and Retry-After when available.
     validations:
       required: true
 
   - type: textarea
-    id: environment
+    id: state
     attributes:
-      label: Environment
-      description: OS/browser/device, deployment profile, schema/readiness and sanitized Server ID/fingerprint.
-    validations:
-      required: true
+      label: Relevant sanitized state
+      description: Include schema, room role/policy, session/device state, legacy-history state, upload kind, updater state or Pulse mode. Do not include private keys, ciphertext/plaintext content or tokens.
 
   - type: textarea
-    id: evidence
+    id: diagnostics
     attributes:
-      label: Safe evidence
-      description: Sanitized screenshots/logs/request IDs only. Never attach databases, backups, tokens, keys or private user content.
+      label: Sanitized diagnostics
+      description: Attach request ID, short log excerpt, screenshot or video. Remove passwords, cookies, OAuth/session tokens, TOTP/recovery codes, API/signing/private keys, invite codes, user content and personal data.
+      render: shell
+
+  - type: textarea
+    id: regression
+    attributes:
+      label: Regression and workaround
+      description: Did this work in a previous version? Is there a safe temporary workaround without bypassing TLS, authorization, signing, room restrictions or LEGACY_READ_ONLY?
 
   - type: checkboxes
     id: checks
     attributes:
-      label: Confirmation
+      label: Submission checks
       options:
-        - label: I reproduced this on the exact version/commit stated above.
+        - label: I searched existing Issues and did not find a duplicate.
           required: true
-        - label: This report contains no secrets, private keys, tokens, passwords or private user content.
+        - label: I reproduced on 3.4.0 RC or supplied the exact branch/commit and explained why another revision is required.
           required: true
-        - label: This is not a vulnerability report; security issues will be submitted privately.
+        - label: I removed passwords, tokens, private keys, invite codes, message content and personal data.
+          required: true
+        - label: This is not a private vulnerability report.
           required: true

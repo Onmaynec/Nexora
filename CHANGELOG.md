@@ -2,34 +2,41 @@
 
 Формат основан на Keep a Changelog. Версии следуют Semantic Versioning.
 
-## [3.3.4] - Unreleased
+## [3.4.0] — 2026-07-24 (Release candidate)
+
+### Stable Core
+
+- ordinary server-readable messaging is the only writable messaging path;
+- executable Trust Core, MLS routes/recovery/socket transport, encrypted-upload writes and `ts-mls` are removed;
+- schema 8 legacy IDs, timestamps, epochs, ciphertext and audit provenance remain available through an immutable read-only viewer/export;
+- legacy HTTP and Socket.IO mutations terminate with `LEGACY_READ_ONLY`; Server never decrypts retained legacy ciphertext.
+
+### Sessions, reliability and diagnostics
+
+- server-owned device/session inventory supports targeted remote revoke, revoke-all-others, `session.revoked`, `device.updated` and immediate target Socket.IO disconnect;
+- backup verification is non-restoring and allowlisted; migration/restore cover integrity, WAL, free-space, future-schema, disk-full and rollback failure paths;
+- stable errors include safe `code`, `message`, `requestId` and details without leaking stack, SQL or secrets.
+
+### Release and compatibility
+
+- Client and Server use separate signed updater channels with downgrade/prerelease rejection and `UPDATE_SIGNATURE_INVALID` tamper handling;
+- version metadata is synchronized across package, lockfile, Client and Android (`versionCode 30400`);
+- official stable publication requires verified `v3.3.4`, Authenticode identity/timestamp evidence, Windows 10/11 installed `3.3.4 → 3.4.0` acceptance, independent review and final green gates;
+- `3.4.0` remains a release candidate until those external evidence requirements are complete.
+
+## [3.3.4] — 2026-07-24 (Post-MLS prerequisite source baseline)
 
 ### Changed
-- Ordinary server-readable messaging is now the sole writable messaging core; Client bootstrap and ordinary chats no longer depend on Trust enrollment, MLS epochs or Welcome recovery.
-- Executable Trust/MLS routes, recovery workers, Socket.IO transport, encrypted-upload write paths, Client MLS engine and the `ts-mls` dependency are removed.
-- SQLite schema 8 remains an idempotent compatibility layer preserving legacy conversation IDs, epochs, timestamps, ciphertext and audit provenance without plaintext conversion.
 
-### Added
-- Dedicated immutable legacy-history viewer and export endpoints with `serverDecrypted: false`.
-- Session-derived device inventory, targeted remote session revocation and immediate realtime disconnect through `session.revoked`.
-- Non-restoring backup verification and stable request-correlated error envelopes.
-- Official `v3.3.4` release pipeline supporting verified signed assets or explicit `UNSIGNED-TEST` prerelease assets without updater metadata.
+- merged the post-MLS prerequisite implementation into `main` through PR #70;
+- ordinary chats no longer bootstrap or depend on Trust/MLS state;
+- legacy secure history became terminal read-only without server-side decryption;
+- release consistency, security, Android, schema 8 soak, focused regressions and both website pipelines were brought to a green source baseline.
 
-### Security
-- Legacy Trust/E2EE HTTP writes and MLS Socket.IO mutations terminate with `410/LEGACY_READ_ONLY`.
-- Current-device remote revocation fails with `STATE_CONFLICT`; revoked sessions are removed and disconnected immediately.
-- Client/Server updater channels reject downgrade and signature/checksum failures; complete signing policy validates subject, thumbprint and timestamp.
-- Unsigned publication forbids `latest.yml`, `server.yml` and blockmaps.
+### Release state
 
-### Fixed
-- Removed dangling Client imports and stale runtime contracts after post-MLS retirement.
-- Updated introductory and advanced documentation, website content, focused regressions and release metadata to the 3.3.4 post-MLS boundary.
-
-### Compatibility
-- Supported upgrade path is published Nexora `3.3.3` → `3.3.4`.
-- Application API v3 and ordinary room/message contracts remain available.
-- No schema version bump is introduced; future schemas still fail before mutation.
-- Independent review and signed Windows 3.3.4→3.4.0 acceptance remain Nexora 3.4.0 gates.
+- source baseline merge commit: `6202bbdf8ff636711d9874452958df5dd40d9656`;
+- published tag/assets remain a separate prerequisite evidence requirement for the `3.4.0` stable workflow.
 
 ## [3.3.3] - 2026-07-23
 

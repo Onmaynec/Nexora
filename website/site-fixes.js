@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const FALLBACK_VERSION = "3.3.4";
+  const FALLBACK_VERSION = "3.4.0";
 
   const ruCorrections = {
     heroLead: "Самостоятельно размещаемая платформа для частных серверов, команд и сообществ. Единый интерфейс для Windows, PWA и Android, локальный сервер как источник полномочий и отдельный контур Pulse.",

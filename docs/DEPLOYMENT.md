@@ -1,117 +1,188 @@
-# Руководство по развёртыванию Nexora
+# Руководство по развёртыванию Nexora 3.4.0
 
-## Область
+## 1. Область
 
-Документ относится к Nexora `3.3.4` Post-MLS release candidate:
+Документ относится к Nexora `3.4.0` Stable Core release candidate:
 
-- signed when policy exists, otherwise explicit `UNSIGNED-TEST` prerelease;
-- signed production baseline `3.1.2`;
 - Application API v3;
-- ordinary server-readable messaging writable;
+- SQLite schema 8;
+- ordinary server-readable messaging as writable core;
 - Trust/MLS runtime retired;
 - legacy secure history read-only;
-- SQLite schema 8.
+- official stable publication blocked until release evidence is complete.
 
-## Deployment profiles
+## 2. Deployment profiles
 
 | Profile | Purpose | Requirements |
 |---|---|---|
 | Local development | development/tests | localhost, Node.js 22.16+, npm |
 | Private LAN/VPN | private installation | HTTPS, firewall, fingerprint verification |
 | Public HTTPS | internet access | reverse proxy, public certificate, exact `allowedOrigins`, monitoring, backups |
-| Controlled 3.3.4 prerelease | post-MLS/session/backup/release validation | disposable data, matching clients, documented unsigned limitations |
-| Pulse production | commercial Cloud integration | separate Cloud/provider/mail/key/legal controls |
+| Controlled 3.4.0 RC | Stable Core source/runtime acceptance | disposable data, exact commit, documented blockers |
+| Pulse production | commercial Cloud integration | separate Cloud, provider, mail, key management, legal controls |
 
 Direct port forwarding Local Server без reverse proxy, monitoring и firewall не является supported production topology.
 
-## Requirements
+## 3. Requirements
 
 - Node.js `22.16+` и npm;
 - writable application data directory;
-- space for SQLite, WAL, attachments and backups;
+- free space для SQLite, WAL, attachments и backups;
 - valid HTTPS certificate/SAN;
-- exact allowed origins;
-- protected OS account and disk;
-- external secret storage;
-- verified backup and restore drill;
-- Client and Server from one release line.
+- stable Server ID;
+- exact `allowedOrigins`;
+- firewall rules;
+- monitoring/alerting;
+- verified restore procedure;
+- production secrets outside repository/logs.
 
-## Source deployment
+## 4. Source start
 
 ```bash
 npm ci
-npm run build:web
-node server/cli.cjs
+npm start
 ```
 
-Use environment/configuration values documented by the repository. Never commit passwords, API keys, CA private keys, Authenticode certificates, Android keystores or backup passphrases.
+Development Client/Server:
 
-## Network and TLS
+```bash
+npm run dev
+```
 
-- bind only required interfaces;
-- restrict Local Server port with firewall;
-- public access terminates trusted TLS at supported reverse proxy;
-- configure exact Origin allowlist;
-- verify Server ID and certificate fingerprint out of band;
-- reject HTTP/mixed content and SAN mismatch;
-- certificate change requires explicit approval;
-- Android/browser must not bypass TLS errors.
+After start verify:
 
-Private VPN/Radmin address does not bypass authentication, roles, bans, CSRF or room policies.
+- `GET /healthz/live`;
+- `GET /healthz/ready`;
+- schema 8/integrity;
+- Server ID/fingerprint;
+- storage capacity;
+- expected Pulse mode.
 
-## Database and storage
+## 5. Network exposure
 
-Local Server uses SQLite schema 8 and managed upload/backup directories.
+- bind only required interface;
+- terminate public TLS at trusted reverse proxy;
+- expose only intended HTTPS origin;
+- use exact origin allowlist;
+- rate-limit at application and edge;
+- retain request IDs and sanitized logs;
+- use token-protected remote metrics;
+- never bypass TLS warnings.
 
-Before deployment/upgrade:
+## 6. Client connection
 
-1. run integrity check and WAL checkpoint;
-2. ensure free space;
-3. create verified backup;
-4. retain rollback path;
-5. do not edit schema manually;
-6. do not restore database without matching file store;
-7. reject future schema version before mutation.
+Provide through trusted channel:
 
-## Post-MLS behavior
+1. full HTTPS URL;
+2. Server ID;
+3. SHA-256 certificate fingerprint.
 
-Ordinary messages/files/voice are stored and authorized by Local Server. Trust/MLS enrollment, KeyPackage, Welcome, commit, recovery and encrypted-upload write services are absent.
+Electron pins fingerprint to Server ID. Browser/PWA/Android use OS trust store. Private CA root must be installed deliberately.
 
-Legacy secure history remains available only through read-only compatibility endpoints/viewer/export. Server does not decrypt ciphertext; export records `serverDecrypted: false`. Direct legacy mutation returns `LEGACY_READ_ONLY`.
+## 7. Database и migration
 
-## Session/device behavior
+Current Local Server database — schema 8.
 
-Clients send stable server-scoped device metadata. Server owns session validity. Targeted revoke removes sessions and disconnects realtime immediately. Current device remote revoke returns `STATE_CONFLICT`.
+Before migration-sensitive operation:
 
-## Reverse proxy
+- source integrity;
+- WAL checkpoint;
+- free-space calculation;
+- verified backup;
+- future-schema guard;
+- rollback plan.
 
-Proxy must preserve HTTPS scheme, WebSocket upgrades, request body limits, required headers and timeout behavior. Do not cache API/Socket.IO responses. Restrict metrics/admin endpoints separately. Preserve request IDs or generate safe replacements.
+Migration remains idempotent and compatibility-preserving. Existing legacy Trust/MLS records are retained as immutable read-only ciphertext/provenance and are not converted into plaintext.
 
-## Backup and restore
+## 8. Backup и restore
 
-- backups stored outside live data path where possible;
-- verify selected backup before use;
-- encrypted backup material is cleaned after verification;
-- staged restore rolls back DB and files together;
-- post-restore readiness, login, messages and uploads are tested;
-- backup filenames/IDs are allowlisted, never arbitrary paths.
+Use supported backup tooling and `POST /api/v3/admin/backups/verify` for non-restoring verification.
 
-## Release and updater
+Requirements:
 
-Signed distribution requires complete Authenticode policy and verified Client/Server metadata. Without signing policy, `v3.3.4` is an explicit `UNSIGNED-TEST` prerelease and must not publish `latest.yml`, `server.yml` or blockmaps.
+- `server_admin` authorization;
+- allowlisted backup ID;
+- staged integrity/version checks;
+- atomic DB/file-store replacement;
+- rollback both DB and files on failure;
+- temporary data cleanup after success/error.
 
-Do not point production updater to unsigned prerelease assets.
+Test restore before production rollout.
 
-## Acceptance
+## 9. Ordinary messaging и uploads
 
-- health/readiness/metrics policy;
-- registration/login/TOTP/session inventory;
-- roles/bans/invites and direct API bypass;
-- ordinary messaging/uploads/voice/realtime;
-- legacy read-only viewer and terminal mutations;
-- backup verification and restore rollback;
-- restart/offline/long-lived sessions;
-- website/PWA/Android transport policy;
-- release classification and checksums.
+Writable data path:
 
-См. [Operations Runbook](OPERATIONS_RUNBOOK.md), [Administrator Guide](../ADMIN_GUIDE.md), [Security Model](SECURITY_MODEL.md) и [Release Verification 3.3.4](releases/3.3.4/RELEASE_VERIFICATION.md).
+- ordinary messages;
+- files/images/voice;
+- drafts/scheduled messages/polls;
+- server-side search and moderation.
+
+Server enforces membership, role/permission, active ban, room restrictions, size/quota, actual MIME, safe filename, hashes и rate limits.
+
+Legacy Trust/MLS write paths must return `410/LEGACY_READ_ONLY` and never reserve/store new encrypted upload/message state.
+
+## 10. Sessions и devices
+
+Inventory is derived from active sessions. Remote revoke:
+
+- invalidates target sessions;
+- emits `session.revoked`;
+- disconnects target Socket.IO sessions;
+- emits `device.updated`;
+- rejects current-device remote revoke with `STATE_CONFLICT`.
+
+## 11. Windows packages
+
+Local unsigned test packages:
+
+```bash
+npm run dist:windows
+```
+
+They are not official release assets and must not publish updater metadata.
+
+Signed candidate:
+
+```bash
+npm run release:windows:signed
+```
+
+Requires protected Authenticode secrets plus expected signer subject/thumbprint.
+
+## 12. Stable upgrade `3.3.4 → 3.4.0`
+
+Official rollout requires:
+
+- published verified `v3.3.4` Client/Server installers и checksums;
+- signed `3.4.0` installers, blockmaps, `latest.yml` и `server.yml`;
+- Authenticode subject/thumbprint/timestamp verification;
+- Windows 10 clean install/repair/uninstall and installed upgrade;
+- Windows 11 clean install/repair/uninstall and installed upgrade;
+- product version verification after upgrade;
+- independent security review;
+- full automated gates;
+- immutable tag/assets and post-publication redownload verification.
+
+## 13. Android и PWA
+
+Android:
+
+```bash
+gradle -p android :app:assembleDebug --no-daemon
+```
+
+Production Android release requires controlled signing and physical-device acceptance.
+
+PWA service worker caches only application shell/static resources. API and Socket.IO requests are explicitly excluded from cache handling.
+
+## 14. Final verification
+
+Before declaring deployment successful:
+
+- liveness/readiness/integrity green;
+- representative login/bootstrap/messages/uploads pass;
+- room authorization/ban/revoke behavior pass;
+- backup verification and restore drill recorded;
+- no secrets or private data in logs/artifacts;
+- exact version/commit/tag and release classification recorded.

@@ -1,100 +1,177 @@
-# Nexora 3.3.4 Release Checklist
+# Nexora 3.4.0 Release Checklist
 
-## Repository identity
+## 1. Classification и repository state
 
-- [ ] `package.json`, lockfile, Client handshake and Android metadata show `3.3.4`.
-- [ ] Canonical notes and verification exist under `docs/releases/3.3.4/`.
-- [ ] Root release files are compatibility pointers only.
-- [ ] `CHANGELOG.md`, README, docs portal, Security Policy, Branch Status and Support agree.
-- [ ] Commit contains no secrets, databases, backups, user data or temporary migration/diagnostic files.
-- [ ] Official tag is immutable `v3.3.4` and points to the reviewed release commit.
+- [ ] Classification: Stable Core release candidate until all gates complete.
+- [ ] `package.json`, lockfile, Client handshake и Android metadata show `3.4.0`.
+- [ ] PR head is exact reviewed merge candidate.
+- [ ] `CHANGELOG.md`, canonical release notes, security review и verification are current.
+- [ ] README, docs portal, Security Policy, Architecture, Branch Status и Support agree.
+- [ ] Commit has no secrets, databases, backups, user data, temporary patchers или generated failure logs.
+- [ ] No document describes `3.4.0` as published/signed/independently approved without evidence.
 
-## Automated gates
+## 2. Prerequisite baseline
+
+- [ ] Published non-draft/non-prerelease `v3.3.4` exists.
+- [ ] `v3.3.4` has required Client installer.
+- [ ] `v3.3.4` has required Server installer.
+- [ ] `v3.3.4` has `SHA256SUMS.txt`.
+- [ ] Baseline assets download and verify.
+- [ ] Release branch descends from merged post-MLS baseline commit.
+
+## 3. Automated gates
 
 - [ ] `npm ci` — PASS.
-- [ ] metadata synchronization — PASS.
-- [ ] release consistency — PASS.
 - [ ] `npm run check` — PASS.
 - [ ] `npm run test:unit` — PASS.
 - [ ] `npm run test:performance` — PASS.
-- [ ] `npm run audit:security` — PASS with no high/critical production dependency finding.
+- [ ] `npm run audit:security` — PASS.
+- [ ] `npm run release:check` — PASS.
 - [ ] Linux `npm test` — PASS.
 - [ ] Schema 8 soak — PASS.
 - [ ] Android `assembleDebug` — PASS.
-- [ ] Focused Nexora 3.3 regressions — PASS.
-- [ ] Introductory and advanced website contracts/build — PASS.
+- [ ] Focused Nexora 3.4 regressions — PASS.
+- [ ] Introductory website validation/build — PASS.
+- [ ] Advanced Documentation generation/validation/build — PASS.
+- [ ] No high/critical production dependency finding.
 
-## Post-MLS architecture
+## 4. Compatibility and Stable Core boundary
 
-- [ ] Ordinary server-readable messaging is the only writable messaging path.
-- [ ] Client bootstrap does not import or initialize Trust/MLS runtime.
-- [ ] `ts-mls`, Trust routes, recovery workers, MLS transport, encrypted-upload write runtime and Client MLS engine are absent.
-- [ ] Schema 8 compatibility records preserve legacy IDs, epochs, timestamps, ciphertext and audit provenance.
-- [ ] No migration converts legacy ciphertext into plaintext.
-- [ ] Legacy viewer contains no composer, upload, voice-record or mutation controls.
-- [ ] Legacy export records `serverDecrypted: false`.
-- [ ] HTTP and Socket.IO legacy mutations return terminal `LEGACY_READ_ONLY`.
+- [ ] Application API remains v3.
+- [ ] Local Server schema remains 8.
+- [ ] Ordinary messaging is the only writable messaging path.
+- [ ] Executable Trust/MLS runtime and `ts-mls` remain removed.
+- [ ] Legacy schema 8 records remain preserved.
+- [ ] Legacy viewer/export is read-only.
+- [ ] Server never decrypts legacy ciphertext.
+- [ ] Legacy HTTP mutations return `410/LEGACY_READ_ONLY`.
+- [ ] MLS Socket.IO mutations return terminal `LEGACY_READ_ONLY` ack.
+- [ ] Ordinary chats open despite stale/corrupt legacy MLS state.
 
-## Authentication, authorization and sessions
+## 5. Authentication and authorization
 
-- [ ] Session, Origin and CSRF checks precede mutations.
+- [ ] Session/Origin/CSRF checks pass.
 - [ ] owner/moderator/member boundaries pass.
-- [ ] Active bans override stale membership and direct API attempts.
-- [ ] Removed/banned users lose REST and realtime access.
-- [ ] Invitations enforce expiry, use limits and atomic final use.
-- [ ] Active sessions expose device ID/name/platform/version/timestamps/expiry.
-- [ ] Targeted remote revoke deletes sessions and disconnects their Socket.IO rooms.
-- [ ] Current-device remote revoke fails with `STATE_CONFLICT`.
-- [ ] Device changes emit `session.revoked` and `device.updated`.
+- [ ] Exactly one room owner maintained.
+- [ ] Atomic ownership transfer passes.
+- [ ] Active ban overrides stale membership.
+- [ ] Removed/banned users lose REST/realtime access.
+- [ ] Invite expiry/limit/revocation/concurrent final use pass.
+- [ ] TOTP/recovery codes pass.
+- [ ] Stable public error envelope does not leak internals.
 
-## Uploads and media
+## 6. Devices and sessions
 
-- [ ] Ordinary file/image/voice restrictions are enforced server-side.
-- [ ] Actual MIME, size, hash and safe filename checks pass.
-- [ ] Resumable upload cancellation/retry/error cleanup pass.
-- [ ] Corrupt images and unsupported/denied microphone paths fail safely.
-- [ ] Voice live amplitude, playback progress, seeking and rate controls pass.
-- [ ] Retired encrypted-upload routes cannot reserve or store new data.
+- [ ] Device inventory is derived from server sessions.
+- [ ] Device ID/name/platform/version/created/last-seen/expiry exposed safely.
+- [ ] Targeted remote revoke invalidates only target sessions.
+- [ ] `session.revoked` emitted.
+- [ ] Target Socket.IO connections disconnected immediately.
+- [ ] `device.updated` emitted.
+- [ ] Current-device remote revoke returns `STATE_CONFLICT`.
+- [ ] Revoke-all-others preserves current session.
 
-## Backup, migration and reliability
+## 7. Uploads, images and voice
 
-- [ ] Source DB integrity and WAL checkpoint pass before migration-sensitive work.
-- [ ] Free-space failure occurs before mutation.
-- [ ] Backup verification does not replace live DB/files.
-- [ ] Encrypted temporary material is removed after success and failure.
-- [ ] Restore replacement failure rolls back database and file store.
-- [ ] Future schema version fails before mutation.
-- [ ] Schema 8 compatibility migration is idempotent.
+- [ ] Authorization and room media restrictions checked server-side.
+- [ ] Size/quota and chunk/file SHA-256 checks pass.
+- [ ] Actual MIME signature checked.
+- [ ] Fake extension/header rejected.
+- [ ] Dangerous/executable content rejected.
+- [ ] Safe filename enforced.
+- [ ] Temporary data removed after cancel/error.
+- [ ] Corrupt image handled safely.
+- [ ] Microphone denial/unsupported format handled.
+- [ ] Voice waveform, played progress, seek and speed pass.
+- [ ] Direct API cannot bypass read-only/slow/media restrictions.
 
-## Errors and observability
+## 8. Backup, restore and migration
 
-- [ ] Stable errors include `code`, `message`, `requestId` and safe `details`.
-- [ ] Stack, SQL, tokens and secrets are not exposed.
-- [ ] Expected authorization, validation, conflict, rate-limit, read-only, backup and temporary-server states are distinguishable.
-- [ ] Signing status exposes configuration state only and never credentials.
+- [ ] Source integrity checked before mutation.
+- [ ] WAL checkpoint and free-space checks pass.
+- [ ] Verified backup created.
+- [ ] Backup verification is non-restoring and server-admin-only.
+- [ ] Backup ID constrained to allowlisted directory.
+- [ ] Future schema blocked before mutation.
+- [ ] Schema 8 migration idempotent.
+- [ ] Disk-full failpoint leaves live state unchanged.
+- [ ] DB/file replacement failure rolls both back.
+- [ ] Temporary staged data cleaned after success/error.
 
-## Updater and distribution
+## 9. Authenticode and packaging
 
-- [ ] Client uses `latest`; Server uses `server` metadata channel.
-- [ ] Signature/checksum failures use `UPDATE_SIGNATURE_INVALID`.
-- [ ] Downgrade is disabled.
-- [ ] Partial signing policy is rejected.
-- [ ] Complete signing policy verifies subject, thumbprint and timestamp.
-- [ ] Without signing policy, official `v3.3.4` is an explicit `UNSIGNED-TEST` prerelease.
-- [ ] Unsigned assets contain no `latest.yml`, `server.yml` or blockmaps.
-- [ ] Client and Server installers pass installed-package smoke.
-- [ ] Source, PWA, Android, SBOM, release evidence and SHA-256 checksums are present.
-- [ ] Published assets are re-downloaded and checksums/channel invariants re-verified.
+- [ ] `WINDOWS_CERTIFICATE_BASE64` configured.
+- [ ] `WINDOWS_CERTIFICATE_PASSWORD` configured.
+- [ ] Expected signer subject configured.
+- [ ] Expected signer thumbprint configured.
+- [ ] Partial signing configuration rejected.
+- [ ] Client installer signed and timestamped.
+- [ ] Server installer signed and timestamped.
+- [ ] Signer subject/thumbprint match policy.
+- [ ] Client blockmap and `latest.yml` complete.
+- [ ] Server blockmap and `server.yml` complete.
+- [ ] Installer/metadata versions equal `3.4.0`.
+- [ ] No unsigned official-release fallback exists.
 
-## Completion and handoff
+## 10. Windows installed acceptance
 
-- [ ] PR #70 reviewed and marked ready.
-- [ ] Final PR CI green on the reviewed head SHA.
-- [ ] PR #70 merged with release commit identity.
-- [ ] Post-merge CI green.
-- [ ] Annotated `v3.3.4` and GitHub Release created.
-- [ ] Canonical verification ledger updated with run IDs, SHAs, release URL and asset hashes.
-- [ ] Old mixed-scope PR #69 closed as superseded.
-- [ ] Nexora 3.4.0 branch recreated from the verified 3.3.4 baseline.
+- [ ] Windows 10 clean install.
+- [ ] Windows 10 repair/uninstall.
+- [ ] Windows 10 installed `3.3.4 → 3.4.0` upgrade.
+- [ ] Windows 11 clean install.
+- [ ] Windows 11 repair/uninstall.
+- [ ] Windows 11 installed `3.3.4 → 3.4.0` upgrade.
+- [ ] Installed Client product version equals `3.4.0`.
+- [ ] Installed Server product version equals `3.4.0`.
+- [ ] Installed executables pass Authenticode verification.
+- [ ] Machine-readable Windows evidence identifies exact release candidate.
 
-Authenticode credentials, independent review and signed Windows 3.3.4→3.4.0 acceptance are not prerequisite-release blockers; they remain mandatory for Nexora 3.4.0 signed stable promotion.
+## 11. Independent security review
+
+- [ ] Reviewer and scope recorded.
+- [ ] Reviewed commit is exact release commit or ancestor.
+- [ ] Authentication/authorization/session revocation reviewed.
+- [ ] Legacy read-only/no-plaintext boundary reviewed.
+- [ ] Upload/MIME/hash/quota controls reviewed.
+- [ ] Backup/restore/migration failure paths reviewed.
+- [ ] Updater/signing/tag publication reviewed.
+- [ ] Unresolved critical findings = 0.
+- [ ] Unresolved high findings = 0.
+- [ ] Closure evidence committed in machine-readable file.
+
+## 12. Release assets
+
+- [ ] Signed Client installer and blockmap.
+- [ ] `latest.yml`.
+- [ ] Signed Server installer and blockmap.
+- [ ] `server.yml`.
+- [ ] Source ZIP.
+- [ ] PWA ZIP.
+- [ ] Android evidence APK.
+- [ ] SPDX SBOM.
+- [ ] Authenticode evidence JSON.
+- [ ] Release evidence JSON.
+- [ ] `SHA256SUMS.txt`.
+- [ ] Canonical release notes used.
+
+## 13. Tag and publication
+
+- [ ] PR ready, review threads resolved, all checks green.
+- [ ] Merge commit subject triggers only Nexora `3.4.0` stable workflow.
+- [ ] Official annotated tag `v3.4.0` points to approved merge commit.
+- [ ] Existing mismatched tag causes failure.
+- [ ] GitHub Release is neither draft nor prerelease.
+- [ ] Published assets are immutable.
+
+## 14. Post-publication verification
+
+- [ ] Re-download every asset.
+- [ ] SHA-256 matches `SHA256SUMS.txt`.
+- [ ] Authenticode subject/thumbprint/timestamp verified again.
+- [ ] Client/Server updater metadata verified again.
+- [ ] Source/PWA/SBOM content checks pass.
+- [ ] Release URL, tag SHA, run IDs and digests recorded.
+- [ ] `release-evidence/current.json` updated to published state.
+- [ ] Release branch closed/deleted after provenance retention.
+
+Official `v3.4.0` is complete only when every applicable item is checked with real evidence.

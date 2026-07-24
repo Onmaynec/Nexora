@@ -1,87 +1,147 @@
-# Обзор продукта Nexora
+# Обзор продукта Nexora 3.4.0
 
-## Назначение
+## 1. Назначение
 
-Nexora — self-hosted платформа обмена сообщениями для частных серверов, команд, сообществ и контролируемых организационных установок. Локальные аккаунты, комнаты, сообщения, файлы, permissions и realtime остаются authority Local Server.
+Nexora — self-hosted платформа обмена сообщениями для частных серверов, команд, сообществ и контролируемых организационных установок. Local Server является authority локальных аккаунтов, комнат, ролей, ordinary messages, files, realtime и room policies.
 
-## Состав продукта
+Состав продукта:
 
 - **Nexora Client** — общий React-интерфейс для Windows, Browser/PWA и Android;
-- **Nexora Local Server** — authority authentication, rooms, roles, ordinary messages, uploads, sessions, audit и policies;
-- **Legacy secure-history layer** — immutable schema 8 ciphertext/history compatibility без server-side decryption;
-- **Nexora Pulse Cloud** — optional Cloud Identity, billing, ledger и production entitlements;
-- **Operations layer** — health, metrics, backup/restore, maintenance и release tooling;
-- **Project websites** — introductory site и Advanced Documentation portal.
+- **Nexora Local Server** — authentication, authorization, rooms, ordinary messaging, uploads, storage и realtime;
+- **Legacy secure compatibility layer** — read-only доступ к сохранённым schema 8 Trust/MLS records/ciphertext;
+- **Nexora Pulse Cloud** — optional authority Cloud Identity, billing, ledger и production entitlements;
+- **Operations layer** — health, metrics, audit, backup/restore, maintenance и release tooling;
+- **Project websites** — introductory product site и Advanced Documentation portal.
 
-## Текущая продуктовая линия
+## 2. Текущая продуктовая линия
 
 | Параметр | Значение |
 |---|---|
-| Current repository version | `3.3.4` release candidate |
-| Distribution | signed when policy exists; otherwise explicit `UNSIGNED-TEST` prerelease |
+| Target repository version | `3.4.0` |
+| Classification | Stable Core release candidate |
+| Merged prerequisite source | Nexora `3.3.4` post-MLS baseline |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
+| Writable messaging | ordinary server-readable messaging |
 | Trust/MLS runtime | retired |
-| Legacy secure history | read-only |
+| Legacy secure history | read-only; Server не decrypts ciphertext |
 | Local Server database | SQLite schema 8 |
 
-3.3.4 — обязательный post-MLS prerequisite для Nexora 3.4.0 Stable Core.
+Stable publication остаётся заблокированной до published verified `v3.3.4`, complete Authenticode policy, Windows 10/11 installed acceptance, independent review и final green gates.
 
-## Ordinary messaging
+## 3. Stable Core transition
 
-Ordinary server-readable messaging — единственный writable messaging path. Он включает:
+Nexora 3.4.0:
 
-- direct и room conversations;
-- messages, replies, forwarding, edit/delete, reactions and read state;
-- search, drafts, scheduled messages, polls and notifications;
-- files, images and voice;
-- offline cache and bounded outbox;
-- server-side role, ban, room-policy, upload and rate-limit enforcement.
+- удаляет executable Trust Core, MLS routes/recovery/socket transport и encrypted-upload writes;
+- удаляет `ts-mls` из dependency graph/package payload;
+- оставляет schema 8 legacy IDs, timestamps, epochs, ciphertext и audit provenance;
+- открывает legacy conversations в dedicated read-only viewer;
+- запрещает legacy HTTP/Socket.IO writes через `LEGACY_READ_ONLY`;
+- не преобразует historical ciphertext в server-readable plaintext;
+- сохраняет ordinary messaging, uploads, voice, drafts, offline cache и outbox как writable core.
 
-Missing, corrupt или stale local MLS state не блокирует открытие ordinary conversations.
+## 4. Deployment profiles
 
-## Legacy secure history
+Поддерживаемые profiles:
 
-Trust Core, MLS transport/recovery, KeyPackage/Welcome lifecycle и encrypted-upload write runtime удалены.
+- localhost/development;
+- private LAN;
+- private VPN;
+- public HTTPS domain за reverse proxy;
+- Windows Client/Server shells;
+- installed PWA;
+- Android WebView shell с system TLS trust store;
+- separate Pulse Cloud deployment.
 
-Сохраняются:
+Public installation требует HTTPS, firewall, exact `allowedOrigins`, monitoring, backups и protected secret storage. Direct port forwarding Local Server не является supported production topology.
 
-- legacy conversation/message identifiers;
-- epochs, timestamps, ciphertext and audit provenance;
-- read-only listing/view/export;
-- previously decrypted records already present in local Client cache.
+## 5. Messaging и collaboration
 
-Server не расшифровывает ciphertext и отмечает export как `serverDecrypted: false`. Все legacy mutations завершаются `LEGACY_READ_ONLY`.
+- direct messages, Saved Messages и rooms;
+- replies, threads, reactions, mentions и polls;
+- edit/delete/forward, pins, bookmarks и edit history;
+- silent/scheduled send и server drafts;
+- search, notifications, archive и filters;
+- offline cache, delta sync и bounded durable outbox;
+- ordinary conversations не зависят от local MLS epoch/state.
 
-## Rooms и administration
+## 6. Rooms и moderation
 
-Local Server поддерживает owner/moderator/member, ownership transfer, moderator assignment, remove/ban/unban, read-only, slow mode, media restrictions, invites with expiry/use limits, join requests, administrative audit и system messages.
+- roles `owner`, `moderator`, `member`;
+- exactly one owner;
+- atomic ownership transfer;
+- moderator appointment/removal;
+- member removal, ban/unban и ban list;
+- join requests;
+- invites с expiry, usage limit и revocation;
+- read-only, slow mode, announcement и pre-approval;
+- file/image/voice restrictions;
+- audit log и system messages;
+- server-side authorization для REST и realtime.
 
-UI скрывает недоступные actions, но security обеспечивается проверками Server при каждом request/event.
+## 7. Files, images и voice
 
-## Sessions и devices
+Ordinary media path включает:
 
-Session inventory показывает safe device metadata. Targeted revoke удаляет sessions, отправляет `session.revoked`, отключает Socket.IO room и публикует `device.updated`. Current device remote revoke отклоняется `STATE_CONFLICT`.
+- progress, cancel/retry и resumable upload;
+- size/quota и chunk/file SHA-256 validation;
+- safe filenames;
+- actual MIME signature detection;
+- dangerous/executable file rejection;
+- image/PDF/text preview;
+- corrupt image handling;
+- voice recording, cancellation, preview, duration, waveform, played progress, seek и speed;
+- server-enforced room media restrictions.
 
-## Files, images и voice
+Legacy encrypted media остаётся immutable ciphertext/history и не принимает новые writes.
 
-Uploads проверяют size, actual MIME, safe filename, hashes, quotas и room restrictions. Temporary data удаляется после failure/cancel. Images используют safe preview. Voice поддерживает recording, cancel, preview, send, amplitude-responsive waveform, duration and playback progress.
+## 8. Devices и sessions
 
-## Backup и reliability
+Server-owned inventory строится из active sessions и содержит device ID, name, platform, Client version, creation, last-seen и expiry.
 
-Local Server выполняет integrity/WAL/free-space preflight, verified backup, staged mutation and rollback. Backup can be verified without restore. Future schema, disk-full and replacement failures terminate before unsafe mixed state.
+Поддерживаются:
 
-## Updater и distribution
+- revoke one remote device;
+- revoke all other devices;
+- immediate `session.revoked` и target Socket.IO disconnect;
+- `device.updated` refresh;
+- `STATE_CONFLICT` для remote revoke текущего device.
 
-Client and Server use separate update metadata channels. Downgrade disabled. Complete signing policy verifies Authenticode identity/timestamp. Without signing policy, official `v3.3.4` is an explicit `UNSIGNED-TEST` prerelease and contains no updater metadata or blockmaps.
+## 9. Storage, backup и reliability
 
-## Non-goals и ограничения
+- SQLite schema 8, WAL, transactional mutation и integrity checks;
+- compatibility-preserving idempotent migration;
+- future-schema guard before mutation;
+- verified backup and free-space checks;
+- non-restoring backup verification API;
+- staged DB/file replacement with rollback;
+- temporary data cleanup after success/error;
+- fault coverage for disk-full and replacement failure.
 
-- Local Server cannot decrypt retained legacy ciphertext;
-- historical readable plaintext requires a pre-existing local cache;
-- metadata/traffic-analysis resistance is not claimed;
-- automated verification is not an independent security review;
-- production public deployment depends on external TLS, firewall, monitoring and operations;
-- signed stable 3.4.0 promotion requires its own completed external gates.
+## 10. Errors и observability
 
-См. [Documentation Portal](README.md), [Architecture](ARCHITECTURE.md), [Security Model](SECURITY_MODEL.md) и [Release Notes 3.3.4](releases/3.3.4/RELEASE_NOTES.md).
+Stable error envelope содержит `code`, `message`, `requestId`, safe `details` и compatibility `error` field.
+
+Health/operations:
+
+- `/healthz/live`;
+- `/healthz/ready`;
+- protected `/metrics`;
+- request correlation;
+- recursive credential redaction;
+- graceful drain/shutdown.
+
+## 11. Release boundary
+
+Official `v3.4.0` требует:
+
+1. published verified `v3.3.4` assets/checksums;
+2. complete Authenticode identity/timestamp policy;
+3. signed Client/Server installers, blockmaps и updater metadata;
+4. Windows 10/11 installed `3.3.4 → 3.4.0` acceptance;
+5. independent review без unresolved high/critical findings;
+6. full CI/security/soak/Android/websites gates;
+7. immutable tag, SHA-256 evidence и post-publication redownload verification.
+
+До закрытия этих пунктов продукт классифицируется как source release candidate, а не опубликованный stable release.

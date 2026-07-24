@@ -1,117 +1,184 @@
-# Руководство администратора Nexora
+# Руководство администратора Nexora 3.4.0
 
-## Область
+## 1. Область
 
 | Параметр | Значение |
 |---|---|
-| Repository version | `3.3.4` release candidate |
-| Distribution | signed when policy exists; otherwise explicit `UNSIGNED-TEST` prerelease |
+| Repository version | `3.4.0` |
+| Classification | Stable Core release candidate |
+| Publication | Заблокирована до verified `v3.3.4`, Authenticode/Windows acceptance и independent review |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
-| Trust/MLS runtime | retired; legacy secure history read-only |
+| Trust/MLS runtime | retired; mutations return `410/LEGACY_READ_ONLY` |
+| Legacy secure history | read-only; Server не расшифровывает ciphertext |
 | Local Server database | SQLite schema 8 |
 
-Nexora 3.3.4 — обязательный post-MLS baseline для последующей линии 3.4.0. Он не является signed stable release до фактического подтверждения подписи, installed acceptance и release evidence.
+Документ описывает администрирование release-candidate source. Он не подтверждает опубликованный stable `v3.4.0`.
 
-## Deployment requirements
+## 2. Deployment requirements
 
-Local Server поддерживает localhost, private LAN/VPN и public HTTPS. Для public deployment обязательны trusted HTTPS reverse proxy, restricted firewall exposure, exact `allowedOrigins`, monitoring, backups, protected OS account и disk encryption. Не размещайте production secrets в repository или logs.
+Local Server поддерживает localhost, private LAN/VPN и public HTTPS за reverse proxy.
 
-Network access не является trust. Каждая операция проверяет session, Origin/CSRF, resource existence, membership, role, active ban/restriction, room policy, input scope, rate limit и resource ceiling.
+Для public deployment обязательны:
 
-## Startup и readiness
+- trusted HTTPS reverse proxy;
+- exact `allowedOrigins`;
+- минимально необходимая firewall exposure;
+- monitoring, alerting и verified backups;
+- отдельный защищённый OS account и disk encryption;
+- production secrets вне repository, artifacts и logs;
+- запрет прямого port forwarding Local Server без reverse proxy и monitoring.
 
-Перед запуском:
+Network reachability не является trust boundary. Каждая операция проверяет session, exact Origin/CSRF, resource existence, membership, role/permission, active ban, room policy, input scope, quota и rate limit.
 
-1. проверьте Node.js `22.16+` и writable data directory;
-2. проверьте свободное место для SQLite/WAL/uploads/backups;
-3. проверьте TLS SAN, Server ID и fingerprint;
-4. настройте exact origins и интерфейс прослушивания;
-5. создайте и проверьте backup;
-6. запустите readiness/health checks;
-7. убедитесь, что Client и Server используют одну release line.
+## 3. Installation и startup
 
-Не публикуйте Local Server напрямую через port forwarding без reverse proxy, firewall и monitoring.
+```bash
+npm ci
+npm start
+```
 
-## Аккаунты, роли и комнаты
+После запуска проверьте:
 
-Роли комнаты: `owner`, `moderator`, `member`. В комнате всегда ровно один owner.
+- process state;
+- полный HTTPS URL;
+- Server ID и SHA-256 certificate fingerprint;
+- `GET /healthz/live`;
+- `GET /healthz/ready`;
+- SQLite schema 8 и integrity;
+- free disk space;
+- configured Pulse mode.
 
-- только owner передаёт владение и назначает/снимает moderators;
-- moderator не воздействует на owner и не назначает других moderators без отдельного разрешения;
-- removal/ban немедленно отзывают REST и realtime access;
-- blocked user не может повторно вступить, писать или загружать через прямой API;
-- read-only, slow mode и media restrictions проверяются Server при каждом действии;
-- invite expiry/use limit и join выполняются атомарно;
-- administrative mutations создают audit record и system message.
+Первый локальный account получает `server_admin`.
 
-Опасные действия подтверждаются в UI, но безопасность обеспечивается Server checks.
+## 4. Client trust
 
-## Sessions и devices
+Передайте пользователю через trusted channel:
 
-`GET /api/v3/devices` показывает server-owned inventory активных sessions: device ID/name, platform, Client version, created/last-seen/expiry.
+1. полный HTTPS URL;
+2. Server ID;
+3. SHA-256 certificate fingerprint.
 
-- targeted revoke удаляет sessions выбранного device;
-- Server отправляет `session.revoked` и отключает session Socket.IO room;
-- `device.updated` обновляет inventory;
-- текущий device нельзя отозвать remote endpoint — возвращается `STATE_CONFLICT`;
-- после revoke Client должен перейти в terminal logged-out state без reconnect loop.
+Electron Client закрепляет fingerprint за Server ID. Browser/PWA/Android используют OS trust store. TLS warning не обходится; смена сертификата требует явного repin/approval.
 
-## Обычные сообщения и uploads
+## 5. Health, metrics и logs
 
-Ordinary server-readable messaging — единственный writable messaging path.
+- `GET /healthz/live` — process liveness;
+- `GET /healthz/ready` — database/schema/runtime readiness;
+- `GET /metrics` — Prometheus format.
 
-Server проверяет auth, membership, ban, room policy, actual MIME, byte size, safe filename, quota и rate limits. Temporary upload data удаляется после failed/cancelled operations. Corrupt images и unsupported voice formats завершаются safe errors.
+Remote metrics требует `NEXORA_METRICS_TOKEN`; без token endpoint должен оставаться loopback-only.
 
-## Legacy secure history
+Operational logs используют request IDs и recursive credential redaction. Перед передачей удалите cookies, passwords, tokens, private keys, message content и personal data.
 
-Trust Core, MLS transport/recovery и encrypted-upload write runtime удалены.
+Graceful shutdown переводит readiness в `503` до остановки workers, HTTP, Socket.IO и SQLite.
 
-- schema 8 legacy IDs, epochs, timestamps, ciphertext и provenance сохраняются;
-- legacy viewer/export только read-only;
-- Server export фиксирует `serverDecrypted: false`;
-- readable plaintext возможен только из ранее существовавшего local Client cache;
-- `/api/v4/trust*`, `/api/v4/e2ee*` и MLS Socket.IO mutations возвращают `LEGACY_READ_ONLY`;
-- нельзя включать legacy writes обратно configuration switch или ручным редактированием БД.
+## 6. Users, devices и sessions
 
-## Backup, restore и migration
+Администратор может:
 
-Перед schema-sensitive операцией:
+- disable local account;
+- issue temporary password;
+- terminate sessions;
+- inspect safe login/audit information.
 
-1. source integrity check;
-2. WAL checkpoint;
-3. free-space preflight;
-4. verified backup;
-5. staged/transactional mutation;
-6. destination integrity check;
-7. rollback/restore readiness.
+Пользователь видит server-owned inventory устройств и может:
 
-`POST /api/v3/admin/backups/verify` проверяет allowlisted backup без замены live DB/files. Restore failure не должен оставлять mixed database/uploads state. Future schema version блокируется до mutation.
+- отозвать конкретное удалённое устройство;
+- отозвать все другие sessions;
+- получить `STATE_CONFLICT` при попытке remote-revoke текущего устройства;
+- завершить текущую session обычным logout.
 
-## Errors и observability
+Revocation немедленно создаёт `session.revoked`, отключает соответствующие Socket.IO connections и обновляет `device.updated`.
 
-Errors содержат stable `code`, safe `message`, `requestId` и безопасные `details`. Не раскрываются stack, SQL, tokens, cookies, passwords или certificate material.
+## 7. Rooms и moderation
 
-Основные классы: `AUTH_REQUIRED`, `FORBIDDEN`, `RESOURCE_NOT_FOUND`, `VALIDATION_FAILED`, `STATE_CONFLICT`, `RATE_LIMITED`, `LEGACY_READ_ONLY`, `BACKUP_INTEGRITY_FAILED`, `UPDATE_SIGNATURE_INVALID`, `TEMPORARY_UNAVAILABLE`.
+Roles:
 
-Используйте request ID для корреляции, не копируйте sensitive payload в public issue.
+- `owner` — ровно один;
+- `moderator` — делегированная moderation;
+- `member` — обычный участник.
 
-## Release и updater
+Поддерживаются:
 
-Client channel — `latest`, Server channel — `server`. Downgrade запрещён. Partial signing policy отклоняется.
+- назначение и снятие moderator;
+- atomic ownership transfer;
+- removal, ban и unban;
+- join requests;
+- invites с expiry, usage limit и revocation;
+- read-only, slow mode, announcement и pre-approval;
+- file/image/voice restrictions;
+- reports, appeals и temporary restrictions;
+- administrative audit log и system messages.
 
-Без Authenticode policy `v3.3.4` публикуется только как явный `UNSIGNED-TEST` prerelease без `latest.yml`, `server.yml` и blockmaps. Такой release не потребляется production updater.
+Removed/banned user немедленно теряет REST и realtime access. Active ban имеет приоритет над stale membership.
 
-## Incident response
+## 8. Ordinary messaging и legacy history
 
-При incident:
+Writable messaging path — ordinary server-readable messages, files, images и voice.
 
-1. зафиксируйте version/commit/time/request IDs;
-2. ограничьте доступ или переведите Server в controlled read-only mode;
-3. сохраните sanitized evidence;
+Legacy Trust/MLS records:
+
+- сохраняются в schema 8 ради IDs, timestamps, epochs, ciphertext и audit provenance;
+- открываются только в `LegacySecureHistoryPane`;
+- не имеют composer, upload, voice, edit или delete controls;
+- экспортируются без server-side decryption (`serverDecrypted: false`);
+- любые legacy write requests завершаются `410/LEGACY_READ_ONLY`.
+
+Успешная legacy mutation считается security/integrity defect.
+
+## 9. Uploads и media
+
+Server проверяет:
+
+- authorization и room restrictions;
+- size/quota;
+- safe filename;
+- actual MIME signature, а не только extension/header;
+- chunk/file SHA-256;
+- dangerous/executable content;
+- cleanup temporary data после cancel/error.
+
+Повреждённые images и unsupported/denied microphone flows должны завершаться стабильной ошибкой без падения Client.
+
+## 10. Database, migration и backup
+
+Current database — SQLite schema 8 с WAL и `synchronous=FULL`.
+
+Перед upgrade/restore:
+
+1. проверьте source integrity;
+2. выполните WAL checkpoint;
+3. подтвердите free disk space;
 4. создайте verified backup;
-5. исправьте root cause и добавьте regression test;
-6. проверьте restore/recovery;
-7. обновите security/release documentation.
+5. зафиксируйте exact commit/version;
+6. проверьте rollback procedure.
 
-См. [Operations Runbook](docs/OPERATIONS_RUNBOOK.md), [Security Model](docs/SECURITY_MODEL.md) и [Release Verification 3.3.4](docs/releases/3.3.4/RELEASE_VERIFICATION.md).
+`POST /api/v3/admin/backups/verify` выполняет non-restoring verification и доступен только `server_admin`. Backup ID должен принадлежать allowlisted backup directory.
+
+Future schema блокируется до mutation. Replacement failure должен откатывать DB и file store; temporary staged data удаляется после success/error.
+
+## 11. Release и updater
+
+Для `3.4.0` официальный stable workflow требует:
+
+- опубликованный verified `v3.3.4` с Client/Server installers и checksums;
+- полный Authenticode policy: certificate, password, expected subject и thumbprint;
+- signed Client/Server installers, blockmaps и channel metadata;
+- установленный `3.3.4 → 3.4.0` smoke на Windows 10 и Windows 11;
+- independent security review без unresolved high/critical findings;
+- full CI, security, soak, Android и website gates;
+- immutable tag, checksums и post-publication redownload verification.
+
+Unsigned local packages не являются официальным release и не публикуют updater metadata.
+
+## 12. Incident response
+
+При инциденте:
+
+1. сохраните request ID, UTC time, affected account/room и stable error code;
+2. ограничьте exposure и отзовите affected sessions/tokens;
+3. создайте verified backup до destructive actions;
+4. не публикуйте secrets, DB, backups или private messages;
+5. security issues передавайте через private GitHub Security Advisory;
+6. после исправления добавьте regression test, root-cause record и closure evidence.

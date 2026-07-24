@@ -1,41 +1,50 @@
 {
   "schemaVersion": 2,
-  "version": "3.3.4",
-  "tag": "v3.3.4",
-  "status": "published",
-  "published": true,
+  "version": "3.4.0",
+  "tag": "v3.4.0",
+  "status": "release-candidate",
+  "published": false,
   "signed": false,
-  "distribution": "unsigned-test",
+  "distribution": "blocked-stable",
   "repository": "Onmaynec/Nexora",
-  "branch": "main",
-  "baseline": "v3.3.3",
-  "sourceMergeCommit": "6202bbdf8ff636711d9874452958df5dd40d9656",
-  "releaseUrl": "https://github.com/Onmaynec/Nexora/releases/tag/v3.3.4",
-  "blockers": [],
+  "branch": "release/3.4.0-stable-promotion",
+  "baseline": "v3.3.4",
+  "baselineMergeCommit": "6202bbdf8ff636711d9874452958df5dd40d9656",
+  "baselinePublication": {
+    "releaseUrl": "https://github.com/Onmaynec/Nexora/releases/tag/v3.3.4",
+    "distribution": "unsigned-test",
+    "checksumVerification": "passed",
+    "verificationRun": 30120451878,
+    "evidence": "release-evidence/v3.3.4-publication.json"
+  },
+  "blockers": [
+    "authenticode-signing-policy",
+    "windows-10-installed-upgrade-acceptance",
+    "windows-11-installed-upgrade-acceptance",
+    "independent-security-review",
+    "final-ci",
+    "merge",
+    "github-release",
+    "asset-redownload-smoke"
+  ],
   "guarantees": {
     "ordinaryMessagingWritable": true,
     "trustMlsRuntime": "retired",
     "legacySecureHistory": "read-only",
     "serverDecryptsLegacyCiphertext": false,
-    "unsignedUpdaterMetadataPublished": false
+    "stableReleaseRequiresSignedAssets": true,
+    "unsignedOfficialTagPublished": false
   },
-  "assets": [
-    "Nexora-3.3.4-source.zip",
-    "Nexora-3.3.4.spdx.json",
-    "Nexora-Android-3.3.4-UNSIGNED-TEST.apk",
-    "Nexora-Client-Setup-3.3.4-UNSIGNED-TEST.exe",
-    "Nexora-PWA-3.3.4.zip",
-    "Nexora-Server-Setup-3.3.4-UNSIGNED-TEST.exe",
-    "RELEASE-EVIDENCE.json",
-    "SHA256SUMS.txt"
-  ],
+  "assets": [],
   "verification": {
-    "status": "passed",
-    "pr": 70,
-    "sourceHead": "54907da60fa5d81bf0e597cf48c98124246ace67",
-    "sourceGateRun": 30107879438,
-    "publicationVerificationRun": 30120451878,
-    "checksumVerification": "passed",
-    "verifiedAt": "2026-07-24T19:22:29.628Z"
+    "status": "internal-gates-passed",
+    "internalHead": "7af836ad7c6c9a7312020d5c7a59372fc182cab3",
+    "internalCiRun": 30124965881,
+    "focusedRegressionRun": 30120868628,
+    "websiteRun": 30120868643,
+    "productionDependencyAudit": {
+      "high": 0,
+      "critical": 0
+    }
   }
 }
