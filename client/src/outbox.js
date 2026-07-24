@@ -4,6 +4,7 @@ const activeFlushes = new Map();
 const MAX_ATTEMPTS = 5;
 const MAX_BACKOFF_MS = 60_000;
 const MAX_ENTRIES = 500;
+const ACTIVE_SERVER_PREFIX = "nexora:active-server:";
 const PERMANENT_CODES = new Set([
   "AUTH_REQUIRED",
   "CACHE_SCOPE_MISMATCH",
@@ -20,15 +21,24 @@ function cleanPart(value, fallback) {
   return encodeURIComponent((candidate || fallback).slice(0, 200));
 }
 
-export function outboxScope(value, serverId = location.origin) {
+function activeServerId(userId) {
+  try {
+    return localStorage.getItem(`${ACTIVE_SERVER_PREFIX}${String(userId || "anonymous")}`) || location.origin;
+  } catch {
+    return location.origin;
+  }
+}
+
+export function outboxScope(value, serverId) {
   if (value && typeof value === "object") {
     return {
       origin: String(value.origin || location.origin),
-      serverId: String(value.serverId || location.origin),
+      serverId: String(value.serverId || activeServerId(value.userId)),
       userId: String(value.userId || "anonymous"),
     };
   }
-  return { origin: location.origin, serverId: String(serverId || location.origin), userId: String(value || "anonymous") };
+  const userId = String(value || "anonymous");
+  return { origin: location.origin, serverId: String(serverId || activeServerId(userId)), userId };
 }
 
 function key(value, serverId) {
