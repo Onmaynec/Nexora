@@ -53,9 +53,10 @@ jobs:
         shell: bash
         run: |
           set +e
-          npm run test:unit > unit-failures.log 2>&1
+          log="$RUNNER_TEMP/unit-failures.log"
+          npm run test:unit > "$log" 2>&1
           status=$?
-          cat unit-failures.log
+          cat "$log"
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit "$status"
       - name: Upload unit diagnostics
@@ -63,7 +64,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: unit-failures
-          path: unit-failures.log
+          path: ${{ runner.temp }}/unit-failures.log
           if-no-files-found: error
           retention-days: 2
       - name: Enforce unit suite
@@ -88,9 +89,10 @@ jobs:
         shell: bash
         run: |
           set +e
-          npm run release:consistency > release-consistency.log 2>&1
+          log="$RUNNER_TEMP/release-consistency.log"
+          npm run release:consistency > "$log" 2>&1
           status=$?
-          cat release-consistency.log
+          cat "$log"
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit "$status"
       - name: Upload release consistency diagnostics
@@ -98,7 +100,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-consistency-failures
-          path: release-consistency.log
+          path: ${{ runner.temp }}/release-consistency.log
           if-no-files-found: error
           retention-days: 2
       - name: Enforce release consistency
@@ -111,7 +113,28 @@ jobs:
       - name: Run performance test
         run: npm run test:performance
       - name: Run security invariant and dependency audit
-        run: npm run audit:security
+        id: security
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          log="$RUNNER_TEMP/security-audit.log"
+          npm run audit:security > "$log" 2>&1
+          status=$?
+          cat "$log"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit "$status"
+      - name: Upload security diagnostics
+        if: steps.security.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-audit-failures
+          path: ${{ runner.temp }}/security-audit.log
+          if-no-files-found: error
+          retention-days: 2
+      - name: Enforce security audit
+        if: steps.security.outcome == 'failure'
+        run: exit 1
 
   schema8-soak:
     runs-on: ubuntu-latest
