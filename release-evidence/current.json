@@ -10,8 +10,14 @@
   "branch": "release/3.4.0-stable-core-v2",
   "baseline": "v3.3.4",
   "baselineMergeCommit": "6202bbdf8ff636711d9874452958df5dd40d9656",
+  "baselinePublication": {
+    "releaseUrl": "https://github.com/Onmaynec/Nexora/releases/tag/v3.3.4",
+    "distribution": "unsigned-test",
+    "checksumVerification": "passed",
+    "verificationRun": 30120451878,
+    "evidence": "release-evidence/v3.3.4-publication.json"
+  },
   "blockers": [
-    "published-v3.3.4-tag-release-assets",
     "authenticode-signing-policy",
     "windows-10-installed-upgrade-acceptance",
     "windows-11-installed-upgrade-acceptance",
@@ -29,23 +35,16 @@
     "stableReleaseRequiresSignedAssets": true,
     "unsignedOfficialTagPublished": false
   },
-  "assets": [
-    "Nexora-3.3.4-source.zip",
-    "Nexora-3.3.4.spdx.json",
-    "Nexora-Android-3.3.4-UNSIGNED-TEST.apk",
-    "Nexora-Client-Setup-3.3.4-UNSIGNED-TEST.exe",
-    "Nexora-PWA-3.3.4.zip",
-    "Nexora-Server-Setup-3.3.4-UNSIGNED-TEST.exe",
-    "RELEASE-EVIDENCE.json",
-    "SHA256SUMS.txt"
-  ],
+  "assets": [],
   "verification": {
-    "status": "passed",
-    "pr": 70,
-    "sourceHead": "54907da60fa5d81bf0e597cf48c98124246ace67",
-    "sourceGateRun": 30107879438,
-    "publicationVerificationRun": 30120451878,
-    "checksumVerification": "passed",
-    "verifiedAt": "2026-07-24T19:22:29.628Z"
+    "status": "internal-gates-passed",
+    "internalHead": "79cfdc2493370da302468117466a8ce4c4679859",
+    "internalCiRun": 30119009186,
+    "focusedRegressionRun": 30119009259,
+    "websiteRun": 30119009175,
+    "productionDependencyAudit": {
+      "high": 0,
+      "critical": 0
+    }
   }
 }
