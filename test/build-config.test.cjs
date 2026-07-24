@@ -8,7 +8,7 @@ const { test } = require("node:test");
 
 const root = path.resolve(__dirname, "..");
 
-test("релиз 3.3.4 собирает проверяемые signed assets без native SQLite и MLS runtime", () => {
+test("релиз 3.3.4 собирает проверяемые assets без native SQLite и MLS runtime", () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
   const lock = fs.readFileSync(path.join(root, "package-lock.json"), "utf8");
   const client = fs.readFileSync(path.join(root, "electron-builder.client.yml"), "utf8");
@@ -21,6 +21,7 @@ test("релиз 3.3.4 собирает проверяемые signed assets б�
   const signingCheck = fs.readFileSync(path.join(root, "scripts", "check-release-signing.cjs"), "utf8");
   const signatureVerifier = fs.readFileSync(path.join(root, "scripts", "verify-authenticode.ps1"), "utf8");
 
+  assert.equal(packageJson.version, "3.3.4");
   assert.equal(packageJson.version, require("../package-lock.json").version);
   assert.equal(packageJson.dependencies["better-sqlite3"], undefined);
   assert.equal(packageJson.devDependencies?.["better-sqlite3"], undefined);
@@ -65,6 +66,9 @@ test("релиз 3.3.4 собирает проверяемые signed assets б�
   assert.match(signatureVerifier, /TimeStamperCertificate/);
   assert.match(signatureVerifier, /Unexpected certificate thumbprint/);
 
+  assert.match(releaseWorkflow, /This workflow publishes only Nexora 3\.3\.4/);
+  assert.match(releaseWorkflow, /PUBLISH_TAG=\$officialTag/);
+  assert.doesNotMatch(releaseWorkflow, /Verify required 3\.3\.4 baseline/);
   assert.match(releaseWorkflow, /SHA256SUMS\.txt/);
   assert.match(releaseWorkflow, /Nexora-\$version-source\.zip/);
   assert.match(releaseWorkflow, /npm sbom --omit=dev --sbom-format=spdx/);
@@ -76,14 +80,14 @@ test("релиз 3.3.4 собирает проверяемые signed assets б�
   assert.match(releaseWorkflow, /Nexora-Android-\$version-UNSIGNED-TEST\.apk/);
   assert.match(releaseWorkflow, /--publish never/);
   assert.doesNotMatch(releaseWorkflow, /--publish always/);
-  assert.match(releaseWorkflow, /v3\.3\.4/);
-  assert.match(releaseWorkflow, /Installed Windows n-1 to n smoke/);
+  assert.match(releaseWorkflow, /Installed Windows package smoke/);
   assert.match(releaseWorkflow, /verify-authenticode\.ps1/);
   assert.match(releaseWorkflow, /server\.yml/);
-  assert.match(releaseWorkflow, /unsigned-test\.\$env:GITHUB_RUN_NUMBER/);
+  assert.match(releaseWorkflow, /UNSIGNED-TEST prerelease without updater metadata/);
   assert.match(releaseWorkflow, /Unsigned artifact set contains updater metadata/);
   assert.match(releaseWorkflow, /Immutable tag already points to another commit/);
   assert.match(releaseWorkflow, /Re-download and verify immutable release assets/);
+  assert.match(releaseWorkflow, /baseline = 'v3\.3\.3'/);
   assert.match(releaseWorkflow, /workflow_run:/);
   assert.match(releaseWorkflow, /startsWith\(github\.event\.workflow_run\.head_commit\.message, 'release: Nexora '\)/);
   assert.doesNotMatch(releaseWorkflow, /startsWith\(github\.event\.workflow_run\.head_commit\.message, 'release:'\)/);
