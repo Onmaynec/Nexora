@@ -1,4 +1,4 @@
-name: Diagnose Nexora 3.4.0 RC1 publication
+name: Finalize Nexora 3.4.0 RC1 evidence
 
 on:
   push:
@@ -12,51 +12,157 @@ permissions:
   actions: read
 
 jobs:
-  diagnose:
+  finalize:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      SNAPSHOT: "3"
+      RC_TAG: v3.4.0-rc.1
+      RC_HEAD: 19c637134c93b93ea1255bf7ccf97ee95f97c33b
+      RC_PUBLICATION_RUN: "30121386962"
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
-      - name: Capture publication run
+          ref: release/3.4.0-stable-core-v2
+          fetch-depth: 0
+
+      - name: Inspect and download published RC
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p release-evidence
-          gh run list --repo "$GITHUB_REPOSITORY" --workflow publish-3.4.0-rc1.yml --limit 1 --json databaseId,status,conclusion,headSha,url,workflowName > rc-run.json
+          mkdir -p published release-evidence
+          gh release view "$RC_TAG" --repo "$GITHUB_REPOSITORY" --json tagName,isDraft,isPrerelease,url,assets > release.json
+          gh release download "$RC_TAG" --repo "$GITHUB_REPOSITORY" --dir published
           node <<'NODE'
           const fs = require('node:fs');
-          const runs = JSON.parse(fs.readFileSync('rc-run.json', 'utf8'));
-          const output = {
+          const release = JSON.parse(fs.readFileSync('release.json', 'utf8'));
+          if (release.tagName !== process.env.RC_TAG) throw new Error('RC tag mismatch');
+          if (release.isDraft || !release.isPrerelease) throw new Error('RC must be a published prerelease');
+          const names = (release.assets || []).map((asset) => asset.name).sort();
+          const required = [
+            'Nexora-3.4.0-rc.1-source.zip',
+            'Nexora-PWA-3.4.0-rc.1.zip',
+            'Nexora-3.4.0-rc.1.spdx.json',
+            'Nexora-Android-3.4.0-RC1-UNSIGNED-TEST.apk',
+            'Nexora-Client-Setup-3.4.0-RC1-UNSIGNED-TEST.exe',
+            'Nexora-Server-Setup-3.4.0-RC1-UNSIGNED-TEST.exe',
+            'RC-PUBLICATION-EVIDENCE.json',
+            'SHA256SUMS.txt',
+          ];
+          for (const name of required) {
+            if (!names.includes(name)) throw new Error(`Missing RC asset: ${name}`);
+          }
+          if (names.some((name) => name === 'latest.yml' || name === 'server.yml' || name.endsWith('.blockmap'))) {
+            throw new Error('Unsigned RC exposes updater metadata');
+          }
+          NODE
+
+      - name: Verify published checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s published/SHA256SUMS.txt
+          while IFS= read -r line || [ -n "$line" ]; do
+            line="${line%$'\r'}"
+            [ -z "$line" ] && continue
+            expected="${line%%  *}"
+            name="${line#*  }"
+            test -f "published/$name"
+            actual="$(sha256sum "published/$name" | awk '{print $1}')"
+            [ "$actual" = "$expected" ] || { echo "Checksum mismatch: $name" >&2; exit 1; }
+          done < published/SHA256SUMS.txt
+
+      - name: Write permanent RC publication evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const release = JSON.parse(fs.readFileSync('release.json', 'utf8'));
+          const assets = (release.assets || []).map((asset) => asset.name).sort();
+          const sha256 = {};
+          for (const name of assets) {
+            const file = `published/${name}`;
+            if (!fs.existsSync(file)) throw new Error(`Downloaded RC asset missing: ${name}`);
+            sha256[name] = crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+          }
+          const evidence = {
             schemaVersion: 1,
             version: '3.4.0',
-            tag: 'v3.4.0-rc.1',
-            checkedAt: new Date().toISOString(),
-            diagnosticWorkflowRun: process.env.GITHUB_RUN_ID,
-            snapshot: process.env.SNAPSHOT,
-            publicationRuns: runs,
+            tag: process.env.RC_TAG,
+            releaseUrl: release.url,
+            commit: process.env.RC_HEAD,
+            classification: 'release-candidate',
+            draft: false,
+            prerelease: true,
+            signed: false,
+            distribution: 'unsigned-test',
+            checksumVerification: 'passed',
+            updaterMetadataPublished: false,
+            installedWindowsSmoke: 'passed',
+            internalGateRun: 30120868638,
+            focusedRegressionRun: 30120868628,
+            websiteRun: 30120868643,
+            publicationRun: Number(process.env.RC_PUBLICATION_RUN),
+            baseline: {
+              tag: 'v3.3.4',
+              releaseUrl: 'https://github.com/Onmaynec/Nexora/releases/tag/v3.3.4',
+              checksumVerification: 'passed',
+              evidence: 'release-evidence/v3.3.4-publication.json',
+            },
+            remainingStableBlockers: [
+              'authenticode-signing-policy',
+              'windows-10-installed-upgrade-acceptance',
+              'windows-11-installed-upgrade-acceptance',
+              'independent-security-review',
+            ],
+            assets,
+            sha256,
+            verifiedAt: new Date().toISOString(),
           };
-          fs.writeFileSync('release-evidence/v3.4.0-rc.1-diagnostic.json', `${JSON.stringify(output, null, 2)}\n`);
+          fs.writeFileSync('release-evidence/v3.4.0-rc.1-publication.json', `${JSON.stringify(evidence, null, 2)}\n`);
+
+          const currentPath = 'release-evidence/current.json';
+          const current = JSON.parse(fs.readFileSync(currentPath, 'utf8'));
+          current.rcPublication = {
+            tag: evidence.tag,
+            releaseUrl: evidence.releaseUrl,
+            commit: evidence.commit,
+            classification: evidence.classification,
+            signed: evidence.signed,
+            distribution: evidence.distribution,
+            checksumVerification: evidence.checksumVerification,
+            updaterMetadataPublished: evidence.updaterMetadataPublished,
+            installedWindowsSmoke: evidence.installedWindowsSmoke,
+            publicationRun: evidence.publicationRun,
+            evidence: 'release-evidence/v3.4.0-rc.1-publication.json',
+          };
+          current.verification = {
+            ...(current.verification || {}),
+            status: 'rc-published-internal-gates-passed',
+            rcPublicationRun: evidence.publicationRun,
+            rcChecksumVerification: evidence.checksumVerification,
+          };
+          fs.writeFileSync(currentPath, `${JSON.stringify(current, null, 2)}\n`);
           NODE
-          run_id="$(node -e "const r=require('./rc-run.json');console.log(r[0]?.databaseId||'')")"
-          conclusion="$(node -e "const r=require('./rc-run.json');console.log(r[0]?.conclusion||'')")"
-          if [ -n "$run_id" ] && [ "$conclusion" = "failure" ]; then
-            gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --log-failed > failed.log 2>&1 || true
-            tail -n 160 failed.log > release-evidence/v3.4.0-rc.1-failure.tail
-          else
-            rm -f release-evidence/v3.4.0-rc.1-failure.tail
-          fi
-      - name: Commit diagnostic
+
+      - name: Commit permanent evidence to PR branch
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add release-evidence/v3.4.0-rc.1-diagnostic.json
-          if [ -f release-evidence/v3.4.0-rc.1-failure.tail ]; then git add release-evidence/v3.4.0-rc.1-failure.tail; fi
-          git commit -m "docs(release): refresh Nexora 3.4.0 RC1 diagnostic snapshot 3"
-          git push origin HEAD:main
+          git add release-evidence/current.json release-evidence/v3.4.0-rc.1-publication.json
+          git diff --cached --check
+          git commit -m "docs(release): record verified Nexora 3.4.0 RC1 publication"
+          git push origin HEAD:release/3.4.0-stable-core-v2
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nexora-3.4.0-rc1-publication-evidence
+          path: |
+            release-evidence/v3.4.0-rc.1-publication.json
+            published/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
