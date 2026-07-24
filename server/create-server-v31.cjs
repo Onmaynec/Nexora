@@ -11,6 +11,8 @@ const { DeveloperCommandService } = require("./developer-commands.cjs");
 const { PulseSandboxService } = require("./pulse-sandbox-service.cjs");
 const { upgradeStoreToSchema8 } = require("./trust-schema8.cjs");
 const { mountStableCore } = require("./stable-core.cjs");
+const { upgradeStoreToSchema9 } = require("./mobile-continuity-schema9.cjs");
+const { mountMobileContinuity } = require("./mobile-continuity.cjs");
 
 function parsePublicKeys(options = {}) {
   const values = [];
@@ -45,6 +47,10 @@ async function createNexoraServer(options = {}) {
       log: (message) => log(message, "info"),
     });
     const legacyTrustMigration = await upgradeStoreToSchema8(instance.store, {
+      databaseFile: instance.status().databaseFile,
+      log: (message) => log(message, "info"),
+    });
+    const mobileContinuityMigration = await upgradeStoreToSchema9(instance.store, {
       databaseFile: instance.status().databaseFile,
       log: (message) => log(message, "info"),
     });
@@ -110,16 +116,29 @@ async function createNexoraServer(options = {}) {
       maintenance: instance.maintenance,
       log,
     });
+    const mobileContinuity = mountMobileContinuity({
+      app: instance.app,
+      store: instance.store,
+      io: instance.io,
+      authRequired: pulseRoutes.authRequired,
+      maintenance: instance.maintenance,
+      dataDir: instance.status().dataDir,
+      maxFileBytes: LIMITS.fileBytes,
+      serverId: instance.status().serverId,
+      pushTokenKey: options.pushTokenKey,
+      log,
+    });
 
     const baseStatus = instance.status.bind(instance);
     instance.status = () => ({
       ...baseStatus(),
-      schemaVersion: 8,
+      schemaVersion: 9,
       pulseV3: { keyCount: 0, ...client.status(), ...(sandbox.enabled() ? { mode: "sandbox", enabled: true, productionReady: false, testMode: true } : {}), sync: syncWorker.status() },
       stableCore: stableCore.status(),
+      mobileContinuity: mobileContinuity.status(),
       trust: { runtime: "retired", legacyHistory: "read_only", encryptedAttachments: false, deviceScopedRealtime: false, activeGroups: 0 },
       migration: pulseMigration,
-      migrations: { pulse: pulseMigration, legacyTrust: legacyTrustMigration },
+      migrations: { pulse: pulseMigration, legacyTrust: legacyTrustMigration, mobileContinuity: mobileContinuityMigration },
     });
     const baseListen = instance.listen.bind(instance);
     instance.listen = async () => {
@@ -130,6 +149,7 @@ async function createNexoraServer(options = {}) {
     const baseClose = instance.close.bind(instance);
     instance.close = async () => {
       syncWorker.stop();
+      mobileContinuity.close();
       await baseClose();
     };
     instance.pulseRepository = repository;
@@ -138,11 +158,13 @@ async function createNexoraServer(options = {}) {
     instance.pulseMigration = pulseMigration;
     instance.pulseSandbox = sandbox;
     instance.legacyTrustMigration = legacyTrustMigration;
+    instance.mobileContinuityMigration = mobileContinuityMigration;
     instance.stableCore = stableCore;
+    instance.mobileContinuity = mobileContinuity;
     instance.commandService = new DeveloperCommandService({ instance, store: instance.store, pulseSandbox: sandbox, log, clock: options.clock });
     return instance;
   } catch (error) {
-    await instance.close().catch((closeError) => log(`Failed to close Local Server after Stable Core initialization error: ${closeError.message}`, "error"));
+    await instance.close().catch((closeError) => log(`Failed to close Local Server after Mobile Continuity initialization error: ${closeError.message}`, "error"));
     throw error;
   }
 }
