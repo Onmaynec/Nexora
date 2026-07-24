@@ -77,7 +77,7 @@ jobs:
           grep -Fq 'NexoraReleaseFallback' website/app.js
           grep -Fq 'RELEASE_REQUEST_TIMEOUT_MS' website/app.js
           grep -Fq 'class AetherField' website/app.js
-          grep -Fq 'main-site-ux-polish-20260724-1' website/build.json
+          grep -Fq 'main-site-ux-polish-release-resilience-20260724-2' website/build.json
           test -s website/UX_AUDIT_2026-07-24.md
           node advanced-website/scripts/inject-entry-link.mjs website/index.html
           test "$(grep -Fc 'data-advanced-docs' website/index.html)" -eq 1
@@ -135,7 +135,7 @@ jobs:
           for attempt in $(seq 1 30); do
             root="$(curl --fail --silent --show-error --location --header 'Cache-Control: no-cache' "${base}build.json?attempt=${attempt}" || true)"
             advanced="$(curl --fail --silent --show-error --location --header 'Cache-Control: no-cache' "${base}advanced/?attempt=${attempt}" || true)"
-            if grep -Fq 'main-site-ux-polish-20260724-1' <<<"$root" && grep -Fq 'Nexora Advanced Documentation' <<<"$advanced"; then
+            if grep -Fq 'main-site-ux-polish-release-resilience-20260724-2' <<<"$root" && grep -Fq 'Nexora Advanced Documentation' <<<"$advanced"; then
               echo "Both Nexora websites verified at ${base} and ${base}advanced/"
               exit 0
             fi
