@@ -15,7 +15,7 @@ The introductory site remains unchanged in source. During the Pages build, an id
 
 1. Current repository source and tests.
 2. Current `PROJECT_INDEX.md`, `docs/ARCHITECTURE.md`, `docs/SECURITY_MODEL.md`, operator runbooks and release evidence.
-3. `ROADMAP.md` for planned releases after the approved prerequisite.
+3. `docs/ROADMAP.md` for planned releases after the approved prerequisite.
 4. The 17 July 2026 Documentation Kit as historical audit and target-design provenance only.
 
 The Documentation Kit was prepared against an older 0.3.0 line. Its target endpoints, schema assumptions and 0.4–0.6 roadmap claims are not presented as current implementation unless verified against `main`.
@@ -34,20 +34,20 @@ The portal additionally supports a strict local `image`/`figure` block:
   "caption": {"ru": "What is shown and what to verify", "en": "What is shown and what to verify"},
   "width": 1200,
   "height": 675,
-  "version": "3.3.3"
+  "version": "{{version}}"
 }
 ```
 
 Rules:
 
-- `src` is relative to `advanced-website/public/` and must match the allowlist `svg|png|webp`;
-- remote URLs, `data:`, `javascript:`, HTML, scripts, iframes and event handlers are rejected;
+- `src` is restricted to `advanced-website/public/docs-media/` and the `svg|png|webp` allowlist;
+- remote URLs, `data:`, `javascript:`, `.`/`..` path segments, HTML, scripts, `foreignObject`, external CSS/imports and event handlers are rejected;
 - `alt` and `caption` are mandatory in RU and EN;
 - width and height are mandatory to prevent layout shift;
 - images render with `loading="lazy"` and `decoding="async"`;
 - Mermaid remains `securityLevel: "strict"` with a text fallback.
 
-Pages, sections and blocks may declare `lines`, `since` or `until`. The selected 3.1/3.2/3.3 line filters rendered sections and the search haystack. Trust/MLS API v4 is unavailable in the 3.1.x view, while 3.3-only goals, voice and Pulse material is excluded from older views.
+Pages, sections and blocks may declare `lines`, `since` or `until`. The selected 3.1/3.2/3.3 line filters navigation, rendered sections, previous/next links, generated API/event inventory and the search index. Trust/MLS API v4 and Pulse Cloud are absent from the 3.1.x view; Pulse Cloud and 3.3-only goals/voice/purchase material are absent from 3.2.x.
 
 ## Generated and authoritative data
 
@@ -58,22 +58,22 @@ Pages, sections and blocks may declare `lines`, `since` or `until`. The selected
 - the current package SemVer;
 - release-note fallback data.
 
-The roadmap page is located at `#/roadmap`, appears in **Versions and sources**, and uses `ROADMAP.md` as its edit/source link. Validation compares the published version/name/order table with the authoritative Markdown table and fails on drift.
+The roadmap page is located at `#/roadmap`, appears in **Versions and sources**, and uses `docs/ROADMAP.md` as its edit/source link. Validation compares published version, working name and dependency order with the authoritative Markdown table and fails on drift.
 
-Current patch SemVer is injected from root `package.json`; `releases.json` uses `{{version}}` instead of duplicating a current patch literal.
+Current patch SemVer is injected from root `package.json`; current-classification content and media use `{{version}}` or a non-patch line label instead of duplicating the current patch literal.
 
 ## Validation
 
 `advanced-website/scripts/validate-content.mjs` verifies:
 
 - bilingual page, section, callout, Mermaid and figure metadata;
-- navigation and unique anchors;
-- sourcePath existence;
-- local media existence, extension, dimensions and size budgets;
+- allowed block types, version metadata, navigation and unique anchors;
+- safe and existing `sourcePath` values;
+- local media existence, `docs-media/` containment, extension, dimensions, per-file/package budgets and SVG executable-content rejection;
 - at least 16 diagrams, 10 illustrations, 12 API examples and 8 runbooks;
-- package/generated-reference equality;
-- roadmap parity with `ROADMAP.md`;
-- version-line filtering and the 3.1.x Trust/API v4 boundary;
+- package/generated-reference equality and absence of a stale current patch in release content/media;
+- roadmap version/name/dependency parity with `docs/ROADMAP.md`;
+- version-line navigation/search boundaries for 3.1.x and 3.2.x;
 - absence of unsafe content-model markers.
 
 ## Portal capabilities
@@ -81,12 +81,12 @@ Current patch SemVer is injected from root `package.json`; `releases.json` uses 
 - RU/EN language switch with persisted preference;
 - functional 3.1.x, 3.2.x and 3.3.x content selector;
 - current SemVer injected from root `package.json`;
-- `Ctrl/Cmd + K` version-aware full-text search including captions and alt text;
+- `Ctrl/Cmd + K` search limited to available content for the selected line, including captions and alt text;
 - nested left navigation, breadcrumbs and right-side page table of contents;
-- anchor links, previous/next navigation and code-copy controls;
-- generated API v3, Trust/MLS v4 and Socket.IO reference;
+- anchor links, version-aware previous/next navigation and code-copy controls;
+- version-filtered generated API v3, Trust/MLS v4 and Socket.IO reference;
 - Mermaid diagrams with strict rendering and a safe text fallback;
-- local lazy-loaded figures with bilingual captions;
+- local lazy-loaded figures with bilingual captions and failure fallback;
 - roadmap 3.4.0–4.0.0 with a 3.3.4 prerequisite and publication gates;
 - live GitHub Releases with repository fallback;
 - Edit on GitHub and issue-report links;
