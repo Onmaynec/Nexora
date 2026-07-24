@@ -1,52 +1,50 @@
-# Статус выпуска Nexora 3.3.2
+# Статус ветки `release/3.3.4-post-mls`
 
 ## Классификация
 
 | Параметр | Значение |
 |---|---|
-| Version | `3.3.2` |
-| Release scope | Release consistency, documentation, CI and repository cleanup |
-| Source Pull Request | PR `#42`, merged |
-| Source merge commit | `82af775fb39515bd219078fec368cc259441c288` |
-| Release tag | `v3.3.2` |
-| GitHub Release | `Nexora 3.3.2 — UNSIGNED TEST BUILDS` при отсутствии signing secrets |
-| Distribution | `UNSIGNED-TEST` prerelease boundary |
-| Production updater metadata | not published for unsigned assets |
-| Local Server schema | `8` |
-| Application API | `v3` |
-| Trust/MLS API | `v4` |
-| Database migration | not required |
-| Independent security audit | not performed |
+| Classification | Active development / draft release candidate |
+| Target version | Nexora `3.3.4` |
+| Base release | Nexora `3.3.3` |
+| Pull Request | Draft PR `#70` |
+| Branch role | Mandatory post-MLS prerequisite for the planned 3.4.0 line |
+| Current product source of truth | `main`, Nexora `3.3.3` |
+| Release state | Not approved, not tagged, not published |
+| Package metadata | `3.3.4` on this branch only |
 
-Nexora `3.3.2` не добавляет пользовательские функции и не меняет runtime. Выпуск синхронизирует version metadata, current documentation, release history и release evidence, а также добавляет post-publication smoke-проверку Client, Server, Android и PWA assets.
+## Scope
 
-## Verification
+- remove executable Trust/MLS runtime and the `ts-mls` dependency;
+- restore ordinary server-readable messaging as the only writable messaging path;
+- preserve schema 8 legacy ciphertext as read-only history/export without server-side decryption;
+- reject legacy Trust/E2EE mutations with `410/LEGACY_READ_ONLY`;
+- complete related Client bootstrap, UX, release and regression corrections;
+- prepare an explicitly classified 3.3.4 prerelease with checksums and re-download smoke evidence.
 
-- PR CI run `30002580071`: Windows verify, Linux suite, release gate, schema 8 soak и Android source build — success;
-- focused Nexora 3.3 regressions run `30002580107` — success;
-- `package.json` является источником SemVer;
-- `npm run release:consistency` проверяет package-lock, Android metadata, README, Documentation Portal, Project Index, Architecture, Security Model, Android README и current evidence;
-- `npm run release:check` включает consistency gate, build, unit/API/integration, performance и security audit;
-- release evidence workflow скачивает опубликованные assets, проверяет `SHA256SUMS.txt`, PE/ZIP integrity и обязательное содержимое;
-- окончательные release run ID, размеры и SHA-256 записываются в `release-evidence/v3.3.2.json`.
+## Merge and release boundary
 
-## Организационная очистка
+This branch does not change the current product state until PR #70 is reviewed, merged into `main`, verified by the complete release gate and published from the resulting immutable commit. It must not be represented as stable or production-signed before those conditions are met.
 
-- конфликтующие PR #30 и #31, основанные на устаревшем `main`, закрыты без merge;
-- obsolete automation PR #6 и #7 для исторической линии 3.1.0 закрыты без merge;
-- экспериментальный Rust/OpenMLS PR #11 закрыт как superseded: текущий `main` использует интегрированный JavaScript/`ts-mls` Trust/MLS API v4;
-- повторное рассмотрение Rust/OpenMLS возможно только через отдельный RFC, новый development branch, migration/interoperability plan, reproducible-build gate и независимый security review.
+The overlapping `release/3.3.4` / PR #67 line must be reconciled explicitly. Independent merge or publication of both branches is prohibited.
 
-## Security and compatibility
+## Required verification
 
-- authorization, room roles, bans, upload policy, Pulse pricing/ledger and Trust Core are unchanged;
-- no new dependencies, secrets, executable payload or network permissions are added;
-- schema 8, API v3 and Trust/MLS API v4 remain compatible;
-- no migration or rollback is required.
+- version and documentation consistency;
+- syntax, type/build and Electron configuration checks;
+- unit, API, integration, regression and performance tests;
+- security audit and legacy-read-only bypass tests;
+- schema 8 compatibility/soak;
+- Windows, PWA and Android source/artifact gates;
+- published asset checksum and re-download smoke checks.
+
+## Security boundary
+
+Legacy ciphertext remains opaque and read-only. No server-side decryption, plaintext downgrade of historical secure records, secret logging or silent data deletion is permitted. New ordinary messages follow the server-readable 3.3.4 contract only after the branch is approved and merged.
 
 ## Real limitations
 
-- Windows Client/Server and Android remain unsigned test artifacts unless the release environment contains valid signing credentials;
-- production updater cannot consume an unsigned prerelease because `latest.yml` and `.blockmap` are intentionally absent;
-- independent cryptographic/application-security audit is not performed;
-- physical-device Android and installed Windows acceptance remain external release evidence requirements.
+- the branch is a draft and may change;
+- Authenticode credentials and installed Windows acceptance remain external prerequisites for a signed stable release;
+- independent security review is not complete;
+- `main` 3.3.3 remains the only current product source of truth.
