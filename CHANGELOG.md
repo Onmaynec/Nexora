@@ -2,6 +2,42 @@
 
 Формат основан на Keep a Changelog. Версии следуют Semantic Versioning.
 
+## [3.4.0] — 2026-07-24 (Release candidate)
+
+### Stable Core
+
+- ordinary server-readable messaging is the only writable messaging path;
+- executable Trust Core, MLS routes/recovery/socket transport, encrypted-upload writes and `ts-mls` are removed;
+- schema 8 legacy IDs, timestamps, epochs, ciphertext and audit provenance remain available through an immutable read-only viewer/export;
+- legacy HTTP and Socket.IO mutations terminate with `LEGACY_READ_ONLY`; Server never decrypts retained legacy ciphertext.
+
+### Sessions, reliability and diagnostics
+
+- server-owned device/session inventory supports targeted remote revoke, revoke-all-others, `session.revoked`, `device.updated` and immediate target Socket.IO disconnect;
+- backup verification is non-restoring and allowlisted; migration/restore cover integrity, WAL, free-space, future-schema, disk-full and rollback failure paths;
+- stable errors include safe `code`, `message`, `requestId` and details without leaking stack, SQL or secrets.
+
+### Release and compatibility
+
+- Client and Server use separate signed updater channels with downgrade/prerelease rejection and `UPDATE_SIGNATURE_INVALID` tamper handling;
+- version metadata is synchronized across package, lockfile, Client and Android (`versionCode 30400`);
+- official stable publication requires verified `v3.3.4`, Authenticode identity/timestamp evidence, Windows 10/11 installed `3.3.4 → 3.4.0` acceptance, independent review and final green gates;
+- `3.4.0` remains a release candidate until those external evidence requirements are complete.
+
+## [3.3.4] — 2026-07-24 (Post-MLS prerequisite source baseline)
+
+### Changed
+
+- merged the post-MLS prerequisite implementation into `main` through PR #70;
+- ordinary chats no longer bootstrap or depend on Trust/MLS state;
+- legacy secure history became terminal read-only without server-side decryption;
+- release consistency, security, Android, schema 8 soak, focused regressions and both website pipelines were brought to a green source baseline.
+
+### Release state
+
+- source baseline merge commit: `6202bbdf8ff636711d9874452958df5dd40d9656`;
+- published tag/assets remain a separate prerequisite evidence requirement for the `3.4.0` stable workflow.
+
 ## [3.3.3] - 2026-07-23
 
 ### Fixed
