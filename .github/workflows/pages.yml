@@ -46,6 +46,7 @@ jobs:
         run: |
           node --check website/app.js
           node --check website/site-fixes.js
+          node --check website/site-polish.js
           node website/validate.mjs
           node website/validate-restored.mjs
       - name: Compose introductory website artifact
@@ -54,11 +55,16 @@ jobs:
           set -euo pipefail
           printf '\n\n' >> website/styles.css
           cat website/site-fixes.css >> website/styles.css
+          printf '\n\n' >> website/styles.css
+          cat website/site-polish.css >> website/styles.css
           printf '\n\n' >> website/app.js
           cat website/site-fixes.js >> website/app.js
+          printf '\n\n' >> website/app.js
+          cat website/site-polish.js >> website/app.js
           node --check website/app.js
           grep -Fq 'class AetherField' website/app.js
-          grep -Fq 'restored-3.2.5-ux-20260723-1' website/build.json
+          grep -Fq 'main-site-ux-polish-20260724-1' website/build.json
+          test -s website/UX_AUDIT_2026-07-24.md
           node advanced-website/scripts/inject-entry-link.mjs website/index.html
           test "$(grep -Fc 'data-advanced-docs' website/index.html)" -eq 1
       - name: Generate advanced reference
@@ -115,7 +121,7 @@ jobs:
           for attempt in $(seq 1 30); do
             root="$(curl --fail --silent --show-error --location --header 'Cache-Control: no-cache' "${base}build.json?attempt=${attempt}" || true)"
             advanced="$(curl --fail --silent --show-error --location --header 'Cache-Control: no-cache' "${base}advanced/?attempt=${attempt}" || true)"
-            if grep -Fq 'restored-3.2.5-ux-20260723-1' <<<"$root" && grep -Fq 'Nexora Advanced Documentation' <<<"$advanced"; then
+            if grep -Fq 'main-site-ux-polish-20260724-1' <<<"$root" && grep -Fq 'Nexora Advanced Documentation' <<<"$advanced"; then
               echo "Both Nexora websites verified at ${base} and ${base}advanced/"
               exit 0
             fi
