@@ -1,14 +1,15 @@
-# Руководство по развёртыванию Nexora
+# Руководство по развёртыванию Nexora 3.4.0
 
 ## 1. Область
 
-Документ относится к Nexora `3.3.3`:
+Документ относится к Nexora `3.4.0` Stable Core release candidate:
 
-- published `UNSIGNED-TEST` prerelease;
-- signed production baseline `3.1.2`;
 - Application API v3;
-- Trust/MLS/encrypted-media API v4;
-- SQLite schema 8.
+- SQLite schema 8;
+- ordinary server-readable messaging as writable core;
+- Trust/MLS runtime retired;
+- legacy secure history read-only;
+- official stable publication blocked until release evidence is complete.
 
 ## 2. Deployment profiles
 
@@ -17,7 +18,7 @@
 | Local development | development/tests | localhost, Node.js 22.16+, npm |
 | Private LAN/VPN | private installation | HTTPS, firewall, fingerprint verification |
 | Public HTTPS | internet access | reverse proxy, public certificate, exact `allowedOrigins`, monitoring, backups |
-| Controlled 3.3.2 prerelease | Trust/MLS/updater validation | disposable data, compatible clients, documented limitations |
+| Controlled 3.4.0 RC | Stable Core source/runtime acceptance | disposable data, exact commit, documented blockers |
 | Pulse production | commercial Cloud integration | separate Cloud, provider, mail, key management, legal controls |
 
 Direct port forwarding Local Server без reverse proxy, monitoring и firewall не является supported production topology.
@@ -26,7 +27,7 @@ Direct port forwarding Local Server без reverse proxy, monitoring и firewall
 
 - Node.js `22.16+` и npm;
 - writable application data directory;
-- space for SQLite, WAL, attachments и backups;
+- free space для SQLite, WAL, attachments и backups;
 - valid HTTPS certificate/SAN;
 - stable Server ID;
 - exact `allowedOrigins`;
@@ -48,7 +49,7 @@ Development Client/Server:
 npm run dev
 ```
 
-After start:
+After start verify:
 
 - `GET /healthz/live`;
 - `GET /healthz/ready`;
@@ -66,7 +67,7 @@ After start:
 - rate-limit at application and edge;
 - retain request IDs and sanitized logs;
 - use token-protected remote metrics;
-- do not bypass TLS warnings.
+- never bypass TLS warnings.
 
 ## 6. Client connection
 
@@ -82,156 +83,106 @@ Electron pins fingerprint to Server ID. Browser/PWA/Android use OS trust store. 
 
 Current Local Server database — schema 8.
 
-### 3.1.x / schema 7 → 3.3.2
+Before migration-sensitive operation:
 
 - source integrity;
-- free-space calculation;
 - WAL checkpoint;
+- free-space calculation;
 - verified backup;
-- transactional/idempotent migration;
-- destination integrity;
-- downgrade protection.
+- future-schema guard;
+- rollback plan.
 
-### 3.2.0–3.3.1 → 3.3.2
-
-No database migration. Schema/API compatibility preserved.
-
-Rollback schema 8 uses verified backup. In-place downgrade not supported.
+Migration remains idempotent and compatibility-preserving. Existing legacy Trust/MLS records are retained as immutable read-only ciphertext/provenance and are not converted into plaintext.
 
 ## 8. Backup и restore
 
-- backup before every release-sensitive upgrade;
-- minimum one off-host verified copy;
-- no manual copy of active SQLite file;
-- protect passphrase separately;
-- document retention;
-- test restore periodically;
-- after restore verify integrity, schema, readiness, auth, messaging и storage.
+Use supported backup tooling and `POST /api/v3/admin/backups/verify` for non-restoring verification.
 
-Emergency read-only is not a backup.
+Requirements:
 
-## 9. Health и monitoring
+- `server_admin` authorization;
+- allowlisted backup ID;
+- staged integrity/version checks;
+- atomic DB/file-store replacement;
+- rollback both DB and files on failure;
+- temporary data cleanup after success/error.
 
-Endpoints:
+Test restore before production rollout.
 
-- `/healthz/live`;
-- `/healthz/ready`;
-- `/metrics`.
+## 9. Ordinary messaging и uploads
 
-Without `NEXORA_METRICS_TOKEN`, remote metrics must not be exposed. Graceful drain changes readiness to `503` before service shutdown.
+Writable data path:
 
-Monitor:
+- ordinary messages;
+- files/images/voice;
+- drafts/scheduled messages/polls;
+- server-side search and moderation.
 
-- process and readiness;
-- SQLite integrity/storage/WAL;
-- backup age/result;
-- request/error/rate-limit volume;
-- session cleanup;
-- Trust device/KeyPackage counts;
-- pending Welcome/recovery and attachment state;
-- Pulse workers/provider reconciliation;
-- certificate expiry;
-- release/update incidents.
+Server enforces membership, role/permission, active ban, room restrictions, size/quota, actual MIME, safe filename, hashes и rate limits.
 
-## 10. Trust/MLS prerequisites
+Legacy Trust/MLS write paths must return `410/LEGACY_READ_ONLY` and never reserve/store new encrypted upload/message state.
 
-Secure conversation requires:
+## 10. Sessions и devices
 
-- compatible 3.3.x clients;
-- active verified devices;
-- available one-time KeyPackages;
-- valid group/epoch state;
-- device-scoped realtime;
-- no blocked room media class for secure media.
+Inventory is derived from active sessions. Remote revoke:
 
-Resource limits:
+- invalidates target sessions;
+- emits `session.revoked`;
+- disconnects target Socket.IO sessions;
+- emits `device.updated`;
+- rejects current-device remote revoke with `STATE_CONFLICT`.
 
-- 16 active devices/user;
-- 25 KeyPackages/request;
-- 32/device;
-- 256/user.
+## 11. Windows packages
 
-Treat `429 RATE_LIMITED` according to `Retry-After`; do not create retry storms.
+Local unsigned test packages:
 
-## 11. Welcome recovery 3.3.0+
+```bash
+npm run dist:windows
+```
 
-Recovery depends on at least one active verified group device online. Server only emits a scoped request; active Client creates Welcome.
+They are not official release assets and must not publish updater metadata.
 
-Operator must not weaken policy when recovery cannot complete. Correct response is explicit pending/failure, not legacy plaintext fallback.
+Signed candidate:
 
-## 12. Windows deployment и updates
+```bash
+npm run release:windows:signed
+```
 
-### Local unsigned package
+Requires protected Authenticode secrets plus expected signer subject/thumbprint.
 
-Development/testing only. Not updater-eligible.
+## 12. Stable upgrade `3.3.4 → 3.4.0`
 
-### Source/PWA prerelease
+Official rollout requires:
 
-Allowed artifacts:
+- published verified `v3.3.4` Client/Server installers и checksums;
+- signed `3.4.0` installers, blockmaps, `latest.yml` и `server.yml`;
+- Authenticode subject/thumbprint/timestamp verification;
+- Windows 10 clean install/repair/uninstall and installed upgrade;
+- Windows 11 clean install/repair/uninstall and installed upgrade;
+- product version verification after upgrade;
+- independent security review;
+- full automated gates;
+- immutable tag/assets and post-publication redownload verification.
 
-- source ZIP;
-- built PWA ZIP;
-- SPDX SBOM;
-- checksums.
+## 13. Android и PWA
 
-No unsigned `.exe`, `.blockmap` or `latest.yml`.
+Android:
 
-### Stable signed Windows
+```bash
+gradle -p android :app:assembleDebug --no-daemon
+```
 
-Requires:
+Production Android release requires controlled signing and physical-device acceptance.
 
-- signed Client/Server installers;
-- valid blockmap/`latest.yml`;
-- immutable tag/version metadata;
-- installed n-1 → n update test;
-- clean install/uninstall/upgrade acceptance;
-- package/runtime security acceptance.
+PWA service worker caches only application shell/static resources. API and Socket.IO requests are explicitly excluded from cache handling.
 
-Packaged Client defaults to official GitHub Releases provider. Custom feed requires explicit HTTPS configuration and does not bypass signature policy.
+## 14. Final verification
 
-## 13. Windows test mode
+Before declaring deployment successful:
 
-`--test-mode`, installer test shortcut or `NEXORA_CLIENT_TEST_MODE=1` opens PowerShell tail of local Client log.
-
-Use only for controlled diagnostics. It does not enable DevTools, Node integration or remote debugging. Sanitize logs before sharing.
-
-## 14. Pulse deployment
-
-### Disabled
-
-Local messaging without commercial features.
-
-### Sandbox
-
-QA/demo only:
-
-- no payment;
-- checkout disabled;
-- no production signature/entitlement;
-- non-negative balance;
-- disabled when production Pulse configured.
-
-### Production
-
-Requires separate Pulse Cloud, HTTPS, scoped service credential, pinned Ed25519 keys, provider webhooks/idempotency, email, reconciliation/refund/dispute flows, secret management и privacy/legal/tax documents.
-
-Local Server must not receive card data, Cloud password/MFA secret, signing private key или OAuth refresh token.
-
-## 15. Incident checklist
-
-Record:
-
-- versions/channel/tag/commit;
-- Server ID/request ID;
-- timestamps;
-- deployment/network profile;
-- live/ready;
-- schema/integrity/storage;
-- backup status;
-- Trust/device/KeyPackage/group/epoch state;
-- updater state;
-- sanitized logs.
-
-Never send secrets, cookies, tokens, recovery codes, invite codes, private keys, production databases, full MLS state или backup passphrase.
-
-Detailed procedures: [Operations Runbook](OPERATIONS_RUNBOOK.md).
+- liveness/readiness/integrity green;
+- representative login/bootstrap/messages/uploads pass;
+- room authorization/ban/revoke behavior pass;
+- backup verification and restore drill recorded;
+- no secrets or private data in logs/artifacts;
+- exact version/commit/tag and release classification recorded.
