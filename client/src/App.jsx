@@ -9,6 +9,8 @@ import { getSocket } from "./socket";
 import { flushOutbox, outboxScope } from "./outbox";
 import { cacheBootstrap, readLastBootstrap, readSyncSequence, writeSyncSequence } from "./offline-store";
 
+const SAFE_OBJECT_ID = /^[A-Za-z0-9_.:-]{8,160}$/;
+
 function playNotificationSound(name) {
   if (!name || name === "none") return;
   try {
@@ -53,6 +55,23 @@ function notificationBody(message, preferences) {
   return "Новое событие в Nexora";
 }
 
+function prioritizeConversation(value, conversationId) {
+  if (!value || !SAFE_OBJECT_ID.test(String(conversationId || ""))) return { value, opened: false };
+  const conversations = Array.isArray(value.conversations) ? value.conversations : [];
+  const index = conversations.findIndex((item) => item.id === conversationId);
+  if (index < 0) return { value, opened: false };
+  if (index === 0) return { value, opened: true };
+  const selected = conversations[index];
+  return { value: { ...value, conversations: [selected, ...conversations.slice(0, index), ...conversations.slice(index + 1)] }, opened: true };
+}
+
+function applyLaunchTarget(value) {
+  const conversationId = new URLSearchParams(location.search).get("conversation");
+  const result = prioritizeConversation(value, conversationId);
+  if (conversationId) history.replaceState(history.state, "", `${location.pathname}${location.hash}`);
+  return result.value;
+}
+
 export default function App() {
   const [authState, setAuthState] = useState("loading");
   const [me, setMe] = useState(null);
@@ -63,6 +82,7 @@ export default function App() {
   const [onlineUserIds, setOnlineUserIds] = useState(new Set());
   const [toast, setToast] = useState(null);
   const [pwaUpdate, setPwaUpdate] = useState("idle");
+  const [workspaceEpoch, setWorkspaceEpoch] = useState(0);
   const refreshTimer = useRef(null);
   const toastTimer = useRef(null);
   const bootstrapRef = useRef(null);
@@ -107,7 +127,7 @@ export default function App() {
   const refresh = useCallback(async () => {
     if (!me?.id) return null;
     try {
-      const result = await api("/api/bootstrap");
+      const result = applyLaunchTarget(await api("/api/bootstrap"));
       setBootstrap(result);
       bootstrapRef.current = result;
       cacheBootstrap(result).catch((error) => console.debug("Bootstrap cache update failed", error));
@@ -137,6 +157,40 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const onOpen = (event) => {
+      const conversationId = event.detail?.conversationId;
+      setBootstrap((current) => {
+        const prioritized = prioritizeConversation(current, conversationId);
+        if (!prioritized.opened) {
+          showToast("Объект уведомления больше недоступен", "error");
+          return current;
+        }
+        bootstrapRef.current = prioritized.value;
+        setWorkspaceEpoch((value) => value + 1);
+        return prioritized.value;
+      });
+    };
+    window.addEventListener("nexora:notification-open", onOpen);
+    return () => window.removeEventListener("nexora:notification-open", onOpen);
+  }, [showToast]);
+
+  useEffect(() => {
+    const onLifecycle = (event) => {
+      const state = event.detail?.state;
+      if (["background", "profile-switch", "destroy"].includes(state)) {
+        document.querySelectorAll("audio,video").forEach((node) => node.pause());
+        if (socket.connected) socket.disconnect();
+        setOfflineMode(true);
+      } else if (state === "foreground" && authState === "authenticated" && me?.id && bootstrapRef.current?.server?.id && !socket.connected) {
+        socket.auth = { clientVersion: CLIENT_VERSION };
+        socket.connect();
+      }
+    };
+    window.addEventListener("nexora:platform-lifecycle", onLifecycle);
+    return () => window.removeEventListener("nexora:platform-lifecycle", onLifecycle);
+  }, [authState, me?.id, socket]);
+
+  useEffect(() => {
     let cancelled = false;
     async function check() {
       try {
@@ -145,8 +199,9 @@ export default function App() {
           setServerOnline(true);
           setServerInfo(result);
         }
-      } catch {
+      } catch (error) {
         if (!cancelled) setServerOnline(false);
+        console.debug("Health check unavailable", error);
       }
     }
     check();
@@ -163,8 +218,12 @@ export default function App() {
         setMe(result.user);
         setAuthState(result.user ? "authenticated" : "anonymous");
       })
-      .catch(async () => {
-        const cached = await readLastBootstrap().catch(() => null);
+      .catch(async (error) => {
+        console.debug("Online session bootstrap unavailable", error);
+        const cached = applyLaunchTarget(await readLastBootstrap().catch((cacheError) => {
+          console.debug("Cached bootstrap unavailable", cacheError);
+          return null;
+        }));
         if (cached?.me && cached?.server?.id) {
           setMe(cached.me);
           setBootstrap(cached);
@@ -317,6 +376,15 @@ export default function App() {
     clearAuthenticatedState();
   }
 
+  function applyPwaUpdate() {
+    const critical = document.querySelector(".upload-job.uploading,.upload-job.checking,.voice-recorder.active,.voice-recorder.processing,.voice-recorder.sending");
+    if (critical) {
+      showToast("Завершите запись или загрузку перед перезапуском приложения", "error");
+      return;
+    }
+    window.dispatchEvent(new Event("nexora:apply-update"));
+  }
+
   if (authState === "loading") return <LoadingScreen />;
   if (!me) return <AuthScreen onAuthenticated={authenticated} serverOnline={serverOnline} passwordPolicy={serverInfo?.passwordPolicy} />;
   if (me.mustChangePassword) return <ForcedPasswordChange user={me} policy={serverInfo?.passwordPolicy} onLogout={logout} onChanged={(user) => { setMe(user); setBootstrap(null); setAuthState("authenticated"); }} />;
@@ -325,6 +393,7 @@ export default function App() {
   return (
     <>
       <Workspace
+        key={`${bootstrap.server?.id || "server"}:${workspaceEpoch}`}
         me={me}
         bootstrap={bootstrap}
         socket={socket}
@@ -335,10 +404,12 @@ export default function App() {
         showToast={showToast}
       />
       {offlineMode && <div className="offline-banner" role="status">Офлайн-режим · история доступна из локального кэша, новые сообщения стоят в очереди</div>}
+      {pwaUpdate === "downloading" && <div className="offline-banner" role="status">Загружается безопасное обновление Nexora…</div>}
+      {pwaUpdate === "applying" && <div className="offline-banner" role="status">Применяем обновление Nexora…</div>}
       {pwaUpdate === "ready" && (
         <div className="offline-banner" role="status">
           Обновление Nexora готово.
-          <button type="button" onClick={() => window.dispatchEvent(new Event("nexora:apply-update"))}>Перезапустить</button>
+          <button type="button" onClick={applyPwaUpdate}>Перезапустить</button>
         </div>
       )}
       {pwaUpdate === "error" && <div className="offline-banner" role="status">Не удалось подготовить обновление PWA. Работа продолжена на текущей версии.</div>}
