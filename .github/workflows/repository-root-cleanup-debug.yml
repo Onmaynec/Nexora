@@ -15,15 +15,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: chore/repository-root-cleanup
-          fetch-depth: 1
-          show-progress: false
       - name: Execute embedded materializer with compact diagnostics
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          git clone --quiet --depth 1 --branch chore/repository-root-cleanup "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" repo
+          cd repo
           python - <<'PY'
           from pathlib import Path
 
