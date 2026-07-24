@@ -1,0 +1,61 @@
+name: Diagnose Nexora 3.3.4 publication
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/diagnose-release-3.3.4.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Capture release state
+        shell: bash
+        run: |
+          set +e
+          mkdir -p release-evidence
+          gh release view v3.3.4 --repo "$GITHUB_REPOSITORY" --json tagName,isDraft,isPrerelease,url,assets > release.json 2> release-error.txt
+          status=$?
+          STATUS="$status" node <<'NODE'
+          const fs = require('node:fs');
+          const status = Number(process.env.STATUS);
+          const output = {
+            schemaVersion: 1,
+            version: '3.3.4',
+            tagExists: true,
+            releaseExists: status === 0,
+            checkedAt: new Date().toISOString(),
+            workflowRun: process.env.GITHUB_RUN_ID,
+          };
+          if (status === 0) {
+            const release = JSON.parse(fs.readFileSync('release.json', 'utf8'));
+            output.tag = release.tagName;
+            output.draft = release.isDraft;
+            output.prerelease = release.isPrerelease;
+            output.url = release.url;
+            output.assets = (release.assets || []).map((asset) => ({ name: asset.name, size: asset.size || null })).sort((a, b) => a.name.localeCompare(b.name));
+          } else {
+            output.error = fs.readFileSync('release-error.txt', 'utf8').trim();
+          }
+          fs.writeFileSync('release-evidence/v3.3.4-diagnostic.json', `${JSON.stringify(output, null, 2)}\n`);
+          NODE
+      - name: Commit diagnostic evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add release-evidence/v3.3.4-diagnostic.json
+          git commit -m "docs(release): record v3.3.4 publication diagnostic"
+          git push origin HEAD:main
