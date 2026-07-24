@@ -44,9 +44,13 @@ jobs:
         run: npm ci
       - name: Validate introductory website
         run: |
+          node --check website/release-fallback.js
+          node --check website/network-resilience.js
           node --check website/app.js
           node --check website/site-fixes.js
           node --check website/site-polish.js
+          node website/generate-release-fallback.mjs --check
+          node --test website/release-resilience.test.cjs
           node website/validate.mjs
           node website/validate-restored.mjs
       - name: Compose introductory website artifact
@@ -57,11 +61,21 @@ jobs:
           cat website/site-fixes.css >> website/styles.css
           printf '\n\n' >> website/styles.css
           cat website/site-polish.css >> website/styles.css
-          printf '\n\n' >> website/app.js
-          cat website/site-fixes.js >> website/app.js
-          printf '\n\n' >> website/app.js
-          cat website/site-polish.js >> website/app.js
+          {
+            cat website/release-fallback.js
+            printf '\n\n'
+            cat website/network-resilience.js
+            printf '\n\n'
+            cat website/app.js
+            printf '\n\n'
+            cat website/site-fixes.js
+            printf '\n\n'
+            cat website/site-polish.js
+          } > website/app.composed.js
+          mv website/app.composed.js website/app.js
           node --check website/app.js
+          grep -Fq 'NexoraReleaseFallback' website/app.js
+          grep -Fq 'RELEASE_REQUEST_TIMEOUT_MS' website/app.js
           grep -Fq 'class AetherField' website/app.js
           grep -Fq 'main-site-ux-polish-20260724-1' website/build.json
           test -s website/UX_AUDIT_2026-07-24.md
