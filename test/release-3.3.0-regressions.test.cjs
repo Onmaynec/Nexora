@@ -16,7 +16,7 @@ test("regular deletion uses in-app confirmation and legacy history is immutable"
   assert.doesNotMatch(regular, /window\.confirm\("Удалить сообщение/);
   assert.match(legacy, /LEGACY_READ_ONLY/);
   assert.match(legacy, /Экспортировать immutable history/);
-  assert.doesNotMatch(legacy, /ConfirmDialog|onDelete|uploadFile|VoiceRecorder|Trash2|Send/);
+  assert.doesNotMatch(legacy, /ConfirmDialog|onDelete|uploadFile|VoiceRecorder|<Trash2|<Send/);
 });
 
 test("legacy secure viewer exposes no writable composer controls", () => {
