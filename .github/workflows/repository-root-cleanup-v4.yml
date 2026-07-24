@@ -1,0 +1,76 @@
+name: Repository root cleanup v4
+
+on:
+  push:
+    branches: [chore/repository-root-cleanup]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repository-root-cleanup-v4
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    if: github.head_ref == 'chore/repository-root-cleanup' || github.ref_name == 'chore/repository-root-cleanup'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chore/repository-root-cleanup
+          fetch-depth: 1
+          show-progress: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - name: Exclude permanent workflows from the materializer
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/repository-root-cleanup.py')
+          source = path.read_text(encoding='utf-8')
+          source = source.replace(
+              'if not file.is_file() or relative_file(file) in WORKFLOW_FILES:',
+              'if not file.is_file() or relative_file(file) in WORKFLOW_FILES or relative_file(file).parts[:2] == (".github", "workflows"):',
+              1,
+          )
+          source = source.replace(
+              'if not file.is_file() or rel in WORKFLOW_FILES or rel == Path(__file__).relative_to(ROOT):',
+              'if not file.is_file() or rel in WORKFLOW_FILES or rel.parts[:2] == (".github", "workflows") or rel == Path(__file__).relative_to(ROOT):',
+              1,
+          )
+          path.write_text(source, encoding='utf-8')
+          PY
+      - name: Materialize complete repository cleanup
+        run: python scripts/repository-root-cleanup.py
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Verify reorganized repository
+        run: |
+          npm run release:check
+          node advanced-website/scripts/generate-reference.mjs
+          node advanced-website/scripts/validate-content.mjs
+          node --test advanced-website/test/*.test.mjs
+      - name: Commit only non-workflow materialized changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git restore --worktree --staged scripts/repository-root-cleanup.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --name-only | grep -Eq '^\.github/workflows/'; then
+            echo "Materializer attempted to mutate workflow files" >&2
+            git diff --cached --name-only
+            exit 1
+          fi
+          git diff --cached --stat
+          git commit -m "chore(repo): move all release documents out of root"
+          git push origin HEAD:chore/repository-root-cleanup
