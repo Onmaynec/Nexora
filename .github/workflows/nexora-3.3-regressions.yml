@@ -24,65 +24,16 @@ jobs:
           fetch-depth: 0
       - name: Add canonical 3.4.0 and 3.3.4 entries
         shell: bash
+        env:
+          CHANGELOG_PREFIX_B64: IyMgWzMuNC4wXSDigJQgMjAyNi0wNy0yNCAoUmVsZWFzZSBjYW5kaWRhdGUpCgojIyMgU3RhYmxlIENvcmUKCi0gb3JkaW5hcnkgc2VydmVyLXJlYWRhYmxlIG1lc3NhZ2luZyBpcyB0aGUgb25seSB3cml0YWJsZSBtZXNzYWdpbmcgcGF0aDsKLSBleGVjdXRhYmxlIFRydXN0IENvcmUsIE1MUyByb3V0ZXMvcmVjb3Zlcnkvc29ja2V0IHRyYW5zcG9ydCwgZW5jcnlwdGVkLXVwbG9hZCB3cml0ZXMgYW5kIGB0cy1tbHNgIGFyZSByZW1vdmVkOwotIHNjaGVtYSA4IGxlZ2FjeSBJRHMsIHRpbWVzdGFtcHMsIGVwb2NocywgY2lwaGVydGV4dCBhbmQgYXVkaXQgcHJvdmVuYW5jZSByZW1haW4gYXZhaWxhYmxlIHRocm91Z2ggYW4gaW1tdXRhYmxlIHJlYWQtb25seSB2aWV3ZXIvZXhwb3J0OwotIGxlZ2FjeSBIVFRQIGFuZCBTb2NrZXQuSU8gbXV0YXRpb25zIHRlcm1pbmF0ZSB3aXRoIGBMRUdBQ1lfUkVBRF9PTkxZYDsgU2VydmVyIG5ldmVyIGRlY3J5cHRzIHJldGFpbmVkIGxlZ2FjeSBjaXBoZXJ0ZXh0LgoKIyMjIFNlc3Npb25zLCByZWxpYWJpbGl0eSBhbmQgZGlhZ25vc3RpY3MKCi0gc2VydmVyLW93bmVkIGRldmljZS9zZXNzaW9uIGludmVudG9yeSBzdXBwb3J0cyB0YXJnZXRlZCByZW1vdGUgcmV2b2tlLCByZXZva2UtYWxsLW90aGVycywgYHNlc3Npb24ucmV2b2tlZGAsIGBkZXZpY2UudXBkYXRlZGAgYW5kIGltbWVkaWF0ZSB0YXJnZXQgU29ja2V0LklPIGRpc2Nvbm5lY3Q7Ci0gYmFja3VwIHZlcmlmaWNhdGlvbiBpcyBub24tcmVzdG9yaW5nIGFuZCBhbGxvd2xpc3RlZDsgbWlncmF0aW9uL3Jlc3RvcmUgY292ZXIgaW50ZWdyaXR5LCBXQUwsIGZyZWUtc3BhY2UsIGZ1dHVyZS1zY2hlbWEsIGRpc2stZnVsbCBhbmQgcm9sbGJhY2sgZmFpbHVyZSBwYXRoczsKLSBzdGFibGUgZXJyb3JzIGluY2x1ZGUgc2FmZSBgY29kZWAsIGBtZXNzYWdlYCwgYHJlcXVlc3RJZGAgYW5kIGRldGFpbHMgd2l0aG91dCBsZWFraW5nIHN0YWNrLCBTUUwgb3Igc2VjcmV0cy4KCiMjIyBSZWxlYXNlIGFuZCBjb21wYXRpYmlsaXR5CgotIENsaWVudCBhbmQgU2VydmVyIHVzZSBzZXBhcmF0ZSBzaWduZWQgdXBkYXRlciBjaGFubmVscyB3aXRoIGRvd25ncmFkZS9wcmVyZWxlYXNlIHJlamVjdGlvbiBhbmQgYFVQREFURV9TSUdOQVRVUkVfSU5WQUxJRGAgdGFtcGVyIGhhbmRsaW5nOwotIHZlcnNpb24gbWV0YWRhdGEgaXMgc3luY2hyb25pemVkIGFjcm9zcyBwYWNrYWdlLCBsb2NrZmlsZSwgQ2xpZW50IGFuZCBBbmRyb2lkIChgdmVyc2lvbkNvZGUgMzA0MDBgKTsKLSBvZmZpY2lhbCBzdGFibGUgcHVibGljYXRpb24gcmVxdWlyZXMgdmVyaWZpZWQgYHYzLjMuNGAsIEF1dGhlbnRpY29kZSBpZGVudGl0eS90aW1lc3RhbXAgZXZpZGVuY2UsIFdpbmRvd3MgMTAvMTEgaW5zdGFsbGVkIGAzLjMuNCDihpIgMy40LjBgIGFjY2VwdGFuY2UsIGluZGVwZW5kZW50IHJldmlldyBhbmQgZmluYWwgZ3JlZW4gZ2F0ZXM7Ci0gYDMuNC4wYCByZW1haW5zIGEgcmVsZWFzZSBjYW5kaWRhdGUgdW50aWwgdGhvc2UgZXh0ZXJuYWwgZXZpZGVuY2UgcmVxdWlyZW1lbnRzIGFyZSBjb21wbGV0ZS4KCiMjIFszLjMuNF0g4oCUIDIwMjYtMDctMjQgKFBvc3QtTUxTIHByZXJlcXVpc2l0ZSBzb3VyY2UgYmFzZWxpbmUpCgojIyMgQ2hhbmdlZAoKLSBtZXJnZWQgdGhlIHBvc3QtTUxTIHByZXJlcXVpc2l0ZSBpbXBsZW1lbnRhdGlvbiBpbnRvIGBtYWluYCB0aHJvdWdoIFBSICM3MDsKLSBvcmRpbmFyeSBjaGF0cyBubyBsb25nZXIgYm9vdHN0cmFwIG9yIGRlcGVuZCBvbiBUcnVzdC9NTFMgc3RhdGU7Ci0gbGVnYWN5IHNlY3VyZSBoaXN0b3J5IGJlY2FtZSB0ZXJtaW5hbCByZWFkLW9ubHkgd2l0aG91dCBzZXJ2ZXItc2lkZSBkZWNyeXB0aW9uOwotIHJlbGVhc2UgY29uc2lzdGVuY3ksIHNlY3VyaXR5LCBBbmRyb2lkLCBzY2hlbWEgOCBzb2FrLCBmb2N1c2VkIHJlZ3Jlc3Npb25zIGFuZCBib3RoIHdlYnNpdGUgcGlwZWxpbmVzIHdlcmUgYnJvdWdodCB0byBhIGdyZWVuIHNvdXJjZSBiYXNlbGluZS4KCiMjIyBSZWxlYXNlIHN0YXRlCgotIHNvdXJjZSBiYXNlbGluZSBtZXJnZSBjb21taXQ6IGA2MjAyYmJkZjhmZjYzNjcxMWQ5ODc0NDUyOTU4ZGY1ZGQ0MGQ5NjU2YDsKLSBwdWJsaXNoZWQgdGFnL2Fzc2V0cyByZW1haW4gYSBzZXBhcmF0ZSBwcmVyZXF1aXNpdGUgZXZpZGVuY2UgcmVxdWlyZW1lbnQgZm9yIHRoZSBgMy40LjBgIHN0YWJsZSB3b3JrZmxvdy4KCg==
         run: |
           set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path("CHANGELOG.md")
-          source = path.read_text(encoding="utf-8")
-          if "## [3.4.0]" in source:
-              raise SystemExit(0)
-          marker = "## [3.3.3]"
-          if marker not in source:
-              raise SystemExit("CHANGELOG insertion marker is missing")
-          entries = '''## [3.4.0] — 2026-07-24 (Release candidate)
-
-### Stable Core
-
-- ordinary server-readable messaging is the only writable messaging path;
-- executable Trust Core, MLS routes/recovery/socket transport, encrypted-upload writes and `ts-mls` are removed;
-- schema 8 legacy IDs, timestamps, epochs, ciphertext and audit provenance remain available through an immutable read-only viewer/export;
-- legacy HTTP and Socket.IO mutations terminate with `LEGACY_READ_ONLY`; Server never decrypts retained legacy ciphertext.
-
-### Sessions, reliability and diagnostics
-
-- server-owned device/session inventory supports targeted remote revoke, revoke-all-others, `session.revoked`, `device.updated` and immediate target Socket.IO disconnect;
-- backup verification is non-restoring and allowlisted; migration/restore cover integrity, WAL, free-space, future-schema, disk-full and rollback failure paths;
-- stable errors include safe `code`, `message`, `requestId` and details without leaking stack, SQL or secrets.
-
-### Release and compatibility
-
-- Client and Server use separate signed updater channels with downgrade/prerelease rejection and `UPDATE_SIGNATURE_INVALID` tamper handling;
-- version metadata is synchronized across package, lockfile, Client and Android (`versionCode 30400`);
-- official stable publication requires verified `v3.3.4`, Authenticode identity/timestamp evidence, Windows 10/11 installed `3.3.4 → 3.4.0` acceptance, independent review and final green gates;
-- `3.4.0` remains a release candidate until those external evidence requirements are complete.
-
-## [3.3.4] — 2026-07-24 (Post-MLS prerequisite source baseline)
-
-### Changed
-
-- merged the post-MLS prerequisite implementation into `main` through PR #70;
-- ordinary chats no longer bootstrap or depend on Trust/MLS state;
-- legacy secure history became terminal read-only without server-side decryption;
-- release consistency, security, Android, schema 8 soak, focused regressions and both website pipelines were brought to a green source baseline.
-
-### Release state
-
-- source baseline merge commit: `6202bbdf8ff636711d9874452958df5dd40d9656`;
-- published tag/assets remain a separate prerequisite evidence requirement for the `3.4.0` stable workflow.
-
-'''
-          source = source.replace(marker, entries + marker, 1)
-          path.write_text(source, encoding="utf-8")
-          PY
+          node -e 'const fs=require("node:fs");const p="CHANGELOG.md";let s=fs.readFileSync(p,"utf8");if(s.includes("## [3.4.0]"))process.exit(0);const m="## [3.3.3]";if(!s.includes(m))throw new Error("CHANGELOG insertion marker is missing");const prefix=Buffer.from(process.env.CHANGELOG_PREFIX_B64,"base64").toString("utf8");fs.writeFileSync(p,s.replace(m,prefix+m),"utf8");'
       - name: Commit changelog
         shell: bash
         run: |
           set -euo pipefail
-          if git diff --quiet -- CHANGELOG.md; then
-            exit 0
-          fi
+          if git diff --quiet -- CHANGELOG.md; then exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add CHANGELOG.md
