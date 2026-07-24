@@ -36,6 +36,15 @@ jobs:
       - name: Contract — post-MLS retirement
         run: node --test --test-name-pattern="post-MLS retirement" test/release-3.3.0-regressions.test.cjs
       - name: Website validation
-        run: node --check website/app.js && node website/validate.mjs
+        run: |
+          node --check website/release-fallback.js
+          node --check website/network-resilience.js
+          node --check website/app.js
+          node --check website/site-fixes.js
+          node --check website/site-polish.js
+          node website/generate-release-fallback.mjs --check
+          node --test website/release-resilience.test.cjs
+          node website/validate.mjs
+          node website/validate-restored.mjs
       - name: Production web build
         run: npm run build:web
