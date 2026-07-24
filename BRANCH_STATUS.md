@@ -1,52 +1,40 @@
-# Статус выпуска Nexora 3.3.2
+# Статус ветки `release/3.3.4`
 
 ## Классификация
 
 | Параметр | Значение |
 |---|---|
-| Version | `3.3.2` |
-| Release scope | Release consistency, documentation, CI and repository cleanup |
-| Source Pull Request | PR `#42`, merged |
-| Source merge commit | `82af775fb39515bd219078fec368cc259441c288` |
-| Release tag | `v3.3.2` |
-| GitHub Release | `Nexora 3.3.2 — UNSIGNED TEST BUILDS` при отсутствии signing secrets |
-| Distribution | `UNSIGNED-TEST` prerelease boundary |
-| Production updater metadata | not published for unsigned assets |
-| Local Server schema | `8` |
-| Application API | `v3` |
-| Trust/MLS API | `v4` |
-| Database migration | not required |
-| Independent security audit | not performed |
+| Classification | Overlapping draft / reconciliation required |
+| Intended version | Nexora `3.3.4` |
+| Current package metadata | `3.3.3` |
+| Pull Request | Draft PR `#67` |
+| Competing candidate | `release/3.3.4-post-mls`, draft PR `#70` |
+| Current product source of truth | `main`, Nexora `3.3.3` |
+| Release state | Not release-ready, not tagged, not published |
 
-Nexora `3.3.2` не добавляет пользовательские функции и не меняет runtime. Выпуск синхронизирует version metadata, current documentation, release history и release evidence, а также добавляет post-publication smoke-проверку Client, Server, Android и PWA assets.
+## Intended scope
 
-## Verification
+- remove MLS and Trust Core runtime;
+- restore server-readable Local Server messaging while retaining legacy MLS history as read-only;
+- replace native goal-contribution confirmation with an in-app dialog;
+- repair avatar-frame clipping and entitlement refresh;
+- close voice-recorder state after send and add microphone selection;
+- synchronize repository and website documentation;
+- prepare explicitly classified test artifacts after validation.
 
-- PR CI run `30002580071`: Windows verify, Linux suite, release gate, schema 8 soak и Android source build — success;
-- focused Nexora 3.3 regressions run `30002580107` — success;
-- `package.json` является источником SemVer;
-- `npm run release:consistency` проверяет package-lock, Android metadata, README, Documentation Portal, Project Index, Architecture, Security Model, Android README и current evidence;
-- `npm run release:check` включает consistency gate, build, unit/API/integration, performance и security audit;
-- release evidence workflow скачивает опубликованные assets, проверяет `SHA256SUMS.txt`, PE/ZIP integrity и обязательное содержимое;
-- окончательные release run ID, размеры и SHA-256 записываются в `release-evidence/v3.3.2.json`.
+## Reconciliation boundary
 
-## Организационная очистка
+This branch overlaps the newer `release/3.3.4-post-mls` candidate. It must not be merged, tagged or published independently. The implementation must be compared with PR #70, and any unique required changes must be ported through a reviewed commit or explicitly discarded with recorded rationale.
 
-- конфликтующие PR #30 и #31, основанные на устаревшем `main`, закрыты без merge;
-- obsolete automation PR #6 и #7 для исторической линии 3.1.0 закрыты без merge;
-- экспериментальный Rust/OpenMLS PR #11 закрыт как superseded: текущий `main` использует интегрированный JavaScript/`ts-mls` Trust/MLS API v4;
-- повторное рассмотрение Rust/OpenMLS возможно только через отдельный RFC, новый development branch, migration/interoperability plan, reproducible-build gate и независимый security review.
+Because `package.json` still reports `3.3.3`, this branch cannot satisfy the 3.3.4 release consistency gate in its current state.
 
-## Security and compatibility
+## Security boundary
 
-- authorization, room roles, bans, upload policy, Pulse pricing/ledger and Trust Core are unchanged;
-- no new dependencies, secrets, executable payload or network permissions are added;
-- schema 8, API v3 and Trust/MLS API v4 remain compatible;
-- no migration or rollback is required.
+No plaintext fallback for legacy secure records, silent ciphertext deletion, server-side legacy decryption or secret logging is permitted. Any transition away from MLS must preserve read-only historical access and explicit API errors for unsupported mutations.
 
 ## Real limitations
 
-- Windows Client/Server and Android remain unsigned test artifacts unless the release environment contains valid signing credentials;
-- production updater cannot consume an unsigned prerelease because `latest.yml` and `.blockmap` are intentionally absent;
-- independent cryptographic/application-security audit is not performed;
-- physical-device Android and installed Windows acceptance remain external release evidence requirements.
+- version metadata is not synchronized;
+- branch scope overlaps PR #70;
+- complete CI, release evidence and independent security review are not established;
+- `main` 3.3.3 remains the only current product source of truth.
