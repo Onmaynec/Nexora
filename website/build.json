@@ -1,5 +1,5 @@
 {
-  "siteBuild": "main-site-ux-polish-20260724-1",
-  "sourceCommit": "Nexora 3.3.3 main + composable UX/motion polish layer",
-  "purpose": "Improve the existing public main page without changing /advanced/ or the product information architecture"
+  "siteBuild": "main-site-ux-polish-release-resilience-20260724-2",
+  "sourceCommit": "Nexora 3.3.3 main + composable UX/motion polish + bounded GitHub release fallback",
+  "purpose": "Improve the existing public main page and keep release versions usable during GitHub API stalls without changing /advanced/"
 }
