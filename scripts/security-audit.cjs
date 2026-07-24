@@ -73,7 +73,7 @@ const checks = [
   ["Signing status never returns credentials", containsAll(stableCore, ["/api/admin/release/signing-status", "secretsExposed: false"]) && !stableCore.includes("CSC_KEY_PASSWORD,"), "boolean"],
   ["Room access fails closed for active bans", model.includes("Boolean(roomRole(state, conversation.roomId, userId)) && !isRoomBanned"), "boolean"],
   ["Expired sessions and security history are periodically removed", containsAll(maintenance, ["cleanupSecurityState", "SECURITY_HISTORY_RETENTION_MS", "RATE_LIMIT_RETENTION_MS"]), "boolean"],
-  ["Regular uploads sniff actual media type", containsAll(v3, ["sniffMime", "FILE_TYPE_MISMATCH", "X-Chunk-SHA256"]), "boolean"],
+  ["Regular uploads sniff actual media type", containsAll(v3, ["sniffMime", "FILE_TYPE_MISMATCH", "x-chunk-sha256", "UPLOAD_CHUNK_HASH"]), "boolean"],
   ["Client updater requires Windows signature verification", /verifyUpdateCodeSignature:\s*true/, clientBuilder],
   ["Server updater requires Windows signature verification", /verifyUpdateCodeSignature:\s*true/, serverBuilder],
   ["Client and Server updater errors distinguish signature failures", containsAll(updateService, ["UPDATE_SIGNATURE_INVALID", "signature_invalid", "checksum"]), "boolean"],
