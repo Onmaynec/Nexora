@@ -115,5 +115,37 @@
       zipball_url: "https://github.com/Onmaynec/Nexora/archive/refs/tags/v3.0.0.zip",
       assets: [],
     },
+    {
+      tag_name: "v2.0.0",
+      prerelease: true,
+      html_url: "https://github.com/Onmaynec/Nexora/releases/tag/v2.0.0",
+      published_at: "2026-07-20T00:00:00Z",
+      zipball_url: "https://github.com/Onmaynec/Nexora/archive/refs/tags/v2.0.0.zip",
+      assets: [],
+    },
+    {
+      tag_name: "v1.0.2",
+      prerelease: true,
+      html_url: "https://github.com/Onmaynec/Nexora/releases/tag/v1.0.2",
+      published_at: "2026-07-20T00:00:00Z",
+      zipball_url: "https://github.com/Onmaynec/Nexora/archive/refs/tags/v1.0.2.zip",
+      assets: [],
+    },
+    {
+      tag_name: "v1.0.1",
+      prerelease: true,
+      html_url: "https://github.com/Onmaynec/Nexora/releases/tag/v1.0.1",
+      published_at: "2026-07-17T00:00:00Z",
+      zipball_url: "https://github.com/Onmaynec/Nexora/archive/refs/tags/v1.0.1.zip",
+      assets: [],
+    },
+    {
+      tag_name: "v0.3.0",
+      prerelease: true,
+      html_url: "https://github.com/Onmaynec/Nexora/releases/tag/v0.3.0",
+      published_at: "2026-07-16T00:00:00Z",
+      zipball_url: "https://github.com/Onmaynec/Nexora/archive/refs/tags/v0.3.0.zip",
+      assets: [],
+    },
   ]);
 })();
