@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "version": "3.4.0",
+  "tag": "v3.4.0-rc.1",
+  "releaseUrl": "https://github.com/Onmaynec/Nexora/releases/tag/v3.4.0-rc.1",
+  "commit": "19c637134c93b93ea1255bf7ccf97ee95f97c33b",
+  "classification": "release-candidate",
+  "draft": false,
+  "prerelease": true,
+  "signed": false,
+  "distribution": "unsigned-test",
+  "checksumVerification": "passed",
+  "updaterMetadataPublished": false,
+  "installedWindowsSmoke": "passed",
+  "internalGateRun": 30120868638,
+  "focusedRegressionRun": 30120868628,
+  "websiteRun": 30120868643,
+  "publicationRun": 30121386962,
+  "baseline": {
+    "tag": "v3.3.4",
+    "releaseUrl": "https://github.com/Onmaynec/Nexora/releases/tag/v3.3.4",
+    "checksumVerification": "passed",
+    "evidence": "release-evidence/v3.3.4-publication.json"
+  },
+  "remainingStableBlockers": [
+    "authenticode-signing-policy",
+    "windows-10-installed-upgrade-acceptance",
+    "windows-11-installed-upgrade-acceptance",
+    "independent-security-review"
+  ],
+  "assets": [
+    "Nexora-3.4.0-rc.1-source.zip",
+    "Nexora-3.4.0-rc.1.spdx.json",
+    "Nexora-Android-3.4.0-RC1-UNSIGNED-TEST.apk",
+    "Nexora-Client-Setup-3.4.0-RC1-UNSIGNED-TEST.exe",
+    "Nexora-PWA-3.4.0-rc.1.zip",
+    "Nexora-Server-Setup-3.4.0-RC1-UNSIGNED-TEST.exe",
+    "RC-PUBLICATION-EVIDENCE.json",
+    "SHA256SUMS.txt"
+  ],
+  "sha256": {
+    "Nexora-3.4.0-rc.1-source.zip": "2f3b9b613422206bd40e41cb8ff9c99b192d308ccd15ccecdd45e8c1bc3ede0f",
+    "Nexora-3.4.0-rc.1.spdx.json": "a6426f617dba733ba53551742cea6a781a6bab21abe7379f8ab479238074b789",
+    "Nexora-Android-3.4.0-RC1-UNSIGNED-TEST.apk": "9561b5c96889379ab6859b0f5a664f46a3944bd187cc909e2586a6488953ab51",
+    "Nexora-Client-Setup-3.4.0-RC1-UNSIGNED-TEST.exe": "dea3246d0b4d1e6c0ee96cdca0719eba8cd908f2604d2985b4b5e39e75e97019",
+    "Nexora-PWA-3.4.0-rc.1.zip": "4d775f1ad872857300d64144f1a1e0664c389e260e6c4505a9bb8478edc46715",
+    "Nexora-Server-Setup-3.4.0-RC1-UNSIGNED-TEST.exe": "24dabe8c463ffdbbe0ed285e5d17651bddb3fa90741908443fc30f32dd6fcd57",
+    "RC-PUBLICATION-EVIDENCE.json": "673d4a487b864b8ccb6eeb8f70770a8eda9891472aaafcc5704463ed9ea17a41",
+    "SHA256SUMS.txt": "6c854e312a41946325ee98c959cfd202d42e8095e0d30ffd9de1938113426afd"
+  },
+  "verifiedAt": "2026-07-24T19:50:24.071Z"
+}
