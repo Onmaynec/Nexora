@@ -6,41 +6,13 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: nexora-3-4-regressions-${{ github.sha }}
+  group: nexora-3-4-regressions-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  patch-changelog:
-    if: github.event_name == 'pull_request' && github.actor != 'github-actions[bot]'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: release/3.4.0-stable-core-v2
-          fetch-depth: 0
-      - name: Add canonical 3.4.0 and 3.3.4 entries
-        shell: bash
-        env:
-          CHANGELOG_PREFIX_B64: IyMgWzMuNC4wXSDigJQgMjAyNi0wNy0yNCAoUmVsZWFzZSBjYW5kaWRhdGUpCgojIyMgU3RhYmxlIENvcmUKCi0gb3JkaW5hcnkgc2VydmVyLXJlYWRhYmxlIG1lc3NhZ2luZyBpcyB0aGUgb25seSB3cml0YWJsZSBtZXNzYWdpbmcgcGF0aDsKLSBleGVjdXRhYmxlIFRydXN0IENvcmUsIE1MUyByb3V0ZXMvcmVjb3Zlcnkvc29ja2V0IHRyYW5zcG9ydCwgZW5jcnlwdGVkLXVwbG9hZCB3cml0ZXMgYW5kIGB0cy1tbHNgIGFyZSByZW1vdmVkOwotIHNjaGVtYSA4IGxlZ2FjeSBJRHMsIHRpbWVzdGFtcHMsIGVwb2NocywgY2lwaGVydGV4dCBhbmQgYXVkaXQgcHJvdmVuYW5jZSByZW1haW4gYXZhaWxhYmxlIHRocm91Z2ggYW4gaW1tdXRhYmxlIHJlYWQtb25seSB2aWV3ZXIvZXhwb3J0OwotIGxlZ2FjeSBIVFRQIGFuZCBTb2NrZXQuSU8gbXV0YXRpb25zIHRlcm1pbmF0ZSB3aXRoIGBMRUdBQ1lfUkVBRF9PTkxZYDsgU2VydmVyIG5ldmVyIGRlY3J5cHRzIHJldGFpbmVkIGxlZ2FjeSBjaXBoZXJ0ZXh0LgoKIyMjIFNlc3Npb25zLCByZWxpYWJpbGl0eSBhbmQgZGlhZ25vc3RpY3MKCi0gc2VydmVyLW93bmVkIGRldmljZS9zZXNzaW9uIGludmVudG9yeSBzdXBwb3J0cyB0YXJnZXRlZCByZW1vdGUgcmV2b2tlLCByZXZva2UtYWxsLW90aGVycywgYHNlc3Npb24ucmV2b2tlZGAsIGBkZXZpY2UudXBkYXRlZGAgYW5kIGltbWVkaWF0ZSB0YXJnZXQgU29ja2V0LklPIGRpc2Nvbm5lY3Q7Ci0gYmFja3VwIHZlcmlmaWNhdGlvbiBpcyBub24tcmVzdG9yaW5nIGFuZCBhbGxvd2xpc3RlZDsgbWlncmF0aW9uL3Jlc3RvcmUgY292ZXIgaW50ZWdyaXR5LCBXQUwsIGZyZWUtc3BhY2UsIGZ1dHVyZS1zY2hlbWEsIGRpc2stZnVsbCBhbmQgcm9sbGJhY2sgZmFpbHVyZSBwYXRoczsKLSBzdGFibGUgZXJyb3JzIGluY2x1ZGUgc2FmZSBgY29kZWAsIGBtZXNzYWdlYCwgYHJlcXVlc3RJZGAgYW5kIGRldGFpbHMgd2l0aG91dCBsZWFraW5nIHN0YWNrLCBTUUwgb3Igc2VjcmV0cy4KCiMjIyBSZWxlYXNlIGFuZCBjb21wYXRpYmlsaXR5CgotIENsaWVudCBhbmQgU2VydmVyIHVzZSBzZXBhcmF0ZSBzaWduZWQgdXBkYXRlciBjaGFubmVscyB3aXRoIGRvd25ncmFkZS9wcmVyZWxlYXNlIHJlamVjdGlvbiBhbmQgYFVQREFURV9TSUdOQVRVUkVfSU5WQUxJRGAgdGFtcGVyIGhhbmRsaW5nOwotIHZlcnNpb24gbWV0YWRhdGEgaXMgc3luY2hyb25pemVkIGFjcm9zcyBwYWNrYWdlLCBsb2NrZmlsZSwgQ2xpZW50IGFuZCBBbmRyb2lkIChgdmVyc2lvbkNvZGUgMzA0MDBgKTsKLSBvZmZpY2lhbCBzdGFibGUgcHVibGljYXRpb24gcmVxdWlyZXMgdmVyaWZpZWQgYHYzLjMuNGAsIEF1dGhlbnRpY29kZSBpZGVudGl0eS90aW1lc3RhbXAgZXZpZGVuY2UsIFdpbmRvd3MgMTAvMTEgaW5zdGFsbGVkIGAzLjMuNCDihpIgMy40LjBgIGFjY2VwdGFuY2UsIGluZGVwZW5kZW50IHJldmlldyBhbmQgZmluYWwgZ3JlZW4gZ2F0ZXM7Ci0gYDMuNC4wYCByZW1haW5zIGEgcmVsZWFzZSBjYW5kaWRhdGUgdW50aWwgdGhvc2UgZXh0ZXJuYWwgZXZpZGVuY2UgcmVxdWlyZW1lbnRzIGFyZSBjb21wbGV0ZS4KCiMjIFszLjMuNF0g4oCUIDIwMjYtMDctMjQgKFBvc3QtTUxTIHByZXJlcXVpc2l0ZSBzb3VyY2UgYmFzZWxpbmUpCgojIyMgQ2hhbmdlZAoKLSBtZXJnZWQgdGhlIHBvc3QtTUxTIHByZXJlcXVpc2l0ZSBpbXBsZW1lbnRhdGlvbiBpbnRvIGBtYWluYCB0aHJvdWdoIFBSICM3MDsKLSBvcmRpbmFyeSBjaGF0cyBubyBsb25nZXIgYm9vdHN0cmFwIG9yIGRlcGVuZCBvbiBUcnVzdC9NTFMgc3RhdGU7Ci0gbGVnYWN5IHNlY3VyZSBoaXN0b3J5IGJlY2FtZSB0ZXJtaW5hbCByZWFkLW9ubHkgd2l0aG91dCBzZXJ2ZXItc2lkZSBkZWNyeXB0aW9uOwotIHJlbGVhc2UgY29uc2lzdGVuY3ksIHNlY3VyaXR5LCBBbmRyb2lkLCBzY2hlbWEgOCBzb2FrLCBmb2N1c2VkIHJlZ3Jlc3Npb25zIGFuZCBib3RoIHdlYnNpdGUgcGlwZWxpbmVzIHdlcmUgYnJvdWdodCB0byBhIGdyZWVuIHNvdXJjZSBiYXNlbGluZS4KCiMjIyBSZWxlYXNlIHN0YXRlCgotIHNvdXJjZSBiYXNlbGluZSBtZXJnZSBjb21taXQ6IGA2MjAyYmJkZjhmZjYzNjcxMWQ5ODc0NDUyOTU4ZGY1ZGQ0MGQ5NjU2YDsKLSBwdWJsaXNoZWQgdGFnL2Fzc2V0cyByZW1haW4gYSBzZXBhcmF0ZSBwcmVyZXF1aXNpdGUgZXZpZGVuY2UgcmVxdWlyZW1lbnQgZm9yIHRoZSBgMy40LjBgIHN0YWJsZSB3b3JrZmxvdy4KCg==
-        run: |
-          set -euo pipefail
-          node -e 'const fs=require("node:fs");const p="CHANGELOG.md";let s=fs.readFileSync(p,"utf8");if(s.includes("## [3.4.0]"))process.exit(0);const m="## [3.3.3]";if(!s.includes(m))throw new Error("CHANGELOG insertion marker is missing");const prefix=Buffer.from(process.env.CHANGELOG_PREFIX_B64,"base64").toString("utf8");fs.writeFileSync(p,s.replace(m,prefix+m),"utf8");'
-      - name: Commit changelog
-        shell: bash
-        run: |
-          set -euo pipefail
-          if git diff --quiet -- CHANGELOG.md; then exit 0; fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add CHANGELOG.md
-          git diff --cached --check
-          git commit -m "docs(release): add Nexora 3.4.0 and 3.3.4 changelog entries"
-          git push origin HEAD:release/3.4.0-stable-core-v2
-
   regressions:
     runs-on: ubuntu-latest
     timeout-minutes: 15
