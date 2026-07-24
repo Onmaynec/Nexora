@@ -168,9 +168,10 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
   if (!releaseIndex.includes(`${version}/RELEASE_NOTES.md`) || !releaseIndex.includes(`${version}/RELEASE_VERIFICATION.md`)) {
     fail(`docs/releases/README.md does not index ${version}`);
   }
-  if (/^## \\[?\d+\.\d+\.\d+/m.test(releaseIndex)) {
-    fail("docs/releases/README.md duplicates the canonical version timeline");
-  }
+  const duplicateVersionHeading = releaseIndex
+    .split(/\r?\n/)
+    .some((line) => /^## [0-9]/.test(line) || /^## \[[0-9]/.test(line));
+  if (duplicateVersionHeading) fail("docs/releases/README.md duplicates the canonical version timeline");
 
   const obsoleteVerificationPaths = [
     "RELEASE_VERIFICATION_3.2.4.md",
