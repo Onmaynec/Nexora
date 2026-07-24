@@ -1,4 +1,4 @@
-name: Nexora 3.4 preparation and regressions
+name: Nexora 3.4 regressions
 
 on:
   pull_request:
@@ -6,62 +6,13 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: nexora-3-4-preparation-${{ github.sha }}
+  group: nexora-3-4-regressions-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  prepare-release-evidence:
-    if: github.event_name == 'pull_request' && github.actor != 'github-actions[bot]'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: release/3.4.0-stable-core-v2
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22.16.0
-          cache: npm
-      - name: Import reviewed 3.4 documentation surfaces
-        shell: bash
-        run: |
-          set -euo pipefail
-          git fetch origin release/3.4.0-stable-core
-          files=(
-            README.md PROJECT_INDEX.md docs/README.md docs/ARCHITECTURE.md docs/SECURITY_MODEL.md
-            android/README.md SECURITY.md SECURITY_AUDIT.md SUPPORT.md CONTRIBUTING.md ADMIN_GUIDE.md
-            TESTER_GUIDE.md BRANCH_STATUS.md BRANCHES.md docs/PRODUCT_OVERVIEW.md
-            docs/OPERATIONS_RUNBOOK.md docs/DEPLOYMENT.md docs/RELEASE_POLICY.md docs/GITHUB_RELEASE.md
-            docs/RELEASE_CHECKLIST.md .github/ISSUE_TEMPLATE/bug_report.yml CHANGELOG.md
-            RELEASE_NOTES_3.4.0.md RELEASE_VERIFICATION_3.4.0.md SECURITY_REVIEW_3.4.0.md
-          )
-          for file in "${files[@]}"; do
-            mkdir -p "$(dirname "$file")"
-            git show "origin/release/3.4.0-stable-core:$file" > "$file"
-          done
-      - name: Prepare canonical evidence and website metadata
-        shell: bash
-        run: |
-          set -euo pipefail
-          node scripts/prepare-3.4-release-docs.cjs
-          node website/generate-release-fallback.mjs
-          rm scripts/prepare-3.4-release-docs.cjs
-          find . -type f \( -name '*.md' -o -name '*.yml' -o -name '*.json' \) -not -path './node_modules/*' -print0 | xargs -0 sed -i 's/[[:space:]]\+$//'
-      - name: Commit prepared release candidate
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A -- ':!.github/workflows/nexora-3.3-regressions.yml'
-          git diff --cached --check
-          git commit -m "docs(release): prepare Nexora 3.4.0 stable evidence gates"
-          git push origin HEAD:release/3.4.0-stable-core-v2
-
   regressions:
     runs-on: ubuntu-latest
     timeout-minutes: 15
