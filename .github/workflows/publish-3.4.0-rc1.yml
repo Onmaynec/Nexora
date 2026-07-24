@@ -52,11 +52,16 @@ jobs:
           $head = (git rev-parse HEAD).Trim()
           if ($head -ne $env:RC_HEAD) { throw "RC head mismatch: $head" }
           git fetch --tags --force
-          $existing = git rev-list -n 1 $env:RC_TAG 2>$null
-          if ($LASTEXITCODE -eq 0 -and $existing) {
-            if ($existing.Trim() -ne $head) { throw "Immutable RC tag already points to another commit" }
-            $release = gh release view $env:RC_TAG --json tagName,isDraft,isPrerelease 2>$null
-            if ($LASTEXITCODE -eq 0) { throw "RC release already exists; refusing asset replacement" }
+          $existingTag = (git tag --list $env:RC_TAG).Trim()
+          if ($existingTag) {
+            $existing = (git rev-list -n 1 $env:RC_TAG).Trim()
+            if ($existing -ne $head) { throw "Immutable RC tag already points to another commit" }
+            $previousNativePreference = $PSNativeCommandUseErrorActionPreference
+            $PSNativeCommandUseErrorActionPreference = $false
+            gh release view $env:RC_TAG --json tagName,isDraft,isPrerelease *> $null
+            $releaseStatus = $LASTEXITCODE
+            $PSNativeCommandUseErrorActionPreference = $previousNativePreference
+            if ($releaseStatus -eq 0) { throw "RC release already exists; refusing asset replacement" }
           }
 
       - run: npm ci
@@ -163,8 +168,8 @@ jobs:
           $ErrorActionPreference = "Stop"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          $existing = git rev-list -n 1 $env:RC_TAG 2>$null
-          if ($LASTEXITCODE -ne 0 -or -not $existing) {
+          $existingTag = (git tag --list $env:RC_TAG).Trim()
+          if (-not $existingTag) {
             git tag -a $env:RC_TAG -m "Nexora 3.4.0 RC1 unsigned test build" $env:RC_HEAD
             git push origin "refs/tags/$env:RC_TAG"
           }
