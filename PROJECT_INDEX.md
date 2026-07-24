@@ -12,7 +12,7 @@
 | Legacy Trust/MLS API | retired; write paths return `410/LEGACY_READ_ONLY` |
 | Local Server database | SQLite schema 8 compatibility layer |
 
-Этот индекс описывает ветку `release/3.3.4-stable-core` и PR #69. До merge он не является описанием опубликованного `main`.
+Этот индекс описывает ветку `release/3.3.4-post-mls` и PR #70. До merge/tag/release он является release-candidate документацией, а не описанием опубликованного `main`.
 
 ## Entry points
 

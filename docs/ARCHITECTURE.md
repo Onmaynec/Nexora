@@ -2,7 +2,7 @@
 
 ## Scope and status
 
-This document describes release candidate branch `release/3.3.4-stable-core` and PR #69. It does not claim that `v3.3.4` is published.
+This document describes release candidate branch `release/3.3.4-post-mls` and PR #70. It does not claim that `v3.3.4` is published.
 
 - Application API: v3;
 - writable messaging core: ordinary server-readable conversations;

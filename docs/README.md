@@ -8,7 +8,7 @@
 |---|---|
 | Current repository version | `3.3.4` |
 | Classification | Post-MLS Baseline release candidate |
-| Publication | Blocked — verified `v3.3.4`, Authenticode/Windows acceptance and independent review are mandatory |
+| Publication | Blocked — final CI, merge, `v3.3.4` publication and asset re-download smoke are mandatory |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
 | Legacy Trust/MLS runtime | removed; compatibility history is read-only |
@@ -39,7 +39,7 @@
 |---|---|---|
 | [Release Notes 3.3.4](../RELEASE_NOTES_3.3.4.md) | user-visible changes, compatibility and limitations | Release candidate |
 | [Release Verification 3.3.4](../RELEASE_VERIFICATION_3.3.4.md) | code, tests, CI, signing and publication evidence | In progress |
-| [Security Review 3.3.4](../SECURITY_REVIEW_3.3.4.md) | reviewed scope, findings and external review gate | External review pending |
+| [Security Review 3.3.4](../SECURITY_REVIEW_3.3.4.md) | reviewed scope, findings and internal review and 3.4.0 deferred gates | Internal review complete; independent review deferred to 3.4.0 |
 | [Architecture](ARCHITECTURE.md) | server-readable core, legacy boundary, devices, updater and storage | Current through 3.3.4 RC |
 | [Security Model](SECURITY_MODEL.md) | threats, controls and residual risks | Current through 3.3.4 RC |
 | [Operations Runbook](OPERATIONS_RUNBOOK.md) | rollout, backup/restore, corrupt DB, updater and emergency stop | Current through 3.3.4 RC |

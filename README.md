@@ -11,7 +11,7 @@
 
 **Nexora** is a self-hosted messaging platform for Windows, browser/PWA and Android. It combines a Local Server, rooms and moderation, ordinary server-readable messaging, voice/media, offline synchronization, operations tooling and the optional Nexora Pulse commercial boundary.
 
-> **Post-MLS Baseline release candidate:** version `3.3.4` is implemented in PR #69 but is not published. Stable publication is blocked until a verified stable `v3.3.4` baseline exists, Authenticode/Windows acceptance is complete and an independent security review closes all high/critical findings.
+> **Post-MLS Baseline release candidate:** version `3.3.4` is implemented in PR #70. Completion requires green final CI, merge, the official `v3.3.4` GitHub Release and successful asset re-download verification. Signed stable promotion, independent review and signed n-1→n acceptance remain Nexora 3.4.0 gates.
 
 ## Product status
 
@@ -234,7 +234,7 @@ See [Security Model](docs/SECURITY_MODEL.md) and [Security Policy](SECURITY.md).
 
 ## Release blockers
 
-PR #69 must remain draft and no official `v3.3.4` tag/release may be created while any item remains:
+PR #70 must remain draft and no official `v3.3.4` tag/release may be created while any item remains:
 
 1. verified published stable `v3.3.4` is absent;
 2. CI/release gates are not green on the final commit;
