@@ -1,6 +1,6 @@
 # Nexora Project Portfolio
 
-> Канонический индекс планирования. GitHub Issues содержат проверяемый scope; `ROADMAP.md` определяет последовательность релизов; `main` остаётся единственным current product source of truth.
+> Канонический индекс планирования. GitHub Issues содержат проверяемый scope; `docs/ROADMAP.md` определяет последовательность релизов; `main` остаётся единственным current product source of truth.
 
 ## Активная программа
 

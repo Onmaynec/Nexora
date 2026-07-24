@@ -1,1 +1,1551 @@
-{"currentVersion":"3.3.3","routes":[{"method":"GET","path":"/healthz/live","source":"PROJECT_INDEX.md","line":121,"group":"operations"},{"method":"GET","path":"/healthz/ready","source":"PROJECT_INDEX.md","line":121,"group":"operations"},{"method":"GET","path":"/api/v4/trust/status","source":"server/trust-routes.cjs","line":140,"group":"trust-v4"},{"method":"GET","path":"/api/v4/trust/devices","source":"server/trust-routes.cjs","line":144,"group":"trust-v4"},{"method":"POST","path":"/api/v4/trust/challenges","source":"server/trust-routes.cjs","line":156,"group":"trust-v4"},{"method":"POST","path":"/api/v4/trust/devices","source":"server/trust-routes.cjs","line":199,"group":"trust-v4"},{"method":"POST","path":"/api/v4/trust/key-packages","source":"server/trust-routes.cjs","line":246,"group":"trust-v4"},{"method":"POST","path":"/api/v4/trust/conversations/:conversationId/welcome/request","source":"server/trust-routes.cjs","line":280,"group":"trust-v4"},{"method":"GET","path":"/api/v4/trust/conversations/:conversationId/group","source":"server/trust-routes.cjs","line":294,"group":"trust-v4"},{"method":"POST","path":"/api/v4/trust/groups/:groupId/commits","source":"server/trust-routes.cjs","line":316,"group":"trust-v4"}],"events":[{"direction":"emit","name":"mls.welcome_requested","source":"server/trust-routes.cjs","line":289},{"direction":"emit","name":"mls.group_created","source":"server/trust-routes.cjs","line":312},{"direction":"emit","name":"mls.commit","source":"server/trust-routes.cjs","line":362},{"direction":"emit","name":"trust.device_registered","source":"server/trust-routes.cjs","line":217},{"direction":"emit","name":"trust.device_verified","source":"server/trust-routes.cjs","line":229},{"direction":"emit","name":"trust.device_revoked","source":"server/trust-routes.cjs","line":241}],"stats":{"routeCount":10,"eventCount":6,"sourceFiles":2},"generatedFromSource":false}
+{
+  "currentVersion": "3.3.3",
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/.well-known/oauth-authorization-server",
+      "source": "cloud/create-cloud-server-v12.cjs",
+      "line": 88,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/metrics",
+      "source": "server/v3-features.cjs",
+      "line": 827,
+      "group": "operations"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/runtime",
+      "source": "server/v3-features.cjs",
+      "line": 816,
+      "group": "operations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/stats",
+      "source": "server/create-server.cjs",
+      "line": 2056,
+      "group": "operations"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "source": "server/create-server.cjs",
+      "line": 718,
+      "group": "auth"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login/totp",
+      "source": "server/create-server.cjs",
+      "line": 744,
+      "group": "auth"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "source": "server/create-server.cjs",
+      "line": 769,
+      "group": "auth"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "source": "server/create-server.cjs",
+      "line": 612,
+      "group": "auth"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/register",
+      "source": "server/create-server.cjs",
+      "line": 617,
+      "group": "auth"
+    },
+    {
+      "method": "GET",
+      "path": "/api/avatars/:id",
+      "source": "server/create-server.cjs",
+      "line": 1068,
+      "group": "application-v3"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/blocks/:userId",
+      "source": "server/create-server.cjs",
+      "line": 1320,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/blocks/:userId",
+      "source": "server/create-server.cjs",
+      "line": 1296,
+      "group": "application-v3"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bookmarks",
+      "source": "server/create-server.cjs",
+      "line": 1837,
+      "group": "application-v3"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap",
+      "source": "server/create-server.cjs",
+      "line": 780,
+      "group": "application-v3"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/bots/:botId/tokens/:id",
+      "source": "server/v3-features.cjs",
+      "line": 654,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bots/:id/tokens",
+      "source": "server/v3-features.cjs",
+      "line": 641,
+      "group": "application-v3"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/contacts/:userId",
+      "source": "server/create-server.cjs",
+      "line": 1329,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/contacts/requests",
+      "source": "server/create-server.cjs",
+      "line": 1221,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/contacts/requests/:id/accept",
+      "source": "server/create-server.cjs",
+      "line": 1251,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/contacts/requests/:id/reject",
+      "source": "server/create-server.cjs",
+      "line": 1281,
+      "group": "application-v3"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/:id/media",
+      "source": "server/create-server.cjs",
+      "line": 1897,
+      "group": "messaging"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/:id/messages",
+      "source": "server/create-server.cjs",
+      "line": 1730,
+      "group": "messaging"
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/:id/polls",
+      "source": "server/v3-features.cjs",
+      "line": 344,
+      "group": "messaging"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/conversations/:id/settings",
+      "source": "server/create-server.cjs",
+      "line": 1797,
+      "group": "messaging"
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/:id/upload",
+      "source": "server/create-server.cjs",
+      "line": 1910,
+      "group": "messaging"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/:id/upload-capacity",
+      "source": "server/create-server.cjs",
+      "line": 1878,
+      "group": "messaging"
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/:id/uploads",
+      "source": "server/v3-features.cjs",
+      "line": 720,
+      "group": "messaging"
+    },
+    {
+      "method": "GET",
+      "path": "/api/files/:id",
+      "source": "server/create-server.cjs",
+      "line": 2012,
+      "group": "application-v3"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health",
+      "source": "server/create-server.cjs",
+      "line": 604,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/messages/:id/bookmark",
+      "source": "server/create-server.cjs",
+      "line": 1857,
+      "group": "messaging"
+    },
+    {
+      "method": "GET",
+      "path": "/api/messages/:id/edits",
+      "source": "server/v3-features.cjs",
+      "line": 405,
+      "group": "messaging"
+    },
+    {
+      "method": "POST",
+      "path": "/api/messages/:id/listened",
+      "source": "server/create-server.cjs",
+      "line": 2033,
+      "group": "messaging"
+    },
+    {
+      "method": "POST",
+      "path": "/api/messages/:id/moderation",
+      "source": "server/v3-features.cjs",
+      "line": 475,
+      "group": "messaging"
+    },
+    {
+      "method": "POST",
+      "path": "/api/messages/:id/report",
+      "source": "server/v3-features.cjs",
+      "line": 443,
+      "group": "messaging"
+    },
+    {
+      "method": "GET",
+      "path": "/api/messages/scheduled",
+      "source": "server/v3-features.cjs",
+      "line": 303,
+      "group": "messaging"
+    },
+    {
+      "method": "POST",
+      "path": "/api/messages/scheduled",
+      "source": "server/v3-features.cjs",
+      "line": 308,
+      "group": "messaging"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/messages/scheduled/:id",
+      "source": "server/v3-features.cjs",
+      "line": 333,
+      "group": "messaging"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications",
+      "source": "server/v3-features.cjs",
+      "line": 220,
+      "group": "application-v3"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/notifications/read",
+      "source": "server/v3-features.cjs",
+      "line": 228,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/polls/:id/close",
+      "source": "server/v3-features.cjs",
+      "line": 389,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/polls/:id/votes",
+      "source": "server/v3-features.cjs",
+      "line": 367,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/pulse/checkout",
+      "source": "server/create-server.cjs",
+      "line": 837,
+      "group": "pulse"
+    },
+    {
+      "method": "POST",
+      "path": "/api/pulse/goals/:goalId/cancel",
+      "source": "server/create-server.cjs",
+      "line": 930,
+      "group": "pulse"
+    },
+    {
+      "method": "POST",
+      "path": "/api/pulse/goals/:goalId/contributions",
+      "source": "server/create-server.cjs",
+      "line": 909,
+      "group": "pulse"
+    },
+    {
+      "method": "GET",
+      "path": "/api/pulse/overview",
+      "source": "server/create-server.cjs",
+      "line": 823,
+      "group": "pulse"
+    },
+    {
+      "method": "GET",
+      "path": "/api/pulse/rooms/:roomId/goals",
+      "source": "server/create-server.cjs",
+      "line": 857,
+      "group": "pulse"
+    },
+    {
+      "method": "POST",
+      "path": "/api/pulse/rooms/:roomId/goals",
+      "source": "server/create-server.cjs",
+      "line": 874,
+      "group": "pulse"
+    },
+    {
+      "method": "POST",
+      "path": "/api/pulse/sandbox/activate-plus",
+      "source": "server/create-server.cjs",
+      "line": 846,
+      "group": "pulse"
+    },
+    {
+      "method": "POST",
+      "path": "/api/rooms",
+      "source": "server/create-server.cjs",
+      "line": 1347,
+      "group": "rooms"
+    },
+    {
+      "method": "POST",
+      "path": "/api/rooms/:id/join",
+      "source": "server/create-server.cjs",
+      "line": 1381,
+      "group": "rooms"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/rooms/:roomId",
+      "source": "server/create-server.cjs",
+      "line": 1531,
+      "group": "rooms"
+    },
+    {
+      "method": "POST",
+      "path": "/api/rooms/:roomId/appeals",
+      "source": "server/v3-features.cjs",
+      "line": 508,
+      "group": "rooms"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/rooms/:roomId/appeals/:id",
+      "source": "server/v3-features.cjs",
+      "line": 529,
+      "group": "rooms"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/rooms/:roomId/bans/:userId",
+      "source": "server/create-server.cjs",
+      "line": 1651,
+      "group": "rooms"
+    },
+    {
+      "method": "POST",
+      "path": "/api/rooms/:roomId/bans/:userId",
+      "source": "server/create-server.cjs",
+      "line": 1617,
+      "group": "rooms"
+    },
+    {
+      "method": "POST",
+      "path": "/api/rooms/:roomId/bots",
+      "source": "server/v3-features.cjs",
+      "line": 605,
+      "group": "rooms"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/rooms/:roomId/bots/:id",
+      "source": "server/v3-features.cjs",
+      "line": 624,
+      "group": "rooms"
+    },
+    {
+      "method": "POST",
+      "path": "/api/rooms/:roomId/categories",
+      "source": "server/v3-features.cjs",
+      "line": 578,
+      "group": "rooms"
+    },
+    {
+      "method": "GET",
+      "path": "/api/rooms/:roomId/integrations",
+      "source": "server/v3-features.cjs",
+      "line": 592,
+      "group": "rooms"
+    },
+    {
+      "method": "POST",
+      "path": "/api/rooms/:roomId/invite",
+      "source": "server/create-server.cjs",
+      "line": 1667,
+      "group": "rooms"
+    },
+    {
+      "method": "GET",
+      "path": "/api/rooms/:roomId/invites",
+      "source": "server/v3-features.cjs",
+      "line": 412,
+      "group": "rooms"
+    },
+    {
+      "method": "POST",
+      "path": "/api/rooms/:roomId/invites",
+      "source": "server/v3-features.cjs",
+      "line": 418,
+      "group": "rooms"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/rooms/:roomId/invites/:id",
+      "source": "server/v3-features.cjs",
+      "line": 431,
+      "group": "rooms"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/rooms/:roomId/join-requests/:requestId",
+      "source": "server/create-server.cjs",
+      "line": 1699,
+      "group": "rooms"
+    },
+    {
+      "method": "POST",
+      "path": "/api/rooms/:roomId/leave",
+      "source": "server/create-server.cjs",
+      "line": 1505,
+      "group": "rooms"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/rooms/:roomId/members/:userId",
+      "source": "server/create-server.cjs",
+      "line": 1470,
+      "group": "rooms"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/rooms/:roomId/members/:userId/custom-roles",
+      "source": "server/v3-features.cjs",
+      "line": 563,
+      "group": "rooms"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/rooms/:roomId/members/:userId/restriction",
+      "source": "server/v3-features.cjs",
+      "line": 493,
+      "group": "rooms"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/rooms/:roomId/members/:userId/role",
+      "source": "server/create-server.cjs",
+      "line": 1572,
+      "group": "rooms"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/rooms/:roomId/reports/:id",
+      "source": "server/v3-features.cjs",
+      "line": 461,
+      "group": "rooms"
+    },
+    {
+      "method": "POST",
+      "path": "/api/rooms/:roomId/roles",
+      "source": "server/v3-features.cjs",
+      "line": 550,
+      "group": "rooms"
+    },
+    {
+      "method": "POST",
+      "path": "/api/rooms/:roomId/transfer",
+      "source": "server/create-server.cjs",
+      "line": 1592,
+      "group": "rooms"
+    },
+    {
+      "method": "POST",
+      "path": "/api/rooms/:roomId/webhooks",
+      "source": "server/v3-features.cjs",
+      "line": 663,
+      "group": "rooms"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/rooms/:roomId/webhooks/:id",
+      "source": "server/v3-features.cjs",
+      "line": 676,
+      "group": "rooms"
+    },
+    {
+      "method": "POST",
+      "path": "/api/rooms/join-by-code",
+      "source": "server/create-server.cjs",
+      "line": 1426,
+      "group": "rooms"
+    },
+    {
+      "method": "GET",
+      "path": "/api/search/messages",
+      "source": "server/create-server.cjs",
+      "line": 1760,
+      "group": "messaging"
+    },
+    {
+      "method": "GET",
+      "path": "/api/sessions",
+      "source": "server/create-server.cjs",
+      "line": 1158,
+      "group": "auth"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/sessions/:id",
+      "source": "server/create-server.cjs",
+      "line": 1175,
+      "group": "auth"
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions/revoke-all",
+      "source": "server/create-server.cjs",
+      "line": 1191,
+      "group": "auth"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/uploads/:id",
+      "source": "server/v3-features.cjs",
+      "line": 806,
+      "group": "application-v3"
+    },
+    {
+      "method": "GET",
+      "path": "/api/uploads/:id",
+      "source": "server/v3-features.cjs",
+      "line": 741,
+      "group": "application-v3"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/uploads/:id/chunks/:index",
+      "source": "server/v3-features.cjs",
+      "line": 747,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/uploads/:id/complete",
+      "source": "server/v3-features.cjs",
+      "line": 769,
+      "group": "application-v3"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/:id/profile",
+      "source": "server/create-server.cjs",
+      "line": 982,
+      "group": "application-v3"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/users/me",
+      "source": "server/create-server.cjs",
+      "line": 945,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/me/avatar",
+      "source": "server/create-server.cjs",
+      "line": 1014,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/me/password",
+      "source": "server/create-server.cjs",
+      "line": 1076,
+      "group": "application-v3"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/users/me/preferences",
+      "source": "server/v3-features.cjs",
+      "line": 241,
+      "group": "application-v3"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/users/me/totp",
+      "source": "server/create-server.cjs",
+      "line": 1142,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/me/totp/enable",
+      "source": "server/create-server.cjs",
+      "line": 1110,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/me/totp/recovery-codes",
+      "source": "server/create-server.cjs",
+      "line": 1129,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/me/totp/setup",
+      "source": "server/create-server.cjs",
+      "line": 1101,
+      "group": "application-v3"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/search",
+      "source": "server/create-server.cjs",
+      "line": 1199,
+      "group": "application-v3"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/bot/me",
+      "source": "server/v3-features.cjs",
+      "line": 705,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/bot/messages",
+      "source": "server/v3-features.cjs",
+      "line": 706,
+      "group": "application-v3"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/cloud-account",
+      "source": "server/pulse-v3-routes.cjs",
+      "line": 185,
+      "group": "application-v3"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v3/cloud-account/link",
+      "source": "server/pulse-v3-routes.cjs",
+      "line": 191,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/cloud-account/link/complete",
+      "source": "server/pulse-v3-routes.cjs",
+      "line": 174,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/cloud-account/link/start",
+      "source": "server/pulse-v3-routes.cjs",
+      "line": 162,
+      "group": "application-v3"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/drafts",
+      "source": "server/v3-features.cjs",
+      "line": 257,
+      "group": "application-v3"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v3/drafts/:conversationId",
+      "source": "server/v3-features.cjs",
+      "line": 289,
+      "group": "application-v3"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v3/drafts/:conversationId",
+      "source": "server/v3-features.cjs",
+      "line": 265,
+      "group": "application-v3"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/pulse/catalog",
+      "source": "server/pulse-product-routes.cjs",
+      "line": 49,
+      "group": "application-v3"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/pulse/checkout/:id",
+      "source": "server/pulse-v3-routes.cjs",
+      "line": 289,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/pulse/checkout/impulses",
+      "source": "server/pulse-v3-routes.cjs",
+      "line": 283,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/pulse/checkout/subscription",
+      "source": "server/pulse-v3-routes.cjs",
+      "line": 281,
+      "group": "application-v3"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/pulse/overview",
+      "source": "server/pulse-v3-routes.cjs",
+      "line": 202,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/pulse/purchases",
+      "source": "server/pulse-product-routes.cjs",
+      "line": 62,
+      "group": "application-v3"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/pulse/receipts",
+      "source": "server/pulse-product-routes.cjs",
+      "line": 39,
+      "group": "application-v3"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/pulse/status",
+      "source": "server/pulse-v3-routes.cjs",
+      "line": 152,
+      "group": "application-v3"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/pulse/subscription",
+      "source": "server/pulse-v3-routes.cjs",
+      "line": 303,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/pulse/subscription/cancel",
+      "source": "server/pulse-product-routes.cjs",
+      "line": 113,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/pulse/subscription/portal",
+      "source": "server/pulse-product-routes.cjs",
+      "line": 122,
+      "group": "application-v3"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/pulse/sync",
+      "source": "server/pulse-product-routes.cjs",
+      "line": 132,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/pulse/sync",
+      "source": "server/pulse-product-routes.cjs",
+      "line": 136,
+      "group": "application-v3"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/pulse/transactions",
+      "source": "server/pulse-v3-routes.cjs",
+      "line": 234,
+      "group": "application-v3"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/pulse/transactions/:id",
+      "source": "server/pulse-v3-routes.cjs",
+      "line": 250,
+      "group": "application-v3"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/pulse/wallet",
+      "source": "server/pulse-v3-routes.cjs",
+      "line": 218,
+      "group": "application-v3"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/rooms/:roomId/pulse/goals",
+      "source": "server/pulse-v3-routes.cjs",
+      "line": 318,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/rooms/:roomId/pulse/goals",
+      "source": "server/pulse-v3-routes.cjs",
+      "line": 337,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/rooms/:roomId/pulse/goals/:goalId/cancel",
+      "source": "server/pulse-v3-routes.cjs",
+      "line": 403,
+      "group": "application-v3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/rooms/:roomId/pulse/goals/:goalId/contributions",
+      "source": "server/pulse-v3-routes.cjs",
+      "line": 377,
+      "group": "application-v3"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/sync",
+      "source": "server/v3-features.cjs",
+      "line": 205,
+      "group": "application-v3"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v4/e2ee/attachments/:attachmentId",
+      "source": "server/e2ee-attachments.cjs",
+      "line": 205,
+      "group": "trust-v4"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v4/e2ee/conversations/:conversationId/attachments",
+      "source": "server/e2ee-attachments.cjs",
+      "line": 99,
+      "group": "trust-v4"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v4/trust/audit",
+      "source": "server/trust-routes.cjs",
+      "line": 381,
+      "group": "trust-v4"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v4/trust/challenges",
+      "source": "server/trust-routes.cjs",
+      "line": 154,
+      "group": "trust-v4"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v4/trust/conversations/:conversationId/group",
+      "source": "server/trust-routes.cjs",
+      "line": 294,
+      "group": "trust-v4"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v4/trust/conversations/:conversationId/group",
+      "source": "server/trust-routes.cjs",
+      "line": 299,
+      "group": "trust-v4"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v4/trust/conversations/:conversationId/welcome/claim",
+      "source": "server/trust-recovery-routes.cjs",
+      "line": 43,
+      "group": "trust-v4"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v4/trust/conversations/:conversationId/welcome/request",
+      "source": "server/trust-routes.cjs",
+      "line": 279,
+      "group": "trust-v4"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v4/trust/devices",
+      "source": "server/trust-routes.cjs",
+      "line": 142,
+      "group": "trust-v4"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v4/trust/devices",
+      "source": "server/trust-routes.cjs",
+      "line": 197,
+      "group": "trust-v4"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v4/trust/devices/:deviceId",
+      "source": "server/trust-routes.cjs",
+      "line": 231,
+      "group": "trust-v4"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v4/trust/devices/:deviceId/verify",
+      "source": "server/trust-routes.cjs",
+      "line": 219,
+      "group": "trust-v4"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v4/trust/groups/:groupId/commits",
+      "source": "server/trust-recovery-routes.cjs",
+      "line": 62,
+      "group": "trust-v4"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v4/trust/groups/:groupId/commits",
+      "source": "server/trust-routes.cjs",
+      "line": 316,
+      "group": "trust-v4"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v4/trust/key-packages",
+      "source": "server/trust-routes.cjs",
+      "line": 244,
+      "group": "trust-v4"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v4/trust/status",
+      "source": "server/trust-routes.cjs",
+      "line": 138,
+      "group": "trust-v4"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v4/trust/users/:userId/devices",
+      "source": "server/trust-routes.cjs",
+      "line": 146,
+      "group": "trust-v4"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v4/trust/users/:userId/devices/:deviceId/key-packages/claim",
+      "source": "server/trust-recovery-routes.cjs",
+      "line": 27,
+      "group": "trust-v4"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v4/trust/users/:userId/key-packages/claim",
+      "source": "server/trust-routes.cjs",
+      "line": 260,
+      "group": "trust-v4"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v4/trust/welcomes/claim",
+      "source": "server/trust-routes.cjs",
+      "line": 376,
+      "group": "trust-v4"
+    },
+    {
+      "method": "GET",
+      "path": "/healthz",
+      "source": "cloud/create-cloud-server.cjs",
+      "line": 205,
+      "group": "operations"
+    },
+    {
+      "method": "GET",
+      "path": "/healthz/full",
+      "source": "cloud/create-cloud-server-v12.cjs",
+      "line": 139,
+      "group": "operations"
+    },
+    {
+      "method": "GET",
+      "path": "/healthz/live",
+      "source": "server/operational-runtime.cjs",
+      "line": 152,
+      "group": "operations"
+    },
+    {
+      "method": "GET",
+      "path": "/healthz/ready",
+      "source": "server/operational-runtime.cjs",
+      "line": 153,
+      "group": "operations"
+    },
+    {
+      "method": "GET",
+      "path": "/metrics",
+      "source": "server/operational-runtime.cjs",
+      "line": 154,
+      "group": "operations"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/admin/accounts",
+      "source": "cloud/create-cloud-server.cjs",
+      "line": 213,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/admin/links",
+      "source": "cloud/create-cloud-server.cjs",
+      "line": 222,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/admin/workers/run",
+      "source": "cloud/create-cloud-server-v12.cjs",
+      "line": 126,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/admin/workers/status",
+      "source": "cloud/create-cloud-server-v12.cjs",
+      "line": 122,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/checkout/:id",
+      "source": "cloud/create-cloud-server.cjs",
+      "line": 272,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/checkout/sessions",
+      "source": "cloud/create-cloud-server.cjs",
+      "line": 240,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/goals",
+      "source": "cloud/create-cloud-server.cjs",
+      "line": 285,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/goals/:goalId/cancel",
+      "source": "cloud/create-cloud-server.cjs",
+      "line": 323,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/goals/:goalId/contributions",
+      "source": "cloud/create-cloud-server.cjs",
+      "line": 306,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/identity/browser-login",
+      "source": "cloud/identity-routes.cjs",
+      "line": 206,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/identity/email/verify",
+      "source": "cloud/identity-routes.cjs",
+      "line": 134,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/identity/login",
+      "source": "cloud/identity-routes.cjs",
+      "line": 139,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/identity/logout",
+      "source": "cloud/identity-routes.cjs",
+      "line": 172,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/identity/me",
+      "source": "cloud/identity-routes.cjs",
+      "line": 152,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/identity/mfa",
+      "source": "cloud/identity-routes.cjs",
+      "line": 167,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/identity/mfa/confirm",
+      "source": "cloud/identity-routes.cjs",
+      "line": 162,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/identity/mfa/enroll",
+      "source": "cloud/identity-routes.cjs",
+      "line": 157,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/identity/mfa/verify",
+      "source": "cloud/identity-routes.cjs",
+      "line": 145,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/identity/register",
+      "source": "cloud/identity-routes.cjs",
+      "line": 122,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/oauth/authorize",
+      "source": "cloud/identity-routes.cjs",
+      "line": 178,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/oauth/token",
+      "source": "cloud/identity-routes.cjs",
+      "line": 235,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/oauth/userinfo",
+      "source": "cloud/identity-routes.cjs",
+      "line": 253,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/provider/webhooks/stripe",
+      "source": "cloud/create-cloud-server.cjs",
+      "line": 121,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/public-keys",
+      "source": "cloud/create-cloud-server.cjs",
+      "line": 209,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/servers/:serverId/events",
+      "source": "cloud/billing-management-routes.cjs",
+      "line": 105,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/servers/:serverId/rooms/:roomId/goals",
+      "source": "cloud/create-cloud-server-v11.cjs",
+      "line": 230,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/servers/:serverId/users/:userId/catalog",
+      "source": "cloud/create-cloud-server-v11.cjs",
+      "line": 202,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/servers/:serverId/users/:userId/overview",
+      "source": "cloud/create-cloud-server.cjs",
+      "line": 231,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/servers/:serverId/users/:userId/purchases",
+      "source": "cloud/create-cloud-server-v11.cjs",
+      "line": 213,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/servers/:serverId/users/:userId/receipts",
+      "source": "cloud/create-cloud-server-v11.cjs",
+      "line": 170,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/servers/:serverId/users/:userId/subscription/cancel",
+      "source": "cloud/billing-management-routes.cjs",
+      "line": 59,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/servers/:serverId/users/:userId/subscription/portal",
+      "source": "cloud/billing-management-routes.cjs",
+      "line": 87,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/servers/:serverId/users/:userId/transactions",
+      "source": "cloud/create-cloud-server-v11.cjs",
+      "line": 144,
+      "group": "pulse-cloud"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/servers/:serverId/users/:userId/transactions/:transactionId",
+      "source": "cloud/create-cloud-server-v11.cjs",
+      "line": 158,
+      "group": "pulse-cloud"
+    }
+  ],
+  "events": [
+    {
+      "direction": "emit",
+      "name": "billing:event",
+      "source": "server/pulse-product-routes.cjs",
+      "line": 31
+    },
+    {
+      "direction": "emit",
+      "name": "billing:event",
+      "source": "server/pulse-sync-worker.cjs",
+      "line": 49
+    },
+    {
+      "direction": "emit",
+      "name": "billing:event",
+      "source": "server/pulse-v3-routes.cjs",
+      "line": 92
+    },
+    {
+      "direction": "emit",
+      "name": "changed",
+      "source": "server/store.cjs",
+      "line": 908
+    },
+    {
+      "direction": "on",
+      "name": "changed",
+      "source": "server/create-server.cjs",
+      "line": 176
+    },
+    {
+      "direction": "on",
+      "name": "connection",
+      "source": "server/create-server.cjs",
+      "line": 2095
+    },
+    {
+      "direction": "on",
+      "name": "connection",
+      "source": "server/mls-transport.cjs",
+      "line": 95
+    },
+    {
+      "direction": "on",
+      "name": "connection",
+      "source": "server/trust-socket.cjs",
+      "line": 85
+    },
+    {
+      "direction": "emit",
+      "name": "contact:accepted",
+      "source": "server/create-server.cjs",
+      "line": 1274
+    },
+    {
+      "direction": "emit",
+      "name": "contact:request",
+      "source": "server/create-server.cjs",
+      "line": 1237
+    },
+    {
+      "direction": "emit",
+      "name": "conversation:read",
+      "source": "server/create-server.cjs",
+      "line": 2304
+    },
+    {
+      "direction": "on",
+      "name": "conversation:read",
+      "source": "server/create-server.cjs",
+      "line": 2293
+    },
+    {
+      "direction": "emit",
+      "name": "data:refresh",
+      "source": "server/create-server.cjs",
+      "line": 2470
+    },
+    {
+      "direction": "emit",
+      "name": "data:refresh",
+      "source": "server/v3-features.cjs",
+      "line": 824
+    },
+    {
+      "direction": "on",
+      "name": "disconnect",
+      "source": "server/create-server.cjs",
+      "line": 2318
+    },
+    {
+      "direction": "on",
+      "name": "line",
+      "source": "server/cli.cjs",
+      "line": 15
+    },
+    {
+      "direction": "emit",
+      "name": "log",
+      "source": "server/create-server-v31.cjs",
+      "line": 43
+    },
+    {
+      "direction": "emit",
+      "name": "log",
+      "source": "server/create-server.cjs",
+      "line": 248
+    },
+    {
+      "direction": "emit",
+      "name": "log",
+      "source": "server/store.cjs",
+      "line": 531
+    },
+    {
+      "direction": "on",
+      "name": "log",
+      "source": "server/create-server.cjs",
+      "line": 175
+    },
+    {
+      "direction": "on",
+      "name": "message:delete",
+      "source": "server/create-server.cjs",
+      "line": 2205
+    },
+    {
+      "direction": "on",
+      "name": "message:edit",
+      "source": "server/create-server.cjs",
+      "line": 2181
+    },
+    {
+      "direction": "on",
+      "name": "message:forward",
+      "source": "server/create-server.cjs",
+      "line": 2128
+    },
+    {
+      "direction": "emit",
+      "name": "message:new",
+      "source": "server/create-server.cjs",
+      "line": 2174
+    },
+    {
+      "direction": "on",
+      "name": "message:pin",
+      "source": "server/create-server.cjs",
+      "line": 2266
+    },
+    {
+      "direction": "on",
+      "name": "message:react",
+      "source": "server/create-server.cjs",
+      "line": 2235
+    },
+    {
+      "direction": "on",
+      "name": "message:send",
+      "source": "server/create-server.cjs",
+      "line": 2109
+    },
+    {
+      "direction": "emit",
+      "name": "message:updated",
+      "source": "server/create-server.cjs",
+      "line": 2287
+    },
+    {
+      "direction": "on",
+      "name": "mls:message",
+      "source": "server/mls-transport.cjs",
+      "line": 99
+    },
+    {
+      "direction": "on",
+      "name": "mls:message-edit",
+      "source": "server/mls-transport.cjs",
+      "line": 209
+    },
+    {
+      "direction": "emit",
+      "name": "presence:update",
+      "source": "server/create-server.cjs",
+      "line": 274
+    },
+    {
+      "direction": "emit",
+      "name": "room:member-joined",
+      "source": "server/create-server.cjs",
+      "line": 1415
+    },
+    {
+      "direction": "emit",
+      "name": "room:removed",
+      "source": "server/create-server.cjs",
+      "line": 1646
+    },
+    {
+      "direction": "on",
+      "name": "SIGINT",
+      "source": "server/cli.cjs",
+      "line": 60
+    },
+    {
+      "direction": "on",
+      "name": "SIGINT",
+      "source": "cloud/cli.cjs",
+      "line": 89
+    },
+    {
+      "direction": "on",
+      "name": "SIGTERM",
+      "source": "server/cli.cjs",
+      "line": 61
+    },
+    {
+      "direction": "on",
+      "name": "SIGTERM",
+      "source": "cloud/cli.cjs",
+      "line": 90
+    },
+    {
+      "direction": "emit",
+      "name": "stats",
+      "source": "server/create-server.cjs",
+      "line": 2496
+    },
+    {
+      "direction": "emit",
+      "name": "status",
+      "source": "server/create-server.cjs",
+      "line": 2490
+    },
+    {
+      "direction": "on",
+      "name": "timeout",
+      "source": "server/v3-features.cjs",
+      "line": 120
+    },
+    {
+      "direction": "emit",
+      "name": "trust:event",
+      "source": "server/trust-routes.cjs",
+      "line": 127
+    },
+    {
+      "direction": "emit",
+      "name": "trust.device_revoked",
+      "source": "server/trust-socket.cjs",
+      "line": 55
+    },
+    {
+      "direction": "on",
+      "name": "typing:set",
+      "source": "server/create-server.cjs",
+      "line": 2308
+    },
+    {
+      "direction": "emit",
+      "name": "typing:update",
+      "source": "server/create-server.cjs",
+      "line": 2311
+    }
+  ],
+  "stats": {
+    "routeCount": 182,
+    "eventCount": 44,
+    "sourceFiles": 20
+  },
+  "generatedFromSource": true
+}

@@ -11,10 +11,10 @@
 
 Авторитетные материалы:
 
-- [Security Review 3.3.0](SECURITY_REVIEW_3.3.0.md) — security boundary, unchanged by 3.3.2;
-- [Release Verification 3.3.2](RELEASE_VERIFICATION_3.3.3.md);
-- [Release Notes 3.3.2](RELEASE_NOTES_3.3.3.md);
-- [Security Review 3.2.3](SECURITY_REVIEW_3.2.3.md);
+- [Security Review 3.3.0](docs/releases/3.3.0/SECURITY_REVIEW.md) — security boundary, unchanged by 3.3.2;
+- [Release Verification 3.3.2](docs/releases/3.3.3/RELEASE_VERIFICATION.md);
+- [Release Notes 3.3.2](docs/releases/3.3.3/RELEASE_NOTES.md);
+- [Security Review 3.2.3](docs/releases/3.2.3/SECURITY_REVIEW.md);
 - [Security Model](docs/SECURITY_MODEL.md).
 
 ## 2. Версионная база
@@ -45,7 +45,7 @@
 | Schema 8 soak | PASS |
 | Android `assembleDebug` | PASS |
 
-Acceptance contract, consistency gate и asset smoke описаны в [Release Verification 3.3.2](RELEASE_VERIFICATION_3.3.3.md). Выпуск 3.3.2 не расширяет security boundary и не изменяет runtime authorization, Trust/MLS или storage behavior.
+Acceptance contract, consistency gate и asset smoke описаны в [Release Verification 3.3.2](docs/releases/3.3.3/RELEASE_VERIFICATION.md). Выпуск 3.3.2 не расширяет security boundary и не изменяет runtime authorization, Trust/MLS или storage behavior.
 
 ## 4. Application security
 
