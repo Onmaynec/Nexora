@@ -31,7 +31,27 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin main
+          set +e
           git merge --no-edit -X ours origin/main
+          merge_status=$?
+          set -e
+          if [ "$merge_status" -ne 0 ]; then
+            while IFS= read -r path; do
+              [ -n "$path" ] || continue
+              if git cat-file -e "HEAD:$path" 2>/dev/null; then
+                git checkout --ours -- "$path"
+                git add -- "$path"
+              else
+                git rm -f --ignore-unmatch -- "$path"
+              fi
+            done < <(git diff --name-only --diff-filter=U)
+            if git diff --name-only --diff-filter=U | grep -q .; then
+              echo "Unresolved merge conflicts remain" >&2
+              git status --short
+              exit 1
+            fi
+            git commit --no-edit
+          fi
           git push origin HEAD:release/3.3.4-post-mls
 
   regressions:
