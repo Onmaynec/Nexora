@@ -8,10 +8,10 @@ const test = require("node:test");
 const { checkReleaseConsistency } = require("../scripts/check-release-consistency.cjs");
 
 const root = path.resolve(__dirname, "..");
-// Keep this list aligned with the current-document set enforced by the full unit and release gates.
 const fixtureFiles = [
   "package.json",
   "package-lock.json",
+  "client/src/api.js",
   "android/app/build.gradle.kts",
   "android/README.md",
   "README.md",
@@ -35,6 +35,7 @@ const fixtureFiles = [
   "docs/GITHUB_RELEASE.md",
   "docs/RELEASE_CHECKLIST.md",
   ".github/ISSUE_TEMPLATE/bug_report.yml",
+  ".github/workflows/release.yml",
   "website/index.html",
   "website/app.js",
   "website/site-fixes.js",
@@ -46,6 +47,8 @@ function copyFixture() {
   const target = fs.mkdtempSync(path.join(os.tmpdir(), "nexora-release-consistency-"));
   const version = require("../package.json").version;
   const releaseFiles = [
+    `RELEASE_NOTES_${version}.md`,
+    `RELEASE_VERIFICATION_${version}.md`,
     `docs/releases/${version}/RELEASE_NOTES.md`,
     `docs/releases/${version}/RELEASE_VERIFICATION.md`,
   ];
@@ -87,9 +90,9 @@ test("release consistency gate rejects a stale current Security Policy version",
     const staleVersion = currentVersion === "0.0.0" ? "0.0.1" : "0.0.0";
     const policy = path.join(fixture, "SECURITY.md");
     const before = fs.readFileSync(policy, "utf8");
-    const currentMarker = `| \`${currentVersion}\` | Published`;
+    const currentMarker = `| \`${currentVersion}\` | Release candidate`;
     assert.ok(before.includes(currentMarker), "current Security Policy marker must exist before mutation");
-    fs.writeFileSync(policy, before.replace(currentMarker, `| \`${staleVersion}\` | Published`));
+    fs.writeFileSync(policy, before.replace(currentMarker, `| \`${staleVersion}\` | Release candidate`));
     assert.throws(() => checkReleaseConsistency(fixture), /SECURITY\.md supported version/);
   });
 });
@@ -102,10 +105,11 @@ test("release consistency gate rejects obsolete current verification links", () 
   });
 });
 
-
-test("release consistency gate rejects versioned documents in the repository root", () => {
+test("release consistency gate rejects a root release document containing duplicated canonical content", () => {
   withFixture((fixture) => {
-    fs.writeFileSync(path.join(fixture, "RELEASE_NOTES_9.9.9.md"), "# misplaced\n", "utf8");
-    assert.throws(() => checkReleaseConsistency(fixture), /repository root contains misplaced documentation/);
+    const version = require("../package.json").version;
+    const pointer = path.join(fixture, `RELEASE_NOTES_${version}.md`);
+    fs.writeFileSync(pointer, fs.readFileSync(path.join(fixture, `docs/releases/${version}/RELEASE_NOTES.md`), "utf8"));
+    assert.throws(() => checkReleaseConsistency(fixture), /compatibility pointer/);
   });
 });
