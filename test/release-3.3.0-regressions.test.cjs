@@ -8,39 +8,47 @@ const test = require("node:test");
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
-test("regular and secure message deletion use the in-app confirmation dialog", () => {
+test("regular deletion uses in-app confirmation and legacy history is immutable", () => {
   const regular = read("client/src/components/MessagePane.jsx");
-  const secure = read("client/src/components/SecureMessagePane.jsx");
+  const legacy = read("client/src/components/LegacySecureHistoryPane.jsx");
   assert.match(regular, /import ConfirmDialog from "\.\/ConfirmDialog"/);
   assert.match(regular, /title="Удалить сообщение\?"/);
   assert.doesNotMatch(regular, /window\.confirm\("Удалить сообщение/);
-  assert.match(secure, /title="Удалить защищённое сообщение\?"/);
-  assert.doesNotMatch(secure, /window\.confirm\("Удалить защищённое сообщение/);
+  assert.match(legacy, /LEGACY_READ_ONLY/);
+  assert.match(legacy, /Экспортировать immutable history/);
+  assert.doesNotMatch(legacy, /ConfirmDialog|onDelete|uploadFile|VoiceRecorder|Trash2|Send/);
 });
 
-test("secure composer no longer exposes an inert lock control", () => {
-  const component = read("client/src/components/SecureMessagePane.jsx");
-  assert.doesNotMatch(component, /secure-composer-lock/);
-  assert.match(component, /className="composer secure-composer"/);
+test("legacy secure viewer exposes no writable composer controls", () => {
+  const component = read("client/src/components/LegacySecureHistoryPane.jsx");
+  assert.match(component, /История доступна только для чтения/);
+  assert.match(component, /server-side расшифровка не выполнялась/);
+  assert.match(component, /client-indexeddb-read-only/);
+  assert.doesNotMatch(component, /secure-composer-lock|prepareEncrypted|encryptAndUpload|mls:message/);
 });
 
-test("voice messages derive normalized amplitude bars and played color", () => {
-  const component = read("client/src/components/SecureMessagePane.jsx");
-  const styles = read("client/src/secure-messaging.css");
-  assert.match(component, /function normalizeWaveform/);
-  assert.match(component, /sumSquares/);
-  assert.match(component, /Math\.sqrt\(sumSquares/);
-  assert.match(styles, /secure-voice-wave i\.played/);
-  assert.match(styles, /secure-wave-active/);
+test("ordinary voice messages derive live amplitude and played progress", () => {
+  const recorder = read("client/src/components/VoiceRecorder.jsx");
+  const player = read("client/src/components/VoicePlayer.jsx");
+  assert.match(recorder, /analyser\.getByteTimeDomainData/);
+  assert.match(recorder, /Math\.sqrt\(sum \/ samples\.length\)/);
+  assert.match(recorder, /compactWaveform\(waveformRef\.current\)/);
+  assert.match(player, /className="voice-wave"/);
+  assert.match(player, /className=\{duration && .* \? "played" : ""\}/);
+  assert.match(player, /cycleVoiceRate/);
+  assert.match(player, /seekVoice/);
 });
 
-test("MLS Welcome recovery is conversation scoped and client coalesced", () => {
-  const server = read("server/trust-recovery-routes.cjs");
-  const client = read("client/src/api.js");
-  assert.match(server, /welcome:\$\{request\.trustAuth\.user\.id\}:\$\{requesterDeviceId\}:\$\{conversationId\}/);
-  assert.match(client, /WELCOME_CLAIM_MIN_INTERVAL_MS = 2_000/);
-  assert.match(client, /recoveryRequests\.get/);
-  assert.match(client, /retry-after/);
+test("post-MLS retirement is terminal and ordinary messaging remains available", () => {
+  const stableCore = read("server/stable-core.cjs");
+  const workspace = read("client/src/components/Workspace.jsx");
+  const app = read("client/src/App.jsx");
+  assert.match(stableCore, /LEGACY_WRITE_PATTERN/);
+  assert.match(stableCore, /410,[\s\S]*"LEGACY_READ_ONLY"/);
+  assert.match(stableCore, /socket\.on\("mls:message", reject\)/);
+  assert.match(workspace, /LegacySecureHistoryPane/);
+  assert.match(workspace, /<MessagePane/);
+  assert.doesNotMatch(app, /trust-client|initializeTrust|registerTrust/);
 });
 
 test("Pulse Sandbox serves catalog, receipts and room goals without Cloud fallback", () => {
@@ -63,7 +71,7 @@ test("unsigned test binaries remain downloadable without updater metadata", () =
   assert.ok(workflow.includes("Nexora-Client-Setup-$version-UNSIGNED-TEST.exe"));
   assert.ok(workflow.includes("Nexora-Server-Setup-$version-UNSIGNED-TEST.exe"));
   assert.ok(workflow.includes("Nexora-Android-$version-UNSIGNED-TEST.apk"));
-  assert.ok(workflow.includes("Unsigned release must not expose updater metadata"));
+  assert.ok(workflow.includes("UNSIGNED-TEST prerelease without updater metadata"));
   assert.ok(workflow.includes('if ($names -contains "latest.yml"'));
   assert.ok(workflow.includes("\\.blockmap$"));
   assert.ok(composedSite.includes("function signatureState"));
@@ -71,7 +79,7 @@ test("unsigned test binaries remain downloadable without updater metadata", () =
   assert.ok(composedSite.includes("dataset.signature"));
 });
 
-test("website keeps the 3.2.5 UX and applies only typography, localization and hit-testing fixes", () => {
+test("website keeps the established UX and current version markers", () => {
   const html = read("website/index.html");
   const legacyCss = read("website/styles.css");
   const legacyScript = read("website/app.js");
@@ -79,7 +87,7 @@ test("website keeps the 3.2.5 UX and applies only typography, localization and h
   const fixesScript = read("website/site-fixes.js");
   const version = require("../package.json").version.replace(/\./g, "\\.");
 
-  for (const marker of ["product-window", "stage-orbit-a", "stage-orbit-b", "data-tilt", "floating-signal", "architecture-board", "trust-lifecycle"]) {
+  for (const marker of ["product-window", "stage-orbit-a", "stage-orbit-b", "data-tilt", "floating-signal", "architecture-board"]) {
     assert.ok(html.includes(marker), `missing restored UX marker: ${marker}`);
   }
   assert.match(legacyScript, /class AetherField/);
@@ -87,18 +95,14 @@ test("website keeps the 3.2.5 UX and applies only typography, localization and h
   assert.match(legacyScript, /requestAnimationFrame/);
   assert.match(legacyCss, /@keyframes spin/);
   assert.match(legacyCss, /@keyframes dataTravel/);
-
   assert.match(fixesCss, /"Segoe UI Variable Text"/);
   assert.match(fixesCss, /"Segoe UI Variable Display"/);
   assert.match(fixesCss, /overflow-wrap: anywhere/);
   assert.match(fixesCss, /pointer-events: auto/);
   assert.doesNotMatch(fixesCss, /animation\s*:\s*none\s*!important/i);
-
   assert.match(fixesScript, new RegExp(`FALLBACK_VERSION = "${version}"`));
   assert.match(legacyScript, new RegExp(`FALLBACK_VERSION = "${version}"`));
   assert.match(fixesScript, /document\.addEventListener\("click"/);
-  assert.match(fixesScript, /Самостоятельно размещаемая платформа/);
-  assert.match(fixesScript, /ПОЛНОМОЧИЯ СЕРВЕРА/);
   assert.match(fixesScript, /applySignatureBadges/);
 });
 
