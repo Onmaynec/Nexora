@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   diagnose:
@@ -20,36 +21,57 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
-      - name: Capture release state
+      - name: Capture release and verifier state
         shell: bash
         run: |
           set +e
           mkdir -p release-evidence
           gh release view v3.3.4 --repo "$GITHUB_REPOSITORY" --json tagName,isDraft,isPrerelease,url,assets > release.json 2> release-error.txt
-          status=$?
-          STATUS="$status" node <<'NODE'
+          release_status=$?
+          gh run list --repo "$GITHUB_REPOSITORY" --workflow verify-release-3.3.4.yml --limit 1 --json databaseId,status,conclusion,headSha,url,workflowName > verifier-run.json 2> verifier-error.txt
+          verifier_status=$?
+          RELEASE_STATUS="$release_status" VERIFIER_STATUS="$verifier_status" node <<'NODE'
           const fs = require('node:fs');
-          const status = Number(process.env.STATUS);
+          const releaseStatus = Number(process.env.RELEASE_STATUS);
+          const verifierStatus = Number(process.env.VERIFIER_STATUS);
           const output = {
-            schemaVersion: 1,
+            schemaVersion: 2,
             version: '3.3.4',
             tagExists: true,
-            releaseExists: status === 0,
+            releaseExists: releaseStatus === 0,
             checkedAt: new Date().toISOString(),
-            workflowRun: process.env.GITHUB_RUN_ID,
+            diagnosticWorkflowRun: process.env.GITHUB_RUN_ID,
           };
-          if (status === 0) {
+          if (releaseStatus === 0) {
             const release = JSON.parse(fs.readFileSync('release.json', 'utf8'));
             output.tag = release.tagName;
             output.draft = release.isDraft;
             output.prerelease = release.isPrerelease;
             output.url = release.url;
-            output.assets = (release.assets || []).map((asset) => ({ name: asset.name, size: asset.size || null })).sort((a, b) => a.name.localeCompare(b.name));
+            output.assets = (release.assets || []).map((asset) => ({
+              name: asset.name,
+              size: asset.size || null,
+              digest: asset.digest || null,
+            })).sort((a, b) => a.name.localeCompare(b.name));
           } else {
-            output.error = fs.readFileSync('release-error.txt', 'utf8').trim();
+            output.releaseError = fs.readFileSync('release-error.txt', 'utf8').trim();
+          }
+          if (verifierStatus === 0) {
+            output.verifierRuns = JSON.parse(fs.readFileSync('verifier-run.json', 'utf8'));
+          } else {
+            output.verifierError = fs.readFileSync('verifier-error.txt', 'utf8').trim();
           }
           fs.writeFileSync('release-evidence/v3.3.4-diagnostic.json', `${JSON.stringify(output, null, 2)}\n`);
           NODE
+          verifier_id="$(node -e "const r=require('./verifier-run.json');console.log(r[0]?.databaseId||'')" 2>/dev/null)"
+          verifier_conclusion="$(node -e "const r=require('./verifier-run.json');console.log(r[0]?.conclusion||'')" 2>/dev/null)"
+          if [ -n "$verifier_id" ] && [ "$verifier_conclusion" = "failure" ]; then
+            gh run view "$verifier_id" --repo "$GITHUB_REPOSITORY" --log-failed > release-evidence/v3.3.4-verifier-failure.log 2>&1 || true
+            tail -n 120 release-evidence/v3.3.4-verifier-failure.log > release-evidence/v3.3.4-verifier-failure.tail
+            rm release-evidence/v3.3.4-verifier-failure.log
+          else
+            rm -f release-evidence/v3.3.4-verifier-failure.tail
+          fi
       - name: Commit diagnostic evidence
         shell: bash
         run: |
@@ -57,5 +79,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add release-evidence/v3.3.4-diagnostic.json
-          git commit -m "docs(release): record v3.3.4 publication diagnostic"
+          if [ -f release-evidence/v3.3.4-verifier-failure.tail ]; then git add release-evidence/v3.3.4-verifier-failure.tail; fi
+          git diff --cached --check
+          git commit -m "docs(release): record v3.3.4 verifier diagnostic"
           git push origin HEAD:main
