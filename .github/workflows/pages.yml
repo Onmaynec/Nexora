@@ -104,9 +104,30 @@ jobs:
       - name: Generate advanced reference
         run: node advanced-website/scripts/generate-reference.mjs
       - name: Validate advanced documentation
+        id: advanced_validation
+        continue-on-error: true
+        shell: bash
         run: |
-          node advanced-website/scripts/validate-content.mjs
-          node --test advanced-website/test/*.test.mjs
+          set +e
+          {
+            node advanced-website/scripts/validate-content.mjs
+            node --test advanced-website/test/*.test.mjs
+          } > advanced-validation-failures.log 2>&1
+          status=$?
+          cat advanced-validation-failures.log
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit "$status"
+      - name: Upload advanced validation diagnostics
+        if: steps.advanced_validation.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: advanced-validation-failures
+          path: advanced-validation-failures.log
+          if-no-files-found: error
+          retention-days: 2
+      - name: Enforce advanced validation
+        if: steps.advanced_validation.outcome == 'failure'
+        run: exit 1
       - name: Build advanced React portal
         run: npx vite build --config advanced-website/vite.config.mjs
       - name: Verify composed artifact
