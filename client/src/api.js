@@ -11,19 +11,38 @@ export class ApiError extends Error {
 
 export const CLIENT_VERSION = "3.3.4";
 const DEVICE_ID_KEY = "nexora:device-id";
-export const DEVICE_ID = localStorage.getItem(DEVICE_ID_KEY) || crypto.randomUUID();
-localStorage.setItem(DEVICE_ID_KEY, DEVICE_ID);
-const DEVICE_NAME = /Electron/i.test(navigator.userAgent) ? "Nexora Client" : "Nexora Web";
-const DEVICE_PLATFORM = /Android/i.test(navigator.userAgent) ? "android" : /Electron|Windows/i.test(navigator.userAgent) ? "windows" : "web";
-let csrfToken = sessionStorage.getItem("nexora:csrf") || "";
+
+function safeStorage(name) {
+  try {
+    const storage = globalThis?.[name];
+    if (storage && typeof storage.getItem === "function" && typeof storage.setItem === "function") return storage;
+  } catch {}
+  return null;
+}
+
+function createDeviceId() {
+  if (typeof globalThis.crypto?.randomUUID === "function") return globalThis.crypto.randomUUID();
+  return `device-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}`;
+}
+
+const localStore = safeStorage("localStorage");
+const sessionStore = safeStorage("sessionStorage");
+const userAgent = String(globalThis.navigator?.userAgent || "");
+export const DEVICE_ID = localStore?.getItem(DEVICE_ID_KEY) || createDeviceId();
+try { localStore?.setItem(DEVICE_ID_KEY, DEVICE_ID); } catch {}
+const DEVICE_NAME = /Electron/i.test(userAgent) ? "Nexora Client" : "Nexora Web";
+const DEVICE_PLATFORM = /Android/i.test(userAgent) ? "android" : /Electron|Windows/i.test(userAgent) ? "windows" : "web";
+let csrfToken = sessionStore?.getItem("nexora:csrf") || "";
 const recoveryRequests = new Map();
 const WELCOME_CLAIM_MIN_INTERVAL_MS = 2_000;
 const WELCOME_REQUEST_MIN_INTERVAL_MS = 8_000;
 
 export function setCsrfToken(value) {
   csrfToken = String(value || "");
-  if (csrfToken) sessionStorage.setItem("nexora:csrf", csrfToken);
-  else sessionStorage.removeItem("nexora:csrf");
+  try {
+    if (csrfToken) sessionStore?.setItem("nexora:csrf", csrfToken);
+    else sessionStore?.removeItem("nexora:csrf");
+  } catch {}
 }
 
 export function clearCsrfToken() {
