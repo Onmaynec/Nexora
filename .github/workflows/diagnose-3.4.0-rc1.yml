@@ -1,0 +1,60 @@
+name: Diagnose Nexora 3.4.0 RC1 publication
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/diagnose-3.4.0-rc1.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Capture publication run
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-evidence
+          gh run list --repo "$GITHUB_REPOSITORY" --workflow publish-3.4.0-rc1.yml --limit 1 --json databaseId,status,conclusion,headSha,url,workflowName > rc-run.json
+          node <<'NODE'
+          const fs = require('node:fs');
+          const runs = JSON.parse(fs.readFileSync('rc-run.json', 'utf8'));
+          const output = {
+            schemaVersion: 1,
+            version: '3.4.0',
+            tag: 'v3.4.0-rc.1',
+            checkedAt: new Date().toISOString(),
+            diagnosticWorkflowRun: process.env.GITHUB_RUN_ID,
+            publicationRuns: runs,
+          };
+          fs.writeFileSync('release-evidence/v3.4.0-rc.1-diagnostic.json', `${JSON.stringify(output, null, 2)}\n`);
+          NODE
+          run_id="$(node -e "const r=require('./rc-run.json');console.log(r[0]?.databaseId||'')")"
+          conclusion="$(node -e "const r=require('./rc-run.json');console.log(r[0]?.conclusion||'')")"
+          if [ -n "$run_id" ] && [ "$conclusion" = "failure" ]; then
+            gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --log-failed > failed.log 2>&1 || true
+            tail -n 160 failed.log > release-evidence/v3.4.0-rc.1-failure.tail
+          else
+            rm -f release-evidence/v3.4.0-rc.1-failure.tail
+          fi
+      - name: Commit diagnostic
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add release-evidence/v3.4.0-rc.1-diagnostic.json
+          if [ -f release-evidence/v3.4.0-rc.1-failure.tail ]; then git add release-evidence/v3.4.0-rc.1-failure.tail; fi
+          git commit -m "docs(release): record Nexora 3.4.0 RC1 diagnostic"
+          git push origin HEAD:main
