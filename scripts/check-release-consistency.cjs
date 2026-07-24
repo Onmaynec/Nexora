@@ -130,8 +130,32 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
   const evidence = parseJson(root, "release-evidence/current.json");
   if (evidence.version !== version) fail(`release-evidence/current.json version ${evidence.version} != ${version}`);
   if (evidence.tag !== `v${version}`) fail(`release-evidence/current.json tag ${evidence.tag} != v${version}`);
-  if (evidence.status !== "release-candidate" || evidence.published !== false) {
-    fail("release-evidence/current.json must remain an unpublished release candidate before publication");
+  const unpublishedCandidate = evidence.status === "release-candidate" && evidence.published === false;
+  const publishedRelease = evidence.status === "published" && evidence.published === true;
+  if (!unpublishedCandidate && !publishedRelease) {
+    fail("release-evidence/current.json must describe either an unpublished release candidate or a verified published release");
+  }
+  if (publishedRelease) {
+    if (evidence.verification?.status !== "passed") {
+      fail("published release-evidence/current.json requires verification.status=passed");
+    }
+    const publicationPath = `release-evidence/v${version}-publication.json`;
+    const publication = parseJson(root, publicationPath);
+    if (publication.version !== version || publication.tag !== `v${version}`) {
+      fail(`${publicationPath} identity does not match ${version}`);
+    }
+    if (publication.draft !== false || publication.checksumVerification !== "passed") {
+      fail(`${publicationPath} is not a verified published release`);
+    }
+    if (publication.distribution !== evidence.distribution || publication.signed !== evidence.signed) {
+      fail(`${publicationPath} distribution does not match release-evidence/current.json`);
+    }
+    if (publication.updaterMetadataPublished !== evidence.guarantees?.unsignedUpdaterMetadataPublished) {
+      fail(`${publicationPath} updater metadata state does not match current guarantees`);
+    }
+    if (!Array.isArray(publication.assets) || !publication.assets.includes("SHA256SUMS.txt")) {
+      fail(`${publicationPath} does not contain the verified release asset set`);
+    }
   }
 
   const releaseDirectory = `docs/releases/${version}`;
@@ -198,6 +222,9 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
   for (const temporary of [
     ".github/workflows/stable-core-migration.yml",
     ".github/workflows/stable-core-diagnostics.yml",
+    ".github/workflows/dispatch-release-3.3.4.yml",
+    ".github/workflows/verify-release-3.3.4.yml",
+    ".github/workflows/diagnose-release-3.3.4.yml",
     "scripts/apply-stable-core-3.4.cjs",
     "scripts/apply-stable-core-error-contracts.cjs",
     "scripts/apply-stable-core-bootstrap.cjs",
@@ -206,6 +233,8 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
     "scripts/apply-stable-core-docs.cjs",
     "scripts/finalize-post-mls-current-surfaces.cjs",
     "scripts/finalize-changelog-3.3.4.cjs",
+    "release-evidence/v3.3.4-diagnostic.json",
+    "release-evidence/v3.3.4-verifier-failure.tail",
     "migration-error.log",
     "unit-failures.log",
   ]) {
