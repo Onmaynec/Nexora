@@ -3,6 +3,25 @@
 const crypto = require("node:crypto");
 const { canAccessConversation, roomRole } = require("./model.cjs");
 
+const DEFAULT_EVENT_RETENTION = 20_000;
+const MIN_EVENT_RETENTION = 1_000;
+const MAX_EVENT_RETENTION = 100_000;
+
+function retentionLimit(state) {
+  return Math.max(
+    MIN_EVENT_RETENTION,
+    Math.min(MAX_EVENT_RETENTION, Number(state?.settings?.eventRetentionLimit) || DEFAULT_EVENT_RETENTION),
+  );
+}
+
+function trimEvents(state) {
+  if (!Array.isArray(state.events)) state.events = [];
+  const limit = retentionLimit(state);
+  if (state.events.length > limit) state.events.splice(0, state.events.length - limit);
+  state.meta.firstRetainedEventSequence = state.events[0]?.sequence ?? Number(state.meta.lastEventSequence || 0) + 1;
+  return state.meta.firstRetainedEventSequence;
+}
+
 function appendEvent(state, {
   type,
   actorId = null,
@@ -13,21 +32,26 @@ function appendEvent(state, {
   payload = {},
   createdAt = new Date().toISOString(),
 }) {
+  if (!state.meta || typeof state.meta !== "object") state.meta = {};
+  if (!Array.isArray(state.events)) state.events = [];
   const sequence = Math.max(0, Number(state.meta.lastEventSequence) || 0) + 1;
   state.meta.lastEventSequence = sequence;
   const event = {
     id: crypto.randomUUID(),
     sequence,
+    version: 1,
     type: String(type || "unknown").slice(0, 80),
     actorId,
     userIds: [...new Set((userIds || []).filter(Boolean))],
     conversationId,
     roomId,
+    scope: conversationId ? "conversation" : roomId ? "room" : userIds?.length ? "user" : global ? "global" : "private",
     global: Boolean(global),
     payload: payload && typeof payload === "object" && !Array.isArray(payload) ? payload : {},
     createdAt,
   };
   state.events.push(event);
+  trimEvents(state);
   return event;
 }
 
@@ -64,4 +88,12 @@ function mentionedUsers(state, text, participantIds) {
   return state.users.filter((user) => participantIds.includes(user.id) && usernames.has(user.username.toLocaleLowerCase("ru")));
 }
 
-module.exports = { addNotification, appendEvent, eventVisibleTo, mentionedUsers };
+module.exports = {
+  DEFAULT_EVENT_RETENTION,
+  addNotification,
+  appendEvent,
+  eventVisibleTo,
+  mentionedUsers,
+  retentionLimit,
+  trimEvents,
+};

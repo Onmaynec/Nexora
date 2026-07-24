@@ -9,8 +9,9 @@ export class ApiError extends Error {
   }
 }
 
-export const CLIENT_VERSION = "3.4.0";
+export const CLIENT_VERSION = "3.5.0";
 const DEVICE_ID_KEY = "nexora:device-id";
+const RESUMABLE_THRESHOLD = 256 * 1024;
 
 function safeStorage(name) {
   try {
@@ -67,7 +68,7 @@ async function request(path, options = {}) {
     credentials: "include",
     ...options,
     headers: {
-      ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
+      ...(options.body instanceof FormData || options.body instanceof Blob ? {} : { "Content-Type": "application/json" }),
       "X-Nexora-Client-Version": CLIENT_VERSION,
       "X-Nexora-Device-ID": DEVICE_ID,
       "X-Nexora-Device-Name": DEVICE_NAME,
@@ -128,39 +129,103 @@ export function remove(path, body) {
   return api(path, { method: "DELETE", body: body === undefined ? undefined : JSON.stringify(body) });
 }
 
-async function resumableUpload(conversationId, file, kind, caption, options) {
-  let upload;
+function hex(buffer) {
+  return [...new Uint8Array(buffer)].map((value) => value.toString(16).padStart(2, "0")).join("");
+}
+
+async function sha256File(file) {
+  if (!globalThis.crypto?.subtle) return null;
+  return hex(await globalThis.crypto.subtle.digest("SHA-256", await file.arrayBuffer()));
+}
+
+function uploadIdempotencyKey(value) {
+  if (value && /^[A-Za-z0-9_.:-]{8,160}$/.test(String(value))) return String(value);
+  return globalThis.crypto?.randomUUID?.() ?? `upload-${Date.now()}-${Math.random().toString(36).slice(2, 14)}`;
+}
+
+async function cancelResumable(conversationId, sessionId) {
+  if (!sessionId) return;
+  await api(`/api/conversations/${encodeURIComponent(conversationId)}/uploads/${encodeURIComponent(sessionId)}`, { method: "DELETE" }).catch((error) => {
+    if (!["RESOURCE_NOT_FOUND", "STATE_CONFLICT"].includes(error.code)) console.debug("Resumable upload cancel deferred", error);
+  });
+}
+
+async function resumableUpload(conversationId, file, kind, duration, caption, options) {
+  const idempotencyKey = uploadIdempotencyKey(options.uploadId);
+  let sessionId = null;
   try {
-    upload = options.uploadId
-      ? (await api(`/api/uploads/${encodeURIComponent(options.uploadId)}`)).upload
-      : (await post(`/api/conversations/${encodeURIComponent(conversationId)}/uploads`, { name: file.name, size: file.size, mimeType: file.type || "application/octet-stream", kind })).upload;
-    const received = new Set(upload.receivedChunks || []);
-    let completedBytes = [...received].reduce((sum, index) => sum + Math.min(upload.chunkSize, file.size - index * upload.chunkSize), 0);
-    for (let index = 0; index < upload.totalChunks; index += 1) {
-      if (received.has(index)) continue;
+    const fileHash = await sha256File(file);
+    const init = await api(`/api/conversations/${encodeURIComponent(conversationId)}/uploads/init`, {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify({
+        name: file.name,
+        size: file.size,
+        mimeType: file.type || "application/octet-stream",
+        kind,
+        sha256: fileHash,
+      }),
+      signal: options.signal,
+    });
+    const upload = init.upload;
+    sessionId = upload.id;
+    const chunkBytes = Math.max(64 * 1024, Number(init.chunkBytes) || 1024 * 1024);
+    let offset = Math.max(0, Number(upload.confirmedOffset) || 0);
+    if (offset > file.size) throw new ApiError("Сервер подтвердил недопустимый offset.", 409, "UPLOAD_OFFSET_MISMATCH", { confirmedOffset: offset });
+    options.onProgress?.(Math.min(100, Math.round(offset / file.size * 100)), offset, file.size);
+
+    while (offset < file.size) {
       if (options.signal?.aborted) throw Object.assign(new Error("Загрузка отменена."), { code: "UPLOAD_ABORTED" });
-      const chunk = file.slice(index * upload.chunkSize, Math.min(file.size, (index + 1) * upload.chunkSize));
-      const digest = await crypto.subtle.digest("SHA-256", await chunk.arrayBuffer());
-      const checksum = [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, "0")).join("");
-      const response = await fetch(`/api/uploads/${encodeURIComponent(upload.id)}/chunks/${index}`, {
-        method: "PUT", credentials: "include", body: chunk, signal: options.signal,
-        headers: { "Content-Type": "application/octet-stream", "X-Nexora-Client-Version": CLIENT_VERSION, "X-Nexora-Device-ID": DEVICE_ID, "X-Nexora-Device-Name": DEVICE_NAME, "X-Nexora-Platform": DEVICE_PLATFORM, "X-Chunk-SHA256": checksum, ...(csrfToken ? { "X-Nexora-CSRF": csrfToken } : {}) },
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new ApiError(result.message || result.error || `Ошибка ${response.status}`, response.status, result.code, result.details);
-      completedBytes += chunk.size;
-      options.onProgress?.(Math.min(100, Math.round(completedBytes / file.size * 100)), completedBytes, file.size);
+      const chunk = file.slice(offset, Math.min(file.size, offset + chunkBytes));
+      let result;
+      try {
+        result = await api(`/api/conversations/${encodeURIComponent(conversationId)}/uploads/${encodeURIComponent(sessionId)}/chunks`, {
+          method: "PUT",
+          body: chunk,
+          signal: options.signal,
+          headers: {
+            "Content-Type": "application/octet-stream",
+            "Upload-Offset": String(offset),
+          },
+        });
+      } catch (error) {
+        if (error.code === "UPLOAD_OFFSET_MISMATCH" && Number.isSafeInteger(Number(error.details?.confirmedOffset))) {
+          const confirmed = Number(error.details.confirmedOffset);
+          if (confirmed >= 0 && confirmed <= file.size && confirmed !== offset) {
+            offset = confirmed;
+            options.onProgress?.(Math.min(100, Math.round(offset / file.size * 100)), offset, file.size);
+            continue;
+          }
+        }
+        throw error;
+      }
+      const confirmed = Number(result.confirmedOffset);
+      if (!Number.isSafeInteger(confirmed) || confirmed <= offset || confirmed > file.size) {
+        throw new ApiError("Сервер не подтвердил корректный offset.", 409, "UPLOAD_OFFSET_MISMATCH", { confirmedOffset: confirmed });
+      }
+      offset = confirmed;
+      options.onProgress?.(Math.min(100, Math.round(offset / file.size * 100)), offset, file.size);
     }
-    return post(`/api/uploads/${encodeURIComponent(upload.id)}/complete`, { caption });
+
+    return api(`/api/conversations/${encodeURIComponent(conversationId)}/uploads/${encodeURIComponent(sessionId)}/complete`, {
+      method: "POST",
+      body: JSON.stringify({ caption, duration, waveform: options.waveform || [] }),
+      signal: options.signal,
+    });
   } catch (error) {
-    if (upload?.id) error.uploadId = upload.id;
-    if (error.name === "AbortError") error.code = "UPLOAD_ABORTED";
+    const aborted = error.name === "AbortError" || error.code === "UPLOAD_ABORTED" || options.signal?.aborted;
+    if (aborted) {
+      await cancelResumable(conversationId, sessionId);
+      error.code = "UPLOAD_ABORTED";
+    } else {
+      error.uploadId = idempotencyKey;
+      error.uploadSessionId = sessionId;
+    }
     throw error;
   }
 }
 
-export function uploadFile(conversationId, file, kind, duration = 0, caption = "", options = {}) {
-  if (file.size > 2 * 1024 * 1024 && kind !== "voice" && globalThis.crypto?.subtle) return resumableUpload(conversationId, file, kind, caption, options);
+function directUpload(conversationId, file, kind, duration, caption, options) {
   const body = new FormData();
   body.append("file", file);
   body.append("kind", kind);
@@ -187,7 +252,7 @@ export function uploadFile(conversationId, file, kind, duration = 0, caption = "
       try { result = JSON.parse(requestValue.responseText || "null"); } catch {}
       if (result?.csrfToken) setCsrfToken(result.csrfToken);
       if (requestValue.status < 200 || requestValue.status >= 300) {
-        reject(new ApiError(result?.message || result?.error || `Ошибка ${requestValue.status}`, requestValue.status, result?.code, result?.details));
+        reject(new ApiError(result?.message || result?.error || `Ошибка ${requestValue.status}`, requestValue.status, result?.code, result?.details, result?.requestId));
         return;
       }
       options.onProgress?.(100, file.size, file.size);
@@ -199,6 +264,13 @@ export function uploadFile(conversationId, file, kind, duration = 0, caption = "
     }
     requestValue.send(body);
   });
+}
+
+export function uploadFile(conversationId, file, kind, duration = 0, caption = "", options = {}) {
+  if (file.size >= RESUMABLE_THRESHOLD && globalThis.crypto?.subtle) {
+    return resumableUpload(conversationId, file, kind, duration, caption, options);
+  }
+  return directUpload(conversationId, file, kind, duration, caption, options);
 }
 
 export function uploadAvatar(file) {

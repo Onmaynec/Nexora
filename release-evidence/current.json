@@ -1,50 +1,48 @@
 {
-  "schemaVersion": 2,
-  "version": "3.4.0",
-  "tag": "v3.4.0",
+  "schemaVersion": 3,
+  "version": "3.5.0",
+  "tag": "v3.5.0",
   "status": "release-candidate",
   "published": false,
   "signed": false,
   "distribution": "blocked-stable",
   "repository": "Onmaynec/Nexora",
-  "branch": "release/3.4.0-stable-promotion",
-  "baseline": "v3.3.4",
-  "baselineMergeCommit": "6202bbdf8ff636711d9874452958df5dd40d9656",
+  "branch": "release/3.5.0-mobile-continuity",
+  "baseline": "v3.4.0",
   "baselinePublication": {
-    "releaseUrl": "https://github.com/Onmaynec/Nexora/releases/tag/v3.3.4",
-    "distribution": "unsigned-test",
-    "checksumVerification": "passed",
-    "verificationRun": 30120451878,
-    "evidence": "release-evidence/v3.3.4-publication.json"
+    "status": "blocked",
+    "releaseUrl": null,
+    "checksumVerification": "pending",
+    "evidence": null
   },
   "blockers": [
-    "authenticode-signing-policy",
-    "windows-10-installed-upgrade-acceptance",
-    "windows-11-installed-upgrade-acceptance",
+    "published-v3.4.0-baseline",
+    "production-push-adapter",
+    "android-signing-and-installed-acceptance",
+    "pwa-installed-offline-update-acceptance",
+    "windows-authenticode-and-installed-upgrade-acceptance",
     "independent-security-review",
-    "final-ci",
-    "merge",
-    "github-release",
-    "asset-redownload-smoke"
+    "final-ci-and-soak",
+    "merge-tag-github-release",
+    "asset-redownload-signature-smoke"
   ],
   "guarantees": {
     "ordinaryMessagingWritable": true,
     "trustMlsRuntime": "retired",
     "legacySecureHistory": "read-only",
-    "serverDecryptsLegacyCiphertext": false,
+    "pushPlaintextDefault": false,
+    "localProfilesIsolated": true,
     "stableReleaseRequiresSignedAssets": true,
     "unsignedOfficialTagPublished": false
   },
   "assets": [],
   "verification": {
-    "status": "internal-gates-passed",
-    "internalHead": "7af836ad7c6c9a7312020d5c7a59372fc182cab3",
-    "internalCiRun": 30124965881,
-    "focusedRegressionRun": 30120868628,
-    "websiteRun": 30120868643,
+    "status": "in-progress",
+    "head": null,
+    "ciRuns": [],
     "productionDependencyAudit": {
-      "high": 0,
-      "critical": 0
+      "high": null,
+      "critical": null
     }
   }
 }

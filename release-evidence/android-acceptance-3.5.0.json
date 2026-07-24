@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "version": "3.5.0",
+  "baseline": "3.4.0",
+  "target": "3.5.0",
+  "signedArtifactVerified": false,
+  "installPassed": false,
+  "upgradeWithoutProfileLossPassed": false,
+  "lifecyclePermissionDeepLinkPassed": false,
+  "certificatePolicyPassed": false,
+  "evidenceUrl": null,
+  "status": "blocked"
+}

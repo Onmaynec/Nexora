@@ -34,7 +34,7 @@ function countTextMessages(instance, conversationId) {
   return instance.store.read((state) => state.messages.filter((message) => message.conversationId === conversationId && message.type === "text").length);
 }
 
-test(`steady-state schema 8 load: 20 clients concurrently send 120 messages within ${PERFORMANCE_BUDGET_MS / 1_000} seconds`, { timeout: 120_000 }, async () => {
+test(`steady-state schema 9 load: 20 clients concurrently send 120 messages within ${PERFORMANCE_BUDGET_MS / 1_000} seconds`, { timeout: 120_000 }, async () => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "nexora-load-"));
   const instance = await createNexoraServer({ dataDir: directory, tls: false, redirect: false, port: 0, host: "127.0.0.1", quiet: true, clientDir: path.join(__dirname, "..", "client", "dist") });
   const status = await instance.listen();
@@ -42,7 +42,7 @@ test(`steady-state schema 8 load: 20 clients concurrently send 120 messages with
   const cookies = [];
   const sockets = [];
   try {
-    assert.equal(instance.status().schemaVersion, 8);
+    assert.equal(instance.status().schemaVersion, 9);
     const first = await request(instance.app).post("/api/auth/register").send({ displayName: "Load 0", username: "load-0", password: "LoadStrongPass0!" }).expect(201);
     cookies.push(first.headers["set-cookie"][0].split(";")[0]);
     const generalRoomId = instance.store.read((state) => state.rooms.find((room) => room.slug === "general").id);
@@ -100,7 +100,7 @@ test(`steady-state schema 8 load: 20 clients concurrently send 120 messages with
     assert.equal(acknowledgements.filter((item) => item?.ok).length, MEASURED_MESSAGES);
     assert.equal(countTextMessages(instance, conversationId), WARMUP_MESSAGES + MEASURED_MESSAGES);
     assert.equal(instance.store.integrityCheck().ok, true);
-    assert.ok(elapsedMs < PERFORMANCE_BUDGET_MS, `${MEASURED_MESSAGES} сообщений должны обработаться менее чем за ${PERFORMANCE_BUDGET_MS} мс после явного warm-up/flush schema 8 transport на ${process.platform}; получено ${Math.round(elapsedMs)} мс`);
+    assert.ok(elapsedMs < PERFORMANCE_BUDGET_MS, `${MEASURED_MESSAGES} сообщений должны обработаться менее чем за ${PERFORMANCE_BUDGET_MS} мс после явного warm-up/flush schema 9 transport на ${process.platform}; получено ${Math.round(elapsedMs)} мс`);
   } finally {
     for (const socket of sockets) socket.disconnect();
     await instance.close();

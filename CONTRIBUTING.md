@@ -139,3 +139,4 @@ Release evidence принимается только для exact reviewed commi
 - temporary scripts, diagnostic workflows и generated failure logs удалены.
 
 Для `3.4.0` merge/tag/release дополнительно требуются опубликованный verified `v3.3.4`, полный Authenticode policy, Windows 10/11 installed `3.3.4 → 3.4.0` acceptance и independent security review без unresolved high/critical findings.
+> Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.

@@ -4,15 +4,15 @@
 
 | Параметр | Значение |
 |---|---|
-| Repository version | `3.4.0` |
-| Classification | Release candidate — Stable Core |
-| Publication | Заблокирована до verified `v3.3.4`, Authenticode/Windows acceptance и independent security review |
+| Repository version | `3.5.0` |
+| Classification | Release candidate — Mobile Continuity |
+| Publication | Заблокирована до опубликованной `v3.4.0`, platform acceptance, signing и independent security review |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
 | Legacy Trust/MLS API | retired; write paths return `410/LEGACY_READ_ONLY` |
-| Local Server database | SQLite schema 8 compatibility layer |
+| Local Server database | SQLite schema 9 with schema 8 compatibility layer |
 
-Этот индекс описывает ветку `release/3.4.0-stable-core-v2` и PR #96. До merge он не является описанием опубликованного `main`.
+Этот индекс описывает ветку `release/3.5.0-mobile-continuity` и stacked draft PR. До merge он не является описанием опубликованного `main`.
 
 ## Entry points
 
@@ -32,6 +32,8 @@
 | `server/create-server.cjs` | Application API v3, Socket.IO, sessions, rooms, messages, uploads и lifecycle |
 | `server/create-server-v31.cjs` | composition root для Pulse и Stable Core |
 | `server/stable-core.cjs` | device inventory/revoke, legacy read-only viewer/export, backup verify и signing status |
+| `server/mobile-continuity.cjs` | device-scoped push, sync diagnostics and resumable media sessions |
+| `server/mobile-continuity-schema9.cjs` | schema 8 → 9 migration, backup, integrity and downgrade protection |
 | `server/v3-features.cjs` | sync, drafts, scheduled messages, polls, moderation, bots, webhooks и legacy guards |
 | `server/events.cjs` | monotonic event stream, visibility и notifications |
 | `server/store.cjs` | `node:sqlite`, serialized mutation, FTS5, session metadata и atomic DB replacement |

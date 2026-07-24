@@ -136,7 +136,7 @@ jobs:
         if: steps.security.outcome == 'failure'
         run: exit 1
 
-  schema8-soak:
+  schema9-soak:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -146,10 +146,32 @@ jobs:
           node-version: 22.16.0
           cache: npm
       - run: npm ci
-      - run: npm run test:soak
+      - name: Run schema 9 soak with retained diagnostics
+        id: soak
+        continue-on-error: true
+        shell: bash
         env:
           NEXORA_SOAK_MINUTES: "1"
           NEXORA_SOAK_INTERVAL_MS: "500"
+        run: |
+          set +e
+          log="$RUNNER_TEMP/schema9-soak.log"
+          npm run test:soak > "$log" 2>&1
+          status=$?
+          cat "$log"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit "$status"
+      - name: Upload schema 9 soak diagnostics
+        if: steps.soak.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: schema9-soak-failures
+          path: ${{ runner.temp }}/schema9-soak.log
+          if-no-files-found: error
+          retention-days: 2
+      - name: Enforce schema 9 soak
+        if: steps.soak.outcome == 'failure'
+        run: exit 1
 
   android-source:
     runs-on: ubuntu-latest

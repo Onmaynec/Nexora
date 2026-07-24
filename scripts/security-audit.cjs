@@ -11,6 +11,8 @@ const containsAll = (source, values) => values.every((value) => source.includes(
 const server = read("server/create-server.cjs");
 const composition = read("server/create-server-v31.cjs");
 const stableCore = read("server/stable-core.cjs");
+const mobileContinuity = read("server/mobile-continuity.cjs");
+const mobileSchema = read("server/mobile-continuity-schema9.cjs");
 const v3 = read("server/v3-features.cjs");
 const model = read("server/model.cjs");
 const store = read("server/store.cjs");
@@ -22,9 +24,12 @@ const clientMain = read("electron/client-main.cjs");
 const clientConnection = read("electron/client-connection.cjs");
 const deviceUi = read("client/src/components/TrustDevicesCard.jsx");
 const clientApi = read("client/src/api.js");
+const offlineStore = read("client/src/offline-store.js");
+const outbox = read("client/src/outbox.js");
 const rateLimit = read("server/rate-limit.cjs");
 const android = read("android/app/src/main/java/com/nexora/mobile/MainActivity.kt");
 const androidManifest = read("android/app/src/main/AndroidManifest.xml");
+const serviceWorker = read("client/public/sw.js");
 const releaseWorkflow = read(".github/workflows/release.yml");
 
 const retiredRuntimeTokens = [
@@ -61,6 +66,7 @@ const checks = [
   ["Webhook DNS pinning and HMAC", /lookup:[\s\S]*target\.address[\s\S]*createHmac\("sha256"/, v3],
   ["Trust and MLS executable runtime is not mounted", retiredRuntimeTokens.every((token) => !composition.includes(token)), "boolean"],
   ["Schema 8 is retained only as legacy compatibility data", containsAll(composition, ["upgradeStoreToSchema8", "legacyTrustMigration", "runtime: \"retired\"", "legacyHistory: \"read_only\""]), "boolean"],
+  ["Schema 9 migration is integrity-checked, backed up and downgrade-protected", containsAll(mobileSchema, ["PRAGMA integrity_check", "pre-schema-", "BEGIN IMMEDIATE", "DATABASE_SCHEMA_NEWER", "MOBILE_CONTINUITY_SCHEMA_VERSION = 9"]), "boolean"],
   ["Legacy Trust and E2EE HTTP writes are terminal read-only", containsAll(stableCore, ["LEGACY_WRITE_PATTERN", "app.all", "410", "LEGACY_READ_ONLY"]), "boolean"],
   ["Legacy MLS Socket.IO writes are terminal read-only", containsAll(stableCore, ["socket.on(\"mls:message\", reject)", "socket.on(\"mls:message-edit\", reject)", "LEGACY_READ_ONLY"]), "boolean"],
   ["Legacy export never server-decrypts or exposes message text", containsAll(stableCore, ["serverDecrypted: false", "publicLegacyMessage", "ciphertext: envelope.ciphertext"]) && !stableCore.includes("text: message.text"), "boolean"],
@@ -74,6 +80,10 @@ const checks = [
   ["Room access fails closed for active bans", model.includes("Boolean(roomRole(state, conversation.roomId, userId)) && !isRoomBanned"), "boolean"],
   ["Expired sessions and security history are periodically removed", containsAll(maintenance, ["cleanupSecurityState", "SECURITY_HISTORY_RETENTION_MS", "RATE_LIMIT_RETENTION_MS"]), "boolean"],
   ["Regular uploads sniff actual media type", containsAll(v3, ["sniffMime", "FILE_TYPE_MISMATCH", "x-chunk-sha256", "UPLOAD_CHUNK_HASH"]), "boolean"],
+  ["Resumable uploads verify confirmed offset, hash, MIME and room policy", containsAll(mobileContinuity, ["UPLOAD_OFFSET_MISMATCH", "expected_sha256", "sniffMime", "postingError", "confirmed_offset", "POLICY_RESTRICTED"]), "boolean"],
+  ["Push tokens are encrypted and never returned as plaintext", containsAll(mobileContinuity, ["aes-256-gcm", "token_ciphertext", "token_hash", "tokenPlaintextStored: false"]) && !/token_ciphertext\s*[:,]\s*row\.token_ciphertext/.test(mobileContinuity), "boolean"],
+  ["Offline data is isolated by server and account", containsAll(offlineStore, ["serverId", "userId", "CACHE_SCOPE_MISMATCH"]) || (containsAll(offlineStore, ["serverId", "userId"]) && outbox.includes("CACHE_SCOPE_MISMATCH")), "boolean"],
+  ["PWA excludes API and Socket responses from public cache", containsAll(serviceWorker, ["/api/", "/socket.io/", "Cache-Control", "Set-Cookie"]), "boolean"],
   ["Client updater requires Windows signature verification", /verifyUpdateCodeSignature:\s*true/, clientBuilder],
   ["Server updater requires Windows signature verification", /verifyUpdateCodeSignature:\s*true/, serverBuilder],
   ["Client and Server updater errors distinguish signature failures", containsAll(updateService, ["UPDATE_SIGNATURE_INVALID", "signature_invalid", "checksum"]), "boolean"],
@@ -81,10 +91,11 @@ const checks = [
   ["Android cleartext disabled", /usesCleartextTraffic="false"/, androidManifest],
   ["Android TLS errors are cancelled", /onReceivedSslError[\s\S]*handler\.cancel\(\)/, android],
   ["Android never bypasses TLS errors", !/handler\.proceed\(\)/.test(android), "boolean"],
-  ["Official 3.4.0 release is signed-only and externally gated", containsAll(releaseWorkflow, [
-    "This workflow publishes only Nexora 3.4.0",
-    "Verify required 3.3.4 baseline",
+  ["Official 3.5.0 release is signed-only and externally gated", containsAll(releaseWorkflow, [
+    "This workflow publishes only Nexora 3.5.0",
+    "Verify required 3.4.0 baseline",
     "Verify independent review and Windows acceptance evidence",
+    "Verify Android and PWA acceptance evidence",
     "Require complete Authenticode policy",
     "Build and verify signed Windows assets",
     "verify-authenticode.ps1",

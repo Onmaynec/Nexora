@@ -6,16 +6,16 @@
 
 | Параметр | Значение |
 |---|---|
-| Current repository version | `3.4.0` |
-| Classification | Stable Core release candidate |
-| Publication | Blocked — verified `v3.3.4`, Authenticode/Windows acceptance and independent review are mandatory |
+| Current repository version | `3.5.0` |
+| Classification | Mobile Continuity release candidate |
+| Publication | Blocked — published `v3.4.0`, platform acceptance, signing and independent review are mandatory |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
 | Legacy Trust/MLS runtime | removed; compatibility history is read-only |
-| Local Server database | SQLite schema 8 |
-| Migration | schema 8 is retained; migration is transactional/idempotent and future schemas are rejected |
+| Local Server database | SQLite schema 9 |
+| Migration | additive schema 8 → 9 migration is transactional/idempotent; backups and future-schema rejection remain mandatory |
 
-`3.4.0` retires executable Trust/MLS paths and restores ordinary server-readable messaging as the sole writable core. Legacy ciphertext is preserved without server-side decryption or plaintext conversion. This branch is not a published release until every blocker in `RELEASE_VERIFICATION_3.4.0.md` is closed.
+`3.5.0` adds Mobile Continuity on top of the Stable Core baseline: replay/outbox ordering, profile-isolated caches, safe PWA updates, Android lifecycle/deep links, device-scoped push and resumable media. This branch is not published until every blocker in `RELEASE_VERIFICATION_3.5.0.md` is closed.
 
 ## Quick navigation
 
@@ -33,12 +33,12 @@
 | Выпустить версию | [Release Policy](RELEASE_POLICY.md), [GitHub Release](GITHUB_RELEASE.md), [Checklist](RELEASE_CHECKLIST.md) |
 | Получить поддержку | [Support Policy](../SUPPORT.md) |
 
-## Stable Core documents
+## Mobile Continuity documents
 
 | Документ | Scope | Status |
 |---|---|---|
-| [Release Notes 3.4.0](../RELEASE_NOTES_3.4.0.md) | user-visible changes, compatibility and limitations | Release candidate |
-| [Release Verification 3.4.0](../RELEASE_VERIFICATION_3.4.0.md) | code, tests, CI, signing and publication evidence | In progress |
+| [Release Notes 3.5.0](../RELEASE_NOTES_3.5.0.md) | user-visible changes, compatibility and limitations | Release candidate |
+| [Release Verification 3.5.0](../RELEASE_VERIFICATION_3.5.0.md) | code, tests, CI, signing and publication evidence | In progress |
 | [Security Review 3.4.0](../SECURITY_REVIEW_3.4.0.md) | reviewed scope, findings and external review gate | External review pending |
 | [Architecture](ARCHITECTURE.md) | server-readable core, legacy boundary, devices, updater and storage | Current through 3.4.0 RC |
 | [Security Model](SECURITY_MODEL.md) | threats, controls and residual risks | Current through 3.4.0 RC |

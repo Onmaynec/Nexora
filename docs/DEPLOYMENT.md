@@ -186,3 +186,4 @@ Before declaring deployment successful:
 - backup verification and restore drill recorded;
 - no secrets or private data in logs/artifacts;
 - exact version/commit/tag and release classification recorded.
+> Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.

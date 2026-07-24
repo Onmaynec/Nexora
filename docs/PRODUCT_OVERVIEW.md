@@ -145,3 +145,4 @@ Official `v3.4.0` требует:
 7. immutable tag, SHA-256 evidence и post-publication redownload verification.
 
 До закрытия этих пунктов продукт классифицируется как source release candidate, а не опубликованный stable release.
+> Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.

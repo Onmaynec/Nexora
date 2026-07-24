@@ -61,7 +61,7 @@ test("Electron Server detaches and serializes the active instance before closing
   assert.match(source, /stopServer\(\)\s*\.catch\(\(error\) => persistLog/);
 });
 
-test("schema 8 status remains readable after server close", async () => {
+test("schema 9 status remains readable after server close", async () => {
   const directory = await fsPromises.mkdtemp(path.join(os.tmpdir(), "nexora-shutdown-regression-"));
   const instance = await createNexoraServer({
     dataDir: directory,
@@ -78,7 +78,7 @@ test("schema 8 status remains readable after server close", async () => {
     await instance.close();
     const status = instance.status();
     assert.equal(status.running, false);
-    assert.equal(status.schemaVersion, 8);
+    assert.equal(status.schemaVersion, 9);
     assert.equal(status.pulseV3.keyCount, 0);
     assert.equal(status.trust.activeGroups, 0);
   } finally {

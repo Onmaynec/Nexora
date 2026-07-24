@@ -158,3 +158,4 @@ After publication:
 - record release URL, tag SHA, run IDs and digests;
 - update canonical verification/evidence;
 - close/delete release branch after provenance is retained.
+> Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.

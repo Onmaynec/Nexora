@@ -159,3 +159,4 @@ After stable publication:
 - record release URL, tag SHA, asset digests and smoke result;
 - update `release-evidence/current.json` from release-candidate to published state;
 - close/delete completed release branch after provenance is preserved.
+> Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.

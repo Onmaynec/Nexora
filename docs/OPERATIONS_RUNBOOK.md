@@ -202,3 +202,4 @@ Record:
 - root cause;
 - regression test;
 - recovery/closure evidence.
+> Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.

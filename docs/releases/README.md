@@ -27,3 +27,6 @@ Release documentation is grouped by version under this directory. The canonical 
 ## Historical material
 
 Older root-level release documents are preserved temporarily to avoid breaking historical links. They are migrated version-by-version only when internal relative links, release workflow inputs and consistency tests are updated in the same change.
+
+- [3.5.0 release notes](3.5.0/RELEASE_NOTES.md)
+- [3.5.0 release verification](3.5.0/RELEASE_VERIFICATION.md)
