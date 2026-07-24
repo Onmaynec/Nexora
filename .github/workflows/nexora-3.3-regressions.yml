@@ -33,7 +33,6 @@ jobs:
           node --check server/create-server-v31.cjs
           node --check scripts/check-release-consistency.cjs
           rm scripts/apply-final-3.3.4-regression-fixes.cjs
-          git checkout HEAD^ -- .github/workflows/nexora-3.3-regressions.yml
       - name: Commit corrected release tree
         shell: bash
         run: |
