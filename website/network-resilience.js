@@ -38,11 +38,20 @@
     };
   }
 
+  function mergeReleaseSources(primary, fallback) {
+    const merged = new Map();
+    for (const release of [...(Array.isArray(primary) ? primary : []), ...(Array.isArray(fallback) ? fallback : [])]) {
+      const safe = sanitizeRelease(release);
+      if (!safe.tag_name || merged.has(safe.tag_name)) continue;
+      merged.set(safe.tag_name, safe);
+    }
+    return [...merged.values()];
+  }
+
   function writeReleaseCache(releases) {
     if (!Array.isArray(releases) || !releases.length) return;
     try {
-      const safe = releases.slice(0, 20).map(sanitizeRelease).filter((release) => release.tag_name);
-      localStorage.setItem(RELEASE_CACHE_KEY, JSON.stringify(safe));
+      localStorage.setItem(RELEASE_CACHE_KEY, JSON.stringify(releases.slice(0, 20).map(sanitizeRelease)));
     } catch {
       // Storage may be unavailable in private/restricted contexts; static fallback remains authoritative.
     }
@@ -51,26 +60,32 @@
   function readReleaseCache() {
     try {
       const parsed = JSON.parse(localStorage.getItem(RELEASE_CACHE_KEY) || "null");
-      return Array.isArray(parsed) && parsed.length ? parsed : null;
+      return Array.isArray(parsed) && parsed.length ? parsed : [];
     } catch {
-      return null;
+      return [];
     }
   }
 
-  function fallbackReleases() {
-    const cached = readReleaseCache();
-    if (cached?.length) return cached;
+  function staticFallbackReleases() {
     return Array.isArray(window.NexoraReleaseFallback) ? window.NexoraReleaseFallback : [];
   }
 
-  function releaseFallbackResponse(reason) {
-    return new Response(JSON.stringify(fallbackReleases()), {
+  function fallbackReleases() {
+    return mergeReleaseSources(readReleaseCache(), staticFallbackReleases());
+  }
+
+  function releaseJsonResponse(releases, reason) {
+    return new Response(JSON.stringify(releases), {
       status: 200,
       headers: {
         "Content-Type": "application/json; charset=utf-8",
         "X-Nexora-Release-Source": reason,
       },
     });
+  }
+
+  function releaseFallbackResponse(reason) {
+    return releaseJsonResponse(fallbackReleases(), reason);
   }
 
   window.fetch = async function resilientFetch(input, init = {}) {
@@ -87,10 +102,12 @@
     try {
       const response = await originalFetch(input, { ...init, signal: controller.signal });
       if (!isReleaseRequest(url)) return response;
-
       if (!response.ok) return releaseFallbackResponse(`http-${response.status}`);
-      response.clone().json().then(writeReleaseCache).catch(() => {});
-      return response;
+
+      const liveReleases = await response.json();
+      const mergedReleases = mergeReleaseSources(liveReleases, staticFallbackReleases());
+      writeReleaseCache(mergedReleases);
+      return releaseJsonResponse(mergedReleases, "github-api");
     } catch (error) {
       if (isReleaseRequest(url) && fallbackReleases().length) {
         return releaseFallbackResponse(error?.name === "AbortError" ? "timeout" : "network-error");
