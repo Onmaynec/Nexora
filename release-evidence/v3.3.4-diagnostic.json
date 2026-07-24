@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "version": "3.3.4",
+  "tagExists": true,
+  "releaseExists": true,
+  "checkedAt": "2026-07-24T19:16:59.479Z",
+  "workflowRun": "30120173215",
+  "tag": "v3.3.4",
+  "draft": false,
+  "prerelease": true,
+  "url": "https://github.com/Onmaynec/Nexora/releases/tag/v3.3.4",
+  "assets": [
+    {
+      "name": "Nexora-3.3.4-source.zip",
+      "size": 1981823
+    },
+    {
+      "name": "Nexora-3.3.4.spdx.json",
+      "size": 130133
+    },
+    {
+      "name": "Nexora-Android-3.3.4-UNSIGNED-TEST.apk",
+      "size": 848686
+    },
+    {
+      "name": "Nexora-Client-Setup-3.3.4-UNSIGNED-TEST.exe",
+      "size": 105109570
+    },
+    {
+      "name": "Nexora-PWA-3.3.4.zip",
+      "size": 1067607
+    },
+    {
+      "name": "Nexora-Server-Setup-3.3.4-UNSIGNED-TEST.exe",
+      "size": 106117405
+    },
+    {
+      "name": "RELEASE-EVIDENCE.json",
+      "size": 602
+    },
+    {
+      "name": "SHA256SUMS.txt",
+      "size": 686
+    }
+  ]
+}
