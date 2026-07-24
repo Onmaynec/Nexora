@@ -54,7 +54,7 @@ async function closeFixture(fixture) {
 
 test("bounded sliding-window limiter evicts stale buckets and returns Retry-After", () => {
   let now = 1_000;
-  const limiter = createSlidingWindowRateLimiter({ windowMs: 1_000, max: 2, maxBuckets: 2, clock: () => now });
+  const limiter = createSlidingWindowRateLimiter({ windowMs: 1_000, limit: 2, maxBuckets: 2, clock: () => now });
   assert.equal(limiter.consume("a").allowed, true);
   assert.equal(limiter.consume("a").allowed, true);
   const blocked = limiter.consume("a");

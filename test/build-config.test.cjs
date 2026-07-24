@@ -86,7 +86,7 @@ test("релиз 3.3.4 собирает проверяемые assets без nat
   assert.match(releaseWorkflow, /Unsigned artifact set contains updater metadata/);
   assert.match(releaseWorkflow, /Immutable tag already points to another commit/);
   assert.match(releaseWorkflow, /Re-download and verify immutable release assets/);
-  assert.match(releaseWorkflow, /baseline = 'v3\.3\.3'/);
+  assert.match(releaseWorkflow, /baseline\s*=\s*'v3\.3\.3'/);
   assert.match(releaseWorkflow, /workflow_run:/);
   assert.match(releaseWorkflow, /startsWith\(github\.event\.workflow_run\.head_commit\.message, 'release: Nexora '\)/);
   assert.doesNotMatch(releaseWorkflow, /startsWith\(github\.event\.workflow_run\.head_commit\.message, 'release:'\)/);

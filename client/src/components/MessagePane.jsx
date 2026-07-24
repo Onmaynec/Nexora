@@ -414,7 +414,6 @@ export default function MessagePane({ conversation, conversations, initialDraft 
     }
     const result = await flushOutbox(socket, me.id);
     if (result.failed) showToast("Сообщение не отправлено — доступен повтор", "error");
-    else await onRefresh();
   }
 
   async function scheduleMessage(event) {

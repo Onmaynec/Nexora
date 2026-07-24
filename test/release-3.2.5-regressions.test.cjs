@@ -107,8 +107,10 @@ test("local Windows test build remains separate from signed stable publication",
   assert.match(pkg.scripts["release:windows:signed"], /signing-check/);
   assert.match(workflow, /release:signing-check/);
   assert.match(workflow, /WINDOWS_CERTIFICATE_BASE64/);
-  assert.match(workflow, /unsigned-test\.\$env:GITHUB_RUN_NUMBER/);
-  assert.match(workflow, /official stable tag remains unused/);
+  assert.match(workflow, /PUBLISH_TAG=\$officialTag/);
+  assert.match(workflow, /UNSIGNED-TEST prerelease without updater metadata/);
+  assert.match(workflow, /--prerelease/);
+  assert.doesNotMatch(workflow, /Unsigned artifact set contains updater metadata[\s\S]{0,240}latest\.yml/);
 });
 
 test("Server control plane styles disabled controls and scrollbars inside the product theme", () => {

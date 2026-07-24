@@ -115,9 +115,9 @@ async function createNexoraServer(options = {}) {
     instance.status = () => ({
       ...baseStatus(),
       schemaVersion: 8,
-      pulseV3: { ...client.status(), ...(sandbox.enabled() ? { mode: "sandbox", enabled: true, productionReady: false, testMode: true } : {}), sync: syncWorker.status() },
+      pulseV3: { keyCount: 0, ...client.status(), ...(sandbox.enabled() ? { mode: "sandbox", enabled: true, productionReady: false, testMode: true } : {}), sync: syncWorker.status() },
       stableCore: stableCore.status(),
-      trust: { runtime: "retired", legacyHistory: "read_only", encryptedAttachments: false, deviceScopedRealtime: false },
+      trust: { runtime: "retired", legacyHistory: "read_only", encryptedAttachments: false, deviceScopedRealtime: false, activeGroups: 0 },
       migration: pulseMigration,
       migrations: { pulse: pulseMigration, legacyTrust: legacyTrustMigration },
     });
