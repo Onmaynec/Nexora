@@ -8,6 +8,7 @@ import { flattenSearch, navigation, pageById, pages } from "../src/content.mjs";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(here, "..");
 const reference = JSON.parse(fs.readFileSync(path.join(appRoot, "src", "generated", "reference.json"), "utf8"));
+const releaseFallback = JSON.parse(fs.readFileSync(path.join(appRoot, "src", "generated", "release-fallback.json"), "utf8"));
 
 test("all navigation targets resolve exactly once", () => {
   const targets = navigation.flatMap((group) => group.items);
@@ -39,4 +40,12 @@ test("generated reference has unique method/path/source keys", () => {
   const keys = reference.routes.map((route) => `${route.method} ${route.path} ${route.source}`);
   assert.equal(keys.length, new Set(keys).size);
   assert.ok(reference.routes.some((route) => route.path.startsWith("/api/v4/trust")));
+});
+
+test("release fallback uses canonical versioned notes instead of root compatibility pointers", () => {
+  const current = releaseFallback.releases.find((release) => release.tag_name === `v${reference.currentVersion}`);
+  assert.ok(current, `missing fallback release v${reference.currentVersion}`);
+  assert.match(current.body, /Nexora 3\.3\.3 — Release Notes/);
+  assert.match(current.body, /room goal action/i);
+  assert.doesNotMatch(current.body, /compatibility pointer/i);
 });
