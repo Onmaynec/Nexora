@@ -1,52 +1,48 @@
-# Статус выпуска Nexora 3.3.2
+# Статус ветки `release/3.4.0-stable-core`
 
 ## Классификация
 
 | Параметр | Значение |
 |---|---|
-| Version | `3.3.2` |
-| Release scope | Release consistency, documentation, CI and repository cleanup |
-| Source Pull Request | PR `#42`, merged |
-| Source merge commit | `82af775fb39515bd219078fec368cc259441c288` |
-| Release tag | `v3.3.2` |
-| GitHub Release | `Nexora 3.3.2 — UNSIGNED TEST BUILDS` при отсутствии signing secrets |
-| Distribution | `UNSIGNED-TEST` prerelease boundary |
-| Production updater metadata | not published for unsigned assets |
-| Local Server schema | `8` |
-| Application API | `v3` |
-| Trust/MLS API | `v4` |
-| Database migration | not required |
-| Independent security audit | not performed |
+| Classification | Active development / blocked draft release |
+| Target version | Nexora `3.4.0` |
+| Required baseline | Verified and published Nexora `3.3.4` |
+| Pull Request | Draft PR `#69` |
+| Current product source of truth | `main`, Nexora `3.3.3` |
+| Release state | Blocked, not approved, not tagged, not published |
+| Package metadata | `3.4.0` on this branch only |
 
-Nexora `3.3.2` не добавляет пользовательские функции и не меняет runtime. Выпуск синхронизирует version metadata, current documentation, release history и release evidence, а также добавляет post-publication smoke-проверку Client, Server, Android и PWA assets.
+## Scope
 
-## Verification
+- implement the approved Stable Core contract;
+- retire executable Trust/MLS runtime while preserving schema 8 legacy ciphertext;
+- expose read-only legacy secure history and export paths;
+- add server-owned device/session inventory and immediate revocation;
+- add backup verification and safe signing diagnostics;
+- harden signed Client/Server updater and release evidence;
+- synchronize Client, Server, Android, documentation and version metadata.
 
-- PR CI run `30002580071`: Windows verify, Linux suite, release gate, schema 8 soak и Android source build — success;
-- focused Nexora 3.3 regressions run `30002580107` — success;
-- `package.json` является источником SemVer;
-- `npm run release:consistency` проверяет package-lock, Android metadata, README, Documentation Portal, Project Index, Architecture, Security Model, Android README и current evidence;
-- `npm run release:check` включает consistency gate, build, unit/API/integration, performance и security audit;
-- release evidence workflow скачивает опубликованные assets, проверяет `SHA256SUMS.txt`, PE/ZIP integrity и обязательное содержимое;
-- окончательные release run ID, размеры и SHA-256 записываются в `release-evidence/v3.3.2.json`.
+## Blocking dependency
 
-## Организационная очистка
+This branch must not merge, tag or publish until the 3.3.4 prerequisite is approved and the branch is rebased or otherwise reconciled against that exact verified baseline. Current package metadata alone does not make 3.4.0 a release candidate.
 
-- конфликтующие PR #30 и #31, основанные на устаревшем `main`, закрыты без merge;
-- obsolete automation PR #6 и #7 для исторической линии 3.1.0 закрыты без merge;
-- экспериментальный Rust/OpenMLS PR #11 закрыт как superseded: текущий `main` использует интегрированный JavaScript/`ts-mls` Trust/MLS API v4;
-- повторное рассмотрение Rust/OpenMLS возможно только через отдельный RFC, новый development branch, migration/interoperability plan, reproducible-build gate и независимый security review.
+## Required verification
 
-## Security and compatibility
+- migration and schema 8 compatibility tests;
+- legacy ciphertext read-only/export tests;
+- authorization, device revocation and session invalidation tests;
+- backup restore and integrity verification;
+- signed updater and n-1 → n installed acceptance;
+- unit, API, integration, performance, security and artifact gates;
+- independent security review and closure evidence.
 
-- authorization, room roles, bans, upload policy, Pulse pricing/ledger and Trust Core are unchanged;
-- no new dependencies, secrets, executable payload or network permissions are added;
-- schema 8, API v3 and Trust/MLS API v4 remain compatible;
-- no migration or rollback is required.
+## Security boundary
+
+Historical encrypted records must not be silently decrypted, rewritten or deleted. Device/session revocation and all privileged operations remain server-authoritative. Signing credentials, tokens and private data must not be committed or logged.
 
 ## Real limitations
 
-- Windows Client/Server and Android remain unsigned test artifacts unless the release environment contains valid signing credentials;
-- production updater cannot consume an unsigned prerelease because `latest.yml` and `.blockmap` are intentionally absent;
-- independent cryptographic/application-security audit is not performed;
-- physical-device Android and installed Windows acceptance remain external release evidence requirements.
+- the mandatory 3.3.4 baseline is not yet merged and published;
+- Authenticode credentials and Windows 10/11 installed acceptance are external release prerequisites;
+- independent review is incomplete;
+- `main` 3.3.3 remains the only current product source of truth.
