@@ -74,3 +74,12 @@ test("roadmap content order matches authoritative ROADMAP.md", () => {
   const actual = table.rows.map((row) => [String(row[0]), String(row[1])]);
   assert.deepEqual(actual, expected);
 });
+
+test("matrix-critical API overview and limits pages include dedicated flows", () => {
+  const apiOverview = pageForVersion(pageById.get("api-overview"), "3.3");
+  const limitsErrors = pageForVersion(pageById.get("limits-errors"), "3.3");
+  assert.ok(apiOverview.sections.some((section) => section.id === "request-lifecycle"));
+  assert.ok(apiOverview.sections.some((section) => section.id === "transport-conventions"));
+  assert.ok(limitsErrors.sections.some((section) => section.id === "resource-limit-contract"));
+  assert.ok(limitsErrors.sections.some((section) => section.id === "error-decision-tree"));
+});
