@@ -1,58 +1,45 @@
 # Nexora 3.3.4 — Post-MLS Baseline
 
-**Status:** release candidate. This document does not represent a published release.
+**Status:** release candidate. This document does not represent a published release until PR #70 is merged and `v3.3.4` assets pass re-download verification.
 
 ## Product result
 
-Nexora 3.3.4 establishes ordinary server-readable messaging as the only writable messaging core. It removes the executable Trust/MLS runtime while preserving schema 8 legacy records and ciphertext through an explicit read-only compatibility layer.
+Nexora 3.3.4 establishes ordinary server-readable messaging as the only writable messaging core. The executable Trust/MLS runtime is removed, while existing schema 8 encrypted records remain available through an explicit read-only compatibility layer.
+
+This patch is the mandatory post-MLS prerequisite for Nexora 3.4.0 Stable Core.
 
 ## Main changes
 
 ### Ordinary chats no longer depend on MLS
 
-- Client connects Socket.IO using the current server session without Trust-device enrollment.
-- Ordinary dialogs use the existing `MessagePane`, server drafts, uploads, voice, offline cache and bounded outbox.
-- A stale/corrupt MLS epoch can no longer block an ordinary conversation from opening.
+- Client authentication and Socket.IO startup use the active Local Server session directly.
+- Ordinary dialogs continue through the existing `MessagePane`, server drafts, uploads, voice messages, offline cache and bounded outbox.
+- Missing, stale or corrupt MLS state can no longer prevent an ordinary conversation from opening.
 
-### Immutable legacy secure history
+### Legacy secure history is immutable
 
-- Trust Core, MLS routes, recovery workers, socket transport, encrypted-upload writes and client MLS engine are removed.
+- Trust Core, MLS routes, recovery workers, MLS Socket.IO transport, encrypted-upload write paths and the client MLS engine are removed.
 - `ts-mls` is removed from dependencies and package payloads.
-- Schema 8 records remain to preserve IDs, timestamps, group epochs, ciphertext and audit provenance.
-- Legacy conversations open in a dedicated terminal-state viewer without composer or mutation controls.
-- Server export never decrypts ciphertext and marks `serverDecrypted: false`.
-- A client may read pre-existing locally decrypted IndexedDB records through readonly transactions.
-- All legacy HTTP write paths return `410/LEGACY_READ_ONLY`; MLS socket mutations return the same stable code.
+- Schema 8 compatibility records remain so IDs, timestamps, epochs, ciphertext and audit provenance are not discarded.
+- Legacy conversations open in a dedicated read-only viewer without composer, upload or mutation controls.
+- Server export preserves ciphertext and explicitly records `serverDecrypted: false`.
+- Legacy HTTP and Socket.IO mutations terminate with `410/LEGACY_READ_ONLY`.
 
-### Sessions and devices
+### Session and operational hardening
 
-- Server-owned device inventory is derived from active sessions.
-- Sessions record device ID, name, platform, client version, creation, last-seen and expiry.
-- Users can revoke one remote device or all devices except current.
-- Revocation immediately emits `session.revoked`, disconnects target Socket.IO sessions and refreshes `device.updated`.
-- Current-device remote revoke is rejected with `STATE_CONFLICT`; explicit logout is required.
+- Active sessions retain device ID, name, platform, client version, timestamps and expiry.
+- Device inventory and targeted remote session revocation are available through server-owned state.
+- Revocation emits `session.revoked`, disconnects the target session room and refreshes device state.
+- Backup verification can validate a selected backup without replacing the live database or file store.
+- Stable errors include `code`, `message`, `requestId` and safe `details`, while retaining the compatibility `error` field.
 
-### Backup, restore and migration
+### Release-chain preparation
 
-- Added non-restoring backup verification API for server administrators.
-- Schema 8 migration verifies source integrity, WAL checkpoint, free space and backup before transaction.
-- Future schemas are blocked before mutation.
-- Restore stages DB and file store and rolls both back on failure.
-- Temporary decrypted/staged data is removed after success or error.
-
-### Stable diagnostics
-
-- Stable error envelope includes `code`, `message`, `requestId` and safe `details` while preserving `error` for compatibility.
-- Updater and device UI surface request IDs for operator support.
-- Safe signing status API reports configuration state without certificate/password material.
-
-### Signed Client and Server updater
-
-- Windows Client uses `latest` metadata; Windows Server uses the `server` channel.
-- Both require signature verification and reject downgrade/prerelease states.
-- Signature/checksum failures use `UPDATE_SIGNATURE_INVALID`.
-- Stable release requires expected certificate subject, thumbprint and timestamp evidence.
-- Unsigned test assets use a separate `-unsigned-test.<run>` prerelease tag and never publish blockmap/update metadata.
+- Client and Server updater channels are separated (`latest` and `server`).
+- Downgrade is disabled and signature/checksum failures use the stable `UPDATE_SIGNATURE_INVALID` code.
+- Signed builds, when signing policy is configured, verify expected Authenticode subject, thumbprint and timestamp.
+- Without signing credentials, the official `v3.3.4` release is explicitly marked `UNSIGNED-TEST` and contains no updater metadata or blockmaps.
+- All release assets receive SHA-256 checksums and are re-downloaded after publication for immutable-asset verification.
 
 ## API additions
 
@@ -67,31 +54,31 @@ Nexora 3.3.4 establishes ordinary server-readable messaging as the only writable
 
 Realtime additions: `session.revoked`, `device.updated`, `legacy_secure_history.state`.
 
-## Compatibility
+## Compatibility and upgrade
 
-- Application API v3 and ordinary room/message contracts are retained.
-- SQLite remains schema 8; the migration is compatibility-preserving and idempotent.
-- Legacy ciphertext is not converted into plaintext.
-- Legacy Trust/MLS writes are intentionally incompatible and terminate with `LEGACY_READ_ONLY`.
-- Electron profiles remain isolated by Server ID and require explicit certificate/identity repin.
+- Supported upgrade baseline: published Nexora `3.3.3` → `3.3.4`.
+- Application API v3 and ordinary room/message contracts remain available.
+- SQLite remains schema 8; compatibility migration is idempotent and does not convert legacy ciphertext into plaintext.
+- Legacy Trust/MLS writes are intentionally retired and always fail closed.
+- Electron profiles remain isolated by Server ID and certificate identity.
 
-## Upgrade prerequisites
-
-The official stable upgrade is defined as verified `3.3.4 → 3.3.4`. The release workflow refuses stable publication if `v3.3.4` is missing, draft/prerelease or lacks required signed installers/checksums.
-
-Before production rollout:
+Before upgrading:
 
 1. create and verify a backup;
-2. confirm free disk space and database integrity;
-3. retain the legacy local client profile when local decrypted history is required;
-4. perform Windows n-1→n installed smoke;
-5. verify Authenticode subject/thumbprint/timestamp and SHA-256 assets;
-6. close independent review findings.
+2. confirm database integrity and sufficient free disk space;
+3. retain the existing client profile when locally decrypted legacy history is required;
+4. install Client and Server from the same release line;
+5. verify checksums and the published release evidence artifact.
 
-## Known limitations and blockers
+## Distribution classification
 
-- A verified published stable `v3.3.4` baseline is not currently present.
-- Signing credentials and Windows 10/11 acceptance are external prerequisites.
-- Independent security review is pending.
-- Locally decrypted legacy content is available only when a previous client retained it.
-- The branch must remain draft and no official `v3.3.4` tag/release may be created until every release blocker is closed.
+- With complete protected signing policy: signed Client/Server assets and updater metadata may be published.
+- Without signing policy: `v3.3.4` is an `UNSIGNED-TEST` GitHub prerelease; updater metadata and blockmaps are forbidden.
+- The first independently reviewed signed stable 3.x line remains the goal of Nexora 3.4.0, not a claim of this prerequisite release.
+
+## Known limitations
+
+- Server cannot decrypt legacy ciphertext.
+- Readable legacy plaintext depends on a pre-existing local client cache retained by the user.
+- This release has internal automated security verification but does not claim an independent security assessment.
+- Publication remains incomplete until CI, merge, annotated tag, GitHub Release and asset re-download smoke are recorded.
