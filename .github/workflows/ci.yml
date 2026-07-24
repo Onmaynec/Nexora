@@ -47,7 +47,18 @@ jobs:
           node-version: 22.16.0
           cache: npm
       - run: npm ci
-      - run: npm run release:check
+      - name: Verify synchronized release metadata
+        run: node scripts/sync-release-metadata.cjs --check
+      - name: Verify release consistency
+        run: npm run release:consistency
+      - name: Verify syntax, builder config and web build
+        run: npm run check
+      - name: Run unit, API, integration and realtime tests
+        run: npm run test:unit
+      - name: Run performance test
+        run: npm run test:performance
+      - name: Run security invariant and dependency audit
+        run: npm run audit:security
 
   schema8-soak:
     runs-on: ubuntu-latest
