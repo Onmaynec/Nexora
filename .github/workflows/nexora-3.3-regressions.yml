@@ -1,41 +1,19 @@
 name: Nexora 3.3 regressions
 
 on:
-  push:
-    branches: [release/3.3.4-post-mls]
   pull_request:
     branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: nexora-3.3-regressions-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
-  sync-main:
-    if: github.event_name == 'push' && github.actor != 'github-actions[bot]'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: release/3.3.4-post-mls
-          fetch-depth: 0
-      - name: Merge latest main while preserving post-MLS conflict resolutions
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin main
-          git merge --no-edit -X ours origin/main
-          git push origin HEAD:release/3.3.4-post-mls
-
   regressions:
-    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
