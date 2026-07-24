@@ -2,19 +2,16 @@
   "schemaVersion": 2,
   "version": "3.3.4",
   "tag": "v3.3.4",
-  "status": "release-candidate",
-  "published": false,
+  "status": "published",
+  "published": true,
   "signed": false,
-  "distribution": "pending",
+  "distribution": "unsigned-test",
   "repository": "Onmaynec/Nexora",
   "branch": "main",
   "baseline": "v3.3.3",
   "sourceMergeCommit": "6202bbdf8ff636711d9874452958df5dd40d9656",
-  "blockers": [
-    "ci",
-    "github-release",
-    "asset-redownload-smoke"
-  ],
+  "releaseUrl": "https://github.com/Onmaynec/Nexora/releases/tag/v3.3.4",
+  "blockers": [],
   "guarantees": {
     "ordinaryMessagingWritable": true,
     "trustMlsRuntime": "retired",
@@ -22,11 +19,23 @@
     "serverDecryptsLegacyCiphertext": false,
     "unsignedUpdaterMetadataPublished": false
   },
-  "assets": [],
+  "assets": [
+    "Nexora-3.3.4-source.zip",
+    "Nexora-3.3.4.spdx.json",
+    "Nexora-Android-3.3.4-UNSIGNED-TEST.apk",
+    "Nexora-Client-Setup-3.3.4-UNSIGNED-TEST.exe",
+    "Nexora-PWA-3.3.4.zip",
+    "Nexora-Server-Setup-3.3.4-UNSIGNED-TEST.exe",
+    "RELEASE-EVIDENCE.json",
+    "SHA256SUMS.txt"
+  ],
   "verification": {
-    "status": "release-workflow-requested",
+    "status": "passed",
     "pr": 70,
     "sourceHead": "54907da60fa5d81bf0e597cf48c98124246ace67",
-    "sourceGateRun": 30107879438
+    "sourceGateRun": 30107879438,
+    "publicationVerificationRun": 30120451878,
+    "checksumVerification": "passed",
+    "verifiedAt": "2026-07-24T19:22:29.628Z"
   }
 }
