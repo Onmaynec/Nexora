@@ -84,7 +84,7 @@ const checks = [
   ["Unsigned release excludes updater assets", containsAll(releaseWorkflow, [
     "Nexora-Client-Setup-$version-UNSIGNED-TEST.exe",
     "Nexora-Server-Setup-$version-UNSIGNED-TEST.exe",
-    "Unsigned release must not expose updater metadata",
+    "UNSIGNED-TEST prerelease without updater metadata",
     '$names -contains "latest.yml"',
     "\\.blockmap$",
   ]), "boolean"],
