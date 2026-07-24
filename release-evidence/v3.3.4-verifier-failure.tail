@@ -1,0 +1,17 @@
+verify-release	Download and verify immutable assets	﻿2026-07-24T19:12:23.4331046Z ##[group]Run set -euo pipefail
+verify-release	Download and verify immutable assets	2026-07-24T19:12:23.4332507Z ^[[36;1mset -euo pipefail^[[0m
+verify-release	Download and verify immutable assets	2026-07-24T19:12:23.4334344Z ^[[36;1mgh release download v3.3.4 --repo "$GITHUB_REPOSITORY" --dir published^[[0m
+verify-release	Download and verify immutable assets	2026-07-24T19:12:23.4336482Z ^[[36;1mtest -s published/SHA256SUMS.txt^[[0m
+verify-release	Download and verify immutable assets	2026-07-24T19:12:23.4338015Z ^[[36;1mwhile IFS= read -r line; do^[[0m
+verify-release	Download and verify immutable assets	2026-07-24T19:12:23.4339697Z ^[[36;1m  [ -z "$line" ] && continue^[[0m
+verify-release	Download and verify immutable assets	2026-07-24T19:12:23.4341141Z ^[[36;1m  expected="${line%%  *}"^[[0m
+verify-release	Download and verify immutable assets	2026-07-24T19:12:23.4342540Z ^[[36;1m  name="${line#*  }"^[[0m
+verify-release	Download and verify immutable assets	2026-07-24T19:12:23.4343882Z ^[[36;1m  test -f "published/$name"^[[0m
+verify-release	Download and verify immutable assets	2026-07-24T19:12:23.4345642Z ^[[36;1m  actual="$(sha256sum "published/$name" | awk '{print $1}')"^[[0m
+verify-release	Download and verify immutable assets	2026-07-24T19:12:23.4347920Z ^[[36;1m  [ "$actual" = "$expected" ] || { echo "Checksum mismatch: $name" >&2; exit 1; }^[[0m
+verify-release	Download and verify immutable assets	2026-07-24T19:12:23.4350158Z ^[[36;1mdone < published/SHA256SUMS.txt^[[0m
+verify-release	Download and verify immutable assets	2026-07-24T19:12:23.4403029Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+verify-release	Download and verify immutable assets	2026-07-24T19:12:23.4404605Z env:
+verify-release	Download and verify immutable assets	2026-07-24T19:12:23.4416846Z   GH_TOKEN: ***
+verify-release	Download and verify immutable assets	2026-07-24T19:12:23.4417900Z ##[endgroup]
+verify-release	Download and verify immutable assets	2026-07-24T19:12:24.9096463Z ##[error]Process completed with exit code 1.

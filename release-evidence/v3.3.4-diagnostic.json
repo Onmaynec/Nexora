@@ -1,10 +1,10 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "version": "3.3.4",
   "tagExists": true,
   "releaseExists": true,
-  "checkedAt": "2026-07-24T19:16:59.479Z",
-  "workflowRun": "30120173215",
+  "checkedAt": "2026-07-24T19:20:35.277Z",
+  "diagnosticWorkflowRun": "30120358359",
   "tag": "v3.3.4",
   "draft": false,
   "prerelease": true,
@@ -12,35 +12,53 @@
   "assets": [
     {
       "name": "Nexora-3.3.4-source.zip",
-      "size": 1981823
+      "size": 1981823,
+      "digest": "sha256:c2b7400f8a3512b4274fbce6a2da299776ec800d25735004845b7ba460152cab"
     },
     {
       "name": "Nexora-3.3.4.spdx.json",
-      "size": 130133
+      "size": 130133,
+      "digest": "sha256:43a3a3a913c032e51864f2168a3a6c444687b1b4727687c7a2706a1ed660076e"
     },
     {
       "name": "Nexora-Android-3.3.4-UNSIGNED-TEST.apk",
-      "size": 848686
+      "size": 848686,
+      "digest": "sha256:1bf91af8d6f7ec570961b5d81b48ab404fd8f8ae32c322e3572874c87254d2cf"
     },
     {
       "name": "Nexora-Client-Setup-3.3.4-UNSIGNED-TEST.exe",
-      "size": 105109570
+      "size": 105109570,
+      "digest": "sha256:5c5dc263c7259d2c79dc5cb0dd235b1a7505d05161eb3f1d611a13371945db5e"
     },
     {
       "name": "Nexora-PWA-3.3.4.zip",
-      "size": 1067607
+      "size": 1067607,
+      "digest": "sha256:3f5e7fca306cb6d83b6ddf174feaa90c2d12d087403a2fb82c2575ebeae3f4da"
     },
     {
       "name": "Nexora-Server-Setup-3.3.4-UNSIGNED-TEST.exe",
-      "size": 106117405
+      "size": 106117405,
+      "digest": "sha256:4a86e900db00f1869284380ced255ce7bf9231cd27c22f07c8a01f290525240c"
     },
     {
       "name": "RELEASE-EVIDENCE.json",
-      "size": 602
+      "size": 602,
+      "digest": "sha256:ff4154015fade4bfd5336f71d3a9aaa23eb1b3f8232ab33c961f35399768f1f7"
     },
     {
       "name": "SHA256SUMS.txt",
-      "size": 686
+      "size": 686,
+      "digest": "sha256:73a7ad846988ad09968ccbb1bd4f0df7c26d3390c21cc645b4433a3ed0a838d7"
+    }
+  ],
+  "verifierRuns": [
+    {
+      "conclusion": "failure",
+      "databaseId": 30119888924,
+      "headSha": "12ce65839d340ef1cf84a34bee044ef9aea5dde8",
+      "status": "completed",
+      "url": "https://github.com/Onmaynec/Nexora/actions/runs/30119888924",
+      "workflowName": "Verify Nexora 3.3.4 publication"
     }
   ]
 }
