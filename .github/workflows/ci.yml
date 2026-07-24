@@ -18,6 +18,8 @@ jobs:
       github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 12
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -31,25 +33,20 @@ jobs:
       - run: npm ci
       - run: node scripts/prepare-mobile-continuity-3.5.cjs
       - run: node scripts/sync-release-metadata.cjs --check
-      - name: Package generated release surfaces
+      - name: Commit generated release surfaces
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/nexora-generated"
-          git ls-files --modified --others --exclude-standard -z > "$RUNNER_TEMP/generated-files.list"
-          if [ ! -s "$RUNNER_TEMP/generated-files.list" ]; then
+          git restore --source=HEAD -- .github/workflows/release.yml
+          if [ -z "$(git status --porcelain)" ]; then
             echo "No generated changes."
-            exit 1
+            exit 0
           fi
-          tar --null -T "$RUNNER_TEMP/generated-files.list" -czf "$RUNNER_TEMP/nexora-generated/nexora-3.5.0-generated-surfaces.tar.gz"
-          tr '\0' '\n' < "$RUNNER_TEMP/generated-files.list" > "$RUNNER_TEMP/nexora-generated/generated-files.txt"
-          git diff --binary > "$RUNNER_TEMP/nexora-generated/generated.patch"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: nexora-3.5.0-generated-surfaces
-          path: ${{ runner.temp }}/nexora-generated
-          if-no-files-found: error
-          retention-days: 2
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git commit -m "chore(release): synchronize Nexora 3.5.0 surfaces"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
 
   verify:
     runs-on: windows-latest
