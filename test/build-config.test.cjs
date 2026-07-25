@@ -86,6 +86,10 @@ test("релиз 3.5.0 публикует явно неподписанный Mo
   assert.match(releaseWorkflow, /Android artifact was unexpectedly signed/);
   assert.match(releaseWorkflow, /Nexora-Android-\$version-UNSIGNED\.apk/);
   assert.match(releaseWorkflow, /ANDROID-UNSIGNED-EVIDENCE\.txt/);
+  assert.equal((releaseWorkflow.match(/\$PSNativeCommandUseErrorActionPreference = \$false/g) || []).length, 2);
+  assert.equal((releaseWorkflow.match(/\$PSNativeCommandUseErrorActionPreference = \$previousNativeErrorPreference/g) || []).length, 2);
+  assert.match(releaseWorkflow, /Android unsigned-state verification did not return a valid exit code/);
+  assert.match(releaseWorkflow, /Published Android unsigned-state verification did not return a valid exit code/);
   assert.match(releaseWorkflow, /Build explicitly unsigned Windows installers/);
   assert.match(releaseWorkflow, /CSC_IDENTITY_AUTO_DISCOVERY/);
   assert.match(releaseWorkflow, /Get-AuthenticodeSignature/);
