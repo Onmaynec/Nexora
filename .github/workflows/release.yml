@@ -113,9 +113,16 @@ jobs:
           if (-not (Test-Path -LiteralPath $apksigner)) { throw "apksigner is unavailable" }
           "NEXORA_APKSIGNER_PATH=$apksigner" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-          & $apksigner verify --verbose --print-certs $target *> artifacts/ANDROID-UNSIGNED-EVIDENCE.txt
-          $verifyExit = $LASTEXITCODE
+          $previousNativeErrorPreference = $PSNativeCommandUseErrorActionPreference
+          $PSNativeCommandUseErrorActionPreference = $false
+          try {
+            & $apksigner verify --verbose --print-certs $target *> artifacts/ANDROID-UNSIGNED-EVIDENCE.txt
+            $verifyExit = $LASTEXITCODE
+          } finally {
+            $PSNativeCommandUseErrorActionPreference = $previousNativeErrorPreference
+          }
           if ($verifyExit -eq 0) { throw "Android artifact was unexpectedly signed; unsigned publication must be explicit" }
+          if ($verifyExit -lt 1) { throw "Android unsigned-state verification did not return a valid exit code" }
           Add-Content -Encoding utf8 artifacts/ANDROID-UNSIGNED-EVIDENCE.txt "Verification exit code: $verifyExit"
           Add-Content -Encoding utf8 artifacts/ANDROID-UNSIGNED-EVIDENCE.txt "Expected state: unsigned"
 
@@ -320,5 +327,13 @@ jobs:
               throw "Published Windows artifact signing state changed: $asset"
             }
           }
-          & $env:NEXORA_APKSIGNER_PATH verify --verbose --print-certs "published/Nexora-Android-3.5.0-UNSIGNED.apk" *> $null
-          if ($LASTEXITCODE -eq 0) { throw "Published Android artifact was unexpectedly signed" }
+          $previousNativeErrorPreference = $PSNativeCommandUseErrorActionPreference
+          $PSNativeCommandUseErrorActionPreference = $false
+          try {
+            & $env:NEXORA_APKSIGNER_PATH verify --verbose --print-certs "published/Nexora-Android-3.5.0-UNSIGNED.apk" *> $null
+            $publishedVerifyExit = $LASTEXITCODE
+          } finally {
+            $PSNativeCommandUseErrorActionPreference = $previousNativeErrorPreference
+          }
+          if ($publishedVerifyExit -eq 0) { throw "Published Android artifact was unexpectedly signed" }
+          if ($publishedVerifyExit -lt 1) { throw "Published Android unsigned-state verification did not return a valid exit code" }
