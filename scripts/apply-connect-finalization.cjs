@@ -31,19 +31,6 @@ function update(relativePath, transform) {
   write(relativePath, after);
 }
 
-update(".github/workflows/ci.yml", (source) => {
-  let next = source
-    .replace("branches: [main, release/3.6.0-connect]", "branches: [main]")
-    .replaceAll("schema9", "schema10")
-    .replaceAll("schema 9", "schema 10");
-  const start = next.indexOf("\n  # CONNECT_FINALIZATION_JOB_START\n");
-  const endMarker = "\n  # CONNECT_FINALIZATION_JOB_END\n";
-  const end = next.indexOf(endMarker, start + 1);
-  if (start < 0 || end < 0) throw new Error("Temporary Connect finalization job markers are missing.");
-  next = `${next.slice(0, start)}\n${next.slice(end + endMarker.length)}`;
-  return next;
-});
-
 update("android/app/src/main/java/com/nexora/mobile/MainActivity.kt", (source) => replaceExactly(
   source,
   'text = "NEXORA 3.5.0"',
@@ -110,11 +97,22 @@ update("scripts/check-release-consistency.cjs", (source) => {
     ".connect-diagnostics",`, `    ".github/workflows/connect-repair.yml",
     ".github/workflows/apply-connect-release.yml",
     ".github/workflows/connect-schema10-remediation.yml",
-    ".github/workflows/connect-finalization.yml",
     ".connect-release-patch",
     ".connect-remediation",
-    ".connect-finalization",
     ".connect-diagnostics",`, "temporary Connect workflow cleanup gate");
+
+  source = replaceExactly(source, `  for (const relativePath of temporaryPaths) {
+    if (fs.existsSync(path.join(root, relativePath))) fail(\`${relativePath} must be removed\`);
+  }
+`, `  for (const relativePath of temporaryPaths) {
+    if (fs.existsSync(path.join(root, relativePath))) fail(\`${relativePath} must be removed\`);
+  }
+  const finalizationWorkflow = fs.existsSync(path.join(root, ".github/workflows/connect-finalization.yml"));
+  const finalizationMarker = fs.existsSync(path.join(root, ".connect-finalization/READY"));
+  if (finalizationWorkflow !== finalizationMarker) {
+    fail("temporary Connect finalization workflow and marker must be present together or removed together");
+  }
+`, "paired finalization cleanup gate");
   return source;
 });
 
@@ -156,12 +154,5 @@ test("Connect client reports background call failures and Android displays packa
 });
 `;
 });
-
-for (const relativePath of [
-  ".connect-finalization",
-  ".github/workflows/connect-finalization.yml",
-]) {
-  fs.rmSync(absolute(relativePath), { recursive: true, force: true });
-}
 
 console.log("Applied Connect final source and release gates.");
