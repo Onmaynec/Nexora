@@ -3,9 +3,6 @@ name: Nexora 3.5.0 unsigned stable release
 on:
   push:
     branches: [main]
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
   workflow_dispatch:
     inputs:
       release_ref:
@@ -20,7 +17,7 @@ permissions:
 
 concurrency:
   group: nexora-3-5-0-unsigned-release-${{ github.repository }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   release:
@@ -28,11 +25,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
-      startsWith(github.event.head_commit.message, 'release: Nexora 3.5.0')) ||
-      (github.event_name == 'workflow_run' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main' &&
-      startsWith(github.event.workflow_run.head_commit.message, 'release: Nexora 3.5.0'))
+      startsWith(github.event.head_commit.message, 'release: Nexora 3.5.0'))
     runs-on: windows-latest
     timeout-minutes: 150
     env:
@@ -41,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.event_name == 'workflow_dispatch' && inputs.release_ref || github.sha }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_ref || github.sha }}
           fetch-depth: 0
 
       - uses: actions/setup-node@v4
@@ -72,6 +65,15 @@ jobs:
           "head_sha=$head" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "PUBLISH_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "RELEASE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Refuse overwrite of published v3.5.0
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $probe = Start-Process -FilePath "gh" -ArgumentList @("release", "view", "${{ steps.identity.outputs.official_tag }}", "--repo", $env:GITHUB_REPOSITORY) -Wait -PassThru -NoNewWindow
+          if ($probe.ExitCode -eq 0) {
+            throw "Immutable v3.5.0 GitHub Release already exists; published assets must never be overwritten"
+          }
 
       - name: Mark release status pending
         shell: pwsh
@@ -284,16 +286,8 @@ jobs:
           $assets = @($env:RELEASE_ASSETS -split ';') + @("artifacts/SHA256SUMS.txt")
           $absolute = @($assets | ForEach-Object { (Resolve-Path -LiteralPath $_).Path })
           $notes = "docs/releases/$version/RELEASE_NOTES.md"
-          gh release view $env:PUBLISH_TAG *> $null
-          if ($LASTEXITCODE -eq 0) {
-            & gh release upload $env:PUBLISH_TAG @absolute --clobber
-            if ($LASTEXITCODE -ne 0) { throw "Unable to update release assets" }
-            gh release edit $env:PUBLISH_TAG --title "Nexora $version — Mobile Continuity (Unsigned distribution)" --notes-file $notes --latest
-            if ($LASTEXITCODE -ne 0) { throw "Unable to update GitHub Release" }
-          } else {
-            & gh release create $env:PUBLISH_TAG @absolute --verify-tag --title "Nexora $version — Mobile Continuity (Unsigned distribution)" --notes-file $notes --latest
-            if ($LASTEXITCODE -ne 0) { throw "Unable to publish GitHub Release" }
-          }
+          & gh release create $env:PUBLISH_TAG @absolute --verify-tag --title "Nexora $version — Mobile Continuity (Unsigned distribution)" --notes-file $notes --latest
+          if ($LASTEXITCODE -ne 0) { throw "Unable to publish GitHub Release" }
 
       - name: Re-download and verify immutable release assets
         shell: pwsh
