@@ -30,25 +30,47 @@ jobs:
           ref: release/3.6.0-connect
           fetch-depth: 0
 
-      - name: Reconstruct implementation archive
+      - name: Diagnose and reconstruct implementation archive
+        id: archive
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
-          import base64, hashlib, pathlib
-          chunks = sorted(pathlib.Path('.connect-patch').glob('[0-9][0-9]'))
-          assert [item.name for item in chunks] == ['00', '01', '02', '03', '04'], chunks
-          payload = ''.join(item.read_text(encoding='utf-8').strip() for item in chunks)
-          assert len(payload) == 48788, len(payload)
-          archive = base64.b64decode(payload, validate=True)
-          digest = hashlib.sha256(archive).hexdigest()
-          assert digest == '2e2d9fda348eae0584344a2ff01e044b4c9b0f04dcef1ac59e45fe899b4918c6', digest
-          pathlib.Path('/tmp/connect-patch.tgz').write_bytes(archive)
-          print(f'archive bytes={len(archive)} sha256={digest}')
+          import base64, hashlib, json, pathlib, tarfile
+          directory = pathlib.Path('.connect-patch')
+          chunks = sorted(directory.glob('[0-9][0-9]'))
+          report = {
+              'chunks': [{'name': item.name, 'bytes': len(item.read_bytes()), 'sha256': hashlib.sha256(item.read_bytes()).hexdigest()} for item in chunks],
+              'expectedNames': ['00', '01', '02', '03', '04'],
+              'expectedPayloadBytes': 48788,
+              'expectedArchiveSha256': '2e2d9fda348eae0584344a2ff01e044b4c9b0f04dcef1ac59e45fe899b4918c6',
+          }
+          try:
+              payload = ''.join(item.read_text(encoding='utf-8').strip() for item in chunks)
+              report['payloadBytes'] = len(payload)
+              archive = base64.b64decode(payload, validate=True)
+              report['archiveBytes'] = len(archive)
+              report['archiveSha256'] = hashlib.sha256(archive).hexdigest()
+              pathlib.Path('/tmp/connect-patch.tgz').write_bytes(archive)
+              with tarfile.open('/tmp/connect-patch.tgz', 'r:gz') as package:
+                  report['members'] = package.getnames()
+              report['valid'] = (
+                  [item.name for item in chunks] == report['expectedNames']
+                  and report['payloadBytes'] == report['expectedPayloadBytes']
+                  and report['archiveSha256'] == report['expectedArchiveSha256']
+              )
+          except Exception as error:
+              report['valid'] = False
+              report['error'] = f'{type(error).__name__}: {error}'
+          pathlib.Path('.connect-patch-diagnostics.json').write_text(json.dumps(report, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+          print(json.dumps(report, indent=2, ensure_ascii=False))
+          with pathlib.Path('/tmp/archive-valid').open('w', encoding='utf-8') as output:
+              output.write('1' if report['valid'] else '0')
           PY
-          tar -tzf /tmp/connect-patch.tgz
+          echo "valid=$(cat /tmp/archive-valid)" >> "$GITHUB_OUTPUT"
 
       - name: Apply and validate implementation
+        if: steps.archive.outputs.valid == '1'
         shell: bash
         run: |
           set -euo pipefail
@@ -57,10 +79,10 @@ jobs:
           node --check server/connect-schema10.cjs
           node --check server/create-server-v31.cjs
           node --check test/connect-3.6.test.cjs
-          rm -rf .connect-patch
+          rm -rf .connect-patch .connect-patch-diagnostics.json
           rm -f .github/workflows/apply-connect-patch.yml
 
-      - name: Commit implementation
+      - name: Commit result
         shell: bash
         run: |
           set -euo pipefail
@@ -68,5 +90,9 @@ jobs:
           git config user.email "nexora-release-bot@users.noreply.github.com"
           git add -A
           git diff --cached --check
-          git commit -m "feat(connect): implement Nexora 3.6.0 core"
+          if [[ "${{ steps.archive.outputs.valid }}" == "1" ]]; then
+            git commit -m "feat(connect): implement Nexora 3.6.0 core"
+          else
+            git commit -m "chore(connect): record archive diagnostics"
+          fi
           git push origin HEAD:release/3.6.0-connect
