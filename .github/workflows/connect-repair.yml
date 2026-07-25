@@ -1,0 +1,62 @@
+name: Nexora 3.6.0 repair and focused verification
+
+on:
+  push:
+    branches: [release/3.6.0-connect]
+    paths:
+      - '.connect-repair/READY'
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/3.6.0-connect
+          fetch-depth: 0
+          show-progress: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - run: npm ci
+      - name: Apply schema-10 and release metadata repairs
+        run: node scripts/repair-connect-3.6.cjs
+      - name: Remove one-shot and obsolete diagnostics files
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .connect-repair .connect-diagnostics release-evidence/3.6.0/diagnostics
+          rm -f .github/workflows/connect-repair.yml .github/workflows/connect-diagnostics.yml
+          rm -f scripts/repair-connect-3.6.cjs .connect-patch-diagnostics.json
+      - name: Commit repaired implementation candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'nexora-release-bot'
+          git config user.email 'nexora-release-bot@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo 'No repair changes were produced.'
+          else
+            git commit -m 'fix(connect): synchronize schema 10 and release candidate evidence'
+            git push origin HEAD:release/3.6.0-connect
+          fi
+      - name: Verify release metadata consistency
+        run: |
+          npm run release:sync-version -- --check
+          npm run release:consistency
+      - name: Verify syntax and production web build
+        run: npm run check
+      - name: Run focused regression suite
+        run: node --test test/connect-3.6.test.cjs test/release-consistency.test.cjs test/mobile-continuity.test.cjs test/pulse-local-integration.test.cjs test/regression-3.2.1.test.cjs
+      - name: Run bounded soak regression
+        env:
+          NEXORA_SOAK_MINUTES: '0.03'
+          NEXORA_SOAK_INTERVAL_MS: '250'
+        run: npm run test:soak
