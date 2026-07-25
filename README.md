@@ -3,9 +3,9 @@
 [![Website](https://img.shields.io/badge/website-open-c69cff)](https://onmaynec.github.io/Nexora/)
 [![CI](https://github.com/Onmaynec/Nexora/actions/workflows/ci.yml/badge.svg)](https://github.com/Onmaynec/Nexora/actions/workflows/ci.yml)
 ![Current version](https://img.shields.io/badge/current-3.6.0-c69cff)
-![Distribution](https://img.shields.io/badge/distribution-unsigned%20manual-orange)
+![Distribution](https://img.shields.io/badge/distribution-signed%20stable%20blocked-orange)
 ![API](https://img.shields.io/badge/API-v3%20%2B%20legacy%20read--only-70e6b1)
-![Database](https://img.shields.io/badge/SQLite-schema%209-70e6b1)
+![Database](https://img.shields.io/badge/SQLite-schema%2010-70e6b1)
 ![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20PWA%20%7C%20Android-9b5cff)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 

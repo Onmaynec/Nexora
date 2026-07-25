@@ -1,51 +1,256 @@
-\"use strict\";\n\nconst fs = require(\"node:fs\");\nconst path = require(\"node:path\");\n\nfunction fail(message) {\n  throw new Error(`Release consistency: ${message}`);\n}\n\nfunction read(root, relativePath) {\n  const file = path.join(root, relativePath);\n  if (!fs.existsSync(file)) fail(`missing ${relativePath}`);\n  return fs.readFileSync(_�W��]��N��W���[��[ۈ\��R��ۊ����[]]�T]
-H���H���]\����Ӌ�\��J�XY
-����[]]�T]
-JN��H�]�
-\��܊H���Z[
-[��[Y��ӈ[�	ܙ[]]�T]N�	�\��܋�Y\��Y�_X
-N��W�W���[��[ۈ^X�X]�
-�[]]�T]��\��K^�\��[ۋ\�ܚ\[ۊH��Y�
-Y^�\��[ۋ�\�
-��\��JJH�Z[
-	ܙ[]]�T]H	�\�ܚ\[۟X
-N��W���[��[ۈ�X�ԙ[X\�P�ۜ�\�[��J���H]��\���J��\��[YK����JH���ۜ�X��Y�R��ۈH\��R��ۊ����X��Y�K���ۗ�N���ۜ��\��[ۈH��[��X��Y�R��ۋ��\��[ۈ��N���ۜ��[]�\�H׊
-�W�
-�W�
-�I˙^X��\��[ۊN��Y�
-\�[]�\�H�Z[
-X��Y�K���ۈ\�[��[Y�[U�\�	Ҕ�Ӌ���[��Y�J�\��[ۊ_X
-N���ۜ��XZ�܋Z[�܋]�HH�[]�\��X\
-�[X�\�N���ۜ�^X�Y[���Y��HHXZ�܈
-�L�
-�Z[�܈
-�L
-�]����ۜ�\��\Y�\��[ۈH�\��[ۋ��\X�J�������N����ۜ����H\��R��ۊ����X��Y�K[��˚��ۗ�N��Y�
-��˝�\��[ۈOOH�\��[ۈ��˜X��Y�\�˖���O˝�\��[ۈOOH�\��[ۊH���Z[
-X��Y�K[��˚��ۈ\����[���ۚ^�Y�]	ݙ\��[۟X
-N��W�Y�
-X��Y�R��ۋ�\[�[��Y\�˖���[[��H��˜X��Y�\�˖����W�[�[\���[[��JH���Z[
-��[[�]\����\[��X�H�ܙW�N��W��^X�X]�
-���Y[��ܘ��\K������XY
-�����Y[��ܘ��\K����K��]��Y�^
-�QS�ՑT��SӗʏWʗ��\��\Y�\��[۟W�
-K��\���X�\�H�Y[��\��[ۈ	ݙ\��[۟X�
-N���ۜ�[���YH�XY
-����[���Y�\؝Z[�ܘYK����N��^X�X]�
-�[���Y�\؝Z[�ܘYK����[���Y�]��Y�^
-�\��[ۓ�[YWʏWʗ��\��\Y�\��[۟W�
-K�\���X�\�H�\��[ۓ�[YH	ݙ\��[۟X
-N��^X�X]�
-�[���Y�\؝Z[�ܘYK����[���Y�]��Y�^
-�\��[ې��WʏWʉ�^X�Y[���Y��_W�
-K�\���X�\�H�\��[ې��H	�^X�Y[���Y��_X
-N���܈
-�ۜ�X\��\�و����^ܘT�\]Z\�T�Yۚ[������VԐW�S���Q��VT�ԑW�U����VԐW�S���Q��VT�ԑW�T���ԑ����VԐW�S���Q��VW�SPT�����VԐW�S���Q��VW�T���ԑ���[�X�U���Yۚ[��H�YW���[�X�U���Yۚ[��H�YW��JH��Y�
-X[���Y�[��Y\�X\��\�JH�Z[
-[���Y�\؝Z[�ܘYK���Z\��[��	Ҕ�Ӌ���[��Y�JX\��\�_X
-N��W���܈
-�ۜ��[[ݙYو����\��\���\�X�ܙK�ڜ�����\��\���\�\��]\˘ڜ�����\��\���\�\�X�ݙ\�K\��]\˘ڜ�����\��\���\�\����]�ڜ�����\��\��[�]�[��ܝ�ڜ�����\��\��L�YKX]X�Y[�˘ڜ�����Y[��ܘ��ܞ\��[�Y[��[�K�������Y[��ܘ��ܞ\���\�X�Y[��������Y[��ܘ����\ۙ[����X�\�SY\��Y�T[�K�����JH��Y�
-�˙^\���[��]���[�����[[ݙY
-JJH�Z[
-	ܙ[[ݙYH]\��[XZ[��[[ݙY
-N��W���ۜ��\��[���[Y[��H����PQQK�Y����ґP��S�V�Y������ԑPQQK�Y�������T��UP�T�K�Y��������P�T�UW�S�S�Y������ܙ[X\�\�ԑPQQK�Y���[���YԑPQQK�Y����P�T�UK�Y����P�T�UW�UQU�Y����Tԕ�Y����ӕ�P�US�˖�"����$DԔ��uT�DR��E�"����%DU5DU%�uT�DR��E�"����$%$�4��5DEU2��E�"����$%$�4�U2��E�"����&F�72�$�ET5E��dU%d�Ur��E�"����&F�72��U$D���5�%T�$�����E�"����&F�72�DU����T�B��E�"����&F�72�$T�T4U��Ĕ5���E�"����&F�72�t�D�T%�$T�T4R��E�"����&F�72�$T�T4U�4�T4�ĕ5B��E�"����"�v�F�V"��55TU�DT��DR�'Vu�&W�'B����"����'vV'6�FR���FW��F���"����'vV'6�FR��5�"����'vV'6�FR�6�FR�f��W2�5�"���ӵ����6��7B7V6�f�4�&�W'2������%$TD�R��E�"��Wr&VtW��7W'&V�B�G�W66VEfW'6������F�W2��BW��6R7W'&V�BfW'6���G�fW'6����������%$��T5E���DU���E�"��Wr&VtW���%&W�6�F�'�fW'6���������"�W66VEfW'6�����&�"��F�W2��B�F6�G�fW'6����������&F�72�$TD�R��E�"��Wr&VtW���$7W'&V�B&W�6�F�'�fW'6���������"�W66VEfW'6�����&�"��F�W2��B�F6�G�fW'6�����������%4T5U$�E���E�"��Wr&VtW���%������"�W66VEfW'6�����&�����6���V7B���V�V�FF���6�F�FFU�"��7W�'FVBfW'6���F�W2��B�F6�G�fW'6�����������'vV'6�FR���FW��F���"��Wr&VtW���G�W66VEfW'6�������7FF�2fW'6���F�W2��B�F6�G�fW'6����������'vV'6�FR��5�"��Wr&VtW��d��$4��dU%4������2����2��"G�W66VEfW'6�����"��f��&6�fW'6���F�W2��B�F6�G�fW'6�����������'vV'6�FR�6�FR�f��W2�5�"��Wr&VtW��d��$4��dU%4�����2����2��"G�W66VEfW'6�����&��6�'&V7F���f��&6�fW'6���F�W2��B�F6�G�fW'6���������ӵ��f�"�6��7B�&V�F�fUF��W�&W76����FW67&�F�����b7V6�f�4�&�W'2����W�V7D�F6��&V�F�fUF��&VB�&��B�&V�F�fUF���W�&W76����FW67&�F��⓵�����f�"�6��7B&V�F�fUF��b7W'&V�DF�7V�V�G2�����b�&VB�&��B�&V�F�fUF����6�VFW2�fW'6��⒒f�G�&V�F�fUF��F�W2��B�FV�F�g�7W'&V�BfW'6���G�fW'6�������������6��7BWf�FV�6R�'6T�6��&��B��'&V�V6R�Wf�FV�6R�7W'&V�B�6���"�����b�Wf�FV�6R�fW'6�����fW'6�����Wf�FV�6R�Fr��bG�fW'6�����f��&7W'&V�B&V�V6RWf�FV�6R�FV�F�G�֗6�F6��"�����b�Wf�FV�6R�7FGW2���&���V�V�FF����6�F�FFU�"��Wf�FV�6R�V&Ɨ6�VB��f�6R��Wf�FV�6R�6�v�VB��f�6R����f��&7W'&V�BWf�FV�6R�W7BFW67&�&R�V�V&Ɨ6�VB�V�6�v�VB���V�V�FF���6�F�FFU�"��������b�Wf�FV�6R�F�7G&�'WF������'6�v�VB�7F&�R�V�F��r�Wf�FV�6U�"�f��$6���V7BF�7G&�'WF����FV�F�G�֗6�F6��"�����b�Wf�FV�6R�&6VƖ�R���#2�R��"�f��$6���V7B6�W&6R&6VƖ�R�W7B&R2�R��"�����b�'&��4'&��Wf�FV�6R�&V�V6T&��6�W'2���Wf�FV�6R�&V�V6T&��6�W'2��V�wF��������f��&���V�V�FF���6�F�FFR�W7B&WF��W�Ɩ6�B&V�V6R&��6�W'5�"�������6��7B�Ɩ7��Wf�FV�6R�V&Ɩ6F����Ɩ7����ӵ���b����Ɩ7��&W&V�V6R��f�6U�����Ɩ7���FW7B��G'VU�����Ɩ7��&WV�&W56�v�VD'F�f7G2��G'VU�����Ɩ7��WFFW$�WFFFV&Ɨ6�VB��f�6U�����Ɩ7��6�#Se&WV�&VB��G'VU�����Ɩ7��6&��&WV�&VB��G'VU�����Ɩ7��7&�75�Ff�&�6��66WF�6U&WV�&VB��G'VU������f��$6���V7BV&Ɩ6F����Ɩ7��2��6���WFU�"�������f�"�6��7B76WB�b����W��&�6ƖV�B�6WGW�G�fW'6�����W�V����W��&�6W'fW"�6WGW�G�fW'6�����W�V����W��&��G&��B�G�fW'6����������W��&�t�G�fW'6����禗����W��&�G�fW'6�����6�W&6R禗����W��&�G�fW'6�����7G��6������%4�#Se5T�2�G�E�"���Ғ����b�Wf�FV�6R����VD76WG3���6�VFW2�76WB��f�&V�V6R�Wf�FV�6R�7W'&V�B�6��֗76��r���VB76WBG�76WG����������6��7BW�FW&��Wf�FV�6R����&V�V6R�Wf�FV�6R���FWV�FV�B�6V7W&�G��&Wf�Wr�G�fW'6�����6�����&V�V6R�Wf�FV�6R�v��F�w2�66WF�6R�G�fW'6�����6�����&V�V6R�Wf�FV�6R��G&��B�66WF�6R�G�fW'6�����6�����&V�V6R�Wf�FV�6R�v�66WF�6R�G�fW'6�����6�����&V�V6R�Wf�FV�6R�6���V7B�7&�72��Ff�&��66WF�6R�G�fW'6�����6����������&V�F�fUF�����&V�F�fUF��'6T�6��&��B�&V�F�fUF��ғ���f�"�6��7B�&V�F�fUF���FV���bW�FW&��Wf�FV�6R�����b��FV��fW'6�����fW'6���f�G�&V�F�fUF��fW'6���֗6�F6������b���'V�F��u�"��'76VE�"��&&��6�VE�%���6�VFW2��FV��7FGW2��f�G�&V�F�fUF���2��fƖB7FGW6�����b��FV��7FGW2����'76VE�"bb�FV��6���WFVDB�f�G�&V�F�fUF��76VBv�F��WB6���WFVDF���������6��7B&V�V6TF�&V7F�'��F�72�&V�V6W2�G�fW'6�������f�"�6��7B&V�F�fUF��b�G�&V�V6TF�&V7F�'���$T�T4U���DU2��F�G�&V�V6TF�&V7F�'���$T�T4U�dU$�d�4D�����F) {\n    const source = read(root, relativePath);\n    if (!source.includes(version)) fail(`${relativePath} does not identify ${version}`);\n    if (/compatibility pointer/i.test(source)) fail(`${relativePath} must contain canonical content, not a compatibility pointer`);\n  }\n  for (const [relativePath, canonicalPath] of [\n    [`RELEASE_NOTES_${version}.md`, `${releaseDirectory}/RELEASE_NOTES.md`],\n    [`RELEASE_VERIFICATION_${version}.md`, `${releaseDirectory}/RELEASE_VERIFICATION.mde����Ғ���6��7B6�W&6R�&VB�&��B�&V�F�fUF������b�6�W&6R��6�VFW2�6���6�F�����6��F�&�ƗG����FW"���FW7B�6�W&6R�����f�G�&V�F�fUF���W7B&R6��F�&�ƗG����FW"F�G�6���6�F��������������W�V7D�F6���$4��tT��r��E�"�&VB�&��B��$4��tT��r��E�"���Wr&VtW���22�ŲG�W66VEfW'6���������&��"��F�W2��B6��F��G�fW'6��������6��7B&V�V6T��FW��&VB�&��B��&F�72�&V�V6W2�$TD�R��E�"�����b�&V�V6T��FW���6�VFW2��$4��tT��r��E�"��f��&F�72�&V�V6W2�$TD�R��BF�W2��BFV�VvFRF�4��tT��r��E�"�����b�&V�V6T��FW���6�VFW2�G�fW'6�����$T�T4U���DU2��F���&V�V6T��FW���6�VFW2�G�fW'6�����$T�T4U�dU$�d�4D�����F�����f�F�72�&V�V6W2�$TD�R��BF�W2��B��FW�G�fW'6������������b�&V�V6T��FW��7ƗB����%������6��R��Ɩ�R�����22�ӕ���FW7B�Ɩ�R�����22�ųӕ���FW7B�Ɩ�R������f��&F�72�&V�V6W2�$TD�R��BGWƖ6FW2F�R6���6�fW'6���F��VƖ�U�"���������f�"�6��7B&V�F�fUF��b7W'&V�DF�7V�V�G2����6��7B6�W&6R�&VB�&��B�&V�F�fUF�����f�"�6��7B�'6��WFR�b��%$T�T4U�dU$�d�4D����2�"�B��E�"��&F�72�&V�V6W2�2�"�B�$T�T4U�dU$�d�4D�����E�%Ғ����b�6�W&6R��6�VFW2��'6��WFR��f�G�&V�F�fUF��7F���Ɩ�2F�R�'6��WFR7W'&V�BfW&�f�6F���F�7V�V�B2�"�F������������6��7B&V�V6Uv�&�f��r�&VB�&��B��"�v�F�V"�v�&�f��w2�&V�V6R����"�����b�&V�V6Uv�&�f��r��6�VFW2��$�W��&2�b�V�6�v�VB7F&�R&V�V6U�"�����f��"�v�F�V"�v�&�f��w2�&V�V6R����W7B��BV&Ɨ6�2�b�2V�6�v�VB7F&�U�"�������f�"�6��7BFV��&'��b����"�v�F�V"�v�&�f��w2�7F&�R�6�&R�֖w&F�������"����"�v�F�V"�v�&�f��w2�7F&�R�6�&R�F�v��7F�72����"����"�v�F�V"�v�&�f��w2�F�7F6��&V�V6R�2�2�B����"����"�v�F�V"�v�&�f��w2�fW&�g��&V�V6R�2�2�B����"����"�v�F�V"�v�&�f��w2�F�v��6R�&V�V6R�2�2�B����"����"�v�F�V"�v�&�f��w2�6���V7B�F�v��7F�72����"����"�v�F�V"�v�&�f��w2�6���V7B�&W�"����"����"�6���V7B�F�v��7F�75�"����"�6���V7B�&W�%�"����"�6���V7B�F6��F�v��7F�72�6���"����'67&�G2�ǒ�7F&�R�6�&R�2�B�6�5�"����'67&�G2�ǒ�7F&�R�6�&R�W'&�"�6��G&7G2�6�5�"����'67&�G2�ǒ�7F&�R�6�&R�&��G7G&�6�5�"����'67&�G2�ǒ�7F&�R�6�&R�6ƖV�B�&WF�&V�V�B�6�5�"����'67&�G2�ǒ�7F&�R�6�&R�'V�F��R�&WF�&V�V�B�6�5�"����'67&�G2�ǒ�7F&�R�6�&R�F�72�6�5�"����'67&�G2�&W&R�2�B�&V�V6R�F�72�6�5�"����'67&�G2�&W�"�6���V7B�2�b�6�5�"����&֖w&F����W'&�"���u�"����'V�B�f��W&W2���u�"���Ғ����b�g2�W��7G57��2�F�����&��B�FV��&'����f�G�FV��&'���W7B&R&V��fVF���������&WGW&����fW'6������W�V7FVD�G&��D6�FR���7W'&V�DF�7V�V�D6�V�C�7W'&V�DF�7V�V�G2��V�wF����&V�V6U7FGW3�Wf�FV�6R�7FGW2���&V�V6T&��6�W$6�V�C�Wf�FV�6R�&V�V6T&��6�W'2��V�wF����ӵ�������b�&WV�&R���������GV�R����G'����6��7B&W7V�B�6�V6�&V�V6T6��6�7FV�7������6��6��R���r���&V�V6R6��6�7FV�7�G�&W7V�B�fW'6�����2fƖB"������G&��BfW'6���6�FRG�&W7V�B�W�V7FVD�G&��D6�FW��G�&W7V�B�7W'&V�DF�7V�V�D6�V�G�7W'&V�BF�7V�V�G2����G�&W7V�B�&V�V6T&��6�W$6�V�G�W�Ɩ6�B&V�V6R&��6�W'2����������6F6��W'&�"����6��6��R�W'&�"�W'&�"�7F6���W'&�"��W76vR����&�6W72�W��B���������������GV�R�W��'G2��6�V6�&V�V6T6��6�7FV�7�ӵ�
+"use strict";
+
+const fs = require("node:fs");
+const path = require("node:path");
+
+function fail(message) {
+  throw new Error(`Release consistency: ${message}`);
+}
+
+function read(root, relativePath) {
+  const file = path.join(root, relativePath);
+  if (!fs.existsSync(file)) fail(`missing ${relativePath}`);
+  return fs.readFileSync(file, "utf8");
+}
+
+function parseJson(root, relativePath) {
+  try {
+    return JSON.parse(read(root, relativePath));
+  } catch (error) {
+    fail(`invalid JSON in ${relativePath}: ${error.message}`);
+  }
+}
+
+function expectMatch(relativePath, source, expression, description) {
+  if (!expression.test(source)) fail(`${relativePath} ${description}`);
+}
+
+function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
+  const packageJson = parseJson(root, "package.json");
+  const version = String(packageJson.version || "");
+  const semver = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
+  if (!semver) fail(`package.json has invalid SemVer ${JSON.stringify(version)}`);
+  const [, major, minor, patch] = semver.map(Number);
+  const expectedAndroidCode = major * 10_000 + minor * 100 + patch;
+  const escapedVersion = version.replace(/\./g, "\\.");
+
+  const lock = parseJson(root, "package-lock.json");
+  if (lock.version !== version || lock.packages?.[""]?.version !== version) {
+    fail(`package-lock.json is not synchronized with ${version}`);
+  }
+  if (packageJson.dependencies?.["ts-mls"] || lock.packages?.["node_modules/ts-mls"]) {
+    fail("ts-mls must not ship in Stable Core");
+  }
+
+  expectMatch(
+    "client/src/api.js",
+    read(root, "client/src/api.js"),
+    new RegExp(`CLIENT_VERSION\\s*=\\s*"${escapedVersion}"`),
+    `does not declare Client version ${version}`,
+  );
+  const android = read(root, "android/app/build.gradle.kts");
+  expectMatch("android/app/build.gradle.kts", android, new RegExp(`versionName\\s*=\\s*"${escapedVersion}"`), `does not declare versionName ${version}`);
+  expectMatch("android/app/build.gradle.kts", android, new RegExp(`versionCode\\s*=\\s*${expectedAndroidCode}\\b`), `does not declare versionCode ${expectedAndroidCode}`);
+  for (const marker of [
+    "nexoraRequireSigning",
+    "NEXORA_ANDROID_KEYSTORE_PATH",
+    "NEXORA_ANDROID_KEYSTORE_PASSWORD",
+    "NEXORA_ANDROID_KEY_ALIAS",
+    "NEXORA_ANDROID_KEY_PASSWORD",
+    "enableV2Signing = true",
+    "enableV3Signing = true",
+  ]) {
+    if (!android.includes(marker)) fail(`android/app/build.gradle.kts missing ${JSON.stringify(marker)}`);
+  }
+
+  for (const removed of [
+    "server/trust-core.cjs",
+    "server/trust-routes.cjs",
+    "server/trust-recovery-routes.cjs",
+    "server/trust-socket.cjs",
+    "server/mls-transport.cjs",
+    "server/e2ee-attachments.cjs",
+    "client/src/crypto/mls-engine.js",
+    "client/src/crypto/trust-client.js",
+    "client/src/components/SecureMessagePane.jsx",
+  ]) {
+    if (fs.existsSync(path.join(root, removed))) fail(`${removed} must remain removed`);
+  }
+
+  const currentDocuments = [
+    "README.md",
+    "PROJECT_INDEX.md",
+    "docs/README.md",
+    "docs/ARCHITECTURE.md",
+    "docs/SECURITY_MODEL.md",
+    "docs/releases/README.md",
+    "android/README.md",
+    "SECURITY.md",
+    "SECURITY_AUDIT.md",
+    "SUPPORT.md",
+    "CONTRIBUTING.md",
+    "ADMIN_GUIDE.md",
+    "TESTER_GUIDE.md",
+    "BRANCH_STATUS.md",
+    "BRANCHES.md",
+    "docs/PRODUCT_OVERVIEW.md",
+    "docs/OPERATIONS_RUNBOOK.md",
+    "docs/DEPLOYMENT.md",
+    "docs/RELEASE_POLICY.md",
+    "docs/GITHUB_RELEASE.md",
+    "docs/RELEASE_CHECKLIST.md",
+    ".github/ISSUE_TEMPLATE/bug_report.yml",
+    "website/index.html",
+    "website/app.js",
+    "website/site-fixes.js",
+  ];
+
+  const specificMarkers = [
+    ["README.md", new RegExp(`current-${escapedVersion}`), `does not expose current version ${version}`],
+    ["PROJECT_INDEX.md", new RegExp("Repository version \\| `" + escapedVersion + "`"), `does not match ${version}`],
+    ["docs/README.md", new RegExp("Current repository version \\| `" + escapedVersion + "`"), `does not match ${version}`],
+    ["SECURITY.md", new RegExp("\\| `" + escapedVersion + "` \\| Connect implementation candidate"), `supported version does not match ${version}`],
+    ["website/index.html", new RegExp(`>${escapedVersion}<`), `static version does not match ${version}`],
+    ["website/app.js", new RegExp(`FALLBACK_VERSION\\s*=\\s*"${escapedVersion}"`), `fallback version does not match ${version}`],
+    ["website/site-fixes.js", new RegExp(`FALLBACK_VERSION\\s*=\\s*"${escapedVersion}"`), `correction fallback version does not match ${version}`],
+  ];
+  for (const [relativePath, expression, description] of specificMarkers) {
+    expectMatch(relativePath, read(root, relativePath), expression, description);
+  }
+  for (const relativePath of currentDocuments) {
+    if (!read(root, relativePath).includes(version)) fail(`${relativePath} does not identify current version ${version}`);
+  }
+
+  const evidence = parseJson(root, "release-evidence/current.json");
+  if (evidence.version !== version || evidence.tag !== `v${version}`) fail("current release evidence identity mismatch");
+  if (evidence.status !== "implementation-candidate" || evidence.published !== false || evidence.signed !== false) {
+    fail("current evidence must describe an unpublished, unsigned implementation candidate");
+  }
+  if (evidence.distribution !== "signed-stable-pending-evidence") fail("Connect distribution identity mismatch");
+  if (evidence.baseline !== "3.5.0") fail("Connect source baseline must be 3.5.0");
+  if (!Array.isArray(evidence.releaseBlockers) || evidence.releaseBlockers.length === 0) {
+    fail("implementation candidate must retain explicit release blockers");
+  }
+  const policy = evidence.publicationPolicy || {};
+  if (
+    policy.prerelease !== false
+    || policy.latest !== true
+    || policy.requiresSignedArtifacts !== true
+    || policy.updaterMetadataPublished !== false
+    || policy.sha256Required !== true
+    || policy.sbomRequired !== true
+    || policy.crossPlatformCallAcceptanceRequired !== true
+  ) {
+    fail("Connect publication policy is incomplete");
+  }
+  for (const asset of [
+    `Nexora-Client-Setup-${version}.exe`,
+    `Nexora-Server-Setup-${version}.exe`,
+    `Nexora-Android-${version}.apk`,
+    `Nexora-PWA-${version}.zip`,
+    `Nexora-${version}-source.zip`,
+    `Nexora-${version}.spdx.json`,
+    "SHA256SUMS.txt",
+  ]) {
+    if (!evidence.plannedAssets?.includes(asset)) fail(`release-evidence/current.json missing planned asset ${asset}`);
+  }
+
+  const externalEvidence = [
+    `release-evidence/independent-security-review-${version}.json`,
+    `release-evidence/windows-acceptance-${version}.json`,
+    `release-evidence/android-acceptance-${version}.json`,
+    `release-evidence/pwa-acceptance-${version}.json`,
+    `release-evidence/connect-cross-platform-acceptance-${version}.json`,
+  ].map((relativePath) => [relativePath, parseJson(root, relativePath)]);
+  for (const [relativePath, item] of externalEvidence) {
+    if (item.version !== version) fail(`${relativePath} version mismatch`);
+    if (!["pending", "passed", "blocked"].includes(item.status)) fail(`${relativePath} has invalid status`);
+    if (item.status === "passed" && !item.completedAt) fail(`${relativePath} passed without completedAt`);
+  }
+
+  const releaseDirectory = `docs/releases/${version}`;
+  for (const relativePath of [`${releaseDirectory}/RELEASE_NOTES.md`, `${releaseDirectory}/RELEASE_VERIFICATION.md`]) {
+    const source = read(root, relativePath);
+    if (!source.includes(version)) fail(`${relativePath} does not identify ${version}`);
+    if (/compatibility pointer/i.test(source)) fail(`${relativePath} must contain canonical content, not a compatibility pointer`);
+  }
+  for (const [relativePath, canonicalPath] of [
+    [`RELEASE_NOTES_${version}.md`, `${releaseDirectory}/RELEASE_NOTES.md`],
+    [`RELEASE_VERIFICATION_${version}.md`, `${releaseDirectory}/RELEASE_VERIFICATION.md`],
+  ]) {
+    const source = read(root, relativePath);
+    if (!source.includes(canonicalPath) || !/compatibility pointer/i.test(source)) {
+      fail(`${relativePath} must be a compatibility pointer to ${canonicalPath}`);
+    }
+  }
+
+  expectMatch("CHANGELOG.md", read(root, "CHANGELOG.md"), new RegExp(`^## \\[${escapedVersion}\\]`, "m"), `does not contain ${version}`);
+  const releaseIndex = read(root, "docs/releases/README.md");
+  if (!releaseIndex.includes("CHANGELOG.md")) fail("docs/releases/README.md does not delegate to CHANGELOG.md");
+  if (!releaseIndex.includes(`${version}/RELEASE_NOTES.md`) || !releaseIndex.includes(`${version}/RELEASE_VERIFICATION.md`)) {
+    fail(`docs/releases/README.md does not index ${version}`);
+  }
+  if (releaseIndex.split(/\r?\n/).some((line) => /^## [0-9]/.test(line) || /^## \[[0-9]/.test(line))) {
+    fail("docs/releases/README.md duplicates the canonical version timeline");
+  }
+
+  for (const relativePath of currentDocuments) {
+    const source = read(root, relativePath);
+    for (const obsolete of ["RELEASE_VERIFICATION_3.2.4.md", "docs/releases/3.2.4/RELEASE_VERIFICATION.md"]) {
+      if (source.includes(obsolete)) fail(`${relativePath} still links the obsolete current verification document 3.2.4`);
+    }
+  }
+
+  const releaseWorkflow = read(root, ".github/workflows/release.yml");
+  if (releaseWorkflow.includes("Nexora 3.6.0 unsigned stable release")) {
+    fail(".github/workflows/release.yml must not publish 3.6.0 as unsigned stable");
+  }
+  for (const temporary of [
+    ".github/workflows/stable-core-migration.yml",
+    ".github/workflows/stable-core-diagnostics.yml",
+    ".github/workflows/dispatch-release-3.3.4.yml",
+    ".github/workflows/verify-release-3.3.4.yml",
+    ".github/workflows/diagnose-release-3.3.4.yml",
+    ".github/workflows/connect-diagnostics.yml",
+    ".github/workflows/connect-repair.yml",
+    ".connect-diagnostics",
+    ".connect-repair",
+    ".connect-patch-diagnostics.json",
+    "scripts/apply-stable-core-3.4.cjs",
+    "scripts/apply-stable-core-error-contracts.cjs",
+    "scripts/apply-stable-core-bootstrap.cjs",
+    "scripts/apply-stable-core-client-retirement.cjs",
+    "scripts/apply-stable-core-runtime-retirement.cjs",
+    "scripts/apply-stable-core-docs.cjs",
+    "scripts/prepare-3.4-release-docs.cjs",
+    "scripts/repair-connect-3.6.cjs",
+    "migration-error.log",
+    "unit-failures.log",
+  ]) {
+    if (fs.existsSync(path.join(root, temporary))) fail(`${temporary} must be removed`);
+  }
+
+  return {
+    version,
+    expectedAndroidCode,
+    currentDocumentCount: currentDocuments.length,
+    releaseStatus: evidence.status,
+    releaseBlockerCount: evidence.releaseBlockers.length,
+  };
+}
+
+if (require.main === module) {
+  try {
+    const result = checkReleaseConsistency();
+    console.log(
+      `Release consistency ${result.version} is valid `
+      + `(Android versionCode ${result.expectedAndroidCode}, ${result.currentDocumentCount} current documents, `
+      + `${result.releaseBlockerCount} explicit release blockers).`,
+    );
+  } catch (error) {
+    console.error(error.stack || error.message);
+    process.exit(1);
+  }
+}
+
+module.exports = { checkReleaseConsistency };

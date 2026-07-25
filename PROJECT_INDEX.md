@@ -5,7 +5,7 @@
 | Параметр | Значение |
 |---|---|
 | Repository version | `3.6.0` |
-| Classification | Release candidate — Mobile Continuity |
+| Classification | Implementation candidate — Connect |
 | Publication | Заблокирована до опубликованной `v3.4.0`, platform acceptance, signing и independent security review |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
