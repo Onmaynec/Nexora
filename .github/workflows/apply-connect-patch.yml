@@ -1,0 +1,49 @@
+name: Apply Nexora 3.6.0 Connect implementation
+
+on:
+  push:
+    branches: [release/3.6.0-connect]
+    paths:
+      - '.connect-patch/**'
+      - '.github/workflows/apply-connect-patch.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-connect-patch-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/3.6.0-connect
+          fetch-depth: 0
+
+      - name: Reconstruct and apply implementation archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .connect-patch/0* | tr -d '\r\n' | base64 --decode > "$RUNNER_TEMP/connect-patch.tgz"
+          tar -xzf "$RUNNER_TEMP/connect-patch.tgz"
+          rm -rf .connect-patch
+          rm -f .github/workflows/apply-connect-patch.yml
+          node --check server/connect.cjs
+          node --check server/connect-schema10.cjs
+          node --check server/create-server-v31.cjs
+          node --check test/connect-3.6.test.cjs
+
+      - name: Commit implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "nexora-release-bot"
+          git config user.email "nexora-release-bot@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "feat(connect): implement Nexora 3.6.0 core"
+          git push origin HEAD:release/3.6.0-connect
