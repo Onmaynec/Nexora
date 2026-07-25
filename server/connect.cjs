@@ -23,6 +23,7 @@ const CALL_CONNECT_MS = 35_000;
 const CALL_RETENTION_MS = 120_000;
 const CONTACT_REQUEST_TTL_MS = 30 * 24 * 60 * 60 * 1_000;
 const MAX_SIGNAL_BYTES = 64 * 1024;
+const MAX_SIGNAL_HISTORY = 128;
 
 function nowIso() {
   return new Date().toISOString();
@@ -622,12 +623,30 @@ async function mountConnect({
     const call = activeCalls.get(callId);
     if (!call || ![call.callerId, call.calleeId].includes(auth.user.id)) throw connectError("Вызов недоступен.", "RESOURCE_NOT_FOUND", 404);
     const expectedSessionId = call.callerId === auth.user.id ? call.callerSessionId : call.calleeSessionId;
-    if (expectedSessionId && expectedSessionId !== auth.session.id) throw connectError("Вызов закреплён за другим устройством.", "FORBIDDEN", 403);
+    const canClaimIncoming = !expectedSessionId && call.calleeId === auth.user.id && call.state === "ringing";
+    if (!canClaimIncoming && expectedSessionId !== auth.session.id) throw connectError("Вызов закреплён за другим устройством.", "FORBIDDEN", 403);
     if (isBlockedEither(auth.state, call.callerId, call.calleeId)) {
       terminalize(call, "failed", "blocked", "blocked");
       throw connectError("Вызов запрещён политикой блокировки.", "CONTACT_BLOCKED", 403);
     }
     return { ...auth, call };
+  }
+
+  function requireHttpCall(auth, callId) {
+    const call = activeCalls.get(callId);
+    if (!call || ![call.callerId, call.calleeId].includes(auth.user.id) || CALL_TERMINAL.has(call.state)) {
+      throw connectError("Вызов недоступен.", "RESOURCE_NOT_FOUND", 404);
+    }
+    const expectedSessionId = call.callerId === auth.user.id ? call.callerSessionId : call.calleeSessionId;
+    if (!expectedSessionId || expectedSessionId !== auth.session.id) {
+      throw connectError("Вызов закреплён за другим устройством.", "FORBIDDEN", 403);
+    }
+    const state = store.read();
+    if (isBlockedEither(state, call.callerId, call.calleeId)) {
+      terminalize(call, "failed", "blocked", "blocked");
+      throw connectError("Вызов запрещён политикой блокировки.", "CONTACT_BLOCKED", 403);
+    }
+    return call;
   }
 
   function targetSessionRoom(call, senderId) {
@@ -908,13 +927,12 @@ async function mountConnect({
   app.post("/api/v3/calls/:callId/turn-credentials", authRequired, asyncRoute(async (request, response) => {
     const auth = currentAuth(request);
     const callId = cleanLine(request.params.callId, 160);
-    const call = activeCalls.get(callId);
-    if (!call || ![call.callerId, call.calleeId].includes(auth.user.id) || CALL_TERMINAL.has(call.state)) throw connectError("Вызов недоступен.", "RESOURCE_NOT_FOUND", 404);
+    const call = requireHttpCall(auth, callId);
     if (!turnSecret || String(turnSecret).length < 24 || configuredTurnUrls.length === 0) {
       throw connectError("TURN relay временно недоступен.", "TURN_UNAVAILABLE", 503);
     }
     const expires = Math.floor(Date.now() / 1_000) + turnCredentialTtl;
-    const subject = hash(auth.user.id).slice(0, 20);
+    const subject = hash(`${auth.user.id}:${auth.session.id}`).slice(0, 20);
     const username = `${expires}:${subject}:${call.id}`;
     const credential = crypto.createHmac("sha256", String(turnSecret)).update(username).digest("base64");
     const iceServers = configuredTurnUrls.map((url) => /^stun:/i.test(url) ? { urls: [url] } : { urls: [url], username, credential, credentialType: "password" });
@@ -989,7 +1007,9 @@ async function mountConnect({
         const callId = cleanLine(payload?.callId, 160);
         if (!SAFE_ID.test(callId) || !SAFE_ID.test(targetId) || targetId === auth.user.id) throw connectError("Некорректный вызов.", "VALIDATION_FAILED", 400);
         const existing = activeCalls.get(callId);
-        if (existing && existing.callerId === auth.user.id) return acknowledge({ ok: true, duplicate: true, call: callView(existing, auth.user.id) });
+        if (existing && existing.callerId === auth.user.id && existing.calleeId === targetId && existing.callerSessionId === auth.session.id) {
+          return acknowledge({ ok: true, duplicate: true, call: callView(existing, auth.user.id) });
+        }
         if (existing) throw connectError("callId уже используется.", "CALL_STATE_CONFLICT", 409);
         const target = findUser(auth.state, targetId);
         if (!target || !auth.state.sessions.some((session) => session.userId === targetId && Date.parse(session.expiresAt) > Date.now())) {
@@ -1020,6 +1040,7 @@ async function mountConnect({
           endedReason: null,
           deadline: Date.now() + CALL_RING_MS,
           sequences: new Map([[auth.user.id, 0], [targetId, 0]]),
+          signalHashes: new Map([[auth.user.id, new Map()], [targetId, new Map()]]),
         };
         activeCalls.set(call.id, call);
         io.to(`user:${targetId}`).emit("call.incoming", { eventId: crypto.randomUUID(), version: 1, call: callView(call, targetId) });
@@ -1091,10 +1112,27 @@ async function mountConnect({
         const signal = validateSignalPayload(payload);
         const auth = requireCall(socket, signal.callId);
         if (!["connecting", "active", "reconnecting"].includes(auth.call.state)) throw connectError("Signal несовместим с текущим состоянием.", "CALL_STATE_CONFLICT", 409, { currentState: auth.call.state });
+        const deviceId = sessionDeviceId(auth.session);
+        for (const [key, limit, windowMs] of [
+          [`signal-account:${auth.user.id}`, 240, 60_000],
+          [`signal-device:${auth.user.id}:${deviceId}`, 180, 60_000],
+          [`signal-call:${auth.call.id}:${auth.user.id}`, 64, 10_000],
+        ]) {
+          const rate = limiter.consume(key, limit, windowMs);
+          if (!rate.ok) throw connectError("Слишком много signaling событий.", "RATE_LIMITED", 429, { retryAfter: rate.retryAfter });
+        }
         const last = Number(auth.call.sequences.get(auth.user.id) || 0);
-        if (signal.sequence <= last) return acknowledge({ ok: true, duplicate: true, sequence: last });
+        const fingerprint = hash(JSON.stringify({ kind: signal.kind, data: signal.data }));
+        const signalHistory = auth.call.signalHashes.get(auth.user.id) || new Map();
+        auth.call.signalHashes.set(auth.user.id, signalHistory);
+        if (signal.sequence <= last) {
+          if (signalHistory.get(signal.sequence) === fingerprint) return acknowledge({ ok: true, duplicate: true, sequence: last });
+          throw connectError("Повтор sequence содержит другой signaling payload.", "CALL_STATE_CONFLICT", 409, { sequence: signal.sequence, acceptedSequence: last });
+        }
         if (signal.sequence !== last + 1) throw connectError("Нарушена последовательность signaling.", "CALL_STATE_CONFLICT", 409, { expectedSequence: last + 1 });
         auth.call.sequences.set(auth.user.id, signal.sequence);
+        signalHistory.set(signal.sequence, fingerprint);
+        while (signalHistory.size > MAX_SIGNAL_HISTORY) signalHistory.delete(signalHistory.keys().next().value);
         io.to(targetSessionRoom(auth.call, auth.user.id)).emit("call.signal", {
           eventId: crypto.randomUUID(),
           version: 1,
@@ -1177,6 +1215,7 @@ async function mountConnect({
 module.exports = {
   CALL_SIGNAL_KINDS,
   MAX_SIGNAL_BYTES,
+  MAX_SIGNAL_HISTORY,
   SlidingWindowLimiter,
   defaultPrivacy,
   mountConnect,

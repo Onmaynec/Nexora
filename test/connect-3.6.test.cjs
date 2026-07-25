@@ -10,7 +10,7 @@ const { after, before, test } = require("node:test");
 const request = require("supertest");
 const { io: createSocket } = require("socket.io-client");
 const { createNexoraServer } = require("../server/create-server-v31.cjs");
-const { MAX_SIGNAL_BYTES, SlidingWindowLimiter, validateSignalPayload } = require("../server/connect.cjs");
+const { MAX_SIGNAL_BYTES, MAX_SIGNAL_HISTORY, SlidingWindowLimiter, validateSignalPayload } = require("../server/connect.cjs");
 
 let instance;
 let directory;
@@ -53,6 +53,14 @@ async function register(label) {
   const account = { agent, user: response.body.user, cookie: cookieFrom(response), csrf: () => csrf };
   accounts.set(label, account);
   return account;
+}
+
+async function loginSession(account) {
+  let csrf = "";
+  const agent = browserAgent(request.agent(instance.app), () => csrf);
+  const response = await agent.post("/api/auth/login").send({ username: account.user.username, password: "ConnectTest123!" }).expect(200);
+  csrf = response.body.csrfToken;
+  return { agent, user: response.body.user, cookie: cookieFrom(response), csrf: () => csrf };
 }
 
 function socketFor(account) {
@@ -135,6 +143,7 @@ test("Connect signal validation and bounded limiter fail closed", () => {
   });
   assert.throws(() => validateSignalPayload({ callId: "call-12345678", sequence: 1, kind: "offer", data: { type: "offer", sdp: "" } }), /SDP/i);
   assert.throws(() => validateSignalPayload({ callId: "call-12345678", sequence: 1, kind: "ice", data: { candidate: "x".repeat(MAX_SIGNAL_BYTES) } }), /size|размер/i);
+  assert.equal(MAX_SIGNAL_HISTORY, 128);
   const limiter = new SlidingWindowLimiter();
   assert.equal(limiter.consume("user", 2, 1_000, 1).ok, true);
   assert.equal(limiter.consume("user", 2, 1_000, 2).ok, true);
@@ -206,6 +215,39 @@ test("privacy changes apply without reconnect and exact lastSeen stays scoped", 
   bobSocket.disconnect();
 });
 
+test("read receipts are filtered at serialization and realtime emission", async () => {
+  const alice = accounts.get("Alice");
+  const bob = accounts.get("Bob");
+  const bootstrap = await alice.agent.get("/api/bootstrap").expect(200);
+  const conversation = bootstrap.body.conversations.find((item) => item.type === "dm" && item.peer?.id === bob.user.id);
+  assert.ok(conversation);
+  const aliceSocket = socketFor(alice);
+  const bobSocket = socketFor(bob);
+  await Promise.all([once(aliceSocket, "connect"), once(bobSocket, "connect")]);
+
+  await bob.agent.patch("/api/v3/privacy").send({ presenceVisibility: "contacts", lastSeenVisibility: "approximate", readReceiptsVisibility: "nobody" }).expect(200);
+  const hiddenMessage = await emitAck(aliceSocket, "message:send", { conversationId: conversation.id, text: "hidden receipt", clientId: `hidden-${crypto.randomUUID()}` });
+  assert.equal(hiddenMessage.ok, true);
+  let leaked = false;
+  aliceSocket.once("conversation:read", () => { leaked = true; });
+  assert.equal((await emitAck(bobSocket, "conversation:read", { conversationId: conversation.id })).ok, true);
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  assert.equal(leaked, false);
+  const hiddenHistory = await alice.agent.get(`/api/conversations/${conversation.id}/messages`).expect(200);
+  assert.equal(hiddenHistory.body.messages.find((item) => item.id === hiddenMessage.message.id).readCount, 0);
+
+  await bob.agent.patch("/api/v3/privacy").send({ presenceVisibility: "contacts", lastSeenVisibility: "approximate", readReceiptsVisibility: "contacts" }).expect(200);
+  const visibleMessage = await emitAck(aliceSocket, "message:send", { conversationId: conversation.id, text: "visible receipt", clientId: `visible-${crypto.randomUUID()}` });
+  assert.equal(visibleMessage.ok, true);
+  const visibleEvent = once(aliceSocket, "conversation:read");
+  assert.equal((await emitAck(bobSocket, "conversation:read", { conversationId: conversation.id })).ok, true);
+  assert.equal((await visibleEvent).userId, bob.user.id);
+  const visibleHistory = await alice.agent.get(`/api/conversations/${conversation.id}/messages`).expect(200);
+  assert.equal(visibleHistory.body.messages.find((item) => item.id === visibleMessage.message.id).readCount, 1);
+  aliceSocket.disconnect();
+  bobSocket.disconnect();
+});
+
 test("call signaling is participant-bound, sequenced and uses short-lived TURN credentials", async () => {
   const alice = accounts.get("Alice");
   const bob = accounts.get("Bob");
@@ -225,6 +267,9 @@ test("call signaling is participant-bound, sequenced and uses short-lived TURN c
   assert.equal(thirdParty.ok, false);
   assert.equal(thirdParty.code, "RESOURCE_NOT_FOUND");
 
+  const secondaryAlice = await loginSession(alice);
+  await secondaryAlice.agent.post(`/api/v3/calls/${callId}/turn-credentials`).send({}).expect(403)
+    .expect((response) => assert.equal(response.body.code, "FORBIDDEN"));
   const credentials = await alice.agent.post(`/api/v3/calls/${callId}/turn-credentials`).send({}).expect(200);
   assert.equal(credentials.body.iceServers.length, 2);
   assert.ok(Date.parse(credentials.body.expiresAt) > Date.now());
@@ -241,6 +286,20 @@ test("call signaling is participant-bound, sequenced and uses short-lived TURN c
   const duplicate = await emitAck(aliceSocket, "call.signal", { callId, sequence: 1, kind: "offer", data: { type: "offer", sdp: "v=0\r\n" } });
   assert.equal(duplicate.ok, true);
   assert.equal(duplicate.duplicate, true);
+  const conflictingReplay = await emitAck(aliceSocket, "call.signal", { callId, sequence: 1, kind: "offer", data: { type: "offer", sdp: "v=0\r\no=changed" } });
+  assert.equal(conflictingReplay.ok, false);
+  assert.equal(conflictingReplay.code, "CALL_STATE_CONFLICT");
+
+  let rateLimited = null;
+  for (let sequence = 2; sequence <= 90; sequence += 1) {
+    const result = await emitAck(aliceSocket, "call.signal", { callId, sequence, kind: "ice", data: null });
+    if (!result.ok) {
+      rateLimited = result;
+      break;
+    }
+  }
+  assert.equal(rateLimited?.code, "RATE_LIMITED");
+  assert.ok(Number(rateLimited.details?.retryAfter) >= 1);
 
   await emitAck(aliceSocket, "call:end", { callId, reason: "test_complete" });
   aliceSocket.disconnect();

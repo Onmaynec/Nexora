@@ -1,2 +1,0 @@
-scope=session-bound-turn,signal-replay,signal-rate,read-receipt-visibility
-attempt=3
