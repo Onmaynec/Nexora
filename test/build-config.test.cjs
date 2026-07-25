@@ -107,6 +107,10 @@ test("релиз 3.5.0 публикует явно неподписанный Mo
   assert.match(releaseWorkflow, /docs\/releases\/\$version\/RELEASE_NOTES\.md/);
   assert.match(releaseWorkflow, /Immutable tag already points to another commit/);
   assert.match(releaseWorkflow, /Re-download and verify immutable release assets/);
+  assert.match(releaseWorkflow, /push:[\s\S]*branches:\s*\[main\]/);
+  assert.match(releaseWorkflow, /github\.event_name == 'push'/);
+  assert.match(releaseWorkflow, /startsWith\(github\.event\.head_commit\.message, 'release: Nexora 3\.5\.0'\)/);
+  assert.match(releaseWorkflow, /github\.sha/);
   assert.match(releaseWorkflow, /workflow_run:/);
   assert.match(releaseWorkflow, /startsWith\(github\.event\.workflow_run\.head_commit\.message, 'release: Nexora 3\.5\.0'\)/);
   assert.match(clientMain, /createUpdateService/);

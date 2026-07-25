@@ -1,6 +1,8 @@
 name: Nexora 3.5.0 unsigned stable release
 
 on:
+  push:
+    branches: [main]
   workflow_run:
     workflows: ["CI"]
     types: [completed]
@@ -23,7 +25,11 @@ jobs:
   release:
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
+      (github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'release: Nexora 3.5.0')) ||
+      (github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == 'main' &&
       startsWith(github.event.workflow_run.head_commit.message, 'release: Nexora 3.5.0'))
     runs-on: windows-latest
@@ -34,7 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.release_ref }}
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.event_name == 'workflow_dispatch' && inputs.release_ref || github.sha }}
           fetch-depth: 0
 
       - uses: actions/setup-node@v4
