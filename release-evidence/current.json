@@ -9,6 +9,8 @@
   "repository": "Onmaynec/Nexora",
   "branch": "release/3.6.0-connect",
   "baseline": "3.5.0",
+  "releaseWorkflow": ".github/workflows/release.yml",
+  "requiredEnvironment": "nexora-production-release",
   "publicationPolicy": {
     "prerelease": false,
     "latest": true,
@@ -37,11 +39,17 @@
   },
   "plannedAssets": [
     "Nexora-Client-Setup-3.6.0.exe",
+    "Nexora-Client-Setup-3.6.0.exe.blockmap",
+    "latest.yml",
     "Nexora-Server-Setup-3.6.0.exe",
+    "Nexora-Server-Setup-3.6.0.exe.blockmap",
+    "server.yml",
     "Nexora-Android-3.6.0.apk",
     "Nexora-PWA-3.6.0.zip",
     "Nexora-3.6.0-source.zip",
     "Nexora-3.6.0.spdx.json",
+    "WINDOWS-SIGNATURE-EVIDENCE.json",
+    "ANDROID-SIGNATURE-EVIDENCE.txt",
     "RELEASE-EVIDENCE.json",
     "SHA256SUMS.txt"
   ],
