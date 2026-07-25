@@ -10,14 +10,47 @@ const { encryptSecret, parseTokenKey } = require("../server/mobile-continuity.cj
 const { buildPushDelivery, createMobilePushService, decryptSecret } = require("../server/mobile-push-service.cjs");
 const { createPushGatewayTransport, isPrivateAddress, signGatewayRequest, validateGatewayConfig } = require("../server/push-gateway.cjs");
 
-test("push gateway rejects non-HTTPS and private targets", () => {
-  assert.equal(isPrivateAddress("127.0.0.1"), true);
-  assert.equal(isPrivateAddress("10.1.2.3"), true);
-  assert.equal(isPrivateAddress("::1"), true);
+test("push gateway rejects non-HTTPS, private, translated and reserved targets", () => {
+  for (const address of [
+    "127.0.0.1",
+    "10.1.2.3",
+    "100.64.0.1",
+    "169.254.1.1",
+    "172.16.0.1",
+    "192.0.2.1",
+    "192.168.1.1",
+    "198.51.100.1",
+    "203.0.113.1",
+    "::1",
+    "::ffff:127.0.0.1",
+    "::ffff:7f00:1",
+    "fc00::1",
+    "fe80::1",
+    "2001:db8::1",
+    "2002:0a00:0001::1",
+    "64:ff9b::7f00:1",
+  ]) assert.equal(isPrivateAddress(address), true, `${address} must be rejected`);
   assert.equal(isPrivateAddress("8.8.8.8"), false);
+  assert.equal(isPrivateAddress("2001:4860:4860::8888"), false);
   assert.throws(() => validateGatewayConfig({ url: "http://push.example.test/v1/deliver", secret: "s".repeat(32) }), /HTTPS/i);
   assert.throws(() => validateGatewayConfig({ url: "https://127.0.0.1/v1/deliver", secret: "s".repeat(32) }), /public address/i);
   assert.throws(() => validateGatewayConfig({ url: "https://push.example.test/v1/deliver", secret: "short" }), /32/);
+});
+
+test("push gateway rejects DNS answers when any target is private or reserved", async () => {
+  const transport = createPushGatewayTransport({
+    url: "https://push.example.test/v1/deliver",
+    secret: "gateway-shared-secret-that-is-long-enough",
+    lookup: async () => [
+      { address: "8.8.8.8", family: 4 },
+      { address: "127.0.0.1", family: 4 },
+    ],
+    requestFactory() { throw new Error("request must not start"); },
+  });
+  await assert.rejects(
+    transport.send({ provider: "fcm", token: "provider-token-that-is-long-enough", installationId: "installation-12345678" }),
+    (error) => error.code === "PUSH_GATEWAY_PRIVATE_TARGET" && error.permanent === true,
+  );
 });
 
 test("push gateway pins DNS, signs the exact body and accepts a bounded response", async () => {
@@ -106,8 +139,7 @@ function createMemoryStore(state, subscriptions, eventEmitter) {
   };
 }
 
-test("mobile push dispatch is policy-aware, durable and generic by default", async () => {
-  const now = new Date("2026-07-25T12:00:00.000Z");
+function pushFixture(now = new Date("2026-07-25T12:00:00.000Z")) {
   const state = {
     meta: { lastEventSequence: 0 },
     settings: { eventRetentionLimit: 1_000 },
@@ -143,7 +175,6 @@ test("mobile push dispatch is policy-aware, durable and generic by default", asy
     payload: { messageId: message.id, type: "text", silent: false },
     createdAt: now.toISOString(),
   });
-
   const keySource = "mobile-push-roundtrip-key-that-is-long-enough";
   const key = parseTokenKey(keySource);
   const providerToken = "provider-token-that-must-only-reach-the-gateway";
@@ -158,6 +189,12 @@ test("mobile push dispatch is policy-aware, durable and generic by default", asy
     preview_policy: "generic",
     revoked_at: null,
   }];
+  return { state, message, event, keySource, key, providerToken, subscriptions };
+}
+
+test("mobile push dispatch is policy-aware, durable and generic by default", async () => {
+  const now = new Date("2026-07-25T12:00:00.000Z");
+  const { state, message, event, keySource, key, providerToken, subscriptions } = pushFixture(now);
   assert.equal(decryptSecret(subscriptions[0].token_ciphertext, key), providerToken);
 
   const emitted = new EventEmitter();
@@ -191,6 +228,43 @@ test("mobile push dispatch is policy-aware, durable and generic by default", asy
   assert.ok(state.meta.mobilePushDispatch[event.id].completedAt);
   assert.equal(state.meta.mobilePushDispatch[event.id].subscriptions[subscriptions[0].id].status, "delivered");
   await service.close();
+});
+
+test("mobile push activation is persisted and graceful close waits for an in-flight delivery", async () => {
+  const now = new Date("2026-07-25T12:00:00.000Z");
+  const { state, keySource, subscriptions } = pushFixture(now);
+  const emitted = new EventEmitter();
+  const store = createMemoryStore(state, subscriptions, emitted);
+  let releaseDelivery;
+  const enteredDelivery = new Promise((resolve) => { releaseDelivery = { entered: resolve, finish: null }; });
+  const transport = {
+    configured: true,
+    status: () => ({ configured: true, endpointHost: "push.example.test" }),
+    send() {
+      releaseDelivery.entered();
+      return new Promise((resolve) => { releaseDelivery.finish = resolve; });
+    },
+  };
+  const service = createMobilePushService({
+    store,
+    events: emitted,
+    serverId: "server-12345678",
+    pushTokenKey: keySource,
+    transport,
+    clock: () => new Date(now),
+  });
+  await service.start();
+  assert.equal(state.meta.mobilePushActivatedAt, now.toISOString());
+  const draining = service.drain();
+  await enteredDelivery;
+  let closed = false;
+  const closing = service.close().then(() => { closed = true; });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(closed, false);
+  releaseDelivery.finish({ ok: true });
+  await Promise.all([draining, closing]);
+  assert.equal(closed, true);
+  assert.equal(service.status().closed, true);
 });
 
 test("full preview is only produced for an explicitly selected subscription policy", () => {
