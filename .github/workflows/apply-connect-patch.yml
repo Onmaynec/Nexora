@@ -28,71 +28,40 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: release/3.6.0-connect
-          fetch-depth: 0
+          fetch-depth: 1
+          show-progress: false
 
-      - name: Diagnose and reconstruct implementation archive
-        id: archive
+      - name: Diagnose implementation archive
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
-          import base64, hashlib, json, pathlib, tarfile
-          directory = pathlib.Path('.connect-patch')
-          chunks = sorted(directory.glob('[0-9][0-9]'))
-          report = {
-              'chunks': [{'name': item.name, 'bytes': len(item.read_bytes()), 'sha256': hashlib.sha256(item.read_bytes()).hexdigest()} for item in chunks],
-              'expectedNames': ['00', '01', '02', '03', '04'],
-              'expectedPayloadBytes': 48788,
-              'expectedArchiveSha256': '2e2d9fda348eae0584344a2ff01e044b4c9b0f04dcef1ac59e45fe899b4918c6',
+          import base64, hashlib, json, pathlib
+          expected = {
+              '00': (12000, 'c5bc1338d15bd6b6a3bd24c8b8517d72a05a76cc7681318e1886d256239742d7'),
+              '01': (12000, 'c6f7a01ae01f24aad91e24a5297afa7f2c13f9f8657a77f3a9f5d5e5008e2bb6'),
+              '02': (12000, '44fd977395650cd974999f3a2f364d76899ef10ecbc92c553cde82e725f69d13'),
+              '03': (12000, '21e29f150a88476401757db4123bfb31965638e3ddb71a6d1ebabd16be38f294'),
+              '04': (788, 'd558062ebd5d509982cc0f4287a94faa1233f020493202ae451d2ee29d05e98f'),
           }
+          report = {}
+          for name, (size, digest) in expected.items():
+              data = pathlib.Path('.connect-patch', name).read_bytes()
+              report[name] = {
+                  'actualBytes': len(data), 'expectedBytes': size,
+                  'actualSha256': hashlib.sha256(data).hexdigest(), 'expectedSha256': digest,
+              }
+          payload = ''.join(pathlib.Path('.connect-patch', name).read_text(encoding='utf-8').strip() for name in expected)
+          report['payloadBytes'] = len(payload)
           try:
-              payload = ''.join(item.read_text(encoding='utf-8').strip() for item in chunks)
-              report['payloadBytes'] = len(payload)
               archive = base64.b64decode(payload, validate=True)
               report['archiveBytes'] = len(archive)
               report['archiveSha256'] = hashlib.sha256(archive).hexdigest()
-              pathlib.Path('/tmp/connect-patch.tgz').write_bytes(archive)
-              with tarfile.open('/tmp/connect-patch.tgz', 'r:gz') as package:
-                  report['members'] = package.getnames()
-              report['valid'] = (
-                  [item.name for item in chunks] == report['expectedNames']
-                  and report['payloadBytes'] == report['expectedPayloadBytes']
-                  and report['archiveSha256'] == report['expectedArchiveSha256']
-              )
           except Exception as error:
-              report['valid'] = False
-              report['error'] = f'{type(error).__name__}: {error}'
-          pathlib.Path('.connect-patch-diagnostics.json').write_text(json.dumps(report, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
-          print(json.dumps(report, indent=2, ensure_ascii=False))
-          with pathlib.Path('/tmp/archive-valid').open('w', encoding='utf-8') as output:
-              output.write('1' if report['valid'] else '0')
+              report['decodeError'] = f'{type(error).__name__}: {error}'
+          print('CONNECT_ARCHIVE_DIAGNOSTICS=' + json.dumps(report, sort_keys=True))
+          valid = all(item['actualBytes'] == item['expectedBytes'] and item['actualSha256'] == item['expectedSha256'] for key, item in report.items() if key in expected)
+          assert valid, report
+          assert report.get('payloadBytes') == 48788, report
+          assert report.get('archiveSha256') == '2e2d9fda348eae0584344a2ff01e044b4c9b0f04dcef1ac59e45fe899b4918c6', report
           PY
-          echo "valid=$(cat /tmp/archive-valid)" >> "$GITHUB_OUTPUT"
-
-      - name: Apply and validate implementation
-        if: steps.archive.outputs.valid == '1'
-        shell: bash
-        run: |
-          set -euo pipefail
-          tar -xzf /tmp/connect-patch.tgz
-          node --check server/connect.cjs
-          node --check server/connect-schema10.cjs
-          node --check server/create-server-v31.cjs
-          node --check test/connect-3.6.test.cjs
-          rm -rf .connect-patch .connect-patch-diagnostics.json
-          rm -f .github/workflows/apply-connect-patch.yml
-
-      - name: Commit result
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "nexora-release-bot"
-          git config user.email "nexora-release-bot@users.noreply.github.com"
-          git add -A
-          git diff --cached --check
-          if [[ "${{ steps.archive.outputs.valid }}" == "1" ]]; then
-            git commit -m "feat(connect): implement Nexora 3.6.0 core"
-          else
-            git commit -m "chore(connect): record archive diagnostics"
-          fi
-          git push origin HEAD:release/3.6.0-connect
