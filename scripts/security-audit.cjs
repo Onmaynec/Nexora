@@ -12,6 +12,8 @@ const server = read("server/create-server.cjs");
 const composition = read("server/create-server-v31.cjs");
 const stableCore = read("server/stable-core.cjs");
 const mobileContinuity = read("server/mobile-continuity.cjs");
+const mobilePush = read("server/mobile-push-service.cjs");
+const pushGateway = read("server/push-gateway.cjs");
 const mobileSchema = read("server/mobile-continuity-schema9.cjs");
 const v3 = read("server/v3-features.cjs");
 const model = read("server/model.cjs");
@@ -29,6 +31,7 @@ const outbox = read("client/src/outbox.js");
 const rateLimit = read("server/rate-limit.cjs");
 const android = read("android/app/src/main/java/com/nexora/mobile/MainActivity.kt");
 const androidManifest = read("android/app/src/main/AndroidManifest.xml");
+const androidBuild = read("android/app/build.gradle.kts");
 const serviceWorker = read("client/public/sw.js");
 const releaseWorkflow = read(".github/workflows/release.yml");
 
@@ -82,6 +85,10 @@ const checks = [
   ["Regular uploads sniff actual media type", containsAll(v3, ["sniffMime", "FILE_TYPE_MISMATCH", "x-chunk-sha256", "UPLOAD_CHUNK_HASH"]), "boolean"],
   ["Resumable uploads verify confirmed offset, hash, MIME and room policy", containsAll(mobileContinuity, ["UPLOAD_OFFSET_MISMATCH", "expected_sha256", "sniffMime", "postingError", "confirmed_offset", "POLICY_RESTRICTED"]), "boolean"],
   ["Push tokens are encrypted and never returned as plaintext", containsAll(mobileContinuity, ["aes-256-gcm", "token_ciphertext", "token_hash", "tokenPlaintextStored: false"]) && !/token_ciphertext\s*[:,]\s*row\.token_ciphertext/.test(mobileContinuity), "boolean"],
+  ["Push gateway is HTTPS-only, DNS-pinned and rejects private targets", containsAll(pushGateway, ["PUSH_GATEWAY_HTTPS_REQUIRED", "PUSH_GATEWAY_PRIVATE_TARGET", "resolvePinnedAddress", "rejectUnauthorized: true", "lookup:"]) && !pushGateway.includes("rejectUnauthorized: false"), "boolean"],
+  ["Push gateway requests are HMAC authenticated and bounded", containsAll(pushGateway, ["createHmac(\"sha256\"", "X-Nexora-Timestamp", "X-Nexora-Signature", "MAX_RESPONSE_BYTES", "PUSH_GATEWAY_RESPONSE_TOO_LARGE"]), "boolean"],
+  ["Push dispatch is policy-aware, durable and revokes invalid tokens", containsAll(mobilePush, ["notificationAllowed", "mobilePushDispatch", "nextAttemptAt", "PUSH_TOKEN_INVALID", "PUSH_TOKEN_DECRYPT_FAILED", "revoked_at=COALESCE"]), "boolean"],
+  ["Default push preview does not include message plaintext", containsAll(mobilePush, ["let body = \"Новое сообщение\"", "policy === \"full\""]) && !/let body\s*=\s*message\.text/.test(mobilePush), "boolean"],
   ["Offline data is isolated by server and account", containsAll(offlineStore, ["serverId", "userId", "CACHE_SCOPE_MISMATCH"]) || (containsAll(offlineStore, ["serverId", "userId"]) && outbox.includes("CACHE_SCOPE_MISMATCH")), "boolean"],
   ["PWA excludes API and Socket responses from public cache", containsAll(serviceWorker, ["/api/", "/socket.io/", "Cache-Control", "Set-Cookie"]), "boolean"],
   ["Client updater requires Windows signature verification", /verifyUpdateCodeSignature:\s*true/, clientBuilder],
@@ -91,20 +98,24 @@ const checks = [
   ["Android cleartext disabled", /usesCleartextTraffic="false"/, androidManifest],
   ["Android TLS errors are cancelled", /onReceivedSslError[\s\S]*handler\.cancel\(\)/, android],
   ["Android never bypasses TLS errors", !/handler\.proceed\(\)/.test(android), "boolean"],
-  ["Official 3.5.0 release is signed-only and externally gated", containsAll(releaseWorkflow, [
+  ["Android stable build fails closed without release signing", containsAll(androidBuild, ["nexoraRequireSigning", "NEXORA_ANDROID_KEYSTORE_PATH", "enableV2Signing = true", "enableV3Signing = true", "throw GradleException"]), "boolean"],
+  ["Official 3.5.0 release is dual-signed and externally gated", containsAll(releaseWorkflow, [
     "This workflow publishes only Nexora 3.5.0",
-    "Verify required 3.4.0 baseline",
+    "Verify required signed 3.4.0 baseline",
     "Verify independent review and Windows acceptance evidence",
     "Verify Android and PWA acceptance evidence",
-    "Require complete Authenticode policy",
+    "Require complete Windows and Android signing policy",
     "Build and verify signed Windows assets",
+    ":app:assembleRelease",
+    "apksigner.bat",
+    "Android signer SHA-256 digest mismatch",
     "verify-authenticode.ps1",
     "latest.yml",
     "server.yml",
   ]) && !containsAll(releaseWorkflow, [
     "Build explicitly unsigned Windows test assets",
     "UNSIGNED-TEST prerelease without updater metadata",
-  ]), "boolean"],
+  ]) && !releaseWorkflow.includes("Nexora-Android-$version-UNSIGNED-TEST.apk"), "boolean"],
   ["No native SQLite dependency", !/better-sqlite3/.test(read("package.json")), "boolean"],
 ];
 
