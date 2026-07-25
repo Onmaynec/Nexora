@@ -6,6 +6,11 @@ on:
     paths:
       - '.connect-patch/**'
       - '.github/workflows/apply-connect-patch.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.connect-patch/**'
+      - '.github/workflows/apply-connect-patch.yml'
 
 permissions:
   contents: write
@@ -16,6 +21,7 @@ concurrency:
 
 jobs:
   apply:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
