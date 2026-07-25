@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, release/3.6.0-connect]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -14,66 +14,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # CONNECT_FINALIZATION_JOB_START
-  finalize-connect-source:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/release/3.6.0-connect'
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: release/3.6.0-connect
-          fetch-depth: 0
-          show-progress: false
-      - name: Detect finalization marker
-        id: marker
-        shell: bash
-        run: |
-          if test -f .connect-finalization/READY; then
-            echo 'run=true' >> "$GITHUB_OUTPUT"
-          else
-            echo 'run=false' >> "$GITHUB_OUTPUT"
-          fi
-      - uses: actions/setup-node@v4
-        if: steps.marker.outputs.run == 'true'
-        with:
-          node-version: 22.16.0
-          cache: npm
-      - if: steps.marker.outputs.run == 'true'
-        run: npm ci
-      - name: Apply final source gates
-        if: steps.marker.outputs.run == 'true'
-        run: node scripts/apply-connect-finalization.cjs
-      - name: Validate final source gates
-        if: steps.marker.outputs.run == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          node --check server/connect.cjs
-          node --check server/model.cjs
-          node --check server/create-server.cjs
-          node --check scripts/check-release-consistency.cjs
-          node --check test/connect-3.6.test.cjs
-          node --check test/release-consistency.test.cjs
-          npm run release:consistency
-          npm run check
-          node --test --test-concurrency=1 test/release-consistency.test.cjs test/connect-3.6.test.cjs test/build-config.test.cjs test/release-3.2.5-regressions.test.cjs test/release-3.3.0-regressions.test.cjs
-      - name: Commit verified finalization
-        if: steps.marker.outputs.run == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -f scripts/apply-connect-finalization.cjs
-          git config user.name 'nexora-release-bot'
-          git config user.email 'nexora-release-bot@users.noreply.github.com'
-          git add -A
-          git diff --cached --check
-          git commit -m 'fix(connect): finalize release and client lifecycle gates'
-          git push origin HEAD:release/3.6.0-connect
-  # CONNECT_FINALIZATION_JOB_END
-
   verify:
     runs-on: windows-latest
     timeout-minutes: 25
@@ -200,7 +140,7 @@ jobs:
         if: steps.security.outcome == 'failure'
         run: exit 1
 
-  schema9-soak:
+  schema10-soak:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -210,7 +150,7 @@ jobs:
           node-version: 22.16.0
           cache: npm
       - run: npm ci
-      - name: Run schema 9 soak with retained diagnostics
+      - name: Run schema 10 soak with retained diagnostics
         id: soak
         continue-on-error: true
         shell: bash
@@ -219,21 +159,21 @@ jobs:
           NEXORA_SOAK_INTERVAL_MS: "500"
         run: |
           set +e
-          log="$RUNNER_TEMP/schema9-soak.log"
+          log="$RUNNER_TEMP/schema10-soak.log"
           npm run test:soak > "$log" 2>&1
           status=$?
           cat "$log"
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit "$status"
-      - name: Upload schema 9 soak diagnostics
+      - name: Upload schema 10 soak diagnostics
         if: steps.soak.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
-          name: schema9-soak-failures
-          path: ${{ runner.temp }}/schema9-soak.log
+          name: schema10-soak-failures
+          path: ${{ runner.temp }}/schema10-soak.log
           if-no-files-found: error
           retention-days: 2
-      - name: Enforce schema 9 soak
+      - name: Enforce schema 10 soak
         if: steps.soak.outcome == 'failure'
         run: exit 1
 
