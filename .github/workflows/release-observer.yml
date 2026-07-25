@@ -5,7 +5,7 @@ on:
     types: [created]
 
 permissions:
-  actions: read
+  actions: write
   issues: write
   pull-requests: write
 
@@ -14,11 +14,12 @@ jobs:
     if: >-
       github.event.issue.number == 101 &&
       (github.event.comment.body == '/nexora-release-status' ||
-      startsWith(github.event.comment.body, '/nexora-release-log '))
+      startsWith(github.event.comment.body, '/nexora-release-log ') ||
+      startsWith(github.event.comment.body, '/nexora-release-cancel '))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Report 3.5.0 publication status or failed log
+      - name: Report or control 3.5.0 publication run
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
@@ -46,6 +47,14 @@ jobs:
           print('\n'.join(lines))
           PY
             )"
+          elif [[ "$COMMAND" == /nexora-release-cancel\ * ]]; then
+            run_id="${COMMAND#'/nexora-release-cancel '}"
+            if [[ ! "$run_id" =~ ^[0-9]+$ ]]; then
+              echo "Invalid run ID" >&2
+              exit 1
+            fi
+            gh run cancel "$run_id" --repo "$GITHUB_REPOSITORY"
+            body="Cancelled duplicate Nexora 3.5.0 release run \`$run_id\` to preserve the already verified published assets."
           else
             run_id="${COMMAND#'/nexora-release-log '}"
             if [[ ! "$run_id" =~ ^[0-9]+$ ]]; then
