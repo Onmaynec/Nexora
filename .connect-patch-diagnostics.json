@@ -1,0 +1,41 @@
+{
+  "chunks": [
+    {
+      "name": "00",
+      "bytes": 11999,
+      "sha256": "56fb302cd4206791f0b2fb73f5f525e2b8859c5fcce4f7af968474284b56bc02"
+    },
+    {
+      "name": "01",
+      "bytes": 12000,
+      "sha256": "c6f7a01ae01f24aad91e24a5297afa7f2c13f9f8657a77f3a9f5d5e5008e2bb6"
+    },
+    {
+      "name": "02",
+      "bytes": 12000,
+      "sha256": "b24e464d0e46a5bf6999c87090f15673d7735ecbe47ce7a833a83a13682750b1"
+    },
+    {
+      "name": "03",
+      "bytes": 12000,
+      "sha256": "21e29f150a88476401757db4123bfb31965638e3ddb71a6d1ebabd16be38f294"
+    },
+    {
+      "name": "04",
+      "bytes": 796,
+      "sha256": "c886a28c23859864e94cf817418042eb72e979ddde91f9655507fac7f2b25f36"
+    }
+  ],
+  "expectedNames": [
+    "00",
+    "01",
+    "02",
+    "03",
+    "04"
+  ],
+  "expectedPayloadBytes": 48788,
+  "expectedArchiveSha256": "2e2d9fda348eae0584344a2ff01e044b4c9b0f04dcef1ac59e45fe899b4918c6",
+  "payloadBytes": 48795,
+  "valid": false,
+  "error": "Error: Incorrect padding"
+}
