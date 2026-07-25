@@ -1,0 +1,277 @@
+"use strict";
+
+const assert = require("node:assert/strict");
+const crypto = require("node:crypto");
+const fs = require("node:fs/promises");
+const os = require("node:os");
+const path = require("node:path");
+const { after, before, test } = require("node:test");
+
+const request = require("supertest");
+const { io: createSocket } = require("socket.io-client");
+const { createNexoraServer } = require("../server/create-server-v31.cjs");
+const { MAX_SIGNAL_BYTES, SlidingWindowLimiter, validateSignalPayload } = require("../server/connect.cjs");
+
+let instance;
+let directory;
+let baseUrl;
+const accounts = new Map();
+
+function browserAgent(agent, csrf) {
+  return new Proxy(agent, {
+    get(target, property) {
+      if (typeof target[property] !== "function") return target[property];
+      return (...args) => {
+        const builder = target[property](...args)
+          .set("X-Nexora-Client-Version", "3.6.0")
+          .set("X-Nexora-Device-ID", `connect-test-${String(property).padEnd(8, "0")}`)
+          .set("X-Nexora-Device-Name", "Connect Test")
+          .set("X-Nexora-Platform", "web");
+        if (["post", "put", "patch", "delete"].includes(property)) {
+          const token = csrf();
+          if (token) builder.set("X-Nexora-CSRF", token);
+        }
+        return builder;
+      };
+    },
+  });
+}
+
+function cookieFrom(response) {
+  return response.headers["set-cookie"][0].split(";")[0];
+}
+
+async function register(label) {
+  let csrf = "";
+  const agent = browserAgent(request.agent(instance.app), () => csrf);
+  const response = await agent.post("/api/auth/register").send({
+    displayName: label,
+    username: `${label.toLowerCase().replace(/[^a-z0-9]/g, "")}_${crypto.randomBytes(3).toString("hex")}`,
+    password: "ConnectTest123!",
+  }).expect(201);
+  csrf = response.body.csrfToken;
+  const account = { agent, user: response.body.user, cookie: cookieFrom(response), csrf: () => csrf };
+  accounts.set(label, account);
+  return account;
+}
+
+function socketFor(account) {
+  return createSocket(baseUrl, {
+    transports: ["websocket"],
+    auth: { clientVersion: "3.6.0" },
+    extraHeaders: {
+      Cookie: account.cookie,
+      "X-Nexora-Client-Version": "3.6.0",
+      "X-Nexora-Device-ID": `socket-${account.user.id}`,
+    },
+  });
+}
+
+function once(socket, event, timeoutMs = 5_000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      socket.off(event, handler);
+      reject(new Error(`Timeout waiting for ${event}`));
+    }, timeoutMs);
+    const handler = (value) => {
+      clearTimeout(timer);
+      resolve(value);
+    };
+    socket.once(event, handler);
+  });
+}
+
+function emitAck(socket, event, payload, timeoutMs = 5_000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`Timeout acknowledging ${event}`)), timeoutMs);
+    socket.emit(event, payload, (value) => {
+      clearTimeout(timer);
+      resolve(value);
+    });
+  });
+}
+
+async function connectContacts(from, to) {
+  const created = await from.agent.post("/api/v3/contacts/requests")
+    .set("Idempotency-Key", `request-${crypto.randomUUID()}`)
+    .send({ userId: to.user.id })
+    .expect(201);
+  await to.agent.patch(`/api/v3/contacts/requests/${created.body.contactRequest.id}`)
+    .set("Idempotency-Key", `accept-${crypto.randomUUID()}`)
+    .send({ action: "accept" })
+    .expect(200);
+}
+
+before(async () => {
+  directory = await fs.mkdtemp(path.join(os.tmpdir(), "nexora-connect-"));
+  const clientDir = path.join(directory, "client-dist");
+  await fs.mkdir(clientDir, { recursive: true });
+  await fs.writeFile(path.join(clientDir, "index.html"), "<!doctype html><div id=\"root\"></div>");
+  instance = await createNexoraServer({
+    dataDir: directory,
+    clientDir,
+    tls: false,
+    redirect: false,
+    port: 0,
+    host: "127.0.0.1",
+    quiet: true,
+    pushTokenKey: "connect-test-push-token-key-that-is-long-enough",
+    turnSecret: "connect-test-turn-secret-that-is-long-enough",
+    turnUrls: ["stun:stun.example.test:3478", "turn:turn.example.test:3478?transport=udp"],
+    turnTtlSeconds: 120,
+  });
+  const status = await instance.listen();
+  baseUrl = `http://127.0.0.1:${status.port}`;
+});
+
+after(async () => {
+  await instance.close();
+  await fs.rm(directory, { recursive: true, force: true });
+});
+
+test("Connect signal validation and bounded limiter fail closed", () => {
+  assert.deepEqual(validateSignalPayload({ callId: "call-12345678", sequence: 1, kind: "ice", data: null }), {
+    callId: "call-12345678", sequence: 1, kind: "ice", data: null,
+  });
+  assert.throws(() => validateSignalPayload({ callId: "call-12345678", sequence: 1, kind: "offer", data: { type: "offer", sdp: "" } }), /SDP/i);
+  assert.throws(() => validateSignalPayload({ callId: "call-12345678", sequence: 1, kind: "ice", data: { candidate: "x".repeat(MAX_SIGNAL_BYTES) } }), /size|размер/i);
+  const limiter = new SlidingWindowLimiter();
+  assert.equal(limiter.consume("user", 2, 1_000, 1).ok, true);
+  assert.equal(limiter.consume("user", 2, 1_000, 2).ok, true);
+  assert.equal(limiter.consume("user", 2, 1_000, 3).ok, false);
+});
+
+test("schema 10 migration and Connect status are active", async () => {
+  const status = instance.status();
+  assert.equal(status.schemaVersion, 10);
+  assert.equal(status.connect.contacts, true);
+  assert.equal(status.connect.privacyPresence, true);
+  assert.equal(status.connect.directCalls, true);
+  assert.equal(instance.store.db.prepare("SELECT value FROM meta WHERE key='schema_version'").get().value, "10");
+  for (const table of ["connect_privacy", "connect_call_history", "connect_idempotency", "connect_audit"]) {
+    assert.equal(instance.store.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(table).name, table);
+  }
+});
+
+test("contact mutations require CSRF and idempotency", async () => {
+  const alice = await register("Alice");
+  const bob = await register("Bob");
+  await request(instance.app).post("/api/v3/contacts/requests")
+    .set("Cookie", alice.cookie)
+    .set("X-Nexora-Client-Version", "3.6.0")
+    .set("Idempotency-Key", "csrf-bypass-test-1234")
+    .send({ userId: bob.user.id })
+    .expect(403)
+    .expect((response) => assert.equal(response.body.code, "CSRF_INVALID"));
+
+  const key = `contact-${crypto.randomUUID()}`;
+  const first = await alice.agent.post("/api/v3/contacts/requests").set("Idempotency-Key", key).send({ userId: bob.user.id }).expect(201);
+  const duplicate = await alice.agent.post("/api/v3/contacts/requests").set("Idempotency-Key", key).send({ userId: bob.user.id }).expect(201);
+  assert.equal(duplicate.body.duplicate, true);
+  assert.equal(duplicate.body.contactRequest.id, first.body.contactRequest.id);
+});
+
+test("concurrent accept and cancel resolve deterministically", async () => {
+  const alice = accounts.get("Alice");
+  const bob = accounts.get("Bob");
+  const bootstrap = await bob.agent.get("/api/bootstrap").expect(200);
+  const pending = bootstrap.body.contactRequests.find((item) => item.direction === "incoming");
+  assert.ok(pending);
+  const results = await Promise.all([
+    bob.agent.patch(`/api/v3/contacts/requests/${pending.id}`).set("Idempotency-Key", `accept-${crypto.randomUUID()}`).send({ action: "accept" }),
+    alice.agent.patch(`/api/v3/contacts/requests/${pending.id}`).set("Idempotency-Key", `cancel-${crypto.randomUUID()}`).send({ action: "cancel" }),
+  ]);
+  assert.deepEqual(results.map((value) => value.status).sort(), [200, 409]);
+  const state = instance.store.read();
+  const requestItem = state.contactRequests.find((item) => item.id === pending.id);
+  assert.ok(["accepted", "cancelled"].includes(requestItem.status));
+  if (requestItem.status === "accepted") assert.equal(state.contacts.some((item) => [item.userAId, item.userBId].includes(alice.user.id) && [item.userAId, item.userBId].includes(bob.user.id)), true);
+  else await connectContacts(alice, bob);
+});
+
+test("privacy changes apply without reconnect and exact lastSeen stays scoped", async () => {
+  const alice = accounts.get("Alice");
+  const bob = accounts.get("Bob");
+  const aliceSocket = socketFor(alice);
+  const bobSocket = socketFor(bob);
+  await Promise.all([once(aliceSocket, "connect"), once(bobSocket, "connect")]);
+  const changed = once(aliceSocket, "presence.changed");
+  await bob.agent.patch("/api/v3/privacy").send({ presenceVisibility: "nobody", lastSeenVisibility: "hidden", readReceiptsVisibility: "nobody" }).expect(200);
+  const payload = await changed;
+  assert.equal(payload.states.some((item) => item.userId === bob.user.id), false);
+  const stored = instance.store.db.prepare("SELECT * FROM connect_privacy WHERE user_id=?").get(bob.user.id);
+  assert.equal(stored.presence_visibility, "nobody");
+  assert.equal(stored.last_seen_visibility, "hidden");
+  aliceSocket.disconnect();
+  bobSocket.disconnect();
+});
+
+test("call signaling is participant-bound, sequenced and uses short-lived TURN credentials", async () => {
+  const alice = accounts.get("Alice");
+  const bob = accounts.get("Bob");
+  const mallory = await register("Mallory");
+  const aliceSocket = socketFor(alice);
+  const bobSocket = socketFor(bob);
+  const mallorySocket = socketFor(mallory);
+  await Promise.all([once(aliceSocket, "connect"), once(bobSocket, "connect"), once(mallorySocket, "connect")]);
+
+  const callId = crypto.randomUUID();
+  const incoming = once(bobSocket, "call.incoming");
+  const started = await emitAck(aliceSocket, "call:start", { callId, targetUserId: bob.user.id });
+  assert.equal(started.ok, true);
+  assert.equal((await incoming).call.callId, callId);
+
+  const thirdParty = await emitAck(mallorySocket, "call.signal", { callId, sequence: 1, kind: "ice", data: null });
+  assert.equal(thirdParty.ok, false);
+  assert.equal(thirdParty.code, "RESOURCE_NOT_FOUND");
+
+  const credentials = await alice.agent.post(`/api/v3/calls/${callId}/turn-credentials`).send({}).expect(200);
+  assert.equal(credentials.body.iceServers.length, 2);
+  assert.ok(Date.parse(credentials.body.expiresAt) > Date.now());
+  assert.equal(JSON.stringify(credentials.body).includes("connect-test-turn-secret"), false);
+
+  const answer = await emitAck(bobSocket, "call:answer", { callId });
+  assert.equal(answer.ok, true);
+  const malformed = await emitAck(aliceSocket, "call.signal", { callId, sequence: 1, kind: "offer", data: { type: "offer", sdp: "" } });
+  assert.equal(malformed.ok, false);
+  assert.equal(malformed.code, "VALIDATION_FAILED");
+
+  const accepted = await emitAck(aliceSocket, "call.signal", { callId, sequence: 1, kind: "offer", data: { type: "offer", sdp: "v=0\r\n" } });
+  assert.equal(accepted.ok, true);
+  const duplicate = await emitAck(aliceSocket, "call.signal", { callId, sequence: 1, kind: "offer", data: { type: "offer", sdp: "v=0\r\n" } });
+  assert.equal(duplicate.ok, true);
+  assert.equal(duplicate.duplicate, true);
+
+  await emitAck(aliceSocket, "call:end", { callId, reason: "test_complete" });
+  aliceSocket.disconnect();
+  bobSocket.disconnect();
+  mallorySocket.disconnect();
+});
+
+test("block immediately terminates calls and prevents REST or stale-socket bypass", async () => {
+  const alice = accounts.get("Alice");
+  const bob = accounts.get("Bob");
+  await bob.agent.patch("/api/v3/privacy").send({ presenceVisibility: "contacts", lastSeenVisibility: "approximate", readReceiptsVisibility: "contacts" }).expect(200);
+  const aliceSocket = socketFor(alice);
+  const bobSocket = socketFor(bob);
+  await Promise.all([once(aliceSocket, "connect"), once(bobSocket, "connect")]);
+  const callId = crypto.randomUUID();
+  await emitAck(aliceSocket, "call:start", { callId, targetUserId: bob.user.id });
+  const terminal = once(aliceSocket, "call.state_changed");
+  await bob.agent.post(`/api/v3/blocks/${alice.user.id}`).send({}).expect(201);
+  let event = await terminal;
+  if (event.call.state === "ringing") event = await once(aliceSocket, "call.state_changed");
+  assert.equal(event.call.state, "failed");
+  assert.equal(event.call.reason, "blocked");
+
+  const bypass = await emitAck(aliceSocket, "call.signal", { callId, sequence: 1, kind: "ice", data: null });
+  assert.equal(bypass.ok, false);
+  assert.ok(["CONTACT_BLOCKED", "RESOURCE_NOT_FOUND"].includes(bypass.code));
+  await alice.agent.post("/api/v3/contacts/requests").set("Idempotency-Key", `blocked-${crypto.randomUUID()}`).send({ userId: bob.user.id }).expect(403)
+    .expect((response) => assert.equal(response.body.code, "CONTACT_BLOCKED"));
+
+  const history = await alice.agent.get("/api/v3/calls/history").expect(200);
+  assert.equal(history.body.calls.some((item) => item.callId === callId && item.outcome === "blocked"), true);
+  aliceSocket.disconnect();
+  bobSocket.disconnect();
+});
