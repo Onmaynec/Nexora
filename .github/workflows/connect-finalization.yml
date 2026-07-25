@@ -5,12 +5,26 @@ on:
     branches: [release/3.6.0-connect]
     paths:
       - '.connect-finalization/READY'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.connect-finalization/READY'
+      - '.github/workflows/connect-finalization.yml'
+      - '.github/workflows/ci.yml'
+      - 'scripts/apply-connect-finalization.cjs'
 
 permissions:
   contents: write
 
+concurrency:
+  group: connect-finalization-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   finalize:
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/release/3.6.0-connect') ||
+      (github.event_name == 'pull_request' && github.head_ref == 'release/3.6.0-connect')
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -38,13 +52,11 @@ jobs:
           node --check test/release-consistency.test.cjs
           npm run release:consistency
           npm run check
-          node --test --test-concurrency=1 test/release-consistency.test.cjs test/connect-3.6.test.cjs test/build-config.test.cjs
+          node --test --test-concurrency=1 test/release-consistency.test.cjs test/connect-3.6.test.cjs test/build-config.test.cjs test/release-3.2.5-regressions.test.cjs test/release-3.3.0-regressions.test.cjs
       - name: Commit verified finalization
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf .connect-finalization
-          rm -f .github/workflows/connect-finalization.yml
           rm -f scripts/apply-connect-finalization.cjs
           git config user.name 'nexora-release-bot'
           git config user.email 'nexora-release-bot@users.noreply.github.com'
