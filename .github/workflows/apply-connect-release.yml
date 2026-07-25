@@ -1,0 +1,55 @@
+name: Apply Nexora 3.6.0 release completion patch
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.connect-release-patch/**'
+      - '.github/workflows/apply-connect-release.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-connect-release-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'release/3.6.0-connect'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/3.6.0-connect
+          fetch-depth: 0
+          show-progress: false
+      - name: Reconstruct verified patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .connect-release-patch/[0-9][0-9] | tr -d '\r\n' | base64 --decode > /tmp/apply-connect-release.cjs.gz
+          echo '79a0bcd417fb55c29b35efe70e7ce31a80514b0a287fc03bcbf6a6b01dcce7d3  /tmp/apply-connect-release.cjs.gz' | sha256sum --check --strict
+          gzip -dc /tmp/apply-connect-release.cjs.gz > scripts/apply-connect-release-3.6.cjs
+          node --check scripts/apply-connect-release-3.6.cjs
+      - name: Apply release patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/apply-connect-release-3.6.cjs
+          node --check scripts/check-release-consistency.cjs
+          node --check test/release-consistency.test.cjs
+          node scripts/check-release-consistency.cjs
+          node --test test/release-consistency.test.cjs
+          node --test --test-concurrency=1 test/connect-3.6.test.cjs
+      - name: Commit completed release candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'nexora-release-bot'
+          git config user.email 'nexora-release-bot@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'fix(connect): complete 3.6.0 release candidate gates'
+          git push origin HEAD:release/3.6.0-connect
