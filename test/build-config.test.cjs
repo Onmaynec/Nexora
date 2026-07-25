@@ -18,6 +18,7 @@ test("релиз 3.5.0 собирает только проверяемый sign
   const server = read("electron-builder.server.yml");
   const updater = read("electron/update-service.cjs");
   const clientMain = read("electron/client-main.cjs");
+  const androidBuild = read("android/app/build.gradle.kts");
   const releaseWorkflow = read(".github/workflows/release.yml");
   const ciWorkflow = read(".github/workflows/ci.yml");
   const unitRunner = read("scripts/run-unit-tests.cjs");
@@ -68,16 +69,34 @@ test("релиз 3.5.0 собирает только проверяемый sign
   assert.match(signatureVerifier, /TimeStamperCertificate/);
   assert.match(signatureVerifier, /Unexpected certificate thumbprint/);
 
+  assert.match(androidBuild, /nexoraRequireSigning/);
+  assert.match(androidBuild, /NEXORA_ANDROID_KEYSTORE_PATH/);
+  assert.match(androidBuild, /NEXORA_ANDROID_KEYSTORE_PASSWORD/);
+  assert.match(androidBuild, /NEXORA_ANDROID_KEY_ALIAS/);
+  assert.match(androidBuild, /NEXORA_ANDROID_KEY_PASSWORD/);
+  assert.match(androidBuild, /enableV2Signing\s*=\s*true/);
+  assert.match(androidBuild, /enableV3Signing\s*=\s*true/);
+
   assert.match(releaseWorkflow, /name: Nexora 3\.5\.0 stable release/);
   assert.match(releaseWorkflow, /This workflow publishes only Nexora 3\.5\.0/);
-  assert.match(releaseWorkflow, /Verify required 3\.4\.0 baseline/);
+  assert.match(releaseWorkflow, /Verify required signed 3\.4\.0 baseline/);
+  assert.match(releaseWorkflow, /v3\.4\.0 is still a prerelease/);
+  assert.match(releaseWorkflow, /v3\.4\.0 stable baseline contains unsigned test assets/);
   assert.match(releaseWorkflow, /release-evidence\/independent-security-review-3\.5\.0\.json/);
   assert.match(releaseWorkflow, /release-evidence\/windows-acceptance-3\.5\.0\.json/);
   assert.match(releaseWorkflow, /release-evidence\/android-acceptance-3\.5\.0\.json/);
   assert.match(releaseWorkflow, /release-evidence\/pwa-acceptance-3\.5\.0\.json/);
   assert.match(releaseWorkflow, /Verify Android and PWA acceptance evidence/);
-  assert.match(releaseWorkflow, /Require complete Authenticode policy/);
-  assert.match(releaseWorkflow, /Release blocker: complete Authenticode policy is required/);
+  assert.match(releaseWorkflow, /Require complete Windows and Android signing policy/);
+  assert.match(releaseWorkflow, /ANDROID_KEYSTORE_BASE64/);
+  assert.match(releaseWorkflow, /ANDROID_SIGNER_SHA256/);
+  assert.match(releaseWorkflow, /:app:assembleRelease/);
+  assert.match(releaseWorkflow, /-PnexoraRequireSigning=true/);
+  assert.match(releaseWorkflow, /apksigner\.bat/);
+  assert.match(releaseWorkflow, /Android signer SHA-256 digest mismatch/);
+  assert.match(releaseWorkflow, /Nexora-Android-\$version\.apk/);
+  assert.match(releaseWorkflow, /ANDROID-SIGNATURE-EVIDENCE\.txt/);
+  assert.doesNotMatch(releaseWorkflow, /Nexora-Android-\$version-UNSIGNED-TEST\.apk/);
   assert.match(releaseWorkflow, /Build and verify signed Windows assets/);
   assert.match(releaseWorkflow, /Installed package upgrade smoke/);
   assert.match(releaseWorkflow, /Nexora-Client-Setup-\$version\.exe/);
