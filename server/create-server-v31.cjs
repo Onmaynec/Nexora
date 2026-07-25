@@ -13,6 +13,8 @@ const { upgradeStoreToSchema8 } = require("./trust-schema8.cjs");
 const { mountStableCore } = require("./stable-core.cjs");
 const { upgradeStoreToSchema9 } = require("./mobile-continuity-schema9.cjs");
 const { mountMobileContinuity } = require("./mobile-continuity.cjs");
+const { createMobilePushService } = require("./mobile-push-service.cjs");
+const { createPushGatewayTransport } = require("./push-gateway.cjs");
 
 function parsePublicKeys(options = {}) {
   const values = [];
@@ -128,6 +130,26 @@ async function createNexoraServer(options = {}) {
       pushTokenKey: options.pushTokenKey,
       log,
     });
+    const pushTransport = options.pushTransport ?? createPushGatewayTransport({
+      url: options.pushGatewayUrl ?? process.env.NEXORA_PUSH_GATEWAY_URL,
+      secret: options.pushGatewaySecret ?? process.env.NEXORA_PUSH_GATEWAY_SECRET,
+      timeoutMs: options.pushGatewayTimeoutMs ?? process.env.NEXORA_PUSH_GATEWAY_TIMEOUT_MS,
+      lookup: options.pushGatewayLookup,
+      requestFactory: options.pushGatewayRequestFactory,
+      clock: options.pushGatewayClock,
+    });
+    const mobilePush = createMobilePushService({
+      store: instance.store,
+      events: instance.events,
+      serverId: instance.status().serverId,
+      pushTokenKey: options.pushTokenKey,
+      transport: pushTransport,
+      clock: options.clock,
+      maxAttempts: options.pushMaxAttempts,
+      maxAgeMs: options.pushMaxAgeMs,
+      log,
+    });
+    mobilePush.start();
 
     const baseStatus = instance.status.bind(instance);
     instance.status = () => ({
@@ -135,7 +157,7 @@ async function createNexoraServer(options = {}) {
       schemaVersion: 9,
       pulseV3: { keyCount: 0, ...client.status(), ...(sandbox.enabled() ? { mode: "sandbox", enabled: true, productionReady: false, testMode: true } : {}), sync: syncWorker.status() },
       stableCore: stableCore.status(),
-      mobileContinuity: mobileContinuity.status(),
+      mobileContinuity: { ...mobileContinuity.status(), pushGateway: mobilePush.status() },
       trust: { runtime: "retired", legacyHistory: "read_only", encryptedAttachments: false, deviceScopedRealtime: false, activeGroups: 0 },
       migration: pulseMigration,
       migrations: { pulse: pulseMigration, legacyTrust: legacyTrustMigration, mobileContinuity: mobileContinuityMigration },
@@ -149,6 +171,7 @@ async function createNexoraServer(options = {}) {
     const baseClose = instance.close.bind(instance);
     instance.close = async () => {
       syncWorker.stop();
+      await mobilePush.close();
       mobileContinuity.close();
       await baseClose();
     };
@@ -161,6 +184,8 @@ async function createNexoraServer(options = {}) {
     instance.mobileContinuityMigration = mobileContinuityMigration;
     instance.stableCore = stableCore;
     instance.mobileContinuity = mobileContinuity;
+    instance.mobilePush = mobilePush;
+    instance.pushTransport = pushTransport;
     instance.commandService = new DeveloperCommandService({ instance, store: instance.store, pulseSandbox: sandbox, log, clock: options.clock });
     return instance;
   } catch (error) {
