@@ -94,9 +94,9 @@ test("release consistency gate rejects a stale current Security Policy version",
     const staleVersion = currentVersion === "0.0.0" ? "0.0.1" : "0.0.0";
     const policy = path.join(fixture, "SECURITY.md");
     const before = fs.readFileSync(policy, "utf8");
-    const currentMarker = `| \`${currentVersion}\` | Release candidate`;
+    const currentMarker = `| \`${currentVersion}\` | Stable unsigned distribution`;
     assert.ok(before.includes(currentMarker), "current Security Policy marker must exist before mutation");
-    fs.writeFileSync(policy, before.replace(currentMarker, `| \`${staleVersion}\` | Release candidate`));
+    fs.writeFileSync(policy, before.replace(currentMarker, `| \`${staleVersion}\` | Stable unsigned distribution`));
     assert.throws(() => checkReleaseConsistency(fixture), /SECURITY\.md supported version/);
   });
 });
@@ -118,13 +118,22 @@ test("release consistency gate rejects a root release document containing duplic
   });
 });
 
-test("release consistency gate rejects prematurely approved external evidence", () => {
+test("release consistency gate rejects unsigned publication without owner authorization", () => {
   withFixture((fixture) => {
-    const reviewPath = path.join(fixture, "release-evidence/independent-security-review-3.5.0.json");
-    const review = JSON.parse(fs.readFileSync(reviewPath, "utf8"));
-    review.status = "approved";
-    review.approved = true;
-    fs.writeFileSync(reviewPath, JSON.stringify(review, null, 2));
-    assert.throws(() => checkReleaseConsistency(fixture), /must remain explicitly blocked/);
+    const evidencePath = path.join(fixture, "release-evidence/current.json");
+    const evidence = JSON.parse(fs.readFileSync(evidencePath, "utf8"));
+    evidence.ownerAuthorization.authorized = false;
+    fs.writeFileSync(evidencePath, JSON.stringify(evidence, null, 2));
+    assert.throws(() => checkReleaseConsistency(fixture), /explicit owner authorization/);
+  });
+});
+
+test("release consistency gate rejects updater metadata for unsigned publication", () => {
+  withFixture((fixture) => {
+    const evidencePath = path.join(fixture, "release-evidence/current.json");
+    const evidence = JSON.parse(fs.readFileSync(evidencePath, "utf8"));
+    evidence.publicationPolicy.updaterMetadataPublished = true;
+    fs.writeFileSync(evidencePath, JSON.stringify(evidence, null, 2));
+    assert.throws(() => checkReleaseConsistency(fixture), /integrity policy/);
   });
 });
