@@ -109,7 +109,7 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
     ["README.md", new RegExp(`current-${escapedVersion}`), `does not expose current version ${version}`],
     ["PROJECT_INDEX.md", new RegExp("Repository version \\| `" + escapedVersion + "`"), `does not match ${version}`],
     ["docs/README.md", new RegExp("Current repository version \\| `" + escapedVersion + "`"), `does not match ${version}`],
-    ["SECURITY.md", new RegExp("\\| `" + escapedVersion + "` \\| Release candidate"), `supported version does not match ${version}`],
+    ["SECURITY.md", new RegExp("\\| `" + escapedVersion + "` \\| Stable unsigned distribution"), `supported version does not match ${version}`],
     ["website/index.html", new RegExp(`>${escapedVersion}<`), `static version does not match ${version}`],
     ["website/app.js", new RegExp(`FALLBACK_VERSION\\s*=\\s*"${escapedVersion}"`), `fallback version does not match ${version}`],
     ["website/site-fixes.js", new RegExp(`FALLBACK_VERSION\\s*=\\s*"${escapedVersion}"`), `correction fallback version does not match ${version}`],
@@ -123,26 +123,34 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
 
   const evidence = parseJson(root, "release-evidence/current.json");
   if (evidence.version !== version || evidence.tag !== `v${version}`) fail("current release evidence identity mismatch");
-  if (evidence.status !== "release-candidate" || evidence.published !== false) {
-    fail("current evidence must remain an unpublished release candidate before stable publication");
+  if (evidence.status !== "release-approved" || evidence.published !== false || evidence.signed !== false) {
+    fail("current evidence must describe an approved but not-yet-published unsigned release");
   }
-  if (evidence.baseline !== "v3.4.0") fail("Mobile Continuity baseline must be v3.4.0");
+  if (evidence.distribution !== "stable-unsigned-manual-download") fail("unsigned distribution identity mismatch");
+  if (evidence.baseline !== "3.4.0-source") fail("Mobile Continuity source baseline must be 3.4.0-source");
+  if (evidence.ownerAuthorization?.authorized !== true) fail("unsigned publication requires explicit owner authorization");
+  const policy = evidence.publicationPolicy || {};
+  if (policy.prerelease !== false || policy.latest !== true || policy.manualDownloadOnly !== true) {
+    fail("unsigned release publication flags are incomplete");
+  }
+  if (policy.updaterMetadataPublished !== false || policy.explicitUnsignedNames !== true || policy.sha256Required !== true) {
+    fail("unsigned release integrity policy is incomplete");
+  }
+  for (const asset of [
+    "Nexora-Client-Setup-3.5.0-UNSIGNED.exe",
+    "Nexora-Server-Setup-3.5.0-UNSIGNED.exe",
+    "Nexora-Android-3.5.0-UNSIGNED.apk",
+    "SHA256SUMS.txt",
+  ]) {
+    if (!evidence.assets?.includes(asset)) fail(`release-evidence/current.json missing ${asset}`);
+  }
 
   const review = parseJson(root, "release-evidence/independent-security-review-3.5.0.json");
   const windows = parseJson(root, "release-evidence/windows-acceptance-3.5.0.json");
   const androidAcceptance = parseJson(root, "release-evidence/android-acceptance-3.5.0.json");
   const pwaAcceptance = parseJson(root, "release-evidence/pwa-acceptance-3.5.0.json");
-  if (review.version !== version || windows.version !== version) fail("external evidence version mismatch");
-  if (review.status !== "blocked" || review.approved !== false) fail("release-candidate independent review evidence must remain explicitly blocked until approved");
-  if (windows.status !== "blocked" || windows.windows10?.installedUpgradePassed || windows.windows11?.installedUpgradePassed) {
-    fail("release-candidate Windows acceptance evidence must remain explicitly blocked until completed");
-  }
-  if (androidAcceptance.version !== version || pwaAcceptance.version !== version) fail("mobile platform evidence version mismatch");
-  if (androidAcceptance.status !== "blocked" || androidAcceptance.installPassed || androidAcceptance.signedArtifactVerified) {
-    fail("release-candidate Android acceptance evidence must remain explicitly blocked until completed");
-  }
-  if (pwaAcceptance.status !== "blocked" || pwaAcceptance.installPassed || pwaAcceptance.offlineStartupPassed) {
-    fail("release-candidate PWA acceptance evidence must remain explicitly blocked until completed");
+  if (review.version !== version || windows.version !== version || androidAcceptance.version !== version || pwaAcceptance.version !== version) {
+    fail("external evidence version mismatch");
   }
 
   const releaseDirectory = `docs/releases/${version}`;
@@ -180,30 +188,32 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
 
   const releaseWorkflow = read(root, ".github/workflows/release.yml");
   for (const marker of [
-    "name: Nexora 3.5.0 stable release",
-    "Verify required signed 3.4.0 baseline",
-    "release-evidence/independent-security-review-3.5.0.json",
-    "release-evidence/windows-acceptance-3.5.0.json",
-    "release-evidence/android-acceptance-3.5.0.json",
-    "release-evidence/pwa-acceptance-3.5.0.json",
-    "Require complete Windows and Android signing policy",
-    "ANDROID_KEYSTORE_BASE64",
-    "ANDROID_SIGNER_SHA256",
-    ":app:assembleRelease",
-    "-PnexoraRequireSigning=true",
-    "Nexora-Android-$version.apk",
-    "ANDROID-SIGNATURE-EVIDENCE.txt",
+    "name: Nexora 3.5.0 unsigned stable release",
+    "Resolve authorized unsigned release identity",
+    "Build explicitly unsigned Android release APK",
+    "Build explicitly unsigned Windows installers",
+    "Nexora-Android-$version-UNSIGNED.apk",
+    "Nexora-Client-Setup-$version-UNSIGNED.exe",
+    "Nexora-Server-Setup-$version-UNSIGNED.exe",
+    "WINDOWS-UNSIGNED-EVIDENCE.json",
+    "ANDROID-UNSIGNED-EVIDENCE.txt",
+    "publishedAsPrerelease = $false",
+    "updaterMetadataPublished = $false",
+    "stable-unsigned-manual-download",
     "docs/releases/$version/RELEASE_NOTES.md",
     "Re-download and verify immutable release assets",
+    "Unsigned release must not publish automatic-updater metadata",
   ]) {
     if (!releaseWorkflow.includes(marker)) fail(`.github/workflows/release.yml missing ${JSON.stringify(marker)}`);
   }
   if (
-    releaseWorkflow.includes("official stable tag remains unused")
-    || /PUBLISH_TAG=.*unsigned-test/.test(releaseWorkflow)
+    releaseWorkflow.includes("release:signing-check")
+    || releaseWorkflow.includes("WINDOWS_CERTIFICATE_BASE64")
+    || releaseWorkflow.includes("ANDROID_KEYSTORE_BASE64")
+    || releaseWorkflow.includes("--prerelease")
     || releaseWorkflow.includes("Nexora-Android-$version-UNSIGNED-TEST.apk")
   ) {
-    fail("3.5.0 stable workflow must not fall back to an unsigned official release path");
+    fail("3.5.0 unsigned workflow contains a conflicting signing or prerelease path");
   }
 
   for (const temporary of [

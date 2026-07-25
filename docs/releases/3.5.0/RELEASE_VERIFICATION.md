@@ -1,6 +1,21 @@
 # Nexora 3.5.0 — Release Verification
 
-Status: release candidate; source promotion may proceed, while artifact publication remains blocked by external evidence and credentials.
+Status: publication approved as a normal, non-prerelease GitHub Release with explicitly unsigned Windows and Android binaries.
+
+## Publication contract
+
+| Property | Required value |
+|---|---|
+| Tag | `v3.5.0` |
+| GitHub prerelease | `false` |
+| Latest release | `true` |
+| Windows signing | `NotSigned` and visible in asset names/evidence |
+| Android signing | verification must fail and unsigned state must be recorded |
+| Automatic updater metadata | not published |
+| Checksums | SHA-256 for every uploaded asset |
+| SBOM | SPDX 2.3 |
+| Source gate | complete exact-head CI success |
+| Post-publication verification | full asset re-download and checksum verification |
 
 ## Internal gates
 
@@ -8,28 +23,51 @@ Status: release candidate; source promotion may proceed, while artifact publicat
 |---|---|---|
 | Schema 8 → 9 migration, backup and integrity | Implemented | automated migration and API integration tests |
 | Replay/outbox ordering and idempotency | Implemented | regression tests and reconnect contract |
-| PWA shell cache/update lifecycle | Implemented | source/build checks; installed browser matrix pending |
-| Android source and signing policy | Implemented | CI debug assembly plus fail-closed release signing and `apksigner` identity checks; signed device acceptance pending |
+| PWA shell cache/update lifecycle | Implemented | source/build checks |
+| Android lifecycle and permission policy | Implemented | Android source tests and release assembly |
 | Push token privacy | Implemented | AES-256-GCM storage, no-plaintext API/diagnostics and round-trip tests |
 | Production push transport | Implemented | HTTPS-only endpoint, DNS pinning, private-target rejection, HMAC authentication, bounded response, durable retry and token revocation tests |
-| Resumable media offset/hash/policy | Implemented | API tests; restart/device fault matrix pending |
-| Multi-profile isolation | Implemented | scoped cache/outbox contracts; extended acceptance pending |
-| Stable Windows/Android publication path | Implemented | signed-only 3.5.0 workflow, signer checks, SBOM, checksums and re-download verification |
+| Resumable media offset/hash/policy | Implemented | API and integration tests |
+| Multi-profile isolation | Implemented | scoped cache/outbox contracts |
+| Windows package build | Required | unsigned Client and Server NSIS installers |
+| Installed Windows smoke | Required | silent install and installed runtime version verification |
+| Android package build | Required | unsigned release APK |
+| Artifact signing-state evidence | Required | `WINDOWS-UNSIGNED-EVIDENCE.json` and `ANDROID-UNSIGNED-EVIDENCE.txt` |
+| Supply-chain metadata | Required | SPDX SBOM, `RELEASE-EVIDENCE.json`, `SHA256SUMS.txt` |
+| Asset integrity after publication | Required | re-download every release asset and verify SHA-256 |
 
-## Approved 3.4.0 baseline exception
+## Security boundary
 
-The repository owner approved using the verified Nexora 3.4.0 source baseline without requiring an Authenticode-signed 3.4.0 publication. The 3.4.0 source was promoted to `main` through PR #98.
+This publication deliberately relaxes only the requirement for binary publisher signatures. It does not relax application security controls:
 
-This exception applies only to the predecessor baseline. It does not classify unsigned 3.4.0 installers as signed, does not remove their `UNSIGNED-TEST` status, and does not weaken signing or identity verification for final 3.5.0 Windows and Android artifacts.
+- TLS verification remains fail-closed;
+- certificate pinning remains active;
+- CSRF, Origin, authorization, role and ban checks remain server-owned;
+- updater signature verification remains enabled;
+- unsigned updater metadata is therefore excluded;
+- private/reserved push-gateway targets remain rejected;
+- upload MIME, hash, quota and room-policy checks remain enforced;
+- push tokens remain encrypted at rest and absent from logs/API responses.
 
-## Mandatory external gates for artifact publication
+## Required release assets
 
-- independent review evidence must be approved with zero unresolved high/critical findings;
-- Android, PWA and Windows installed acceptance evidence must be completed;
-- Windows Authenticode and Android keystore credentials must be present and signer identities verified for 3.5.0;
-- a real production push-gateway endpoint and HMAC secret must be configured, followed by provider delivery acceptance;
-- final CI, performance/soak, security audit, packaged smoke and asset re-download verification must pass on the exact release commit.
+- `Nexora-Client-Setup-3.5.0-UNSIGNED.exe`;
+- `Nexora-Server-Setup-3.5.0-UNSIGNED.exe`;
+- `Nexora-Android-3.5.0-UNSIGNED.apk`;
+- `Nexora-PWA-3.5.0.zip`;
+- `Nexora-3.5.0-source.zip`;
+- `Nexora-3.5.0.spdx.json`;
+- `WINDOWS-UNSIGNED-EVIDENCE.json`;
+- `ANDROID-UNSIGNED-EVIDENCE.txt`;
+- `RELEASE-EVIDENCE.json`;
+- `SHA256SUMS.txt`.
 
-## Publication state
+The release must not contain `latest.yml` or `server.yml`, because the desktop updater requires signed application packages.
 
-Source merge and release-artifact publication are separate decisions. The 3.5.0 source may be merged after exact-head CI passes. No stable `v3.5.0` GitHub Release may be published while the remaining artifact gates above are incomplete. Debug or otherwise unsigned artifacts are test evidence only and must be clearly marked `UNSIGNED-TEST`; the stable workflow publishes no unsigned Windows or Android fallback.
+## Honest limitations
+
+- SHA-256 protects integrity but does not establish publisher identity by itself.
+- Windows SmartScreen and Android installation warnings are expected.
+- Installation is manual.
+- Production push delivery requires separately configured gateway/provider credentials.
+- Independent platform acceptance and code-signing can be completed in a later signed repackaging release.
