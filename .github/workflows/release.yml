@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: write
+  statuses: write
 
 concurrency:
   group: nexora-3-5-0-unsigned-release-${{ github.repository }}
@@ -72,6 +73,14 @@ jobs:
           "PUBLISH_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "RELEASE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
+      - name: Mark release status pending
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $sha = '${{ steps.identity.outputs.head_sha }}'
+          $url = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+          gh api --method POST "repos/$env:GITHUB_REPOSITORY/statuses/$sha" -f state=pending -f context="release/3.5.0" -f description="Building and verifying unsigned Nexora 3.5.0 artifacts" -f target_url="$url" | Out-Null
+
       - name: Install dependencies and run complete source gate
         shell: pwsh
         run: |
@@ -113,11 +122,16 @@ jobs:
           if (-not (Test-Path -LiteralPath $apksigner)) { throw "apksigner is unavailable" }
           "NEXORA_APKSIGNER_PATH=$apksigner" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-          & $apksigner verify --verbose --print-certs $target *> artifacts/ANDROID-UNSIGNED-EVIDENCE.txt
-          $verifyExit = $LASTEXITCODE
-          if ($verifyExit -eq 0) { throw "Android artifact was unexpectedly signed; unsigned publication must be explicit" }
-          Add-Content -Encoding utf8 artifacts/ANDROID-UNSIGNED-EVIDENCE.txt "Verification exit code: $verifyExit"
-          Add-Content -Encoding utf8 artifacts/ANDROID-UNSIGNED-EVIDENCE.txt "Expected state: unsigned"
+          $stdout = Join-Path $env:RUNNER_TEMP "nexora-apksigner-unsigned.stdout.txt"
+          $stderr = Join-Path $env:RUNNER_TEMP "nexora-apksigner-unsigned.stderr.txt"
+          $verify = Start-Process -FilePath $apksigner -ArgumentList @("verify", "--verbose", "--print-certs", $target) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          @(
+            Get-Content -LiteralPath $stdout -ErrorAction SilentlyContinue
+            Get-Content -LiteralPath $stderr -ErrorAction SilentlyContinue
+            "Verification exit code: $($verify.ExitCode)"
+            "Expected state: unsigned"
+          ) | Set-Content -Encoding utf8 artifacts/ANDROID-UNSIGNED-EVIDENCE.txt
+          if ($verify.ExitCode -eq 0) { throw "Android artifact was unexpectedly signed; unsigned publication must be explicit" }
 
       - name: Generate and validate SPDX SBOM
         shell: bash
@@ -181,7 +195,11 @@ jobs:
             @{ Installer = "artifacts/Nexora-Client-Setup-$version-UNSIGNED.exe"; Directory = $clientDir },
             @{ Installer = "artifacts/Nexora-Server-Setup-$version-UNSIGNED.exe"; Directory = $serverDir }
           )) {
-            $process = Start-Process -FilePath $item.Installer -ArgumentList @("/S", "/D=$($item.Directory)") -Wait -PassThru
+            $process = Start-Process -FilePath $item.Installer -ArgumentList @("/S", "/D=$($item.Directory)") -PassThru
+            if (-not $process.WaitForExit(180000)) {
+              $process.Kill($true)
+              throw "Installer smoke timed out: $($item.Installer)"
+            }
             if ($process.ExitCode -ne 0) { throw "Installer smoke failed: $($item.Installer) exit $($process.ExitCode)" }
           }
           foreach ($exe in @(
@@ -320,5 +338,27 @@ jobs:
               throw "Published Windows artifact signing state changed: $asset"
             }
           }
-          & $env:NEXORA_APKSIGNER_PATH verify --verbose --print-certs "published/Nexora-Android-3.5.0-UNSIGNED.apk" *> $null
-          if ($LASTEXITCODE -eq 0) { throw "Published Android artifact was unexpectedly signed" }
+          $publishedApk = "published/Nexora-Android-3.5.0-UNSIGNED.apk"
+          $stdout = Join-Path $env:RUNNER_TEMP "nexora-apksigner-published.stdout.txt"
+          $stderr = Join-Path $env:RUNNER_TEMP "nexora-apksigner-published.stderr.txt"
+          $verify = Start-Process -FilePath $env:NEXORA_APKSIGNER_PATH -ArgumentList @("verify", "--verbose", "--print-certs", $publishedApk) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          if ($verify.ExitCode -eq 0) { throw "Published Android artifact was unexpectedly signed" }
+
+      - name: Mark release status success
+        if: success()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $sha = '${{ steps.identity.outputs.head_sha }}'
+          $url = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/releases/tag/${{ steps.identity.outputs.official_tag }}"
+          gh api --method POST "repos/$env:GITHUB_REPOSITORY/statuses/$sha" -f state=success -f context="release/3.5.0" -f description="Nexora 3.5.0 release published and re-downloaded successfully" -f target_url="$url" | Out-Null
+
+      - name: Mark release status failure
+        if: failure()
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $sha = '${{ steps.identity.outputs.head_sha }}'
+          if ([string]::IsNullOrWhiteSpace($sha)) { $sha = (git rev-parse HEAD).Trim() }
+          $url = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+          gh api --method POST "repos/$env:GITHUB_REPOSITORY/statuses/$sha" -f state=failure -f context="release/3.5.0" -f description="Nexora 3.5.0 release workflow failed; inspect the linked run" -f target_url="$url" | Out-Null
