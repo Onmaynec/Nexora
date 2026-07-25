@@ -15,13 +15,8 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: apply-connect-patch-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   apply:
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -30,38 +25,12 @@ jobs:
           ref: release/3.6.0-connect
           fetch-depth: 1
           show-progress: false
-
       - name: Diagnose implementation archive
         shell: bash
         run: |
-          set -euo pipefail
-          python - <<'PY'
-          import base64, hashlib, json, pathlib
-          expected = {
-              '00': (12000, 'c5bc1338d15bd6b6a3bd24c8b8517d72a05a76cc7681318e1886d256239742d7'),
-              '01': (12000, 'c6f7a01ae01f24aad91e24a5297afa7f2c13f9f8657a77f3a9f5d5e5008e2bb6'),
-              '02': (12000, '44fd977395650cd974999f3a2f364d76899ef10ecbc92c553cde82e725f69d13'),
-              '03': (12000, '21e29f150a88476401757db4123bfb31965638e3ddb71a6d1ebabd16be38f294'),
-              '04': (788, 'd558062ebd5d509982cc0f4287a94faa1233f020493202ae451d2ee29d05e98f'),
-          }
-          report = {}
-          for name, (size, digest) in expected.items():
-              data = pathlib.Path('.connect-patch', name).read_bytes()
-              report[name] = {
-                  'actualBytes': len(data), 'expectedBytes': size,
-                  'actualSha256': hashlib.sha256(data).hexdigest(), 'expectedSha256': digest,
-              }
-          payload = ''.join(pathlib.Path('.connect-patch', name).read_text(encoding='utf-8').strip() for name in expected)
-          report['payloadBytes'] = len(payload)
-          try:
-              archive = base64.b64decode(payload, validate=True)
-              report['archiveBytes'] = len(archive)
-              report['archiveSha256'] = hashlib.sha256(archive).hexdigest()
-          except Exception as error:
-              report['decodeError'] = f'{type(error).__name__}: {error}'
-          print('CONNECT_ARCHIVE_DIAGNOSTICS=' + json.dumps(report, sort_keys=True))
-          valid = all(item['actualBytes'] == item['expectedBytes'] and item['actualSha256'] == item['expectedSha256'] for key, item in report.items() if key in expected)
-          assert valid, report
-          assert report.get('payloadBytes') == 48788, report
-          assert report.get('archiveSha256') == '2e2d9fda348eae0584344a2ff01e044b4c9b0f04dcef1ac59e45fe899b4918c6', report
-          PY
+          wc -c .connect-patch/*
+          sha256sum .connect-patch/*
+          cat .connect-patch/0* | tr -d '\r\n' | base64 --decode > /tmp/connect-patch.tgz || true
+          wc -c /tmp/connect-patch.tgz
+          sha256sum /tmp/connect-patch.tgz
+          exit 1
