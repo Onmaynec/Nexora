@@ -6,6 +6,7 @@ on:
 
 permissions:
   actions: write
+  statuses: write
   issues: write
   pull-requests: write
 
@@ -15,7 +16,8 @@ jobs:
       github.event.issue.number == 101 &&
       (github.event.comment.body == '/nexora-release-status' ||
       startsWith(github.event.comment.body, '/nexora-release-log ') ||
-      startsWith(github.event.comment.body, '/nexora-release-cancel '))
+      startsWith(github.event.comment.body, '/nexora-release-cancel ') ||
+      startsWith(github.event.comment.body, '/nexora-release-mark-success '))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -55,6 +57,19 @@ jobs:
             fi
             gh run cancel "$run_id" --repo "$GITHUB_REPOSITORY"
             body="Cancelled duplicate Nexora 3.5.0 release run \`$run_id\` to preserve the already verified published assets."
+          elif [[ "$COMMAND" == /nexora-release-mark-success\ * ]]; then
+            sha="${COMMAND#'/nexora-release-mark-success '}"
+            if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "Invalid commit SHA" >&2
+              exit 1
+            fi
+            target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/v3.5.0"
+            gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$sha" \
+              -f state=success \
+              -f context="release/3.5.0" \
+              -f description="Nexora 3.5.0 release published and re-downloaded successfully" \
+              -f target_url="$target_url" > /dev/null
+            body="Restored final \`release/3.5.0\` success status for commit \`$sha\` after cancelling the duplicate workflow run."
           else
             run_id="${COMMAND#'/nexora-release-log '}"
             if [[ ! "$run_id" =~ ^[0-9]+$ ]]; then
