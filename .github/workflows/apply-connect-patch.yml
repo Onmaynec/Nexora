@@ -13,24 +13,30 @@ on:
       - '.github/workflows/apply-connect-patch.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   apply:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: release/3.6.0-connect
-          fetch-depth: 1
-          show-progress: false
-      - name: Diagnose implementation archive
+      - name: Diagnose implementation archive through Contents API
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          wc -c .connect-patch/*
-          sha256sum .connect-patch/*
-          cat .connect-patch/0* | tr -d '\r\n' | base64 --decode > /tmp/connect-patch.tgz || true
+          set -euo pipefail
+          mkdir -p /tmp/connect-chunks
+          for name in 00 01 02 03 04; do
+            curl --fail --silent --show-error \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/.connect-patch/${name}?ref=release%2F3.6.0-connect" \
+              | jq -r '.content' | base64 --decode > "/tmp/connect-chunks/${name}"
+          done
+          wc -c /tmp/connect-chunks/*
+          sha256sum /tmp/connect-chunks/*
+          cat /tmp/connect-chunks/* | tr -d '\r\n' | base64 --decode > /tmp/connect-patch.tgz || true
           wc -c /tmp/connect-patch.tgz
           sha256sum /tmp/connect-patch.tgz
           exit 1
