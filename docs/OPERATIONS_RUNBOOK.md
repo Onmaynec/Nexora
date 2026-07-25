@@ -1,207 +1,365 @@
-# Nexora 3.4.0 Operations Runbook
+# Nexora 3.6.0 Connect — Operations Runbook
 
-## 1. Область
+## 1. Scope and status
 
-Runbook относится к Nexora `3.4.0` Stable Core release candidate:
+This runbook covers the Nexora `3.6.0` implementation candidate:
 
-- Local Server schema 8;
+- Local Server SQLite schema 10;
 - Application API v3;
-- ordinary server-readable messaging as writable core;
-- Trust/MLS runtime retired;
-- legacy secure history read-only;
-- stable publication blocked by external evidence.
+- contacts, block and privacy policy;
+- privacy-filtered presence/read receipts;
+- one-to-one WebRTC voice calls;
+- short-lived operator TURN credentials;
+- Windows, Browser/PWA and Android clients.
 
-Цель — repeatable startup, monitoring, maintenance, backup, restore, upgrade и incident procedures.
+It does not authorize production rollout or `v3.6.0`. Signed stable publication remains blocked until the external evidence ledger is complete.
 
 ## 2. Preflight
 
-Проверьте:
+Verify before startup or upgrade:
 
 - Node.js `22.16+`;
-- writable data directory;
-- free space для SQLite/WAL/attachments/backups;
-- HTTPS certificate, SAN, Server ID и fingerprint;
-- exact `allowedOrigins`;
-- firewall/interface;
-- no production secrets in repository/logs;
-- verified backup и known restore procedure;
-- Pulse mode;
-- exact release classification и Client compatibility.
+- writable Local Server data directory;
+- free space for SQLite, WAL, uploads and a pre-migration backup;
+- HTTPS certificate, SAN, Server ID and expected fingerprint;
+- exact allowed origins and firewall/interface exposure;
+- known backup and restore procedure;
+- no secrets in repository, command history, logs or support exports;
+- exact release classification and compatible Client version;
+- production TURN deployment and protected secret when voice calls are enabled.
 
-## 3. Startup
+### Connect configuration
+
+```text
+NEXORA_TURN_URLS=stun:stun.example:3478,turns:turn.example:5349?transport=tcp
+NEXORA_TURN_SECRET=<strong protected shared secret>
+NEXORA_TURN_TTL_SECONDS=600
+```
+
+Rules:
+
+- use operator-controlled TURN for production;
+- prefer `turns:` where supported;
+- do not embed TURN credentials in web, Electron or Android clients;
+- do not print the secret or generated credentials;
+- keep TTL between the server-enforced bounds;
+- rotate the secret through the deployment secret store and restart affected Local Servers in a controlled window.
+
+## 3. Startup and readiness
 
 ```bash
 npm ci
 npm start
 ```
 
-Verify:
+Check:
 
 ```text
 GET /healthz/live
 GET /healthz/ready
 ```
 
-Confirm:
+Confirm in status/log evidence:
 
-- schema 8;
-- integrity check success;
-- no unexpected migration;
-- storage available;
-- Socket.IO/realtime ready;
-- maintenance scheduler active;
-- expected Pulse status.
+- schema version is `10`;
+- migration completed before network listen;
+- SQLite integrity is `ok`;
+- storage has safe headroom;
+- Socket.IO is ready;
+- Connect status reports contacts/privacy/direct calls enabled;
+- TURN status matches intended deployment;
+- no migration backup or filesystem path is returned to untrusted clients.
 
-## 4. Normal monitoring
+A future-schema database, failed integrity check, low disk space or failed backup is a terminal startup condition. Do not bypass it by editing the database manually.
 
-Observe:
+## 4. Schema 9 → 10 rollout
+
+Before upgrade:
+
+1. stop or drain application writes;
+2. create an operator backup and verify it independently;
+3. confirm enough free space for the automatic pre-schema backup;
+4. record exact source version/commit and database integrity;
+5. deploy the 3.6.0 candidate to a staging copy first.
+
+Automatic migration performs:
+
+1. schema prerequisite and downgrade-protection check;
+2. source `PRAGMA integrity_check`;
+3. free-space calculation;
+4. WAL checkpoint;
+5. verified `.pre-schema-10-*.bak` backup;
+6. one immediate SQLite transaction;
+7. destination integrity check.
+
+After migration verify the presence of:
+
+```text
+connect_privacy
+connect_call_history
+connect_idempotency
+connect_audit
+```
+
+and their expected indexes. Existing users, rooms, conversations, messages, files, sessions, schema 8 legacy records and schema 9 Mobile Continuity records must remain intact.
+
+### Rollback
+
+Do not downgrade a live schema 10 database into an older binary. Rollback means:
+
+1. stop the candidate;
+2. preserve failed migration/log evidence;
+3. restore the verified schema 9 backup using the supported restore path;
+4. verify database and file-store consistency;
+5. start the previous verified version;
+6. validate representative accounts, rooms, messages, uploads and sessions.
+
+## 5. Normal monitoring
+
+Monitor bounded aggregates, not user/call identifiers:
 
 - process liveness/readiness;
-- HTTP/Socket.IO error rate;
-- `RATE_LIMITED` volume и `Retry-After`;
-- SQLite storage/WAL/integrity;
-- backup age/success;
-- session/device inventory и revoke events;
-- pending/orphan upload state;
-- Pulse workers/provider reconciliation;
-- certificate expiry;
-- release/update failures.
+- HTTP and Socket.IO error rates;
+- authentication/CSRF failures;
+- `RATE_LIMITED` frequency and retry windows;
+- active call count;
+- call outcome counts (`completed`, `declined`, `missed`, `failed`);
+- ringing/connecting timeout counts;
+- TURN configured/degraded state;
+- SQLite integrity, WAL size, storage quota and backup age;
+- session revocation/disconnect health;
+- orphan upload and maintenance cleanup state;
+- certificate and signing-material expiry.
 
-Remote metrics require Bearer token; otherwise endpoint remains loopback-only.
+Never use username, user ID, call ID, SDP, ICE candidate, token or TURN credential as a metric label.
 
-## 5. Scheduled maintenance
+## 6. Contact and privacy incidents
 
-Startup/hourly maintenance removes or reconciles:
+For an unexpected contact request, presence disclosure or read receipt:
 
-- expired sessions;
-- login history older than retention window;
-- stale rate-limit buckets;
-- expired invitations/requests where policy requires;
-- orphan temporary uploads;
-- expired staged backup/restore data;
-- stale Pulse worker leases/events.
+1. record UTC time, request ID and stable error/event code;
+2. identify the exact viewer and subject in protected incident tooling;
+3. inspect current block/contact/shared-room relationship;
+4. inspect subject privacy rows and current session state;
+5. verify both query serialization and realtime recipient filtering;
+6. test the same operation through direct REST/Socket.IO, not only UI;
+7. preserve sanitized audit entries;
+8. revoke compromised sessions if needed.
 
-Retired Trust/MLS runtime jobs must not restart. Legacy records remain immutable compatibility data.
+Expected properties:
 
-## 6. Users, devices и access incidents
+- block prevents new contact/call operations;
+- unblock does not restore contact;
+- hidden presence disappears without reconnect;
+- hidden read receipts are neither emitted nor counted;
+- search results do not disclose blocked/disabled users or private profile fields.
 
-For compromised account/device:
+A client-side hidden button is not proof of enforcement.
 
-1. identify exact user/device/session and request IDs;
-2. revoke target session/device server-side;
-3. verify `session.revoked` and Socket.IO disconnect;
-4. verify `device.updated` inventory refresh;
-5. rotate password/TOTP recovery material when applicable;
-6. review audit/login history;
-7. preserve sanitized incident evidence.
+## 7. Call incidents
 
-Current-device remote revoke must return `STATE_CONFLICT`; use logout/credential reset instead.
+### Infinite ringing or connecting
 
-## 7. Rooms и moderation incidents
+Check:
 
-For role/ban/invite issues:
+- caller/callee active sessions;
+- call state and deadline;
+- Socket.IO connectivity;
+- signaling sequence errors;
+- TURN configuration;
+- rate-limit events;
+- client media permission/device state.
 
-- verify room existence and exactly one owner;
-- inspect membership, role, active ban/restriction and audit entries;
-- confirm removed/banned user lost REST and realtime access;
-- revoke compromised invites;
-- check expiry/usage limit/concurrent last-use behavior;
-- verify system messages and administrative log.
+The server should terminalize ringing and connection attempts at bounded deadlines. A state without timeout is a release blocker.
 
-Never rely on hidden UI controls as authorization evidence.
+### Third-party or wrong-device signaling
 
-## 8. Upload/media incidents
+Immediately:
 
-For rejected/corrupt upload:
+1. terminate affected calls;
+2. revoke involved sessions;
+3. preserve request IDs and sanitized call audit metadata;
+4. verify call participant IDs and bound session IDs;
+5. confirm the target event used `session:*`, not an unrelated user/global room;
+6. reproduce with direct Socket.IO tests.
 
-- record stable code/request ID;
-- verify room media policy and membership;
-- compare declared vs actual MIME signature;
-- verify expected chunk/file SHA-256 and size/quota;
-- confirm dangerous/executable content rejection;
-- confirm temporary data cleanup;
-- do not disable server validation to unblock a client.
+Unauthorized call observation/join is a security incident and blocks release.
 
-For microphone denial/unsupported format, confirm Client shows actionable terminal state without crash.
+### Call spam
 
-## 9. Legacy history operations
+Inspect bounded counters for:
 
-Legacy secure history is read-only:
+- caller account;
+- caller device;
+- caller→target pair;
+- signaling account/device/call windows.
 
-- viewer may show ciphertext metadata or retained local decrypted cache;
-- export must report `serverDecrypted: false`;
-- Server must not decrypt/convert/rewrite legacy ciphertext;
-- legacy HTTP writes return `410/LEGACY_READ_ONLY`;
-- MLS Socket.IO writes return terminal `LEGACY_READ_ONLY` ack.
+Do not raise limits to hide abuse or test failures. Confirm `RATE_LIMITED` and a positive retry delay are returned.
 
-A successful legacy mutation or plaintext conversion is a security incident.
+### Microphone remains active
 
-## 10. Backup verification
+Client must stop every local track and close the peer connection on:
 
-Before upgrade/restore:
+- user end;
+- decline/missed/failed state;
+- block;
+- session revoke/disconnect;
+- server shutdown;
+- navigation/unmount/profile switch;
+- permission/device error.
 
-1. run integrity and WAL checkpoint;
-2. confirm free disk space;
-3. create verified backup;
-4. use allowlisted backup ID;
-5. execute non-restoring verification;
-6. record exact version/commit and result.
+If the OS privacy indicator remains active after a terminal path, treat it as a release blocker. Capture platform/version and reproduction steps without recording voice content.
 
-Backup verification must not replace live DB/files. Invalid/future/corrupt backup fails without mutation and staged data is removed.
+## 8. TURN incidents
 
-## 11. Restore
+### `TURN_UNAVAILABLE`
 
-Restore procedure:
+Verify:
 
-1. stop or drain writes through supported control plane;
-2. stage DB and file store;
-3. verify staged integrity/version;
-4. replace atomically;
-5. rollback both DB and files on any failure;
-6. restart and verify readiness/integrity;
-7. validate representative accounts/rooms/messages/uploads.
+- URLs parse as `stun:`, `turn:` or `turns:`;
+- secret is present and sufficiently strong;
+- DNS/firewall/TLS reachability;
+- relay ports and transport policy;
+- server/client clocks;
+- generated TTL;
+- coturn/shared-secret configuration matches the Local Server.
 
-Do not mix restored DB with current unrelated attachment store.
+Do not fall back to static credentials in the client.
 
-## 12. Upgrade `3.3.4 → 3.4.0`
+### Suspected credential leak
 
-Stable upgrade requires:
+1. rotate `NEXORA_TURN_SECRET` immediately;
+2. restart affected Local Servers;
+3. invalidate old credentials by waiting no longer than their short TTL;
+4. inspect logs/artifacts/support exports for credential material;
+5. remove unsafe evidence and notify security owners;
+6. add a regression/audit rule before resuming release work.
 
-- published verified `v3.3.4` installers/checksums;
-- verified backup/restore drill;
-- complete Authenticode policy;
-- signed `3.4.0` Client/Server artifacts and metadata;
-- installed upgrade smoke on Windows 10 and Windows 11;
-- product version/signature verification after upgrade;
-- final CI and independent review evidence.
+## 9. Session revoke, disable and block
 
-Without these, run only source/dev acceptance; do not claim stable production rollout.
+A bound call must terminate when access disappears.
 
-## 13. Release failure
+For session revocation:
 
-If release workflow fails:
+1. revoke through the supported device/session endpoint;
+2. verify `session.revoked` delivery;
+3. verify target Socket.IO disconnect;
+4. verify call receives a terminal state;
+5. verify subsequent signal/TURN requests fail.
 
-- do not create/replace official tag manually;
-- preserve exact run/job/log/artifact IDs;
-- distinguish source test failure from external signing/review blocker;
-- fix root cause on branch and rerun full gates;
-- never publish partial updater metadata;
-- verify no unsigned asset is exposed through stable channels.
+For account disable:
 
-## 14. Incident record
+- invalidate all sessions;
+- disconnect all user sockets;
+- verify `findUser`/active-session checks reject the disabled account;
+- terminate any active call involving that account;
+- verify search/profile/presence no longer expose the account.
+
+For block:
+
+- remove contact relation;
+- cancel pending requests;
+- terminate active calls;
+- verify stale sockets cannot continue signaling;
+- verify unblock does not recreate prior state.
+
+## 10. Diagnostics and support collection
+
+`GET /api/v3/calls/diagnostics` may expose only safe capability state:
+
+- signaling available;
+- TURN configured;
+- relay-required indicator;
+- whether the current session has an active call;
+- selected device scope;
+- explicit flags confirming that content/candidates/user identifiers are excluded.
+
+Support bundles must not contain:
+
+- SDP or ICE candidates;
+- media or transcription;
+- cookies/session tokens/CSRF tokens;
+- TURN secret or generated credentials;
+- password/TOTP/recovery material;
+- private profile fields or message content.
+
+Use request IDs to correlate server logs. Apply recursive redaction before export.
+
+## 11. Backup and restore
+
+Before any restore:
+
+1. stop/drain writes;
+2. stage database and file store together;
+3. verify allowlisted backup identity;
+4. check integrity and supported schema;
+5. preserve rollback copies;
+6. swap atomically under the maintenance lock;
+7. start and verify readiness;
+8. validate representative accounts, rooms, messages, uploads, privacy and call history.
+
+Restoring schema 9 under 3.6.0 should invoke the supported migration to schema 10. A schema newer than 10 must fail closed.
+
+## 12. Emergency disable
+
+When Connect presents an active security or reliability risk:
+
+- stop accepting new traffic or place the Local Server in supported emergency read-only mode;
+- terminate active calls through controlled shutdown;
+- disable/withdraw TURN credentials at the operator service;
+- revoke compromised sessions;
+- preserve database, logs and runtime evidence;
+- do not delete call history/audit before incident review;
+- deploy only a tested fix with regression coverage.
+
+There is no supported client-only switch that can make an unsafe server path secure.
+
+## 13. Release failure and publication
+
+The signed 3.6.0 workflow must remain fail-closed.
+
+Before it can publish, machine-readable evidence must report:
+
+- `status: release-approved`;
+- `signed: true`;
+- `distribution: signed-stable`;
+- zero release blockers;
+- all independent/platform/cross-platform evidence records `passed` with completion timestamps and real results.
+
+If packaging or publication fails:
+
+- do not manually replace/create the official tag;
+- do not upload partial updater metadata;
+- preserve exact run/job/artifact IDs;
+- distinguish source failure from missing external prerequisite;
+- fix root cause on the branch and rerun the complete gate;
+- verify no unapproved asset is exposed through stable channels.
+
+## 14. Required external acceptance
+
+Source CI cannot prove:
+
+- Windows 10/11 installed signed behavior;
+- Android physical-device permission/lifecycle behavior;
+- Browser/PWA installed lifecycle;
+- Windows↔Android, Windows↔PWA and Android↔PWA calls;
+- TURN-only NAT traversal and network handover;
+- production signer identities.
+
+Record real environment, versions, devices, network path, test result, completion time and evidence reference in the corresponding `release-evidence/*-3.6.0.json` file. Do not mark a pending scenario as passed.
+
+## 15. Incident record
 
 Record:
 
 - UTC time;
 - exact version/commit/tag;
-- deployment profile;
-- affected user/room/device;
+- server deployment profile;
+- affected account/session/call in protected records;
 - request ID and stable code;
 - sanitized logs;
-- containment;
+- containment actions;
 - root cause;
 - regression test;
-- recovery/closure evidence.
-> Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.
-
-> Current implementation candidate: Nexora 3.6.0 Connect. Signed stable publication remains blocked pending required external evidence.
+- restore/recovery result;
+- closure and release impact.
