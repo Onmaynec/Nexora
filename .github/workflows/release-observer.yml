@@ -1,0 +1,46 @@
+name: Nexora release status observer
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  actions: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  report:
+    if: >-
+      github.event.issue.number == 101 &&
+      github.event.comment.body == '/nexora-release-status'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Report recent 3.5.0 publication runs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          runs="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow release.yml --limit 5 --json databaseId,status,conclusion,headSha,displayTitle,event,url,createdAt,updatedAt)"
+          body="$(RUNS_JSON="$runs" python - <<'PY'
+          import json, os
+          runs = json.loads(os.environ['RUNS_JSON'])
+          lines = ['## Nexora 3.5.0 release workflow status', '']
+          if not runs:
+              lines.append('No release workflow runs found.')
+          for run in runs:
+              lines.extend([
+                  f"- run `{run['databaseId']}` — **{run['status']} / {run.get('conclusion') or 'pending'}**",
+                  f"  - event: `{run['event']}`",
+                  f"  - head: `{run['headSha']}`",
+                  f"  - title: {run['displayTitle']}",
+                  f"  - created: `{run['createdAt']}`; updated: `{run['updatedAt']}`",
+                  f"  - URL: {run['url']}",
+              ])
+          print('\n'.join(lines))
+          PY
+          )"
+          gh api "repos/$GITHUB_REPOSITORY/issues/$ISSUE_NUMBER/comments" -f body="$body"
