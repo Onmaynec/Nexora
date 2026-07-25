@@ -1,0 +1,56 @@
+name: Nexora 3.6.0 failure diagnostics
+
+on:
+  push:
+    branches: [release/3.6.0-connect]
+    paths:
+      - '.connect-diagnostics/READY-2'
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/3.6.0-connect
+          fetch-depth: 0
+          show-progress: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - run: npm ci
+      - name: Capture failures
+        shell: bash
+        env:
+          NEXORA_SOAK_MINUTES: '1'
+          NEXORA_SOAK_INTERVAL_MS: '500'
+        run: |
+          set +e
+          mkdir -p release-evidence/3.6.0/diagnostics
+          npm run test:unit > /tmp/unit.txt 2>&1
+          unit_status=$?
+          npm run test:soak > /tmp/soak.txt 2>&1
+          soak_status=$?
+          cp /tmp/unit.txt release-evidence/3.6.0/diagnostics/unit.txt
+          cp /tmp/soak.txt release-evidence/3.6.0/diagnostics/soak.txt
+          printf '%s\n' "$unit_status" > release-evidence/3.6.0/diagnostics/unit.status
+          printf '%s\n' "$soak_status" > release-evidence/3.6.0/diagnostics/soak.status
+          set -e
+          rm -rf .connect-diagnostics
+          rm -f .github/workflows/connect-diagnostics.yml
+      - name: Commit diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'nexora-release-bot'
+          git config user.email 'nexora-release-bot@users.noreply.github.com'
+          git add -A
+          git add -f release-evidence/3.6.0/diagnostics/unit.txt release-evidence/3.6.0/diagnostics/soak.txt
+          git diff --cached --check
+          git commit -m 'test(connect): retain failing diagnostics'
+          git push origin HEAD:release/3.6.0-connect
