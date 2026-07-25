@@ -14,7 +14,16 @@ function gatewayError(code, message, { permanent = false, status = null } = {}) 
 
 function normalizeAddress(value) {
   const source = String(value || "").trim().toLowerCase();
-  return source.startsWith("::ffff:") ? source.slice(7) : source;
+  if (!source.startsWith("::ffff:")) return source;
+  const tail = source.slice(7);
+  if (net.isIP(tail) === 4) return tail;
+  const groups = tail.split(":");
+  if (groups.length === 2 && groups.every((group) => /^[a-f0-9]{1,4}$/.test(group))) {
+    const high = Number.parseInt(groups[0], 16);
+    const low = Number.parseInt(groups[1], 16);
+    return `${high >>> 8}.${high & 255}.${low >>> 8}.${low & 255}`;
+  }
+  return source;
 }
 
 function isPrivateAddress(value) {
@@ -23,7 +32,7 @@ function isPrivateAddress(value) {
   if (family === 4) {
     const parts = address.split(".").map(Number);
     if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return true;
-    const [a, b] = parts;
+    const [a, b, c] = parts;
     return a === 0
       || a === 10
       || a === 127
@@ -31,17 +40,28 @@ function isPrivateAddress(value) {
       || (a === 169 && b === 254)
       || (a === 172 && b >= 16 && b <= 31)
       || (a === 192 && b === 0)
+      || (a === 192 && b === 88 && c === 99)
       || (a === 192 && b === 168)
       || (a === 198 && (b === 18 || b === 19))
+      || (a === 198 && b === 51 && c === 100)
+      || (a === 203 && b === 0 && c === 113)
       || a >= 224;
   }
   if (family === 6) {
-    return address === "::"
-      || address === "::1"
-      || address.startsWith("fc")
-      || address.startsWith("fd")
-      || /^fe[89ab]/.test(address)
-      || address.startsWith("ff");
+    if (address === "::" || address === "::1") return true;
+    if (address.startsWith("fc") || address.startsWith("fd") || /^fe[89abcdef]/.test(address) || address.startsWith("ff")) return true;
+    if (address === "100::" || address.startsWith("100:0:0:0:")) return true;
+    if (address.startsWith("64:ff9b:") || address.startsWith("2001:0:") || address.startsWith("2001:2:") || address.startsWith("2001:10:") || address.startsWith("2001:20:") || address.startsWith("2001:db8:")) return true;
+    if (address.startsWith("2002:")) {
+      const groups = address.split(":");
+      if (groups.length >= 3 && /^[a-f0-9]{1,4}$/.test(groups[1]) && /^[a-f0-9]{1,4}$/.test(groups[2])) {
+        const high = Number.parseInt(groups[1], 16);
+        const low = Number.parseInt(groups[2], 16);
+        return isPrivateAddress(`${high >>> 8}.${high & 255}.${low >>> 8}.${low & 255}`);
+      }
+      return true;
+    }
+    return false;
   }
   return true;
 }
@@ -59,7 +79,7 @@ function validateGatewayConfig({ url, secret } = {}) {
   }
   if (parsed.protocol !== "https:") throw gatewayError("PUSH_GATEWAY_HTTPS_REQUIRED", "Push gateway must use HTTPS.", { permanent: true });
   if (parsed.username || parsed.password || parsed.hash) throw gatewayError("PUSH_GATEWAY_MISCONFIGURED", "Push gateway URL must not contain credentials or a fragment.", { permanent: true });
-  if (!parsed.hostname || parsed.hostname === "localhost" || net.isIP(parsed.hostname) && isPrivateAddress(parsed.hostname)) {
+  if (!parsed.hostname || parsed.hostname === "localhost" || (net.isIP(parsed.hostname) && isPrivateAddress(parsed.hostname))) {
     throw gatewayError("PUSH_GATEWAY_PRIVATE_TARGET", "Push gateway must resolve to a public address.", { permanent: true });
   }
   return { url: parsed, secret: rawSecret };
@@ -109,9 +129,10 @@ function createPushGatewayTransport({
   async function send(delivery) {
     const token = String(delivery?.token || "");
     if (token.length < 16 || token.length > 8_192) throw gatewayError("PUSH_TOKEN_INVALID", "Push token is invalid.", { permanent: true });
+    const deliveryId = String(delivery.deliveryId || crypto.randomUUID());
     const body = JSON.stringify({
       version: 1,
-      deliveryId: String(delivery.deliveryId || crypto.randomUUID()),
+      deliveryId,
       serverId: String(delivery.serverId || ""),
       subscription: {
         provider: String(delivery.provider || ""),
@@ -127,6 +148,12 @@ function createPushGatewayTransport({
 
     try {
       const result = await new Promise((resolve, reject) => {
+        let settled = false;
+        const finish = (handler, value) => {
+          if (settled) return;
+          settled = true;
+          handler(value);
+        };
         const request = requestFactory({
           protocol: "https:",
           hostname: config.url.hostname,
@@ -142,7 +169,7 @@ function createPushGatewayTransport({
             "Content-Length": Buffer.byteLength(body),
             "X-Nexora-Timestamp": timestamp,
             "X-Nexora-Signature": `sha256=${signature}`,
-            "X-Nexora-Delivery-ID": String(delivery.deliveryId || ""),
+            "X-Nexora-Delivery-ID": deliveryId,
           },
         }, (response) => {
           const chunks = [];
@@ -156,14 +183,16 @@ function createPushGatewayTransport({
             chunks.push(chunk);
           });
           response.on("end", () => {
+            if (size > MAX_RESPONSE_BYTES) return;
             const text = Buffer.concat(chunks).toString("utf8");
             let parsed = null;
             try { parsed = text ? JSON.parse(text) : null; } catch { parsed = null; }
-            resolve({ status: Number(response.statusCode || 0), body: parsed });
+            finish(resolve, { status: Number(response.statusCode || 0), body: parsed });
           });
+          response.on("error", (error) => finish(reject, error));
         });
         request.once("timeout", () => request.destroy(gatewayError("PUSH_GATEWAY_TIMEOUT", "Push gateway request timed out.")));
-        request.once("error", reject);
+        request.once("error", (error) => finish(reject, error));
         request.end(body);
       });
 
