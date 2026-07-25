@@ -30,18 +30,35 @@ jobs:
           ref: release/3.6.0-connect
           fetch-depth: 0
 
-      - name: Reconstruct and apply implementation archive
+      - name: Reconstruct implementation archive
         shell: bash
         run: |
           set -euo pipefail
-          cat .connect-patch/0* | tr -d '\r\n' | base64 --decode > "$RUNNER_TEMP/connect-patch.tgz"
-          tar -xzf "$RUNNER_TEMP/connect-patch.tgz"
-          rm -rf .connect-patch
-          rm -f .github/workflows/apply-connect-patch.yml
+          python - <<'PY'
+          import base64, hashlib, pathlib
+          chunks = sorted(pathlib.Path('.connect-patch').glob('[0-9][0-9]'))
+          assert [item.name for item in chunks] == ['00', '01', '02', '03', '04'], chunks
+          payload = ''.join(item.read_text(encoding='utf-8').strip() for item in chunks)
+          assert len(payload) == 48788, len(payload)
+          archive = base64.b64decode(payload, validate=True)
+          digest = hashlib.sha256(archive).hexdigest()
+          assert digest == '2e2d9fda348eae0584344a2ff01e044b4c9b0f04dcef1ac59e45fe899b4918c6', digest
+          pathlib.Path('/tmp/connect-patch.tgz').write_bytes(archive)
+          print(f'archive bytes={len(archive)} sha256={digest}')
+          PY
+          tar -tzf /tmp/connect-patch.tgz
+
+      - name: Apply and validate implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -xzf /tmp/connect-patch.tgz
           node --check server/connect.cjs
           node --check server/connect-schema10.cjs
           node --check server/create-server-v31.cjs
           node --check test/connect-3.6.test.cjs
+          rm -rf .connect-patch
+          rm -f .github/workflows/apply-connect-patch.yml
 
       - name: Commit implementation
         shell: bash
