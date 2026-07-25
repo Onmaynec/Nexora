@@ -4,6 +4,22 @@
 
   window.NexoraReleaseFallback = Object.freeze([
     {
+      tag_name: "v3.4.0",
+      prerelease: true,
+      html_url: "https://github.com/Onmaynec/Nexora/releases/tag/v3.4.0",
+      published_at: "2026-07-24T00:00:00Z",
+      zipball_url: "https://github.com/Onmaynec/Nexora/archive/refs/tags/v3.4.0.zip",
+      assets: [],
+    },
+    {
+      tag_name: "v3.3.4",
+      prerelease: true,
+      html_url: "https://github.com/Onmaynec/Nexora/releases/tag/v3.3.4",
+      published_at: "2026-07-24T00:00:00Z",
+      zipball_url: "https://github.com/Onmaynec/Nexora/archive/refs/tags/v3.3.4.zip",
+      assets: [],
+    },
+    {
       tag_name: "v3.3.3",
       prerelease: true,
       html_url: "https://github.com/Onmaynec/Nexora/releases/tag/v3.3.3",

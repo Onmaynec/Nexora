@@ -2,32 +2,34 @@
 
 Документ определяет workflow, quality gates и security expectations для Issues, Pull Requests и документации.
 
-Участие регулируется [Code of Conduct](CODE_OF_CONDUCT.md). Уязвимости сообщаются только через private channel из [Security Policy](SECURITY.md).
+Участие регулируется [Code of Conduct](CODE_OF_CONDUCT.md). Уязвимости сообщаются только по [Security Policy](SECURITY.md).
 
-## Текущая база
+## 1. Текущая база
 
 | Параметр | Значение |
 |---|---|
-| Repository version | `3.3.4` release candidate |
-| Distribution | signed when policy exists; otherwise explicit `UNSIGNED-TEST` prerelease |
+| Repository version | `3.4.0` |
+| Classification | Stable Core release candidate |
+| Publication | Заблокирована до verified `v3.3.4`, Authenticode/Windows acceptance и independent security review |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
-| Trust/MLS runtime | retired; legacy secure history is read-only |
+| Trust/MLS runtime | retired; write paths return `410/LEGACY_READ_ONLY` |
+| Legacy secure history | read-only compatibility layer; server-side decryption отсутствует |
 | Local Server database | SQLite schema 8 |
 
-Contribution не должно представлять release-candidate functionality как signed stable, production-approved или independently audited.
+Contribution не должно представлять release-candidate functionality как published stable, production-approved или independently audited.
 
-## Каналы взаимодействия
+## 2. Каналы взаимодействия
 
-- воспроизводимый дефект — Bug Report;
-- предложение функции — Feature Request;
+- воспроизводимый дефект — [Bug Report](https://github.com/Onmaynec/Nexora/issues/new?template=bug_report.yml);
+- предложение функции — [Feature Request](https://github.com/Onmaynec/Nexora/issues/new?template=feature_request.yml);
 - ошибка документации — Documentation issue;
 - установка и эксплуатация — [SUPPORT.md](SUPPORT.md);
 - уязвимость — private GitHub Security Advisory.
 
 Крупные feature-, architecture-, schema-, protocol- и dependency-изменения сначала обсуждаются в Issue.
 
-## Локальная среда
+## 3. Локальная среда
 
 Требования:
 
@@ -46,42 +48,36 @@ npm run audit:security
 
 Nexora использует `node:sqlite`. Новая native SQLite dependency или `node-gyp`-цепочка требует отдельного архитектурного обоснования.
 
-## Инженерные правила
+## 4. Инженерные правила
 
 - сохраняйте существующую архитектуру и переиспользуйте текущие services, models, components и utilities;
 - исправляйте первопричину, а не только UI-симптом;
-- Client отвечает за UI, ввод, локальное состояние, offline cache и чтение ранее сохранённого local legacy cache;
-- Server отвечает за authentication, authorization, business rules, storage integrity, quotas, rate limits и realtime access;
+- Client отвечает за интерфейс, ввод, локальное состояние, offline cache и безопасное отображение legacy history;
+- Server отвечает за authentication, authorization, business rules, ordinary messaging, storage integrity, quotas, rate limits и realtime access;
 - критические проверки выполняются на Server;
 - связанные записи выполняются транзакционно;
-- schema change включает migration, verified backup, integrity checks, rollback guidance и downgrade protection;
+- schema change включает migration, backup, integrity checks, rollback guidance и downgrade protection;
 - не добавляйте dependency без необходимости;
 - не оставляйте TODO, stubs, fake data, empty handlers и unused code.
 
-## Post-MLS boundary
-
-- ordinary server-readable messaging — единственный writable messaging path;
-- удалённые Trust/MLS, recovery и encrypted-upload write paths не восстанавливаются без отдельного RFC;
-- schema 8 legacy ciphertext и provenance сохраняются;
-- legacy viewer/export остаётся immutable;
-- legacy HTTP и Socket.IO mutations должны завершаться `LEGACY_READ_ONLY`;
-- Server не расшифровывает и не преобразует legacy ciphertext;
-- ordinary chat не должен зависеть от local MLS state.
-
-## Security и privacy
+## 5. Security и privacy
 
 Нельзя коммитить:
 
 - `.env` и production credentials;
 - SQLite databases, backups и user attachments;
-- CA, Authenticode, Android, Pulse или device private keys;
+- CA, Authenticode, Android, Pulse, provider или device private keys;
 - session cookies, OAuth/API/bot/Pulse tokens и invite codes;
-- TOTP seeds и recovery codes;
+- TOTP seeds, recovery codes и сохранённые legacy cryptographic secrets;
 - реальные user/payment data в tests, screenshots или logs.
 
-Mutating browser requests должны сохранять session, exact Origin и CSRF validation. Direct API calls проверяются так же строго, как UI actions. Production Plus/Pulse entitlement не создаётся авторитетно Local Server.
+Mutating browser requests должны сохранять session, exact Origin и CSRF validation. Все серверные операции должны проверять resource existence, membership, role/permission, active ban, room restrictions, input limits и rate limiting.
 
-## Ветки и commits
+Retired Trust/MLS/E2EE write paths должны оставаться terminal read-only и возвращать `410/LEGACY_READ_ONLY`; запрещено добавлять plaintext conversion или новый writable encrypted transport под совместимым именем.
+
+Production Plus/Pulse entitlement не создаётся авторитетно Local Server.
+
+## 6. Ветки и commits
 
 Новая работа начинается от latest verified `main`:
 
@@ -94,63 +90,52 @@ Mutating browser requests должны сохранять session, exact Origin 
 Используйте короткий imperative subject, например:
 
 ```text
-fix: reject legacy write mutation
+fix: reject stale session after device revoke
 ```
 
 Не объединяйте unrelated refactoring, feature work и documentation cleanup в одном Pull Request.
 
-## Обязательные проверки
+Статусы historical и development branches регулирует [Branch Documentation Policy](docs/BRANCH_DOCUMENTATION_POLICY.md). Merged/superseded ветки не обновляются так, чтобы имитировать текущий `main`.
+
+## 7. Обязательные проверки
+
+Минимум:
 
 ```bash
 npm run check
-npm run test:unit
-npm run test:performance
+npm test
 npm run audit:security
+```
+
+Release-sensitive gate:
+
+```bash
 npm run release:check
 ```
 
-По затронутому контуру дополнительно запускаются Cloud/Pulse suites, schema soak, Android build, website contracts и Windows package acceptance.
+Дополнительно по затронутому контуру:
 
-## Test expectations
+- performance — `npm run test:performance`;
+- Cloud — `npm run test:cloud`;
+- Local Pulse — `npm run test:pulse-local`;
+- soak/integrity — `npm run test:soak`;
+- Android — `gradle -p android :app:assembleDebug --no-daemon`;
+- local Windows test packages — `npm run dist:windows`;
+- signed Windows release candidate — `npm run release:windows:signed`.
 
-Security-sensitive работа включает прямые bypass attempts. Проверяйте:
+Release evidence принимается только для exact reviewed commit. Результаты другой revision не считаются release evidence.
 
-- owner/moderator/member boundaries;
-- removal/ban/session revoke и realtime access loss;
-- invitation expiry/limit races;
-- upload MIME/size/hash substitution;
-- CSRF, Origin и IDOR;
-- Pulse signature/replay/idempotency;
-- session-derived device inventory и targeted revoke;
-- legacy REST/Socket.IO mutations fail closed;
-- no legacy ciphertext-to-plaintext conversion;
-- updater signing/no-downgrade behavior;
-- migration, backup verification, restore и rollback;
-- offline/outbox bounded retry and terminal errors.
+## 8. Pull Request checklist
 
-## Требования к Pull Request
+Перед переводом PR в ready:
 
-PR должен содержать:
+- scope и acceptance criteria определены;
+- server-side authorization и validation покрыты tests;
+- migrations и rollback добавлены при изменении schema;
+- stable error codes и user-facing messages проверены;
+- unit, API, integration, realtime и targeted regression tests проходят;
+- `npm run check`, `npm test`, `npm run audit:security` проходят;
+- documentation, changelog и release evidence обновлены, если поведение или contract изменились;
+- temporary scripts, diagnostic workflows и generated failure logs удалены.
 
-1. проблему и решение;
-2. затронутые компоненты;
-3. schema/API/client compatibility;
-4. security/privacy impact;
-5. migration/rollback plan;
-6. tests added/updated;
-7. фактические результаты команд;
-8. manual validation;
-9. documentation/changelog changes;
-10. реальные оставшиеся ограничения.
-
-Review блокируется при отсутствии воспроизведения, server-side checks, migration/testing evidence или при наличии secrets и unrelated mass refactoring.
-
-## Стандарт документации
-
-Документация описывает фактическое поведение конкретной версии и ветки, разделяет implemented/automated/manual/planned scope, фиксирует trust boundaries и non-guarantees, использует repository-relative links и не содержит неподтверждённых marketing/security claims.
-
-Центральные материалы: [Documentation Portal](docs/README.md), [Branch Documentation Policy](docs/BRANCH_DOCUMENTATION_POLICY.md) и [Release Verification 3.3.4](docs/releases/3.3.4/RELEASE_VERIFICATION.md).
-
-## Лицензирование
-
-Отправляя contribution, автор подтверждает право предоставить изменения и соглашается на их распространение по [MIT License](LICENSE).
+Для `3.4.0` merge/tag/release дополнительно требуются опубликованный verified `v3.3.4`, полный Authenticode policy, Windows 10/11 installed `3.3.4 → 3.4.0` acceptance и independent security review без unresolved high/critical findings.

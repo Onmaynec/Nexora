@@ -1,19 +1,20 @@
-# Nexora Security Verification Summary
+# Nexora 3.4.0 Security Verification Summary
 
 **Дата документа:** 24 июля 2026  
-**Текущая версия:** `3.3.4`  
-**Канал:** release candidate; signed when policy exists, otherwise explicit `UNSIGNED-TEST` prerelease  
+**Текущая версия:** `3.4.0`  
+**Классификация:** Stable Core release candidate  
+**Официальная публикация:** blocked until all stable gates complete  
 **Signed production baseline:** `3.1.2`
 
 ## 1. Область
 
-Документ суммирует automated security, architecture и reliability verification Nexora 3.3.4 Post-MLS Baseline. Он не является independent penetration test, cryptographic certification, supply-chain audit или production approval.
+Документ суммирует automated security, architecture and reliability verification Nexora 3.4.0 Stable Core. Он не является independent penetration test, cryptographic certification, supply-chain audit или production approval.
 
 Авторитетные материалы:
 
-- [Security Review 3.3.4](SECURITY_REVIEW_3.3.4.md);
-- [Release Verification 3.3.4](docs/releases/3.3.4/RELEASE_VERIFICATION.md);
-- [Release Notes 3.3.4](docs/releases/3.3.4/RELEASE_NOTES.md);
+- [Security Review 3.4.0](SECURITY_REVIEW_3.4.0.md);
+- [Release Verification 3.4.0](docs/releases/3.4.0/RELEASE_VERIFICATION.md);
+- [Release Notes 3.4.0](docs/releases/3.4.0/RELEASE_NOTES.md);
 - [Security Model](docs/SECURITY_MODEL.md);
 - [Release Checklist](docs/RELEASE_CHECKLIST.md).
 
@@ -21,15 +22,16 @@
 
 | Параметр | Значение |
 |---|---|
-| Version | `3.3.4` |
+| Version | `3.4.0` |
 | Application API | v3 |
 | Writable messaging | ordinary server-readable messaging |
 | Trust/MLS runtime | retired |
 | Legacy secure history | read-only compatibility layer |
 | Local Server database | SQLite schema 8 |
-| Stable signed Windows approval | не предоставлен для prerequisite release |
+| Upgrade prerequisite | published verified `v3.3.4` |
+| Stable signed Windows approval | blocked pending external evidence |
 
-## 3. Post-MLS security boundary
+## 3. Stable Core security boundary
 
 - executable Trust Core, MLS recovery/transport, Trust routes and encrypted-upload write runtime are removed;
 - `ts-mls` is absent from package and lockfile;
@@ -39,7 +41,7 @@
 - Trust/E2EE HTTP mutations return `410/LEGACY_READ_ONLY`;
 - MLS Socket.IO mutations return terminal `LEGACY_READ_ONLY` acknowledgements;
 - legacy UI contains no composer, upload, record, edit or delete actions;
-- ordinary conversations no longer depend on local MLS state and cannot be blocked by corrupt/missing MLS data.
+- ordinary conversations do not depend on local MLS state.
 
 ## 4. Authentication, authorization and sessions
 
@@ -76,7 +78,7 @@ Stack traces, SQL, tokens, cookies, passwords, certificate material and private 
 ## 6. Uploads and media
 
 - authorization and room restrictions are checked server-side on every upload/action;
-- size, actual MIME type, safe filename, hash and quota controls remain active;
+- size, actual MIME type, safe filename, chunk/file hashes and quota controls remain active;
 - dangerous/executable content is rejected;
 - temporary data is removed after failed or cancelled operations;
 - corrupt images fail safely;
@@ -102,9 +104,9 @@ Stack traces, SQL, tokens, cookies, passwords, certificate material and private 
 - downgrade and prerelease upgrade consumption are disabled;
 - signature/checksum failures map to `UPDATE_SIGNATURE_INVALID`;
 - partial signing configuration is rejected;
-- complete signing policy verifies expected Authenticode subject, thumbprint and timestamp;
-- without signing credentials, `v3.3.4` is an explicit `UNSIGNED-TEST` prerelease;
-- unsigned publication forbids `latest.yml`, `server.yml` and blockmaps;
+- official `v3.4.0` requires complete Authenticode identity/timestamp verification;
+- official stable workflow has no unsigned fallback path;
+- baseline `v3.3.4` assets/checksums are verified before packaging;
 - source, PWA, Android, SPDX SBOM, release evidence and SHA-256 checksums are produced;
 - published assets are re-downloaded and verified;
 - official tag is immutable.
@@ -118,9 +120,9 @@ Stack traces, SQL, tokens, cookies, passwords, certificate material and private 
 - deep links accept valid HTTPS only;
 - Service Worker/offline cache must not bypass authorization or cache API/Socket.IO traffic as public content.
 
-## 10. Verification gates
+## 10. Automated verification gates
 
-Required final release-commit evidence:
+Required release-commit commands:
 
 ```bash
 npm ci
@@ -133,16 +135,32 @@ npm run test:soak
 gradle -p android :app:assembleDebug --no-daemon
 ```
 
-Дополнительно обязательны focused 3.3 regressions, introductory/advanced website validation, installed Windows package smoke and post-publication asset verification.
+Focused regressions and both website pipelines are also mandatory.
 
-## 11. Residual risks and deferred 3.4.0 gates
+## 11. External stable blockers
+
+Machine-readable blockers are stored in:
+
+- `release-evidence/independent-security-review-3.4.0.json`;
+- `release-evidence/windows-acceptance-3.4.0.json`;
+- `release-evidence/current.json`.
+
+Official merge/tag/release remains blocked until:
+
+1. immutable published `v3.3.4` tag/release/assets exist;
+2. complete Authenticode signing policy is available;
+3. real Windows 10 and Windows 11 installed `3.3.4 → 3.4.0` acceptance passes;
+4. independent security review approves the reviewed ancestor commit;
+5. unresolved high and critical findings equal zero;
+6. final CI, release evidence and post-publication smoke pass.
+
+## 12. Residual risks
 
 - Local Server cannot decrypt retained legacy ciphertext;
 - readable historical plaintext depends on a pre-existing local Client cache;
 - Client/OS/browser compromise can expose plaintext during authorized use;
 - public deployment depends on external TLS proxy, firewall, monitoring and DDoS controls;
 - Android/PWA production promotion requires physical/installed runtime evidence;
-- automated verification does not replace independent application-security review;
-- Authenticode-backed stable Windows promotion, independent review and signed 3.3.4 → 3.4.0 acceptance remain mandatory Nexora 3.4.0 gates.
+- automated verification does not replace independent review.
 
-Evidence другой revision не является release evidence. До merge, post-merge CI, annotated tag, GitHub Release и re-download smoke версия 3.3.4 остаётся release candidate.
+До завершения external evidence этот документ подтверждает только проверенный release-candidate source, а не опубликованный stable `v3.4.0`.

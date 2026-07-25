@@ -48,14 +48,14 @@ jobs:
         run: |
           set +e
           {
-            node --check website/release-fallback.js
-            node --check website/network-resilience.js
-            node --check website/app.js
-            node --check website/site-fixes.js
-            node --check website/site-polish.js
-            node website/generate-release-fallback.mjs --check
-            node --test website/release-resilience.test.cjs
-            node website/validate.mjs
+            node --check website/release-fallback.js &&
+            node --check website/network-resilience.js &&
+            node --check website/app.js &&
+            node --check website/site-fixes.js &&
+            node --check website/site-polish.js &&
+            node website/generate-release-fallback.mjs --check &&
+            node --test website/release-resilience.test.cjs &&
+            node website/validate.mjs &&
             node website/validate-restored.mjs
           } > intro-validation-failures.log 2>&1
           status=$?
@@ -110,7 +110,7 @@ jobs:
         run: |
           set +e
           {
-            node advanced-website/scripts/validate-content.mjs
+            node advanced-website/scripts/validate-content.mjs &&
             node --test advanced-website/test/*.test.mjs
           } > advanced-validation-failures.log 2>&1
           status=$?

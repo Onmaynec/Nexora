@@ -41,6 +41,8 @@ const fixtureFiles = [
   "website/site-fixes.js",
   "CHANGELOG.md",
   "release-evidence/current.json",
+  "release-evidence/independent-security-review-3.4.0.json",
+  "release-evidence/windows-acceptance-3.4.0.json",
 ];
 
 function copyFixture() {
@@ -111,5 +113,16 @@ test("release consistency gate rejects a root release document containing duplic
     const pointer = path.join(fixture, `RELEASE_NOTES_${version}.md`);
     fs.writeFileSync(pointer, fs.readFileSync(path.join(fixture, `docs/releases/${version}/RELEASE_NOTES.md`), "utf8"));
     assert.throws(() => checkReleaseConsistency(fixture), /compatibility pointer/);
+  });
+});
+
+test("release consistency gate rejects prematurely approved external evidence", () => {
+  withFixture((fixture) => {
+    const reviewPath = path.join(fixture, "release-evidence/independent-security-review-3.4.0.json");
+    const review = JSON.parse(fs.readFileSync(reviewPath, "utf8"));
+    review.status = "approved";
+    review.approved = true;
+    fs.writeFileSync(reviewPath, JSON.stringify(review, null, 2));
+    assert.throws(() => checkReleaseConsistency(fixture), /must remain explicitly blocked/);
   });
 });

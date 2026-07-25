@@ -81,12 +81,18 @@ const checks = [
   ["Android cleartext disabled", /usesCleartextTraffic="false"/, androidManifest],
   ["Android TLS errors are cancelled", /onReceivedSslError[\s\S]*handler\.cancel\(\)/, android],
   ["Android never bypasses TLS errors", !/handler\.proceed\(\)/.test(android), "boolean"],
-  ["Unsigned release excludes updater assets", containsAll(releaseWorkflow, [
-    "Nexora-Client-Setup-$version-UNSIGNED-TEST.exe",
-    "Nexora-Server-Setup-$version-UNSIGNED-TEST.exe",
+  ["Official 3.4.0 release is signed-only and externally gated", containsAll(releaseWorkflow, [
+    "This workflow publishes only Nexora 3.4.0",
+    "Verify required 3.3.4 baseline",
+    "Verify independent review and Windows acceptance evidence",
+    "Require complete Authenticode policy",
+    "Build and verify signed Windows assets",
+    "verify-authenticode.ps1",
+    "latest.yml",
+    "server.yml",
+  ]) && !containsAll(releaseWorkflow, [
+    "Build explicitly unsigned Windows test assets",
     "UNSIGNED-TEST prerelease without updater metadata",
-    '$names -contains "latest.yml"',
-    "\\.blockmap$",
   ]), "boolean"],
   ["No native SQLite dependency", !/better-sqlite3/.test(read("package.json")), "boolean"],
 ];

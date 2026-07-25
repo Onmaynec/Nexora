@@ -1,8 +1,8 @@
 # Nexora 3.1.2 Release Notes
 
-Дата: 21 июля 2026  
-Тип: patch release  
-API: v3  
+Дата: 21 июля 2026
+Тип: patch release
+API: v3
 Local Server schema: 7
 
 ## Назначение релиза

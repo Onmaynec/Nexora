@@ -1,9 +1,9 @@
 # Release Verification — Nexora 3.3.0
 
-Дата финализации: 2026-07-23  
-Pull Request: `#38`  
-Merge commit: `a46c080e12b9081b448dad6426bf7c44156114cd`  
-Tag: `v3.3.0`  
+Дата финализации: 2026-07-23
+Pull Request: `#38`
+Merge commit: `a46c080e12b9081b448dad6426bf7c44156114cd`
+Tag: `v3.3.0`
 Release: `https://github.com/Onmaynec/Nexora/releases/tag/v3.3.0`
 
 ## Итоговый статус

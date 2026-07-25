@@ -1,12 +1,12 @@
 # Политика безопасности Nexora
 
-> **Post-MLS Baseline 3.3.4 RC:** ordinary server-readable messaging is writable; legacy Trust/MLS history is read-only. Publication remains blocked by final CI, merge, official release creation and asset re-download smoke.
+> **Stable Core 3.4.0 RC:** ordinary server-readable messaging is writable; legacy Trust/MLS history is read-only. Stable publication remains blocked by verified v3.3.4, signing/Windows acceptance and independent review.
 
 ## Supported versions
 
 | Version | Channel | Security status |
 |---|---|---|
-| `3.3.4` | Release candidate / PR #70 | Internal review complete for the prerequisite scope; signed-stable and independent-review claims are deferred to 3.4.0 |
+| `3.4.0` | Release candidate / PR #96 | Implementation under validation; no production claim before independent review |
 | `3.3.3` | Published `UNSIGNED-TEST` prerelease | Supported for regression/security reports; not a signed stable baseline |
 | `3.1.x` | Signed production baseline | Supported |
 | `3.0.x` and older | Historical | Unsupported |
@@ -28,3 +28,26 @@ Provide:
 - whether the issue affects authentication, CSRF, roles, bans, uploads, Electron, updater, Pulse, backup/export or legacy retirement.
 
 Use the repository security advisory/private reporting channel where available. If that channel is unavailable, contact the maintainer through a private channel listed on the GitHub profile and disclose only the minimum needed to establish contact.
+
+## Scope for 3.4.0 review
+
+- authentication, sessions, device revoke and realtime disconnect;
+- Origin/CSRF and direct API bypass;
+- room roles, higher-privilege protection and active bans;
+- ordinary upload type/size/path controls;
+- retired Trust/MLS HTTP/Socket.IO writes and plaintext leakage;
+- local read-only legacy cache adapter/export;
+- migration, backup verify, restore rollback and future schema;
+- Electron IPC/profile/certificate pinning;
+- Client/Server updater, Authenticode identity, timestamp and no-downgrade;
+- Pulse authority boundary and secret redaction.
+
+## Disclosure and release policy
+
+High/critical findings block merge, tag and stable publication. Each finding must record severity, root cause, fix, regression evidence and closure/retest. Public summaries must not expose credentials or weaponized details before coordinated disclosure.
+
+The `SECURITY_REVIEW_3.4.0.md` file is an internal scope/closure ledger, not an independent assessment. The independent review remains a mandatory release blocker.
+
+## Out of scope claims
+
+Nexora does not claim protection against a compromised operating-system administrator, malicious local operator, stolen signing environment or insecure reverse proxy configuration. A self-hosted deployment remains responsible for OS patching, firewall, TLS, backup custody, secrets and monitoring.

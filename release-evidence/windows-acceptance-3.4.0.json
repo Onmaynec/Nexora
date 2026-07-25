@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "version": "3.4.0",
+  "baseline": "3.3.4",
+  "target": "3.4.0",
+  "windows10": {
+    "installedUpgradePassed": false,
+    "evidenceUrl": null
+  },
+  "windows11": {
+    "installedUpgradePassed": false,
+    "evidenceUrl": null
+  },
+  "signedTargetVerified": false,
+  "status": "blocked"
+}

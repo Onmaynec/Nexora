@@ -2,11 +2,12 @@
 
 Release documentation is grouped by version under this directory. The canonical chronological history remains [`CHANGELOG.md`](../../CHANGELOG.md); immutable publication evidence remains under [`release-evidence/`](../../release-evidence/).
 
-## Current release candidate
+## Current release candidate candidate
 
 | Version | Notes | Verification | Security review | Evidence |
 |---|---|---|---|---|
-| `3.3.4` | [Release notes](3.3.4/RELEASE_NOTES.md) | [Release verification](3.3.4/RELEASE_VERIFICATION.md) | [`SECURITY_REVIEW_3.3.4.md`](../../SECURITY_REVIEW_3.3.4.md) | [`release-evidence/current.json`](../../release-evidence/current.json) |
+| `3.4.0` | [Release notes](3.4.0/RELEASE_NOTES.md) | [Release verification](3.4.0/RELEASE_VERIFICATION.md) | [`release-evidence/current.json`](../../release-evidence/current.json) |
+| `3.3.4` | [Release notes](3.3.4/RELEASE_NOTES.md) | [Release verification](3.3.4/RELEASE_VERIFICATION.md) | historical prerequisite evidence |
 
 ## Previous published release
 

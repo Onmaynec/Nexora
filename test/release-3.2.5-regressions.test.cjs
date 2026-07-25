@@ -100,17 +100,27 @@ test("message delivery updates previews without forcing full bootstrap per event
   assert.doesNotMatch(pane, /result\.failed[\s\S]{0,180}onRefresh/);
 });
 
-test("local Windows test build remains separate from signed stable publication", () => {
+test("local Windows test builds remain local while official 3.4.0 publication is signed-only", () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
   const workflow = fs.readFileSync(path.join(root, ".github", "workflows", "release.yml"), "utf8");
+  const clientBuilder = fs.readFileSync(path.join(root, "electron-builder.client.yml"), "utf8");
+  const serverBuilder = fs.readFileSync(path.join(root, "electron-builder.server.yml"), "utf8");
+
   assert.doesNotMatch(pkg.scripts["release:windows"], /signing-check/);
   assert.match(pkg.scripts["release:windows:signed"], /signing-check/);
   assert.match(workflow, /release:signing-check/);
   assert.match(workflow, /WINDOWS_CERTIFICATE_BASE64/);
-  assert.match(workflow, /PUBLISH_TAG=\$officialTag/);
-  assert.match(workflow, /UNSIGNED-TEST prerelease without updater metadata/);
-  assert.match(workflow, /--prerelease/);
-  assert.doesNotMatch(workflow, /Unsigned artifact set contains updater metadata[\s\S]{0,240}latest\.yml/);
+  assert.match(workflow, /Require complete Authenticode policy/);
+  assert.match(workflow, /PUBLISH_TAG=\$tag/);
+  assert.match(workflow, /Build and verify signed Windows assets/);
+  assert.match(workflow, /--publish never/);
+  assert.match(clientBuilder, /releaseType:\s*draft/);
+  assert.match(serverBuilder, /releaseType:\s*draft/);
+  assert.doesNotMatch(workflow, /Build explicitly unsigned Windows test assets/);
+  assert.doesNotMatch(workflow, /Nexora-Client-Setup-\$version-UNSIGNED-TEST\.exe/);
+  assert.doesNotMatch(workflow, /Nexora-Server-Setup-\$version-UNSIGNED-TEST\.exe/);
+  assert.doesNotMatch(workflow, /--prerelease/);
+  assert.doesNotMatch(workflow, /PUBLISH_TAG=.*unsigned-test/);
 });
 
 test("Server control plane styles disabled controls and scrollbars inside the product theme", () => {

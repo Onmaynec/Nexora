@@ -1,6 +1,6 @@
-# Политика поддержки Nexora
+# Политика поддержки Nexora 3.4.0
 
-> **Post-MLS Baseline 3.3.4 RC:** ordinary messaging is writable; legacy Trust/MLS history is read-only. Stable publication remains blocked by CI, merge, release publication and asset smoke.
+> **Stable Core release candidate:** ordinary messaging is writable; legacy Trust/MLS history is read-only. Official stable publication remains blocked by verified `v3.3.4`, Authenticode/Windows acceptance and independent review.
 
 Nexora is an open-source project supported through the public repository on a best-effort basis; this is not a contractual SLA.
 
@@ -8,8 +8,8 @@ Nexora is an open-source project supported through the public repository on a be
 
 | Version | Status |
 |---|---|
-| `3.3.4` / PR #70 | Release candidate; defect/security reports are accepted, production claims are not |
-| `3.3.3` | Published `UNSIGNED-TEST` prerelease; regression/security reports are accepted |
+| `3.4.0` / PR #96 | Active release candidate; defect/security reports accepted, production claims not granted |
+| `3.3.4` / merged source baseline | Prerequisite regression reports accepted; publication state must be identified exactly |
 | `3.1.x` | Last confirmed signed production baseline |
 | `3.0.x` and older | Unsupported except migration/security context |
 
@@ -32,31 +32,47 @@ Include:
 
 - minimum reproduction and expected/actual result;
 - affected role, room/account state and direct API path where relevant;
-- HTTP status, stable code, request ID and `Retry-After` where applicable;
+- HTTP status, stable code, request ID and `Retry-After`;
 - platform, OS/browser/device model;
-- schema/readiness and exact event time;
+- schema/readiness and exact UTC event time;
 - sanitized screenshot/log excerpt.
 
 Do not attach secrets, production DB/backups or private user content.
 
-## 3.3.4-specific triage
+## 3.4.0-specific triage
 
-State whether the problem reproduces on published 3.3.3 or only PR #70.
+State whether the problem reproduces on:
 
-For legacy history, report:
+- PR #96 exact head;
+- merged `3.3.4` source baseline;
+- published signed baseline `3.1.2`;
+- another exact historical revision.
+
+For legacy history report:
 
 - whether schema 8 group/ciphertext exists;
 - whether local decrypted IndexedDB content existed before upgrade;
-- whether the viewer reports `exportable`, `unavailable` or terminal error;
-- any request ID from the read-only API.
+- whether viewer reports available/exportable/unavailable terminal state;
+- request ID from read-only API;
+- whether any write unexpectedly succeeded.
 
-Do not request restoration of Trust/MLS write paths as a defect; their removal is intentional scope. A legacy mutation that succeeds instead of returning `410/LEGACY_READ_ONLY` is a security/integrity defect.
+Restoration of writable Trust/MLS runtime is not a defect request. A legacy mutation that succeeds instead of returning `410/LEGACY_READ_ONLY` is a security/integrity defect.
 
-## Product proposals
+## Security vulnerabilities
 
-Use the feature request template and describe the user problem, target workflow, Client/Server/storage/realtime impact, security/privacy impact, compatibility/migration and acceptance criteria.
+Do not open a public issue for:
 
-## Documentation and operations
+- authentication, CSRF, IDOR or role bypass;
+- active-ban/session-revoke bypass;
+- legacy write-path resurrection or plaintext leakage;
+- upload MIME/hash/quota bypass;
+- backup traversal or live-state mutation;
+- updater/signature/tag integrity bypass;
+- secret/token/private-data exposure.
+
+Use a private GitHub Security Advisory and provide minimum reproduction, affected commit/version, impact and sanitized evidence.
+
+## Operations and documentation
 
 Consult:
 
@@ -70,28 +86,15 @@ Consult:
 
 Maintainers do not guarantee custom reverse-proxy, firewall, DNS, payment, mail or enterprise-identity configuration.
 
-## Security vulnerabilities
+## Release support boundary
 
-Do not open a public issue for:
+Official `v3.4.0` support begins only after:
 
-- authentication, CSRF, IDOR or role bypass;
-- active-ban/session-revoke bypass;
-- legacy write-path resurrection or plaintext leakage;
-- upload path/type/resource abuse;
-- token/private-key/user-data disclosure;
-- updater signature/checksum/no-downgrade bypass;
-- Server console command escape;
-- payment/ledger duplication or entitlement forgery.
+- published verified `v3.3.4` prerequisite;
+- complete Authenticode signing evidence;
+- Windows 10/11 installed `3.3.4 → 3.4.0` acceptance;
+- independent review with zero unresolved high/critical findings;
+- final green release gates;
+- immutable release/tag/assets and redownload verification.
 
-Use the private reporting channel described in [SECURITY.md](SECURITY.md).
-
-## Prohibited data
-
-Never publish passwords, backup passphrases, cookies/tokens, TOTP seeds/recovery codes, invite codes, CA/signing/device keys, legacy private MLS state, production databases/backups/attachments, payment/customer data or unredacted network inventory.
-
-## Channel boundaries
-
-- Pull Requests are for repository changes, not general support.
-- Security Advisories are for vulnerabilities.
-- Public Issues are not a secure file-transfer channel.
-- A limitation in historical/superseded code is not automatically a current defect, but unsafe behavior crossing the current declared boundary may be security-relevant.
+Before then, support is limited to source release-candidate testing and defect triage.

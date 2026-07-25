@@ -111,7 +111,7 @@ if (!html.includes("LEGACY_READ_ONLY") || !html.includes("serverDecrypted=false"
 if (!app.includes("raw.githubusercontent.com") || !app.includes("/releases?per_page=")) {
   throw new Error("Live GitHub release/version integration is missing");
 }
-if (!app.includes("ru: {") || !app.includes("en: {") || !app.includes('const FALLBACK_VERSION = "3.3.4"')) throw new Error("RU/EN dictionaries or current version fallback are missing");
+if (!app.includes("ru: {") || !app.includes("en: {") || !app.includes('const FALLBACK_VERSION = "3.4.0"')) throw new Error("RU/EN dictionaries or current version fallback are missing");
 if (!css.includes("@media (hover: none)") || !css.includes("prefers-reduced-motion")) {
   throw new Error("Adaptive motion fallbacks are missing");
 }

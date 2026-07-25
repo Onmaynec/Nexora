@@ -4,14 +4,16 @@
 
 | Параметр | Значение |
 |---|---|
-| Current version | `3.3.4` |
-| Distribution | Release candidate; signed when policy exists, otherwise explicit `UNSIGNED-TEST` prerelease |
+| Current version | `3.4.0` |
+| Classification | Stable Core release candidate |
+| Official distribution | blocked until signed stable gates complete |
 | Signed production baseline | `3.1.2` |
+| Upgrade baseline | published verified `3.3.4` |
 | Application API | v3 |
 | Trust/MLS runtime | retired; legacy secure history is read-only |
 | Local Server database | schema 8 compatibility layer, server-side |
 
-Android application is a controlled WebView shell for the adaptive Nexora Client. CI verifies the source build. Production promotion still requires a signed APK/AAB and physical-device acceptance.
+Android application is a controlled WebView shell for the adaptive Nexora Client. CI verifies the source build. Production promotion requires a signed APK/AAB, physical-device acceptance and the external 3.4.0 release gates recorded in the release evidence ledger.
 
 ## Capabilities
 
@@ -57,7 +59,7 @@ Policy:
 - a deep link accepts valid HTTPS only;
 - certificate changes require the supported trust flow.
 
-## Post-MLS data boundary
+## Stable Core data boundary
 
 - ordinary messages and media are authorized, validated and stored by Local Server;
 - executable Trust/MLS enrollment, KeyPackage, Welcome, commit and encrypted-upload write paths are absent;
@@ -97,7 +99,7 @@ The UI must handle:
 - CI `assembleDebug` passes;
 - release build is produced in a controlled signing environment;
 - clean install/upgrade preserves saved servers and authorized local state;
-- version metadata equals `3.3.4`.
+- version metadata equals `3.4.0`.
 
 ### Connection
 
@@ -135,16 +137,17 @@ The UI must handle:
 
 ## Stable-promotion requirements
 
-- physical-device matrix;
-- signed APK/AAB and upgrade path;
+- published verified `v3.3.4` prerequisite assets;
+- complete Authenticode signing policy for Windows Client/Server;
+- real Windows 10 and Windows 11 installed `3.3.4 → 3.4.0` acceptance;
+- independent security review with no unresolved high/critical findings;
+- physical Android device matrix and signed APK/AAB upgrade path;
 - long-offline and session-revocation scenarios;
-- permission denial/revocation;
-- process-death state consistency;
-- accessibility/responsive review;
-- independent security review relevant to Android runtime.
+- permission denial/revocation and process-death state consistency;
+- accessibility/responsive review.
 
 ## Limitations
 
-Nexora 3.3.4 does not claim traffic-analysis resistance or independent certification. Local Server cannot decrypt retained legacy ciphertext. Absence of Android signing credentials does not block the prerequisite release, but the APK remains explicitly `UNSIGNED-TEST` and is not a production distribution.
+Nexora 3.4.0 does not claim traffic-analysis resistance before external review evidence is complete. Local Server cannot decrypt retained legacy ciphertext. Until the official stable gates complete, this branch is a release candidate and must not produce an official `v3.4.0` tag or production updater metadata.
 
-See [Documentation Portal](../docs/README.md), [Security Model](../docs/SECURITY_MODEL.md), [Security Policy](../SECURITY.md) and [Release Verification 3.3.4](../docs/releases/3.3.4/RELEASE_VERIFICATION.md).
+See [Documentation Portal](../docs/README.md), [Security Model](../docs/SECURITY_MODEL.md), [Security Policy](../SECURITY.md) and [Release Verification 3.4.0](../docs/releases/3.4.0/RELEASE_VERIFICATION.md).

@@ -6,18 +6,16 @@
 
 | Параметр | Значение |
 |---|---|
-| Current repository version | `3.3.4` |
-| Branch | `release/3.3.4-post-mls` |
-| Pull request | `#70` |
-| Classification | Post-MLS Baseline release candidate |
-| Publication | Pending final CI, merge, official `v3.3.4` release and asset re-download smoke |
+| Current repository version | `3.4.0` |
+| Classification | Stable Core release candidate |
+| Publication | Blocked — verified `v3.3.4`, Authenticode/Windows acceptance and independent review are mandatory |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
-| Legacy Trust/MLS API | retired; writes return `410/LEGACY_READ_ONLY` |
-| Local Server database | SQLite schema 8 compatibility layer |
-| Independent review | Deferred to Nexora 3.4.0 stable gates |
+| Legacy Trust/MLS runtime | removed; compatibility history is read-only |
+| Local Server database | SQLite schema 8 |
+| Migration | schema 8 is retained; migration is transactional/idempotent and future schemas are rejected |
 
-Nexora 3.3.4 removes executable Trust/MLS runtime and restores ordinary server-readable messaging as the only writable messaging core. Legacy ciphertext, IDs, epochs, timestamps and audit provenance remain immutable and exportable without server-side decryption.
+`3.4.0` retires executable Trust/MLS paths and restores ordinary server-readable messaging as the sole writable core. Legacy ciphertext is preserved without server-side decryption or plaintext conversion. This branch is not a published release until every blocker in `RELEASE_VERIFICATION_3.4.0.md` is closed.
 
 ## Quick navigation
 
@@ -35,19 +33,19 @@ Nexora 3.3.4 removes executable Trust/MLS runtime and restores ordinary server-r
 | Выпустить версию | [Release Policy](RELEASE_POLICY.md), [GitHub Release](GITHUB_RELEASE.md), [Checklist](RELEASE_CHECKLIST.md) |
 | Получить поддержку | [Support Policy](../SUPPORT.md) |
 
-## Post-MLS Baseline documents
+## Stable Core documents
 
 | Документ | Scope | Status |
 |---|---|---|
-| [Release Notes 3.3.4](releases/3.3.4/RELEASE_NOTES.md) | user-visible changes, compatibility and limitations | Release candidate |
-| [Release Verification 3.3.4](releases/3.3.4/RELEASE_VERIFICATION.md) | code, tests, CI, signing class and publication evidence | In progress |
-| [Security Review 3.3.4](../SECURITY_REVIEW_3.3.4.md) | internal reviewed scope, findings and closures | Internal review complete; independent review deferred to 3.4.0 |
-| [Architecture](ARCHITECTURE.md) | server-readable core, legacy boundary, devices, updater and storage | Current through 3.3.4 RC |
-| [Security Model](SECURITY_MODEL.md) | threats, controls and residual risks | Current through 3.3.4 RC |
-| [Operations Runbook](OPERATIONS_RUNBOOK.md) | rollout, backup/restore, corrupt DB, updater and emergency stop | Current through 3.3.4 RC |
-| [Project Index](../PROJECT_INDEX.md) | entrypoints, modules, API and tests | Current through 3.3.4 RC |
+| [Release Notes 3.4.0](../RELEASE_NOTES_3.4.0.md) | user-visible changes, compatibility and limitations | Release candidate |
+| [Release Verification 3.4.0](../RELEASE_VERIFICATION_3.4.0.md) | code, tests, CI, signing and publication evidence | In progress |
+| [Security Review 3.4.0](../SECURITY_REVIEW_3.4.0.md) | reviewed scope, findings and external review gate | External review pending |
+| [Architecture](ARCHITECTURE.md) | server-readable core, legacy boundary, devices, updater and storage | Current through 3.4.0 RC |
+| [Security Model](SECURITY_MODEL.md) | threats, controls and residual risks | Current through 3.4.0 RC |
+| [Operations Runbook](OPERATIONS_RUNBOOK.md) | rollout, backup/restore, corrupt DB, updater and emergency stop | Current through 3.4.0 RC |
+| [Project Index](../PROJECT_INDEX.md) | entrypoints, modules, API and tests | Current through 3.4.0 RC |
 
-## Contract summary
+## Stable Core contract summary
 
 ### Writable authority
 
@@ -56,7 +54,7 @@ Local Server is authoritative for ordinary messages, memberships, roles, bans, p
 ### Legacy secure history
 
 - Trust Core, MLS background work, route handlers, Socket.IO transport and encrypted-upload write runtime are removed;
-- schema 8 tables preserve IDs, timestamps, epochs, ciphertext and provenance;
+- schema 8 tables preserve IDs, timestamps, ciphertext and provenance;
 - legacy viewer/export never server-decrypts ciphertext;
 - previously decrypted IndexedDB records may be read locally without writes;
 - all legacy mutations return `410/LEGACY_READ_ONLY`.
@@ -69,9 +67,9 @@ The device inventory is built from active sessions. Revoking a device removes it
 
 Before schema mutation, the server checks source integrity, WAL checkpoint, free space and verified backup. Restore uses staged DB/files with rollback. Verification can be executed without restore through the admin API.
 
-### Release classification
+### Signed updater
 
-Client and Server use separate updater metadata channels. When complete Authenticode policy is configured, signed assets verify signer subject, thumbprint and timestamp. When signing policy is absent, the same official `v3.3.4` tag is published only as an explicit `UNSIGNED-TEST` prerelease; updater metadata and blockmaps are forbidden.
+Client and Server use separate signed metadata channels. Stable assets require Authenticode signer identity, timestamp, checksums, no-downgrade behavior and a complete asset set. Unsigned test builds use a distinct prerelease tag and never publish updater metadata.
 
 ## Verification
 
@@ -82,26 +80,23 @@ Client and Server use separate updater metadata channels. When complete Authenti
 - `npm run release:check`;
 - `npm run test:soak`;
 - Android `assembleDebug`;
-- focused Nexora 3.3 regressions;
-- introductory and advanced website validation.
+- signed Windows n-1→n installed smoke when external credentials and environments are available.
 
-## 3.3.4 completion blockers
+## Release blockers
 
-A merge, official tag or GitHub Release is prohibited while any of the following remains:
+A merge, official tag or stable GitHub Release is prohibited while any of the following remains:
 
-- final PR CI is not green;
-- PR #70 is not reviewed and merged;
-- post-merge CI is incomplete;
-- annotated `v3.3.4` and GitHub Release are absent;
-- published checksums or asset re-download verification are incomplete.
-
-Authenticode credentials are optional for this prerequisite: absence forces `UNSIGNED-TEST` classification and disables updater metadata. Independent review and signed 3.3.4→3.4.0 acceptance remain Nexora 3.4.0 gates.
+- published verified stable `v3.3.4` is absent;
+- Authenticode credentials/expected signer identity are unavailable;
+- Windows 10/11 installed acceptance is incomplete;
+- independent review has not closed all high/critical findings;
+- CI, migration, restore, security or release evidence is incomplete.
 
 ## Documentation status vocabulary
 
 - **Current** — matches the referenced branch/commit.
 - **Release candidate** — implementation is under validation and is not published.
 - **Stable baseline** — last confirmed signed production line.
-- **Release-specific** — evidence for one version; canonical files live under `docs/releases/<version>/`.
+- **Release-specific** — immutable evidence for one version.
 - **Historical** — architecture/migration/provenance record; not a current guarantee.
 - **Blocked** — publication is explicitly prohibited until listed prerequisites are satisfied.

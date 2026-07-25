@@ -1,4 +1,4 @@
-name: Nexora 3.3 regressions
+name: Nexora 3.4 regressions
 
 on:
   pull_request:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: nexora-3.3-regressions-${{ github.event.pull_request.number || github.ref }}
+  group: nexora-3-4-regressions-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -35,15 +35,19 @@ jobs:
         run: node --test --test-name-pattern="ordinary voice messages" test/release-3.3.0-regressions.test.cjs
       - name: Contract — post-MLS retirement
         run: node --test --test-name-pattern="post-MLS retirement" test/release-3.3.0-regressions.test.cjs
-      - name: Contract — Pulse Sandbox routes
-        run: node --test --test-name-pattern="Pulse Sandbox serves" test/release-3.3.0-regressions.test.cjs
-      - name: Contract — unsigned distribution
-        run: node --test --test-name-pattern="unsigned test binaries" test/release-3.3.0-regressions.test.cjs
-      - name: Contract — website
-        run: node --test --test-name-pattern="website keeps" test/release-3.3.0-regressions.test.cjs
-      - name: Contract — raw Stripe body
-        run: node --test --test-name-pattern="raw Stripe" test/release-3.3.0-regressions.test.cjs
-      - name: Website validation
-        run: node --check website/app.js && node website/validate.mjs
+      - name: Website JavaScript and generated catalog
+        run: |
+          node --check website/release-fallback.js
+          node --check website/network-resilience.js
+          node --check website/app.js
+          node --check website/site-fixes.js
+          node --check website/site-polish.js
+          node website/generate-release-fallback.mjs --check
+      - name: Website release resilience
+        run: node --test website/release-resilience.test.cjs
+      - name: Website content validation
+        run: node website/validate.mjs
+      - name: Website restored UX validation
+        run: node website/validate-restored.mjs
       - name: Production web build
         run: npm run build:web
