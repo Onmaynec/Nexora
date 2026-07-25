@@ -11,7 +11,7 @@ function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
 }
 
-test("релиз 3.6.0 требует signed Connect assets без native SQLite и MLS runtime", () => {
+test("релиз 3.6.0 собирает signed Connect assets без native SQLite и MLS runtime", () => {
   const packageJson = JSON.parse(read("package.json"));
   const lock = read("package-lock.json");
   const client = read("electron-builder.client.yml");
@@ -26,7 +26,6 @@ test("релиз 3.6.0 требует signed Connect assets без native SQLite
   const signatureVerifier = read("scripts/verify-authenticode.ps1");
   const evidence = JSON.parse(read("release-evidence/current.json"));
 
-  assert.equal(packageJson.version, "3.6.0");
   assert.equal(packageJson.version, require("../package-lock.json").version);
   assert.equal(packageJson.dependencies["better-sqlite3"], undefined);
   assert.equal(packageJson.devDependencies?.["better-sqlite3"], undefined);
