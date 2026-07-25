@@ -101,10 +101,13 @@ function createMobilePushService({
   const tokenKey = parseTokenKey(pushTokenKey ?? process.env.NEXORA_PUSH_TOKEN_KEY);
   const attemptLimit = Math.max(1, Math.min(10, Number(maxAttempts) || DEFAULT_MAX_ATTEMPTS));
   const ageLimit = Math.max(60_000, Math.min(7 * 24 * 60 * 60 * 1000, Number(maxAgeMs) || DEFAULT_MAX_AGE_MS));
-  const startedAt = clock().getTime();
-  let running = false;
-  let scheduled = false;
+  let activationAt = clock().getTime();
+  let started = false;
   let closed = false;
+  let activeDrain = null;
+  let rerunRequested = false;
+  let scheduledTimer = null;
+  let scheduledFor = Number.POSITIVE_INFINITY;
   let retryTimer = null;
   let deliveredCount = 0;
   let failedCount = 0;
@@ -138,16 +141,25 @@ function createMobilePushService({
   }
 
   function schedule(delayMs = 0) {
-    if (closed || scheduled) return;
-    scheduled = true;
-    const timer = setTimeout(() => {
-      scheduled = false;
+    if (closed || !started) return;
+    const delay = Math.max(0, Number(delayMs) || 0);
+    if (activeDrain && delay === 0) {
+      rerunRequested = true;
+      return;
+    }
+    const due = Date.now() + delay;
+    if (scheduledTimer && scheduledFor <= due) return;
+    if (scheduledTimer) clearTimeout(scheduledTimer);
+    scheduledFor = due;
+    scheduledTimer = setTimeout(() => {
+      scheduledTimer = null;
+      scheduledFor = Number.POSITIVE_INFINITY;
       drain().catch((error) => {
         lastErrorCode = String(error?.code || "PUSH_DISPATCH_FAILED");
         log(`Mobile push dispatch failed: ${lastErrorCode}`, "error");
       });
-    }, Math.max(0, delayMs));
-    timer.unref?.();
+    }, delay);
+    scheduledTimer.unref?.();
   }
 
   async function deliverEvent(snapshot, event) {
@@ -229,48 +241,72 @@ function createMobilePushService({
     });
   }
 
-  async function drain() {
-    if (closed || running || !tokenKey || !transport.configured) return { processed: 0 };
-    running = true;
+  async function runDrain() {
+    if (closed || !tokenKey || !transport.configured) return { processed: 0 };
     let processed = 0;
-    try {
-      const snapshot = store.read();
-      const now = clock().getTime();
-      const candidates = snapshot.events
-        .filter((event) => event.type === "message.created" && Date.parse(event.createdAt) >= now - ageLimit)
-        .filter((event) => {
-          const record = snapshot.meta.mobilePushDispatch?.[event.id];
-          return !record?.completedAt && (Boolean(record) || Date.parse(event.createdAt) >= startedAt - 60_000);
-        })
-        .sort((left, right) => Number(left.sequence) - Number(right.sequence))
-        .slice(0, SCAN_LIMIT);
-      for (const event of candidates) {
-        await deliverEvent(store.read(), event);
-        processed += 1;
-      }
-      if (processed) await pruneDispatchRecords();
-      return { processed };
-    } finally {
-      running = false;
+    const snapshot = store.read();
+    const now = clock().getTime();
+    const candidates = snapshot.events
+      .filter((event) => event.type === "message.created" && Date.parse(event.createdAt) >= Math.max(activationAt, now - ageLimit))
+      .filter((event) => !snapshot.meta.mobilePushDispatch?.[event.id]?.completedAt)
+      .sort((left, right) => Number(left.sequence) - Number(right.sequence))
+      .slice(0, SCAN_LIMIT);
+    for (const event of candidates) {
+      await deliverEvent(store.read(), event);
+      processed += 1;
     }
+    if (processed) await pruneDispatchRecords();
+    return { processed };
+  }
+
+  function drain() {
+    if (activeDrain) {
+      rerunRequested = true;
+      return activeDrain;
+    }
+    activeDrain = runDrain().finally(() => {
+      activeDrain = null;
+      if (rerunRequested && !closed) {
+        rerunRequested = false;
+        schedule(0);
+      }
+    });
+    return activeDrain;
   }
 
   const onStats = () => schedule(0);
 
-  function start() {
+  async function start() {
     if (closed) throw new Error("Mobile push service is closed.");
+    if (started) return status();
+    if (!tokenKey || !transport.configured) return status();
+    const activatedAt = await store.mutate((state) => {
+      state.meta.mobilePushActivatedAt ||= clock().toISOString();
+      state.meta.mobilePushDispatch ||= {};
+      return state.meta.mobilePushActivatedAt;
+    });
+    activationAt = Date.parse(activatedAt);
+    if (!Number.isFinite(activationAt)) activationAt = clock().getTime();
+    started = true;
     events.on("stats", onStats);
     retryTimer = setInterval(() => schedule(0), 30_000);
     retryTimer.unref?.();
     schedule(0);
+    return status();
   }
 
-  function close() {
+  async function close() {
     if (closed) return;
     closed = true;
+    started = false;
     events.off("stats", onStats);
     clearInterval(retryTimer);
     retryTimer = null;
+    if (scheduledTimer) clearTimeout(scheduledTimer);
+    scheduledTimer = null;
+    scheduledFor = Number.POSITIVE_INFINITY;
+    rerunRequested = false;
+    await activeDrain;
   }
 
   function status() {
@@ -283,6 +319,7 @@ function createMobilePushService({
     }
     return {
       configured: Boolean(tokenKey && transport.configured),
+      started,
       tokenKeyConfigured: Boolean(tokenKey),
       transport: transport.status(),
       queuedEvents,
