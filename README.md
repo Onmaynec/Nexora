@@ -4,162 +4,109 @@
 [![CI](https://github.com/Onmaynec/Nexora/actions/workflows/ci.yml/badge.svg)](https://github.com/Onmaynec/Nexora/actions/workflows/ci.yml)
 ![Current version](https://img.shields.io/badge/current-3.6.0-c69cff)
 ![Distribution](https://img.shields.io/badge/distribution-signed%20stable%20blocked-orange)
-![API](https://img.shields.io/badge/API-v3%20%2B%20legacy%20read--only-70e6b1)
+![API](https://img.shields.io/badge/API-v3-70e6b1)
 ![Database](https://img.shields.io/badge/SQLite-schema%2010-70e6b1)
 ![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20PWA%20%7C%20Android-9b5cff)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Nexora** is a self-hosted messaging platform for Windows, browser/PWA and Android. It combines a Local Server, rooms and moderation, ordinary server-readable messaging, voice/media, offline synchronization, operations tooling and the optional Nexora Pulse commercial boundary.
+**Nexora** is a self-hosted messenger for Windows, Browser/PWA and Android. A Local Server owns authentication, authorization, rooms, ordinary server-readable messages, uploads, contacts, privacy policy, call signaling, audit and realtime visibility.
 
-> **Nexora 3.5.0 Mobile Continuity** is published as a normal GitHub Release with explicitly unsigned Windows and Android binaries. Installation is manual. Verify `SHA256SUMS.txt` before use. Automatic-updater metadata is intentionally excluded.
+> **Nexora 3.6.0 Connect is an implementation candidate, not a published stable release.** The source branch adds contacts, privacy-aware presence/read receipts, one-to-one voice calls and access-validated profile links. Merge, `v3.6.0`, signed assets and GitHub Release remain blocked until exact-head CI, independent security review, production TURN verification, signing and installed cross-platform acceptance are complete.
 
 ## Product status
 
 | Line | Purpose | Distribution status |
 |---|---|---|
-| `3.5.0` | Mobile Continuity: replay/outbox, profile isolation, PWA lifecycle, Android hardening, privacy-safe push and resumable media | Normal latest GitHub Release; unsigned manual-download binaries |
-| `3.4.0` | Stable Core source baseline: ordinary messaging, immutable legacy history, devices/sessions and backup verification | Source baseline merged into `main` |
-| `3.3.3` | Goals, voice UX, Pulse purchase effects and MLS recovery | Published `UNSIGNED-TEST` prerelease |
+| `3.6.0` | Connect: contacts, requests, block/privacy, scoped presence/read receipts, direct voice calls and profile deep links | Implementation candidate in PR; signed publication blocked |
+| `3.5.0` | Mobile Continuity: scoped offline state, push, PWA/Android lifecycle and resumable media | Published unsigned manual-download baseline |
+| `3.4.0` | Stable Core: ordinary messaging, immutable legacy history, devices/sessions and backup verification | Source baseline merged into `main` |
 | `3.1.2` | Messaging and Pulse production hardening | Last confirmed signed production baseline |
 
-Authoritative 3.5.0 documents:
+Canonical 3.6.0 records:
 
-- [Release Notes 3.5.0](RELEASE_NOTES_3.5.0.md)
-- [Release Verification 3.5.0](RELEASE_VERIFICATION_3.5.0.md)
+- [Release Notes 3.6.0](docs/releases/3.6.0/RELEASE_NOTES.md)
+- [Release Verification 3.6.0](docs/releases/3.6.0/RELEASE_VERIFICATION.md)
 - [Security Model](docs/SECURITY_MODEL.md)
-- [Project Index](PROJECT_INDEX.md)
-- [Documentation Portal](docs/README.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Operations Runbook](docs/OPERATIONS_RUNBOOK.md)
+- [Release evidence](release-evidence/current.json)
 
-## Mobile Continuity
+## Connect 3.6.0
 
-### Replay and offline outbox
+### Contacts and profiles
 
-- monotonic event sequence with bounded replay retention;
-- reconnect validation before replay or controlled resync;
-- per-conversation ordered outbox flush;
-- idempotency and bounded retry;
-- account/server-scoped cursors, drafts and queues;
-- `RESYNC_REQUIRED` handling without draft loss;
-- cross-profile cache isolation.
+- Contact requests have server-owned `pending`, `accepted`, `rejected`, `cancelled` and `expired` states.
+- Retry-sensitive transitions require `Idempotency-Key` and do not create duplicate side effects.
+- Search is rate-limited, cursor-paginated and privacy filtered.
+- Blocking removes contact state, cancels pending requests, hides presence details and prevents direct call/signaling access.
+- Unblock does not recreate a contact or restore prior permissions.
+- Profile and deep-link responses expose only fields allowed by current relationship and shared-room scope.
 
-### PWA
+### Presence and read receipts
 
-- shell/static-only caching;
-- API, Socket.IO, authenticated and `no-store` responses excluded;
-- controlled install/update lifecycle;
-- activation guard during uploads and voice recording;
-- safe offline navigation;
-- notification-open bridge.
+- Presence policies: `everyone`, `contacts`, `shared_rooms`, `nobody`.
+- Last-seen policies: `exact`, `approximate`, `hidden`.
+- Read-receipt policies are evaluated server-side both when serializing history and when emitting realtime events.
+- Privacy changes take effect without reconnect.
+- Multi-device presence remains online while at least one valid socket/session is active.
 
-### Android
+### One-to-one voice calls
 
-- HTTPS-only profiles and cleartext-disabled WebView;
-- TLS errors fail closed;
-- same-origin navigation policy;
-- deep links;
-- contextual microphone and notification permissions;
-- foreground/background/profile-switch cleanup.
+- States: `ringing`, `connecting`, `active`, `reconnecting`, `ended`, `declined`, `missed`, `failed`.
+- Socket.IO signaling is authenticated, participant-bound and session-bound.
+- Signals carry a `callId`, sequence, type, bounded payload and short expiry.
+- Duplicate identical signals are idempotent; conflicting replay fails closed.
+- Per-account, per-device, per-target and per-call rate controls limit ringing and signaling abuse.
+- TURN credentials are generated by Local Server, short-lived and scoped to the authenticated call session.
+- Call history stores only participants, timestamps, outcome and duration. Nexora Server does not record voice media, SDP or ICE candidates.
+- Client cleanup closes the peer connection and releases microphone tracks on terminal/unmount paths.
 
-### Push delivery
+### Client and platforms
 
-- device/account/server/installation-scoped subscriptions;
-- AES-256-GCM token storage;
-- generic preview by default;
-- server-side access, mute and quiet-hours checks;
-- HTTPS gateway with HMAC authentication;
-- DNS pinning and private/reserved target rejection;
-- durable retry/backoff and invalid-token revocation.
+- React/Vite provides profile/contact flows, privacy settings, call UI, device selection, mute, timer and diagnostics.
+- Electron isolates each Local Server in its own persistent partition and enforces HTTPS/certificate pinning.
+- Android uses an HTTPS-only WebView, rejects TLS errors, restricts navigation to the selected origin and grants audio capture only to that origin.
+- Browser/PWA uses the same server-authorized contracts and reports unsupported device/output capabilities explicitly.
 
-### Resumable media
+## Data and migration
 
-- durable upload sessions and confirmed offsets;
-- idempotent chunks;
-- SHA-256 verification;
-- actual MIME sniffing and executable rejection;
-- quota, room-policy and access revalidation at completion;
-- cancel, retry and TTL cleanup;
-- client progress, abort and resume.
+Local Server upgrades SQLite **schema 9 → 10** before network listen.
 
-## Stable Core
+The migration:
 
-### Ordinary messaging
+1. checks source schema and rejects a future schema;
+2. runs `PRAGMA integrity_check`;
+3. checks free disk space;
+4. checkpoints WAL and creates a verified pre-migration backup;
+5. applies the additive schema in one immediate transaction;
+6. records schema/version verification metadata;
+7. checks destination integrity before services are mounted.
 
-- personal dialogs, Saved Messages and rooms;
-- replies, threads, reactions, mentions, polls and bookmarks;
-- edit/delete/forward/pin and scheduled/silent send;
-- ordinary files, images and voice messages;
-- IndexedDB cache and durable outbox;
-- server-side authorization for REST and Socket.IO.
+Schema 10 adds:
 
-Ordinary chats no longer depend on Trust enrollment, MLS epoch synchronization or Welcome recovery.
+- `connect_privacy`;
+- `connect_call_history` plus participant/time indexes;
+- `connect_idempotency` plus expiry index;
+- `connect_audit` plus actor/target indexes.
 
-### Legacy Trust/MLS history
+Existing messages, direct conversations, room state and legacy Trust/MLS compatibility records remain intact. Legacy secure history remains read-only and is never converted into server-readable plaintext.
 
-Executable Trust Core, recovery routes, MLS transport, encrypted-upload write runtime, client MLS engine and the `ts-mls` dependency are removed.
+## Security boundary
 
-Schema 8 remains as compatibility data while schema 9 adds Mobile Continuity storage.
+Local Server is authoritative for:
 
-- legacy conversations open in a read-only viewer;
-- the server never decrypts legacy ciphertext;
-- locally available historical plaintext may be read from readonly IndexedDB transactions;
-- all legacy HTTP and Socket.IO writes return `LEGACY_READ_ONLY`.
+- authentication and active device/session scope;
+- Origin/CSRF for browser mutations;
+- resource existence and hidden-not-found semantics;
+- contact/block/privacy policy;
+- room membership, roles, bans and restrictions;
+- call participants, session claim, state transitions and TURN credentials;
+- input shape, payload size, rate limits, idempotency and audit;
+- realtime recipient filtering and session revocation.
 
-### Rooms and administration
+A hidden or disabled client control is not authorization. Direct REST and Socket.IO bypass paths are covered by regression tests.
 
-- roles `owner`, `moderator`, `member` and existing custom roles;
-- atomic ownership transfer and moderator management;
-- remove, ban/unban and ban list;
-- join requests and invitations with expiration, usage limits and revocation;
-- read-only, slow mode, announcement and pre-approval;
-- restrictions for files, images and voice;
-- administrative audit and system messages;
-- active-ban fail-closed authorization.
-
-### Backup and migration
-
-- SQLite integrity checks and WAL handling;
-- verified backup before schema migration;
-- transactional and idempotent schema 9 upgrade;
-- future-schema downgrade protection;
-- backup verification without restore;
-- staged restore with rollback;
-- cleanup of temporary decrypted or staged data.
-
-## Release distribution
-
-The `v3.5.0` release publishes:
-
-- `Nexora-Client-Setup-3.5.0-UNSIGNED.exe`;
-- `Nexora-Server-Setup-3.5.0-UNSIGNED.exe`;
-- `Nexora-Android-3.5.0-UNSIGNED.apk`;
-- PWA and source ZIP archives;
-- SPDX SBOM;
-- unsigned-state evidence;
-- SHA-256 checksums.
-
-The release does **not** publish `latest.yml` or `server.yml`. Desktop automatic updates remain signature-enforced and therefore cannot use these unsigned packages.
-
-A future signed build can reuse the existing fail-closed Authenticode and Android keystore paths.
-
-## Architecture
-
-```mermaid
-flowchart LR
-  C[Windows / PWA / Android] --> UI[React + Vite]
-  UI -->|HTTPS + cookies + CSRF| API[Local Server API v3]
-  UI -->|session-scoped Socket.IO| RT[Realtime]
-  API --> AUTH[Sessions / roles / bans / policies]
-  RT --> AUTH
-  AUTH --> CORE[Rooms / messages / uploads / push / audit]
-  CORE --> DB[(SQLite schema 9)]
-  CORE --> FILES[(File store)]
-  UI --> OFFLINE[(Scoped IndexedDB)]
-  UI --> LEGACY[Read-only legacy cache]
-  API --> HIST[Immutable legacy ciphertext API]
-  API <-->|signed contract| PULSE[Optional Pulse Cloud]
-```
-
-Detailed architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Stable Connect errors include `AUTH_REQUIRED`, `CSRF_INVALID`, `FORBIDDEN`, `RESOURCE_NOT_FOUND`, `STATE_CONFLICT`, `VALIDATION_FAILED`, `RATE_LIMITED`, `POLICY_RESTRICTED`, `TEMPORARY_UNAVAILABLE`, `CONTACT_BLOCKED`, `CALL_STATE_CONFLICT`, `CALL_TARGET_UNAVAILABLE` and `TURN_UNAVAILABLE`.
 
 ## Development
 
@@ -174,19 +121,7 @@ npm ci
 npm run dev
 ```
 
-Server only:
-
-```bash
-npm run dev:server
-```
-
-Web client only:
-
-```bash
-npm run dev:web
-```
-
-## Verification
+Verification:
 
 ```bash
 npm run check
@@ -199,19 +134,21 @@ npm run test:soak
 gradle -p android :app:assembleDebug --no-daemon
 ```
 
-Signed local Windows packages require protected signing credentials:
+## Signed release policy
 
-```bash
-npm run release:windows:signed
-```
+Nexora 3.6.0 is configured as a **signed-stable-only** publication. The release workflow is fail-closed and requires:
 
-## Security boundary
+- completed independent security review with no unresolved high/critical findings;
+- production TURN configuration and acceptance;
+- signed Windows Client/Server installers with verified Authenticode subject, thumbprint and timestamp;
+- signed Android APK with the approved certificate SHA-256;
+- Windows 10/11, Android and PWA installed acceptance;
+- Windows↔Android, Windows↔PWA and Android↔PWA call matrix;
+- Client/Server blockmaps and `latest.yml`/`server.yml` updater metadata;
+- source/PWA archives, SPDX SBOM, signature evidence and `SHA256SUMS.txt`;
+- installed-package smoke and post-publication re-download verification.
 
-The Local Server is authoritative for ordinary messages, sessions, rooms, roles, bans, upload policy, push policy, audit and realtime visibility. Every mutation validates authentication, Origin/CSRF, resource scope, membership/permission, ban/policy, input and resource limits before side effects.
-
-The unsigned release changes only binary publisher identity. It does not disable TLS validation, certificate pinning, updater signature verification, authorization, upload validation or push-gateway SSRF protections.
-
-See [Security Model](docs/SECURITY_MODEL.md) and [Security Policy](SECURITY.md).
+Until those records are complete, the branch must remain a candidate: no merge-to-release claim, official tag, GitHub Release or updater metadata publication.
 
 ## Documentation
 
