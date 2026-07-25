@@ -85,6 +85,9 @@ test("релиз 3.5.0 публикует явно неподписанный Mo
   assert.match(releaseWorkflow, /Mark release status success/);
   assert.match(releaseWorkflow, /Mark release status failure/);
   assert.match(releaseWorkflow, /Resolve authorized unsigned release identity/);
+  assert.match(releaseWorkflow, /Refuse overwrite of published v3\.5\.0/);
+  assert.match(releaseWorkflow, /Immutable v3\.5\.0 GitHub Release already exists/);
+  assert.match(releaseWorkflow, /cancel-in-progress:\s*true/);
   assert.match(releaseWorkflow, /Build explicitly unsigned Android release APK/);
   assert.match(releaseWorkflow, /:app:assembleRelease/);
   assert.match(releaseWorkflow, /apksigner\.bat/);
@@ -111,6 +114,8 @@ test("релиз 3.5.0 публикует явно неподписанный Mo
   assert.match(releaseWorkflow, /--publish never/);
   assert.doesNotMatch(releaseWorkflow, /--publish always/);
   assert.doesNotMatch(releaseWorkflow, /--prerelease/);
+  assert.doesNotMatch(releaseWorkflow, /--clobber/);
+  assert.doesNotMatch(releaseWorkflow, /gh release upload/);
   assert.match(releaseWorkflow, /automatic-updater metadata/);
   assert.match(releaseWorkflow, /docs\/releases\/\$version\/RELEASE_NOTES\.md/);
   assert.match(releaseWorkflow, /Immutable tag already points to another commit/);
@@ -118,8 +123,9 @@ test("релиз 3.5.0 публикует явно неподписанный Mo
   assert.match(releaseWorkflow, /push:[\s\S]*branches:\s*\[main\]/);
   assert.match(releaseWorkflow, /github\.event_name == 'push'/);
   assert.match(releaseWorkflow, /startsWith\(github\.event\.head_commit\.message, 'release: Nexora 3\.5\.0'\)/);
-  assert.match(releaseWorkflow, /github\.sha/);
-  assert.match(releaseWorkflow, /workflow_run:/);
-  assert.match(releaseWorkflow, /startsWith\(github\.event\.workflow_run\.head_commit\.message, 'release: Nexora 3\.5\.0'\)/);
+  assert.match(releaseWorkflow, /github\.event_name == 'workflow_dispatch'/);
+  assert.match(releaseWorkflow, /inputs\.release_ref \|\| github\.sha/);
+  assert.doesNotMatch(releaseWorkflow, /workflow_run:/);
+  assert.doesNotMatch(releaseWorkflow, /github\.event\.workflow_run/);
   assert.match(clientMain, /createUpdateService/);
 });
