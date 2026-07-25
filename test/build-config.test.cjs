@@ -11,7 +11,7 @@ function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
 }
 
-test("релиз 3.5.0 публикует явно неподписанный Mobile Continuity без native SQLite и MLS runtime", () => {
+test("релиз 3.6.0 требует signed Connect assets без native SQLite и MLS runtime", () => {
   const packageJson = JSON.parse(read("package.json"));
   const lock = read("package-lock.json");
   const client = read("electron-builder.client.yml");
@@ -24,7 +24,9 @@ test("релиз 3.5.0 публикует явно неподписанный Mo
   const unitRunner = read("scripts/run-unit-tests.cjs");
   const signingCheck = read("scripts/check-release-signing.cjs");
   const signatureVerifier = read("scripts/verify-authenticode.ps1");
+  const evidence = JSON.parse(read("release-evidence/current.json"));
 
+  assert.equal(packageJson.version, "3.6.0");
   assert.equal(packageJson.version, require("../package-lock.json").version);
   assert.equal(packageJson.dependencies["better-sqlite3"], undefined);
   assert.equal(packageJson.devDependencies?.["better-sqlite3"], undefined);
@@ -77,52 +79,53 @@ test("релиз 3.5.0 публикует явно неподписанный Mo
   assert.match(androidBuild, /enableV2Signing\s*=\s*true/);
   assert.match(androidBuild, /enableV3Signing\s*=\s*true/);
 
-  assert.match(releaseWorkflow, /name: Nexora 3\.5\.0 unsigned stable release/);
-  assert.match(releaseWorkflow, /This workflow publishes only Nexora 3\.5\.0/);
+  assert.equal(evidence.status, "implementation-candidate");
+  assert.equal(evidence.signed, false);
+  assert.ok(evidence.releaseBlockers.length > 0);
+  assert.equal(evidence.publicationPolicy.requiresSignedArtifacts, true);
+  assert.equal(evidence.publicationPolicy.updaterMetadataPublished, false);
+
+  assert.match(releaseWorkflow, /name: Nexora 3\.6\.0 signed stable release/);
+  assert.match(releaseWorkflow, /This workflow publishes only Nexora 3\.6\.0/);
+  assert.match(releaseWorkflow, /environment: nexora-production-release/);
   assert.match(releaseWorkflow, /statuses:\s*write/);
   assert.match(releaseWorkflow, /Mark release status pending/);
-  assert.match(releaseWorkflow, /context="release\/3\.5\.0"/);
-  assert.match(releaseWorkflow, /Mark release status success/);
-  assert.match(releaseWorkflow, /Mark release status failure/);
-  assert.match(releaseWorkflow, /Resolve authorized unsigned release identity/);
-  assert.match(releaseWorkflow, /Refuse overwrite of published v3\.5\.0/);
-  assert.match(releaseWorkflow, /Immutable v3\.5\.0 GitHub Release already exists/);
-  assert.match(releaseWorkflow, /cancel-in-progress:\s*true/);
-  assert.match(releaseWorkflow, /Build explicitly unsigned Android release APK/);
-  assert.match(releaseWorkflow, /:app:assembleRelease/);
-  assert.match(releaseWorkflow, /apksigner\.bat/);
-  assert.match(releaseWorkflow, /Start-Process -FilePath \$apksigner/);
-  assert.match(releaseWorkflow, /Verification exit code: \$\(\$verify\.ExitCode\)/);
-  assert.match(releaseWorkflow, /Android artifact was unexpectedly signed/);
-  assert.match(releaseWorkflow, /Nexora-Android-\$version-UNSIGNED\.apk/);
-  assert.match(releaseWorkflow, /ANDROID-UNSIGNED-EVIDENCE\.txt/);
-  assert.match(releaseWorkflow, /Build explicitly unsigned Windows installers/);
-  assert.match(releaseWorkflow, /CSC_IDENTITY_AUTO_DISCOVERY/);
+  assert.match(releaseWorkflow, /context="release\/3\.6\.0"/);
+  assert.match(releaseWorkflow, /Mark release status successful/);
+  assert.match(releaseWorkflow, /Mark release status failed/);
+  assert.match(releaseWorkflow, /Resolve immutable release identity/);
+  assert.match(releaseWorkflow, /Refuse overwrite of published v3\.6\.0/);
+  assert.match(releaseWorkflow, /Immutable v3\.6\.0 GitHub Release already exists/);
+  assert.match(releaseWorkflow, /cancel-in-progress:\s*false/);
+  assert.match(releaseWorkflow, /Verify release approval and external evidence/);
+  assert.match(releaseWorkflow, /status !== 'release-approved'/);
+  assert.match(releaseWorkflow, /releaseBlockers\.length !== 0/);
+  assert.match(releaseWorkflow, /release:signing-check/);
+  assert.match(releaseWorkflow, /Build and verify signed Android artifact/);
+  assert.match(releaseWorkflow, /:app:assembleRelease -PnexoraRequireSigning=true/);
+  assert.match(releaseWorkflow, /NEXORA_ANDROID_SIGNER_SHA256/);
+  assert.match(releaseWorkflow, /apksigner verify/);
+  assert.match(releaseWorkflow, /Build signed Windows Client and Server/);
   assert.match(releaseWorkflow, /Get-AuthenticodeSignature/);
-  assert.match(releaseWorkflow, /status = \[string\]\$signature\.Status/);
-  assert.match(releaseWorkflow, /expected = "NotSigned"/);
-  assert.match(releaseWorkflow, /Installed package smoke/);
+  assert.match(releaseWorkflow, /TimeStamperCertificate/);
+  assert.match(releaseWorkflow, /Nexora-Client-Setup-\$version\.exe\.blockmap/);
+  assert.match(releaseWorkflow, /Nexora-Server-Setup-\$version\.exe\.blockmap/);
+  assert.match(releaseWorkflow, /latest\.yml/);
+  assert.match(releaseWorkflow, /server\.yml/);
+  assert.match(releaseWorkflow, /Installed signed package smoke/);
   assert.match(releaseWorkflow, /WaitForExit\(180000\)/);
-  assert.match(releaseWorkflow, /Nexora-Client-Setup-\$version-UNSIGNED\.exe/);
-  assert.match(releaseWorkflow, /Nexora-Server-Setup-\$version-UNSIGNED\.exe/);
-  assert.match(releaseWorkflow, /updaterMetadataPublished = \$false/);
-  assert.match(releaseWorkflow, /stable-unsigned-manual-download/);
-  assert.match(releaseWorkflow, /publishedAsPrerelease = \$false/);
   assert.match(releaseWorkflow, /SHA256SUMS\.txt/);
   assert.match(releaseWorkflow, /Nexora-\$version-source\.zip/);
   assert.match(releaseWorkflow, /npm sbom --omit=dev --sbom-format=spdx/);
   assert.match(releaseWorkflow, /--publish never/);
-  assert.doesNotMatch(releaseWorkflow, /--publish always/);
+  assert.doesNotMatch(releaseWorkflow, /UNSIGNED/i);
   assert.doesNotMatch(releaseWorkflow, /--prerelease/);
   assert.doesNotMatch(releaseWorkflow, /--clobber/);
-  assert.doesNotMatch(releaseWorkflow, /gh release upload/);
-  assert.match(releaseWorkflow, /automatic-updater metadata/);
-  assert.match(releaseWorkflow, /docs\/releases\/\$version\/RELEASE_NOTES\.md/);
-  assert.match(releaseWorkflow, /Immutable tag already points to another commit/);
+  assert.match(releaseWorkflow, /Create immutable annotated tag/);
+  assert.match(releaseWorkflow, /Publish signed GitHub Release/);
   assert.match(releaseWorkflow, /Re-download and verify immutable release assets/);
   assert.match(releaseWorkflow, /push:[\s\S]*branches:\s*\[main\]/);
-  assert.match(releaseWorkflow, /github\.event_name == 'push'/);
-  assert.match(releaseWorkflow, /startsWith\(github\.event\.head_commit\.message, 'release: Nexora 3\.5\.0'\)/);
+  assert.match(releaseWorkflow, /startsWith\(github\.event\.head_commit\.message, 'release: Nexora 3\.6\.0'\)/);
   assert.match(releaseWorkflow, /github\.event_name == 'workflow_dispatch'/);
   assert.match(releaseWorkflow, /inputs\.release_ref \|\| github\.sha/);
   assert.doesNotMatch(releaseWorkflow, /workflow_run:/);
