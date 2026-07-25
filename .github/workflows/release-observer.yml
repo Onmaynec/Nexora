@@ -57,11 +57,10 @@ jobs:
           import pathlib, sys
           run_id = sys.argv[1]
           text = pathlib.Path('failed.log').read_text(encoding='utf-8', errors='replace')
-          lines = text.splitlines()[-220:]
-          payload = '\n'.join(lines)
-          if len(payload) > 58000:
-              payload = payload[-58000:]
-          print(f"## Failed log for release run `{run_id}`\n\n```text\n{payload}\n```")
+          payload = '\n'.join(text.splitlines()[-70:])
+          if len(payload) > 18000:
+              payload = payload[-18000:]
+          print(f"## Failed log tail for release run `{run_id}`\n\n```text\n{payload}\n```")
           PY
             body="$(cat comment.md)"
           fi
