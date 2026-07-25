@@ -120,7 +120,8 @@ const MAX_SIGNAL_HISTORY = 128;
     const call = activeCalls.get(callId);
     if (!call || ![call.callerId, call.calleeId].includes(auth.user.id)) throw connectError("Вызов недоступен.", "RESOURCE_NOT_FOUND", 404);
     const expectedSessionId = call.callerId === auth.user.id ? call.callerSessionId : call.calleeSessionId;
-    if (!expectedSessionId || expectedSessionId !== auth.session.id) throw connectError("Вызов закреплён за другим устройством.", "FORBIDDEN", 403);
+    const canClaimIncoming = !expectedSessionId && call.calleeId === auth.user.id && call.state === "ringing";
+    if (!canClaimIncoming && expectedSessionId !== auth.session.id) throw connectError("Вызов закреплён за другим устройством.", "FORBIDDEN", 403);
     if (isBlockedEither(auth.state, call.callerId, call.calleeId)) {
       terminalize(call, "failed", "blocked", "blocked");
       throw connectError("Вызов запрещён политикой блокировки.", "CONTACT_BLOCKED", 403);
