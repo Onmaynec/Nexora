@@ -54,8 +54,16 @@ jobs:
         run: npm run release:consistency
       - name: Verify production web build and static checks
         run: npm run check
-      - name: Run focused Connect and release tests
-        run: node --test --test-concurrency=1 test/release-consistency.test.cjs test/connect-3.6.test.cjs test/build-config.test.cjs test/release-3.2.5-regressions.test.cjs test/release-3.3.0-regressions.test.cjs
+      - name: Test release consistency regressions
+        run: node --test --test-concurrency=1 test/release-consistency.test.cjs
+      - name: Test Connect regressions
+        run: node --test --test-concurrency=1 test/connect-3.6.test.cjs
+      - name: Test build and signing contract
+        run: node --test --test-concurrency=1 test/build-config.test.cjs
+      - name: Test retained 3.2.5 regressions
+        run: node --test --test-concurrency=1 test/release-3.2.5-regressions.test.cjs
+      - name: Test retained 3.3.0 regressions
+        run: node --test --test-concurrency=1 test/release-3.3.0-regressions.test.cjs
       - name: Commit verified finalization
         shell: bash
         run: |
