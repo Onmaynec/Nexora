@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - '.connect-release-patch/**'
+      - '.connect-security/**'
+      - 'scripts/apply-connect-security-hardening.cjs'
+      - '.github/workflows/connect-security-hardening.yml'
       - '.github/workflows/apply-connect-release.yml'
 
 permissions:
@@ -18,7 +21,7 @@ jobs:
   apply:
     if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'release/3.6.0-connect'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,13 +32,10 @@ jobs:
         id: ready
         shell: bash
         run: |
-          if [[ -f .connect-release-patch/READY ]]; then
-            echo 'value=true' >> "$GITHUB_OUTPUT"
-          else
-            echo 'value=false' >> "$GITHUB_OUTPUT"
-          fi
-      - name: Reconstruct verified patch
-        if: steps.ready.outputs.value == 'true'
+          [[ -f .connect-release-patch/READY ]] && echo 'release=true' >> "$GITHUB_OUTPUT" || echo 'release=false' >> "$GITHUB_OUTPUT"
+          [[ -f .connect-security/READY ]] && echo 'security=true' >> "$GITHUB_OUTPUT" || echo 'security=false' >> "$GITHUB_OUTPUT"
+      - name: Reconstruct verified release patch
+        if: steps.ready.outputs.release == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -44,7 +44,7 @@ jobs:
           gzip -dc /tmp/apply-connect-release.cjs.gz > scripts/apply-connect-release-3.6.cjs
           node --check scripts/apply-connect-release-3.6.cjs
       - name: Apply release patch
-        if: steps.ready.outputs.value == 'true'
+        if: steps.ready.outputs.release == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -54,8 +54,24 @@ jobs:
           node scripts/check-release-consistency.cjs
           node --test test/release-consistency.test.cjs
           node --test --test-concurrency=1 test/connect-3.6.test.cjs
-      - name: Commit completed release candidate
-        if: steps.ready.outputs.value == 'true'
+      - name: Apply and verify Connect security hardening
+        if: steps.ready.outputs.security == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          node scripts/apply-connect-security-hardening.cjs
+          node --check server/model.cjs
+          node --check server/create-server.cjs
+          node --check server/connect.cjs
+          node --check test/connect-3.6.test.cjs
+          npm run build:web
+          node --test --test-concurrency=1 test/connect-3.6.test.cjs
+          node --test test/server.test.cjs test/release-3.3.0-regressions.test.cjs
+          rm -rf .connect-security
+          rm -f .github/workflows/connect-security-hardening.yml scripts/apply-connect-security-hardening.cjs
+      - name: Commit completed candidate changes
+        if: steps.ready.outputs.release == 'true' || steps.ready.outputs.security == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -63,5 +79,5 @@ jobs:
           git config user.email 'nexora-release-bot@users.noreply.github.com'
           git add -A
           git diff --cached --check
-          git commit -m 'fix(connect): complete 3.6.0 release candidate gates'
+          git commit -m 'fix(connect): complete release and security candidate gates'
           git push origin HEAD:release/3.6.0-connect
