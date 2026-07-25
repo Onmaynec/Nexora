@@ -181,3 +181,4 @@ Connections join session/user/conversation scopes only after authentication and 
 - locally decrypted legacy content exists only if a previous client already cached it;
 - signed Windows acceptance requires external credentials and Windows environments;
 - current branch cannot be a stable release without a verified 3.3.4 baseline and independent review closure.
+> Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.

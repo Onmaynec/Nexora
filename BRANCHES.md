@@ -89,3 +89,4 @@ Automation/helper branches без активного PR или release role до
 - Application API: v3;
 - Local Server database: schema 8;
 - stable publication: blocked by verified `v3.3.4`, Authenticode, Windows 10/11 acceptance, independent review и final green gates.
+> Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.

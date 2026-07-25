@@ -7,6 +7,7 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 const html = await readFile(path.join(root, "index.html"), "utf8");
 const css = await readFile(path.join(root, "styles.css"), "utf8");
 const app = await readFile(path.join(root, "app.js"), "utf8");
+const packageJson = JSON.parse(await readFile(path.join(root, "..", "package.json"), "utf8"));
 const sandboxHtml = await readFile(path.join(root, "game", "index.html"), "utf8");
 const sandboxCss = await readFile(path.join(root, "game", "game.css"), "utf8");
 const sandboxApp = await readFile(path.join(root, "game", "game.js"), "utf8");
@@ -111,7 +112,8 @@ if (!html.includes("LEGACY_READ_ONLY") || !html.includes("serverDecrypted=false"
 if (!app.includes("raw.githubusercontent.com") || !app.includes("/releases?per_page=")) {
   throw new Error("Live GitHub release/version integration is missing");
 }
-if (!app.includes("ru: {") || !app.includes("en: {") || !app.includes('const FALLBACK_VERSION = "3.4.0"')) throw new Error("RU/EN dictionaries or current version fallback are missing");
+const currentFallbackMarker = `const FALLBACK_VERSION = "${packageJson.version}"`;
+if (!app.includes("ru: {") || !app.includes("en: {") || !app.includes(currentFallbackMarker)) throw new Error("RU/EN dictionaries or current version fallback are missing");
 if (!css.includes("@media (hover: none)") || !css.includes("prefers-reduced-motion")) {
   throw new Error("Adaptive motion fallbacks are missing");
 }

@@ -28,7 +28,7 @@ async function main() {
       await instance.store.mutate((state) => state.messages.push({ id: crypto.randomUUID(), conversationId: "soak-conversation", senderId: "soak-user", clientId: crypto.randomUUID(), type: "text", text: `soak cycle ${cycles}`, createdAt: new Date().toISOString(), updatedAt: null, deletedAt: null, pinnedAt: null, pinnedBy: null }));
       if (cycles % 12 === 0) await instance.createBackup();
       if (!instance.store.integrityCheck().ok) throw new Error("SQLite integrity check failed");
-      if (instance.status().schemaVersion !== 8) throw new Error(`Unexpected schema version: ${instance.status().schemaVersion}`);
+      if (instance.status().schemaVersion !== 9) throw new Error(`Unexpected schema version: ${instance.status().schemaVersion}`);
       cycles += 1;
       await new Promise((resolve) => setTimeout(resolve, Math.min(intervalMs, Math.max(0, deadline - Date.now()))));
     }

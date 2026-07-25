@@ -180,3 +180,4 @@ Signed stable acceptance для `3.4.0`:
 ## 13. Release decision
 
 PR можно переводить в ready только после green CI на exact head. Merge/tag/release `v3.4.0` запрещены, пока не закрыты verified `v3.3.4`, signing, Windows 10/11 acceptance и independent review evidence.
+> Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.

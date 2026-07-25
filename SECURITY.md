@@ -6,7 +6,7 @@
 
 | Version | Channel | Security status |
 |---|---|---|
-| `3.4.0` | Release candidate / PR #96 | Implementation under validation; no production claim before independent review |
+| `3.5.0` | Release candidate | Security fixes accepted on the release branch; publication remains blocked by platform/signing/review gates. |
 | `3.3.3` | Published `UNSIGNED-TEST` prerelease | Supported for regression/security reports; not a signed stable baseline |
 | `3.1.x` | Signed production baseline | Supported |
 | `3.0.x` and older | Historical | Unsupported |

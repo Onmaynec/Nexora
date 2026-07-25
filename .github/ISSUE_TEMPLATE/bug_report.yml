@@ -180,3 +180,4 @@ body:
           required: true
         - label: This is not a private vulnerability report.
           required: true
+# Current release candidate: Nexora 3.5.0 Mobile Continuity.

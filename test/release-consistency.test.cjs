@@ -41,8 +41,10 @@ const fixtureFiles = [
   "website/site-fixes.js",
   "CHANGELOG.md",
   "release-evidence/current.json",
-  "release-evidence/independent-security-review-3.4.0.json",
-  "release-evidence/windows-acceptance-3.4.0.json",
+  "release-evidence/independent-security-review-3.5.0.json",
+  "release-evidence/windows-acceptance-3.5.0.json",
+  "release-evidence/android-acceptance-3.5.0.json",
+  "release-evidence/pwa-acceptance-3.5.0.json",
 ];
 
 function copyFixture() {
@@ -118,7 +120,7 @@ test("release consistency gate rejects a root release document containing duplic
 
 test("release consistency gate rejects prematurely approved external evidence", () => {
   withFixture((fixture) => {
-    const reviewPath = path.join(fixture, "release-evidence/independent-security-review-3.4.0.json");
+    const reviewPath = path.join(fixture, "release-evidence/independent-security-review-3.5.0.json");
     const review = JSON.parse(fs.readFileSync(reviewPath, "utf8"));
     review.status = "approved";
     review.approved = true;

@@ -164,3 +164,4 @@ Official merge/tag/release remains blocked until:
 - automated verification does not replace independent review.
 
 До завершения external evidence этот документ подтверждает только проверенный release-candidate source, а не опубликованный stable `v3.4.0`.
+> Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.

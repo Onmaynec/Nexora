@@ -98,3 +98,4 @@ Official `v3.4.0` support begins only after:
 - immutable release/tag/assets and redownload verification.
 
 Before then, support is limited to source release-candidate testing and defect triage.
+> Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.

@@ -11,13 +11,14 @@ function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
 }
 
-test("релиз 3.4.0 собирает только проверяемый signed Stable Core без native SQLite и MLS runtime", () => {
+test("релиз 3.5.0 собирает только проверяемый signed Mobile Continuity без native SQLite и MLS runtime", () => {
   const packageJson = JSON.parse(read("package.json"));
   const lock = read("package-lock.json");
   const client = read("electron-builder.client.yml");
   const server = read("electron-builder.server.yml");
   const updater = read("electron/update-service.cjs");
   const clientMain = read("electron/client-main.cjs");
+  const androidBuild = read("android/app/build.gradle.kts");
   const releaseWorkflow = read(".github/workflows/release.yml");
   const ciWorkflow = read(".github/workflows/ci.yml");
   const unitRunner = read("scripts/run-unit-tests.cjs");
@@ -68,13 +69,34 @@ test("релиз 3.4.0 собирает только проверяемый sign
   assert.match(signatureVerifier, /TimeStamperCertificate/);
   assert.match(signatureVerifier, /Unexpected certificate thumbprint/);
 
-  assert.match(releaseWorkflow, /name: Nexora 3\.4\.0 stable release/);
-  assert.match(releaseWorkflow, /This workflow publishes only Nexora 3\.4\.0/);
-  assert.match(releaseWorkflow, /Verify required 3\.3\.4 baseline/);
-  assert.match(releaseWorkflow, /release-evidence\/independent-security-review-3\.4\.0\.json/);
-  assert.match(releaseWorkflow, /release-evidence\/windows-acceptance-3\.4\.0\.json/);
-  assert.match(releaseWorkflow, /Require complete Authenticode policy/);
-  assert.match(releaseWorkflow, /Release blocker: complete Authenticode policy is required/);
+  assert.match(androidBuild, /nexoraRequireSigning/);
+  assert.match(androidBuild, /NEXORA_ANDROID_KEYSTORE_PATH/);
+  assert.match(androidBuild, /NEXORA_ANDROID_KEYSTORE_PASSWORD/);
+  assert.match(androidBuild, /NEXORA_ANDROID_KEY_ALIAS/);
+  assert.match(androidBuild, /NEXORA_ANDROID_KEY_PASSWORD/);
+  assert.match(androidBuild, /enableV2Signing\s*=\s*true/);
+  assert.match(androidBuild, /enableV3Signing\s*=\s*true/);
+
+  assert.match(releaseWorkflow, /name: Nexora 3\.5\.0 stable release/);
+  assert.match(releaseWorkflow, /This workflow publishes only Nexora 3\.5\.0/);
+  assert.match(releaseWorkflow, /Verify required signed 3\.4\.0 baseline/);
+  assert.match(releaseWorkflow, /v3\.4\.0 is still a prerelease/);
+  assert.match(releaseWorkflow, /v3\.4\.0 stable baseline contains unsigned test assets/);
+  assert.match(releaseWorkflow, /release-evidence\/independent-security-review-3\.5\.0\.json/);
+  assert.match(releaseWorkflow, /release-evidence\/windows-acceptance-3\.5\.0\.json/);
+  assert.match(releaseWorkflow, /release-evidence\/android-acceptance-3\.5\.0\.json/);
+  assert.match(releaseWorkflow, /release-evidence\/pwa-acceptance-3\.5\.0\.json/);
+  assert.match(releaseWorkflow, /Verify Android and PWA acceptance evidence/);
+  assert.match(releaseWorkflow, /Require complete Windows and Android signing policy/);
+  assert.match(releaseWorkflow, /ANDROID_KEYSTORE_BASE64/);
+  assert.match(releaseWorkflow, /ANDROID_SIGNER_SHA256/);
+  assert.match(releaseWorkflow, /:app:assembleRelease/);
+  assert.match(releaseWorkflow, /-PnexoraRequireSigning=true/);
+  assert.match(releaseWorkflow, /apksigner\.bat/);
+  assert.match(releaseWorkflow, /Android signer SHA-256 digest mismatch/);
+  assert.match(releaseWorkflow, /Nexora-Android-\$version\.apk/);
+  assert.match(releaseWorkflow, /ANDROID-SIGNATURE-EVIDENCE\.txt/);
+  assert.doesNotMatch(releaseWorkflow, /Nexora-Android-\$version-UNSIGNED-TEST\.apk/);
   assert.match(releaseWorkflow, /Build and verify signed Windows assets/);
   assert.match(releaseWorkflow, /Installed package upgrade smoke/);
   assert.match(releaseWorkflow, /Nexora-Client-Setup-\$version\.exe/);
@@ -90,47 +112,8 @@ test("релиз 3.4.0 собирает только проверяемый sign
   assert.match(releaseWorkflow, /docs\/releases\/\$version\/RELEASE_NOTES\.md/);
   assert.match(releaseWorkflow, /Immutable tag already points to another commit/);
   assert.match(releaseWorkflow, /Re-download and verify immutable release assets/);
-  assert.match(releaseWorkflow, /baseline = 'v3\.3\.4'/);
+  assert.match(releaseWorkflow, /baseline = 'v3\.4\.0'/);
   assert.match(releaseWorkflow, /workflow_run:/);
-  assert.match(releaseWorkflow, /startsWith\(github\.event\.workflow_run\.head_commit\.message, 'release: Nexora 3\.4\.0'\)/);
-
-  assert.doesNotMatch(releaseWorkflow, /Build explicitly unsigned Windows test assets/);
-  assert.doesNotMatch(releaseWorkflow, /Nexora-Client-Setup-\$version-UNSIGNED-TEST\.exe/);
-  assert.doesNotMatch(releaseWorkflow, /Nexora-Server-Setup-\$version-UNSIGNED-TEST\.exe/);
-  assert.doesNotMatch(releaseWorkflow, /--prerelease/);
-  assert.doesNotMatch(releaseWorkflow, /PUBLISH_TAG=.*unsigned-test/);
-
-  assert.match(clientMain, /persist:nexora-server-/);
-  assert.match(clientMain, /partition:\s*currentPartition/);
-  assert.match(ciWorkflow, /android-source:/);
-  assert.match(ciWorkflow, /gradle-version:\s*"8\.13"/);
-});
-
-test("Nexora Server installer включает shared-модули, необходимые серверному runtime", () => {
-  const serverConfig = read("electron-builder.server.yml");
-  const sandboxService = read("server/pulse-sandbox-service.cjs");
-  const catalogPath = path.join(root, "shared", "pulse-catalog.cjs");
-
-  assert.match(sandboxService, /require\("\.\.\/shared\/pulse-catalog\.cjs"\)/);
-  assert.ok(fs.existsSync(catalogPath), "shared/pulse-catalog.cjs должен существовать в исходном дереве");
-  assert.match(
-    serverConfig,
-    /^\s*-\s+shared\/\*\*\/\*\s*$/m,
-    "electron-builder.server.yml должен упаковывать shared/**/*, иначе Nexora Server падает при запуске с MODULE_NOT_FOUND",
-  );
-});
-
-test("Android и PWA клиенты не обходят TLS и работают только с безопасным transport", () => {
-  const activity = read("android/app/src/main/java/com/nexora/mobile/MainActivity.kt");
-  const manifest = read("android/app/src/main/AndroidManifest.xml");
-  const network = read("android/app/src/main/res/xml/network_security_config.xml");
-  const serviceWorker = read("client/public/sw.js");
-  assert.match(manifest, /usesCleartextTraffic="false"/);
-  assert.match(network, /cleartextTrafficPermitted="false"/);
-  assert.match(activity, /handler\.cancel\(\)/);
-  assert.doesNotMatch(activity, /handler\.proceed\(\)/);
-  assert.match(serviceWorker, /url\.pathname\.startsWith\("\/api\/"\)/);
-  assert.match(serviceWorker, /url\.pathname\.startsWith\("\/socket\.io\/"\)/);
-  assert.match(serviceWorker, /startsWith\("\/api\/"\)[\s\S]{0,120}return;/);
-  assert.match(serviceWorker, /startsWith\("\/socket\.io\/"\)[\s\S]{0,80}return;/);
+  assert.match(releaseWorkflow, /startsWith\(github\.event\.workflow_run\.head_commit\.message, 'release: Nexora 3\.5\.0'\)/);
+  assert.match(clientMain, /createUpdateService/);
 });

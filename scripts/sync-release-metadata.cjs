@@ -37,6 +37,16 @@ update("android/app/build.gradle.kts", (source) => source
 update("client/src/api.js", (source) => source
   .replace(/export const CLIENT_VERSION = "[^"]+";/, `export const CLIENT_VERSION = "${version}";`));
 
+update("website/app.js", (source) => source
+  .replace(/const FALLBACK_VERSION = "[^"]+";/, `const FALLBACK_VERSION = "${version}";`));
+
+update("website/site-fixes.js", (source) => source
+  .replace(/const FALLBACK_VERSION = "[^"]+";/, `const FALLBACK_VERSION = "${version}";`));
+
+update("website/index.html", (source) => source
+  .replace(/(<[^>]+data-current-version[^>]*>)[^<]*(<\/[^>]+>)/g, `$1${version}$2`)
+  .replace(/(<option value="fallback">)[^<]*(<\/option>)/g, `$1${version}$2`));
+
 update("test/server.test.cjs", (source) => source
   .replace(
     /assert\.equal\(response\.body\.version,\s*"[^"]+"\);/,

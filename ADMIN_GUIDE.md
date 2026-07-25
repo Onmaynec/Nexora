@@ -182,3 +182,4 @@ Unsigned local packages не являются официальным release и 
 4. не публикуйте secrets, DB, backups или private messages;
 5. security issues передавайте через private GitHub Security Advisory;
 6. после исправления добавьте regression test, root-cause record и closure evidence.
+> Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.

@@ -61,3 +61,4 @@ Historical encrypted records must not be silently decrypted, rewritten or delete
 ## Merge and closure rule
 
 PR #98 remains draft until every blocker is closed with actual evidence. After successful merge, immutable `v3.4.0` tag creation, signed GitHub Release publication and post-publication verification, this branch must be deleted and the PR/release evidence retained as completed provenance.
+> Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.

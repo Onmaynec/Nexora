@@ -151,3 +151,4 @@ The UI must handle:
 Nexora 3.4.0 does not claim traffic-analysis resistance before external review evidence is complete. Local Server cannot decrypt retained legacy ciphertext. Until the official stable gates complete, this branch is a release candidate and must not produce an official `v3.4.0` tag or production updater metadata.
 
 See [Documentation Portal](../docs/README.md), [Security Model](../docs/SECURITY_MODEL.md), [Security Policy](../SECURITY.md) and [Release Verification 3.4.0](../docs/releases/3.4.0/RELEASE_VERIFICATION.md).
+> Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.

@@ -10,16 +10,19 @@ const outputPath = path.join(websiteRoot, "release-fallback.js");
 const repository = "Onmaynec/Nexora";
 
 export function parseReleaseHistory(markdown) {
+  const matches = [...markdown.matchAll(/^## \[(\d+\.\d+\.\d+)\]\s*[—-]\s*(Unreleased|\d{4}-\d{2}-\d{2})([^\n]*)$/gmi)];
   const releases = [];
-  const pattern = /^## \[(\d+\.\d+\.\d+)\]\s*[—-]\s*(\d{4}-\d{2}-\d{2})([^\n]*)$/gm;
-  for (const match of markdown.matchAll(pattern)) {
-    const [, version, date, suffix = ""] = match;
+  for (let index = 0; index < matches.length; index += 1) {
+    const [, version, dateToken, suffix = ""] = matches[index];
+    const nextDated = matches.slice(index + 1).find((entry) => /^\d{4}-\d{2}-\d{2}$/.test(entry[2]));
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(dateToken) ? dateToken : nextDated?.[2];
+    if (!date) throw new Error(`Unreleased ${version} requires a later dated changelog entry for deterministic fallback metadata.`);
     releases.push({
       version,
       date,
       // Fallback metadata must never upgrade an unsigned/historical line to a stable claim.
       prerelease: true,
-      sourceLabel: suffix.trim(),
+      sourceLabel: dateToken.toLowerCase() === "unreleased" ? "Unreleased" : suffix.trim(),
     });
   }
   return releases;
@@ -37,7 +40,7 @@ export function renderFallbackScript(releases) {
     "    },",
   ].join("\n")).join("\n");
 
-  return `/* Generated from CHANGELOG.md by generate-release-fallback.mjs. */\n(() => {\n  \"use strict\";\n\n  window.NexoraReleaseFallback = Object.freeze([\n${entries}\n  ]);\n})();\n`;
+  return `/* Generated from CHANGELOG.md by generate-release-fallback.mjs. */\n(() => {\n  "use strict";\n\n  window.NexoraReleaseFallback = Object.freeze([\n${entries}\n  ]);\n})();\n`;
 }
 
 async function main() {

@@ -7,7 +7,7 @@ function supportedMimeType() {
 }
 
 function microphoneError(error) {
-  if (["NotAllowedError", "PermissionDeniedError", "SecurityError"].includes(error?.name)) return "Разрешите Nexora доступ к микрофону в Windows.";
+  if (["NotAllowedError", "PermissionDeniedError", "SecurityError"].includes(error?.name)) return "Разрешите Nexora доступ к микрофону в настройках системы.";
   if (["NotFoundError", "DevicesNotFoundError"].includes(error?.name)) return "Микрофон не найден. Подключите его и попробуйте снова.";
   if (["NotReadableError", "TrackStartError"].includes(error?.name)) return "Микрофон занят другим приложением или недоступен.";
   return "Не удалось включить микрофон.";
@@ -38,6 +38,7 @@ export default function VoiceRecorder({ maxSeconds = 300, onRecorded, onError, d
   const [status, setStatus] = useState("idle");
   const [seconds, setSeconds] = useState(0);
   const [recording, setRecording] = useState(null);
+  const [liveLevel, setLiveLevel] = useState(0);
 
   useEffect(() => { recordingRef.current = recording; }, [recording]);
 
@@ -46,9 +47,21 @@ export default function VoiceRecorder({ maxSeconds = 300, onRecorded, onError, d
     clearInterval(meterRef.current);
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
-    contextRef.current?.close().catch(() => {});
+    contextRef.current?.close().catch((error) => console.debug("Voice audio context cleanup failed", error));
     contextRef.current = null;
+    if (mountedRef.current) setLiveLevel(0);
   }
+
+  useEffect(() => {
+    function onLifecycle(event) {
+      if (!["background", "profile-switch", "destroy"].includes(event.detail?.state)) return;
+      const recorder = recorderRef.current;
+      if (recorder && recorder.state !== "inactive") stop();
+      else stopMedia();
+    }
+    window.addEventListener("nexora:platform-lifecycle", onLifecycle);
+    return () => window.removeEventListener("nexora:platform-lifecycle", onLifecycle);
+  }, []);
 
   useEffect(() => () => {
     mountedRef.current = false;
@@ -94,11 +107,14 @@ export default function VoiceRecorder({ maxSeconds = 300, onRecorded, onError, d
         meterRef.current = setInterval(() => {
           analyser.getByteTimeDomainData(samples);
           let sum = 0;
-          for (const sample of samples) { const value = (sample - 128) / 128; sum += value * value; }
+          for (const sample of samples) {
+            const value = (sample - 128) / 128;
+            sum += value * value;
+          }
           const rms = Math.sqrt(sum / samples.length);
           const level = Math.min(1, rms * 8);
           waveformRef.current.push(level);
-          // Мягкий шумовой порог приглушает почти беззвучные участки, не обрезая слова.
+          if (mountedRef.current) setLiveLevel(level);
           gate.gain.setTargetAtTime(rms < 0.012 ? 0.06 : 1, context.currentTime, 0.018);
         }, 80);
       }
@@ -112,7 +128,10 @@ export default function VoiceRecorder({ maxSeconds = 300, onRecorded, onError, d
         stopMedia();
         recorderRef.current = null;
         if (!mountedRef.current) return;
-        if (!blob.size) { setStatus("idle"); return onError?.("Запись получилась пустой. Проверьте микрофон и попробуйте снова."); }
+        if (!blob.size) {
+          setStatus("idle");
+          return onError?.("Запись получилась пустой. Проверьте микрофон и попробуйте снова.");
+        }
         const duration = Math.min(maxSeconds, Math.max(1, Math.ceil(elapsedRef.current / 1000)));
         const value = { blob, url: URL.createObjectURL(blob), duration, waveform: compactWaveform(waveformRef.current) };
         recordingRef.current = value;
@@ -145,6 +164,7 @@ export default function VoiceRecorder({ maxSeconds = 300, onRecorded, onError, d
     const recorder = recorderRef.current;
     if (recorder?.state !== "recording") return;
     recorder.pause();
+    setLiveLevel(0);
     setStatus("paused");
   }
 
@@ -162,7 +182,11 @@ export default function VoiceRecorder({ maxSeconds = 300, onRecorded, onError, d
     clearInterval(timerRef.current);
     setStatus("processing");
     if (recorder.state === "recording") {
-      try { recorder.requestData(); } catch {}
+      try {
+        recorder.requestData();
+      } catch (error) {
+        console.debug("Voice recorder final data request was unavailable", error);
+      }
     }
     recorder.stop();
   }
@@ -174,6 +198,7 @@ export default function VoiceRecorder({ maxSeconds = 300, onRecorded, onError, d
     recordingRef.current = null;
     setRecording(null);
     setSeconds(0);
+    setLiveLevel(0);
     setStatus("idle");
   }
 
@@ -194,7 +219,11 @@ export default function VoiceRecorder({ maxSeconds = 300, onRecorded, onError, d
       <div className={`voice-recorder active${status === "paused" ? " paused" : ""}`}>
         <span className="recording-pulse" />
         <strong>{String(Math.floor(seconds / 60)).padStart(2, "0")}:{String(seconds % 60).padStart(2, "0")}</strong>
-        <div className="voice-bars" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <i key={index} />)}</div>
+        <div className="voice-bars" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => {
+          const phase = 0.42 + 0.58 * Math.abs(Math.sin((index + 1) * 1.37));
+          const height = status === "paused" ? 12 : Math.max(12, Math.round((0.18 + liveLevel * phase) * 100));
+          return <i key={index} style={{ height: `${Math.min(100, height)}%` }} />;
+        })}</div>
         <button type="button" onClick={status === "paused" ? resume : pause} title={status === "paused" ? "Продолжить" : "Пауза"}>{status === "paused" ? <Play size={16} fill="currentColor" /> : <Pause size={16} fill="currentColor" />}</button>
         <button type="button" onClick={stop} title="Остановить"><Square size={16} fill="currentColor" /></button>
       </div>

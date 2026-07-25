@@ -1,5 +1,21 @@
 # Changelog
 
+## [3.5.0] - Unreleased
+
+### Added
+
+- Mobile Continuity replay/outbox, scoped offline state, PWA lifecycle, Android hardening, privacy-safe push and resumable media.
+- Additive SQLite schema 9 with verified migration and diagnostics.
+
+### Security
+
+- Device-scoped encrypted push tokens, strict server-side media validation and access/policy revalidation.
+
+### Release status
+
+- Release candidate only; publication is blocked until v3.4.0, signing, platform acceptance and independent review gates are complete.
+
+
 Формат основан на Keep a Changelog. Версии следуют Semantic Versioning.
 
 ## [3.4.0] — 2026-07-24 (Release candidate)
