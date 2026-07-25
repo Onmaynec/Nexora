@@ -57,7 +57,28 @@ jobs:
       - name: Test release consistency regressions
         run: node --test --test-concurrency=1 test/release-consistency.test.cjs
       - name: Test Connect regressions
-        run: node --test --test-concurrency=1 test/connect-3.6.test.cjs
+        id: connect
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          log="$RUNNER_TEMP/connect-focused.log"
+          node --test --test-concurrency=1 test/connect-3.6.test.cjs > "$log" 2>&1
+          status=$?
+          cat "$log"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit "$status"
+      - name: Upload Connect diagnostics
+        if: steps.connect.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: connect-finalization-failures
+          path: ${{ runner.temp }}/connect-focused.log
+          if-no-files-found: error
+          retention-days: 2
+      - name: Enforce Connect regressions
+        if: steps.connect.outcome == 'failure'
+        run: exit 1
       - name: Test build and signing contract
         run: node --test --test-concurrency=1 test/build-config.test.cjs
       - name: Test retained 3.2.5 regressions
