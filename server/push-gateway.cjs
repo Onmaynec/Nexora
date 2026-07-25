@@ -13,7 +13,8 @@ function gatewayError(code, message, { permanent = false, status = null } = {}) 
 }
 
 function normalizeAddress(value) {
-  const source = String(value || "").trim().toLowerCase();
+  let source = String(value || "").trim().toLowerCase();
+  if (source.startsWith("[") && source.endsWith("]")) source = source.slice(1, -1);
   if (!source.startsWith("::ffff:")) return source;
   const tail = source.slice(7);
   if (net.isIP(tail) === 4) return tail;
@@ -50,7 +51,7 @@ function isPrivateAddress(value) {
   if (family === 6) {
     if (address === "::" || address === "::1") return true;
     if (address.startsWith("fc") || address.startsWith("fd") || /^fe[89abcdef]/.test(address) || address.startsWith("ff")) return true;
-    if (address === "100::" || address.startsWith("100:0:0:0:")) return true;
+    if (address.startsWith("100::") || address.startsWith("100:0:0:0:")) return true;
     if (address.startsWith("64:ff9b:") || address.startsWith("2001:0:") || address.startsWith("2001:2:") || address.startsWith("2001:10:") || address.startsWith("2001:20:") || address.startsWith("2001:db8:")) return true;
     if (address.startsWith("2002:")) {
       const groups = address.split(":");
@@ -79,10 +80,11 @@ function validateGatewayConfig({ url, secret } = {}) {
   }
   if (parsed.protocol !== "https:") throw gatewayError("PUSH_GATEWAY_HTTPS_REQUIRED", "Push gateway must use HTTPS.", { permanent: true });
   if (parsed.username || parsed.password || parsed.hash) throw gatewayError("PUSH_GATEWAY_MISCONFIGURED", "Push gateway URL must not contain credentials or a fragment.", { permanent: true });
-  if (!parsed.hostname || parsed.hostname === "localhost" || (net.isIP(parsed.hostname) && isPrivateAddress(parsed.hostname))) {
+  const hostname = normalizeAddress(parsed.hostname);
+  if (!hostname || hostname === "localhost" || (net.isIP(hostname) && isPrivateAddress(hostname))) {
     throw gatewayError("PUSH_GATEWAY_PRIVATE_TARGET", "Push gateway must resolve to a public address.", { permanent: true });
   }
-  return { url: parsed, secret: rawSecret };
+  return { url: parsed, hostname, secret: rawSecret };
 }
 
 function signGatewayRequest(secret, timestamp, body) {
@@ -144,7 +146,7 @@ function createPushGatewayTransport({
     });
     const timestamp = String(clock());
     const signature = signGatewayRequest(config.secret, timestamp, body);
-    const pinned = await resolvePinnedAddress(config.url.hostname, lookup);
+    const pinned = await resolvePinnedAddress(config.hostname, lookup);
 
     try {
       const result = await new Promise((resolve, reject) => {
@@ -156,11 +158,11 @@ function createPushGatewayTransport({
         };
         const request = requestFactory({
           protocol: "https:",
-          hostname: config.url.hostname,
+          hostname: config.hostname,
           port: config.url.port || 443,
           path: `${config.url.pathname}${config.url.search}`,
           method: "POST",
-          servername: config.url.hostname,
+          servername: config.hostname,
           rejectUnauthorized: true,
           timeout: boundedTimeout,
           lookup: (_hostname, _options, callback) => callback(null, pinned.address, pinned.family),
@@ -217,7 +219,7 @@ function createPushGatewayTransport({
   return {
     configured: true,
     send,
-    status: () => ({ configured: true, endpointHost: config.url.hostname, lastSuccessAt, lastErrorCode }),
+    status: () => ({ configured: true, endpointHost: config.hostname, lastSuccessAt, lastErrorCode }),
   };
 }
 
