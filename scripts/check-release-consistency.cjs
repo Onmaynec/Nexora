@@ -51,6 +51,17 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
   const android = read(root, "android/app/build.gradle.kts");
   expectMatch("android/app/build.gradle.kts", android, new RegExp(`versionName\\s*=\\s*"${escapedVersion}"`), `does not declare versionName ${version}`);
   expectMatch("android/app/build.gradle.kts", android, new RegExp(`versionCode\\s*=\\s*${expectedAndroidCode}\\b`), `does not declare versionCode ${expectedAndroidCode}`);
+  for (const marker of [
+    "nexoraRequireSigning",
+    "NEXORA_ANDROID_KEYSTORE_PATH",
+    "NEXORA_ANDROID_KEYSTORE_PASSWORD",
+    "NEXORA_ANDROID_KEY_ALIAS",
+    "NEXORA_ANDROID_KEY_PASSWORD",
+    "enableV2Signing = true",
+    "enableV3Signing = true",
+  ]) {
+    if (!android.includes(marker)) fail(`android/app/build.gradle.kts missing ${JSON.stringify(marker)}`);
+  }
 
   for (const removed of [
     "server/trust-core.cjs",
@@ -170,18 +181,28 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
   const releaseWorkflow = read(root, ".github/workflows/release.yml");
   for (const marker of [
     "name: Nexora 3.5.0 stable release",
-    "Verify required 3.4.0 baseline",
+    "Verify required signed 3.4.0 baseline",
     "release-evidence/independent-security-review-3.5.0.json",
     "release-evidence/windows-acceptance-3.5.0.json",
     "release-evidence/android-acceptance-3.5.0.json",
     "release-evidence/pwa-acceptance-3.5.0.json",
-    "Require complete Authenticode policy",
+    "Require complete Windows and Android signing policy",
+    "ANDROID_KEYSTORE_BASE64",
+    "ANDROID_SIGNER_SHA256",
+    ":app:assembleRelease",
+    "-PnexoraRequireSigning=true",
+    "Nexora-Android-$version.apk",
+    "ANDROID-SIGNATURE-EVIDENCE.txt",
     "docs/releases/$version/RELEASE_NOTES.md",
     "Re-download and verify immutable release assets",
   ]) {
     if (!releaseWorkflow.includes(marker)) fail(`.github/workflows/release.yml missing ${JSON.stringify(marker)}`);
   }
-  if (releaseWorkflow.includes("official stable tag remains unused") || /PUBLISH_TAG=.*unsigned-test/.test(releaseWorkflow)) {
+  if (
+    releaseWorkflow.includes("official stable tag remains unused")
+    || /PUBLISH_TAG=.*unsigned-test/.test(releaseWorkflow)
+    || releaseWorkflow.includes("Nexora-Android-$version-UNSIGNED-TEST.apk")
+  ) {
     fail("3.5.0 stable workflow must not fall back to an unsigned official release path");
   }
 
