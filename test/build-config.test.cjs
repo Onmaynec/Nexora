@@ -79,10 +79,17 @@ test("релиз 3.5.0 публикует явно неподписанный Mo
 
   assert.match(releaseWorkflow, /name: Nexora 3\.5\.0 unsigned stable release/);
   assert.match(releaseWorkflow, /This workflow publishes only Nexora 3\.5\.0/);
+  assert.match(releaseWorkflow, /statuses:\s*write/);
+  assert.match(releaseWorkflow, /Mark release status pending/);
+  assert.match(releaseWorkflow, /context="release\/3\.5\.0"/);
+  assert.match(releaseWorkflow, /Mark release status success/);
+  assert.match(releaseWorkflow, /Mark release status failure/);
   assert.match(releaseWorkflow, /Resolve authorized unsigned release identity/);
   assert.match(releaseWorkflow, /Build explicitly unsigned Android release APK/);
   assert.match(releaseWorkflow, /:app:assembleRelease/);
   assert.match(releaseWorkflow, /apksigner\.bat/);
+  assert.match(releaseWorkflow, /Start-Process -FilePath \$apksigner/);
+  assert.match(releaseWorkflow, /Verification exit code: \$\(\$verify\.ExitCode\)/);
   assert.match(releaseWorkflow, /Android artifact was unexpectedly signed/);
   assert.match(releaseWorkflow, /Nexora-Android-\$version-UNSIGNED\.apk/);
   assert.match(releaseWorkflow, /ANDROID-UNSIGNED-EVIDENCE\.txt/);
@@ -92,6 +99,7 @@ test("релиз 3.5.0 публикует явно неподписанный Mo
   assert.match(releaseWorkflow, /status = \[string\]\$signature\.Status/);
   assert.match(releaseWorkflow, /expected = "NotSigned"/);
   assert.match(releaseWorkflow, /Installed package smoke/);
+  assert.match(releaseWorkflow, /WaitForExit\(180000\)/);
   assert.match(releaseWorkflow, /Nexora-Client-Setup-\$version-UNSIGNED\.exe/);
   assert.match(releaseWorkflow, /Nexora-Server-Setup-\$version-UNSIGNED\.exe/);
   assert.match(releaseWorkflow, /updaterMetadataPublished = \$false/);
