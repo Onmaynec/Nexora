@@ -149,7 +149,7 @@ async function createNexoraServer(options = {}) {
       maxAgeMs: options.pushMaxAgeMs,
       log,
     });
-    mobilePush.start();
+    await mobilePush.start();
 
     const baseStatus = instance.status.bind(instance);
     instance.status = () => ({
