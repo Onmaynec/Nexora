@@ -1,186 +1,298 @@
-# Архитектура Nexora 3.4.0 Stable Core
+# Архитектура Nexora 3.6.0 Connect
 
-## Scope and status
+## Scope and release state
 
-This document describes release candidate branch `release/3.4.0-stable-core-v2` and PR #96. It does not claim that `v3.4.0` is published.
+This document describes the `release/3.6.0-connect` implementation candidate. It does not claim that `v3.6.0` is published.
 
-- Application API: v3;
-- writable messaging core: ordinary server-readable conversations;
-- legacy Trust/MLS runtime: removed;
-- legacy data: schema 8 compatibility tables plus immutable ciphertext history;
-- signed production baseline: `3.1.2`;
-- stable publication: blocked pending verified `v3.3.4`, signing/Windows acceptance and independent review.
+- Application API: v3, extended additively;
+- Local Server database: SQLite schema 10;
+- writable core: ordinary server-readable messaging plus contacts/privacy/call metadata;
+- media transport: WebRTC peer-to-peer or TURN relay;
+- server-side media recording: absent;
+- legacy Trust/MLS runtime: retired;
+- legacy ciphertext history: immutable/read-only;
+- stable publication: blocked until signed assets, external review and installed platform acceptance are complete.
 
 ## System view
 
 ```mermaid
 flowchart TB
   subgraph Platforms[Client platforms]
-    WIN[Windows Electron Client]
+    WIN[Windows Electron]
     PWA[Browser / PWA]
-    AND[Android WebView shell]
-    UI[React / Vite UI]
-    CACHE[IndexedDB cache and ordinary outbox]
-    LEGACY[Read-only legacy cache adapter]
+    AND[Android WebView]
+    UI[React / Vite]
+    CACHE[Scoped IndexedDB and outbox]
+    MEDIA[WebRTC device and peer manager]
     WIN --> UI
     PWA --> UI
     AND --> UI
     UI --> CACHE
-    UI --> LEGACY
+    UI --> MEDIA
   end
 
-  subgraph Server[Local Server authority]
+  subgraph Local[Local Server authority]
     API[Express API v3]
     RT[Socket.IO]
-    AUTH[Sessions / CSRF / roles / bans / policies]
-    CORE[Rooms / messages / uploads / audit]
-    STABLE[Stable Core devices / legacy viewer / backup verify]
-    DB[(SQLite schema 8)]
+    AUTH[Session / CSRF / scope]
+    POLICY[Contacts / block / privacy / rooms]
+    CALLS[Connect call state and TURN credentials]
+    CORE[Messages / files / push / audit]
+    DB[(SQLite schema 10)]
     FILES[(File store)]
-    API --> AUTH --> CORE
+    API --> AUTH --> POLICY
     RT --> AUTH
+    POLICY --> CALLS
+    POLICY --> CORE
+    CALLS --> DB
     CORE --> DB
     CORE --> FILES
-    STABLE --> DB
   end
 
-  subgraph Desktop[Desktop security]
-    PROFILE[Per Server ID profile]
-    PIN[Certificate and Server ID pin]
-    UPDATE[Signed Client/Server updater]
+  subgraph MediaPath[Voice media path]
+    PEER[Remote peer]
+    TURN[Operator TURN relay]
   end
 
-  subgraph Cloud[Optional Pulse Cloud]
-    ID[Cloud Identity]
-    LEDGER[Impulse ledger and entitlements]
-  end
-
-  UI <-->|HTTPS / cookies / CSRF / API v3| API
-  UI <-->|session-scoped realtime| RT
-  WIN --> PROFILE --> PIN
-  WIN --> UPDATE
-  CORE <-->|signed Pulse contract| Cloud
+  UI <-->|HTTPS cookies CSRF| API
+  UI <-->|session-scoped Socket.IO| RT
+  MEDIA <-->|SRTP| PEER
+  MEDIA <-->|relayed SRTP| TURN
+  CALLS -->|short-lived credentials| MEDIA
 ```
 
 ## Authority split
 
 ### Client
 
-The client owns rendering, input, local interaction state, offline cache, media lifecycle and platform capability reporting. Client-side disabled/hidden controls are not authorization.
+The client owns rendering, input, local interaction state, device capability detection, microphone/output selection, peer-connection lifecycle, notification presentation and local cache. It may hide or disable unavailable actions, but that is never authorization.
+
+The client must:
+
+- bootstrap current access/version before replaying local work;
+- use stable idempotency/client identifiers for retry-sensitive operations;
+- display server error codes and `requestId` without internal details;
+- close peer connections and stop media tracks on terminal, unmount, profile switch and session loss;
+- handle duplicate realtime delivery without duplicate entities or notifications.
 
 ### Local Server
 
-The server owns authentication, device/session scope, Origin/CSRF, membership, roles, bans, room policy, validation, resource limits, durable mutations, audit and realtime visibility. Every direct API/Socket.IO path applies these checks before side effects.
+The Local Server owns:
 
-### Pulse Cloud
+1. authentication and active session/device scope;
+2. Origin and CSRF checks for browser mutations;
+3. resource existence and hidden-not-found behavior;
+4. contact, block, privacy, room and account policy;
+5. call participants and bound sessions;
+6. state transitions, idempotency and durable metadata;
+7. payload shape/size, quotas and sliding-window limits;
+8. audit and privacy-filtered realtime delivery.
 
-Pulse Cloud remains a separate authority for Cloud Identity, production ledger and signed entitlements. The Local Server does not become a payment authority.
+User-supplied user, server, room, conversation or call IDs locate candidate resources; they never authorize access by themselves.
 
-## Writable messaging core
+## Composition root
 
-Ordinary conversations use `server/create-server.cjs`, `server/v3-features.cjs`, `server/model.cjs`, `server/store.cjs` and `server/events.cjs`.
+`server/create-server-v31.cjs` remains the versioned composition root. Startup order is:
 
-- messages are stored by Local Server;
-- uploads are validated for actual size/type and safe paths;
-- ordinary outbox items validate current access after reconnect and use bounded retry;
-- event delivery is duplicate-tolerant and scoped to current access;
-- revoked sessions are disconnected immediately.
+1. initialize the base Local Server and SQLite store;
+2. apply existing schema 7 Pulse compatibility;
+3. apply schema 8 legacy Trust compatibility;
+4. apply schema 9 Mobile Continuity;
+5. apply schema 10 Connect migration;
+6. mount Stable Core and Mobile Continuity services;
+7. mount Connect routes/realtime hooks;
+8. start push/sync services;
+9. listen on the network.
 
-## Legacy Trust/MLS retirement
+`server/connect.cjs` adds behavior through existing Express/Socket.IO/store boundaries. It does not create a second authentication or storage stack.
 
-Executable Trust Core, recovery routes, MLS transport, encrypted-upload writes and client MLS engine are not packaged or mounted. `ts-mls` is removed from dependencies.
+## Schema 10
 
-Schema 8 is retained because destructive removal would violate data integrity. The compatibility boundary preserves group/message IDs, epochs, timestamps, ciphertext hashes and audit provenance.
+`server/connect-schema10.cjs` performs an additive schema 9 → 10 migration before network listen.
 
-### Read-only flow
+### Tables
 
-1. Bootstrap marks a conversation `legacySecure` when schema 8 contains an MLS group.
-2. Workspace routes it to `LegacySecureHistoryPane` rather than `MessagePane`.
-3. Server exposes immutable ciphertext metadata through `/api/v3/legacy-secure/*`.
-4. The optional local adapter reads pre-existing decrypted IndexedDB records using readonly transactions; it never generates keys or writes records.
-5. Export combines server ciphertext evidence with locally available content on the client. `serverDecrypted` remains `false`.
-6. Every legacy HTTP mutation returns `410/LEGACY_READ_ONLY`; MLS Socket.IO mutations are rejected with the same code.
+- `connect_privacy`: per-user presence, last-seen and read-receipt policy.
+- `connect_call_history`: minimal terminal call metadata; no media/SDP/ICE.
+- `connect_idempotency`: scoped response replay for retry-sensitive Connect mutations.
+- `connect_audit`: bounded, content-safe operational audit entries.
 
-No legacy ciphertext is converted into server plaintext.
+### Invariants
 
-## Sessions and devices
+- privacy values use SQLite `CHECK` constraints;
+- call history states/outcomes use constrained enums;
+- idempotency keys are unique by `(user_id, scope, key_hash)`;
+- call-history indexes support each participant’s descending history query;
+- idempotency expiry and audit actor/target indexes remain bounded/queryable;
+- schema version is persisted in both SQL metadata and in-memory state metadata.
 
-Sessions are authoritative device records with `deviceId`, name, platform, client version, `createdAt`, `lastSeenAt` and expiry.
+### Migration safety
 
-- `GET /api/v3/devices` groups active sessions by device;
-- revoke removes sessions transactionally from the store;
-- `session.revoked` is emitted to target session rooms;
-- target sockets are disconnected via `disconnectSockets(true)`;
-- `device.updated` refreshes the account inventory;
-- current-device revoke returns `STATE_CONFLICT` and directs the user to logout.
+The migration:
 
-Electron isolates cookies, IndexedDB, cache and pin state by Server ID. Certificate/identity change requires explicit confirmation; silent repin remains prohibited.
+- rejects a database newer than supported schema 10;
+- requires completed schema 9;
+- runs source `integrity_check`;
+- checks required free space;
+- checkpoints WAL and creates a verified backup;
+- executes `BEGIN IMMEDIATE` / `COMMIT` with rollback on error;
+- verifies target integrity;
+- patches replace/restore paths so restored older databases are upgraded before use.
 
-## Storage, migration and restore
+## Contacts and privacy model
 
-Startup order is:
+Contacts remain an additive social layer over existing DMs. Removing or blocking a contact does not delete message history; current access policy determines whether future direct operations are allowed.
 
-1. open database;
-2. integrity check and WAL checkpoint;
-3. read schema version and reject future schema;
-4. check free space;
-5. create and verify backup;
-6. execute transactional/idempotent migration;
-7. initialize services;
-8. listen on network.
+Contact requests are server-owned state machines:
 
-Backup verification materializes encrypted data only in a temporary directory and removes it after success/failure. Restore stages database and file store separately, validates both, swaps them under lock and rolls back both on failure. Database replacement keeps a rollback copy until the new database passes integrity.
+```text
+pending -> accepted | rejected | cancelled | expired
+```
 
-## Error and idempotency model
+Concurrent transitions serialize through the store mutation queue. An incompatible winner returns `STATE_CONFLICT`; an identical retry returns the saved/idempotent result.
 
-REST errors use:
+Profile serialization uses relationship scope:
+
+- self;
+- current contact;
+- shared room;
+- blocked/hidden.
+
+Only the permitted subset of status, bio, role, creation time and relationship information is returned.
+
+## Presence and read receipts
+
+Presence is derived from active authenticated sockets/sessions and emitted per viewer, not as one global unrestricted list.
+
+- updates are coalesced;
+- each payload has event/sequence/version metadata;
+- privacy changes trigger a replacement snapshot without reconnect;
+- disconnect removes a user only when no valid socket remains;
+- block and hidden policy remove unauthorized subjects from future snapshots.
+
+Read receipts use the reader’s current visibility policy at both boundaries:
+
+1. history/message serialization (`readCount`);
+2. realtime `conversation:read` emission.
+
+A hidden receipt is not emitted and is not counted for an unauthorized viewer.
+
+## Call state and signaling
+
+Active call state is intentionally ephemeral and process-local. Terminal metadata is persisted to `connect_call_history`.
+
+```text
+ringing -> connecting -> active -> reconnecting -> active
+ringing -> declined | missed | failed
+connecting|active|reconnecting -> ended | failed
+```
+
+A call records caller/callee IDs, caller session, claimed callee session, deadlines and independent sequence/replay maps. The first eligible callee session atomically claims a ringing call; subsequent signaling and TURN requests require the exact bound session.
+
+Signaling controls:
+
+- authenticated Socket.IO only;
+- participant and session scope on every event;
+- strict `callId`, sequence and signal-kind validation;
+- SDP/ICE shape and byte bounds;
+- monotonically increasing sequence per participant;
+- identical replay is idempotent;
+- same sequence with different payload returns `CALL_STATE_CONFLICT`;
+- bounded replay hashes and account/device/call rate windows;
+- target delivery uses the bound session room.
+
+## TURN boundary
+
+The Local Server receives TURN URLs and secret from protected runtime configuration. The client never receives the static secret.
+
+For an active, session-bound call, the server returns:
+
+- short TTL;
+- username containing expiry plus hashed user/session subject and call ID;
+- HMAC credential;
+- only configured STUN/TURN URLs.
+
+Secrets, credentials, SDP and ICE candidates are excluded from call history, application audit and diagnostics.
+
+## Realtime and revocation
+
+Authenticated sockets join `session:*`, `user:*` and authorized conversation rooms. Connect additionally tracks sockets by user/session for presence and call revocation.
+
+- block terminates calls between the two users;
+- session disappearance terminates a bound call;
+- invalid/disabled user or expired session fails `activeSession` checks;
+- server shutdown emits a terminal call state before cleanup;
+- current access is re-evaluated before subsequent REST/Socket.IO operations.
+
+## Desktop and Android boundaries
+
+Electron:
+
+- isolates persistent storage by Local Server ID;
+- pins Server ID/certificate fingerprint;
+- denies untrusted IPC callers;
+- allows notification and audio-only media permissions only for the active server origin;
+- opens external origins in the system browser.
+
+Android:
+
+- accepts HTTPS Local Servers only;
+- rejects TLS errors and mixed content;
+- disables file/content access and third-party cookies;
+- allows audio capture only for the active origin and Android `RECORD_AUDIO` permission;
+- opens external HTTPS origins outside the WebView;
+- cleans lifecycle state during background/profile switch/process recovery.
+
+## Error and observability model
+
+REST errors use a stable envelope:
 
 ```json
 {
   "ok": false,
-  "code": "STATE_CONFLICT",
+  "code": "CALL_STATE_CONFLICT",
   "message": "Safe user-facing message",
   "requestId": "correlation-id",
   "details": {}
 }
 ```
 
-The response also preserves `error` for backward compatibility. Logs include correlation IDs and recursively redact credentials/secrets. Retryable client operations use bounded exponential backoff, `Retry-After`, terminal code classification and stable client IDs/Idempotency-Key where the existing contract supports it.
+Socket acknowledgements use the same code/details semantics. `RATE_LIMITED` includes `Retry-After` where HTTP applies and a safe retry delay in acknowledgement details.
 
-## Updater and release architecture
+Diagnostics expose capability and configuration state, not content:
 
-Client uses `latest` metadata; Server uses `server` metadata. Both require Windows signature verification. The updater rejects prerelease/downgrade states, invalid signatures/checksums and non-HTTPS custom feeds.
+- WebRTC signaling available;
+- TURN configured/unconfigured;
+- active-call boolean;
+- selected device scope;
+- explicit confirmation that content, candidates and user identifiers are excluded.
 
-The release workflow:
+Metrics/log dimensions must remain bounded and must not use user IDs, call IDs, SDP, candidates, tokens or secrets as labels.
 
-1. confirms a published verified `v3.3.4` baseline;
-2. requires complete signing credentials plus expected certificate subject/thumbprint;
-3. runs release gates;
-4. builds source/PWA/SPDX/Android evidence;
-5. builds signed Client and Server assets with complete metadata;
-6. verifies Authenticode and timestamp;
-7. performs n-1→n installed smoke;
-8. creates checksums/evidence and an immutable annotated tag;
-9. publishes the release;
-10. re-downloads and verifies every asset.
+## Release architecture
 
-Without signing policy, only a distinct `-unsigned-test.<run>` prerelease is allowed and updater metadata is forbidden.
+Nexora 3.6.0 has a signed-stable-only release workflow. Publication requires approved machine-readable evidence and zero release blockers before packaging.
 
-## Realtime visibility
+The workflow then:
 
-Connections join session/user/conversation scopes only after authentication and current access validation. Membership/session loss removes realtime access. Stable Core events are:
+1. checks the exact commit/version and external evidence;
+2. requires protected Windows/Android signing material;
+3. runs complete source/security/soak gates;
+4. builds signed Windows installers, blockmaps and updater metadata;
+5. builds and verifies the signed Android artifact;
+6. builds source/PWA/SPDX assets;
+7. performs installed-package smoke;
+8. creates checksums and runtime evidence;
+9. creates an immutable annotated tag;
+10. publishes GitHub Release;
+11. re-downloads and verifies every checksum/signature/container.
 
-- `session.revoked`;
-- `device.updated`;
-- `legacy_secure_history.state`;
-- updater state is exposed in desktop shell IPC/state.
+The candidate evidence intentionally prevents this workflow from publishing until independent review, production TURN, signing and cross-platform acceptance are complete.
 
 ## Residual constraints
 
-- schema 8 retains historical Trust/MLS tables by design;
-- locally decrypted legacy content exists only if a previous client already cached it;
-- signed Windows acceptance requires external credentials and Windows environments;
-- current branch cannot be a stable release without a verified 3.3.4 baseline and independent review closure.
-> Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.
-
-> Current implementation candidate: Nexora 3.6.0 Connect. Signed stable publication remains blocked pending required external evidence.
+- Process restart terminates active calls; only terminal call history is durable.
+- WebRTC output-device selection depends on platform `setSinkId` support.
+- Production call quality and NAT traversal require an operator-controlled TURN deployment.
+- Windows↔Android/PWA and Android↔PWA acceptance requires physical/installed environments and cannot be inferred from source CI.
+- Signed stable publication remains blocked until external evidence files are completed factually.
