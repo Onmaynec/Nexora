@@ -152,7 +152,7 @@ test("Connect client reports background call failures and Android displays packa
   assert.ok(callController.includes("getTracks().forEach((track) => track.stop())"));
   assert.ok(callController.includes("setError(normalizeError(failure))"));
   const android = await fs.readFile(path.join(__dirname, "..", "android", "app", "src", "main", "java", "com", "nexora", "mobile", "MainActivity.kt"), "utf8");
-  assert.ok(android.includes('NEXORA ${BuildConfig.VERSION_NAME}'));
+  assert.ok(android.includes("NEXORA " + "$" + "{BuildConfig.VERSION_NAME}"));
 });
 `;
 });
