@@ -384,7 +384,7 @@ html[lang="ru"] .doc-link h3 {
   .floating-signal,
   .call-pulse,
   [data-tilt] {
-    animation: none !important;
+    animation-play-state: paused !important;
     transform: none !important;
   }
 }
