@@ -196,3 +196,5 @@ Merge commit должен начинаться с `release: Nexora 3.5.0`, чт�
 - сохранить runtime `RELEASE-EVIDENCE.json` в GitHub Release.
 
 Рабочая release-ветка закрывается после сохранения provenance.
+
+> Current implementation candidate: Nexora 3.6.0 Connect. Signed stable publication remains blocked pending required external evidence.

@@ -6,7 +6,7 @@
 
 | Параметр | Значение |
 |---|---|
-| Current repository version | `3.5.0` |
+| Current repository version | `3.6.0` |
 | Classification | Mobile Continuity release candidate |
 | Publication | Blocked — published `v3.4.0`, platform acceptance, signing and independent review are mandatory |
 | Signed production baseline | `3.1.2` |

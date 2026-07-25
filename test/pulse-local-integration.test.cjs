@@ -118,12 +118,12 @@ after(async () => {
   await fs.rm(directory, { recursive: true, force: true });
 });
 
-test("schema 9 is active and Pulse API requires authentication", async () => {
-  assert.equal(instance.store.stats().schemaVersion, 9);
-  assert.equal(instance.store.db.prepare("SELECT value FROM meta WHERE key='schema_version'").get().value, "9");
+test("schema 10 is active and Pulse API requires authentication", async () => {
+  assert.equal(instance.store.stats().schemaVersion, 10);
+  assert.equal(instance.store.db.prepare("SELECT value FROM meta WHERE key='schema_version'").get().value, "10");
   await request(instance.app).get("/api/v3/pulse/status").expect(401).expect((response) => assert.equal(response.body.code, "AUTH_REQUIRED"));
   const status = await agent.get("/api/v3/pulse/status").expect(200);
-  assert.equal(status.body.schemaVersion, 9);
+  assert.equal(status.body.schemaVersion, 10);
   assert.equal(status.body.cloud.productionReady, true);
 });
 

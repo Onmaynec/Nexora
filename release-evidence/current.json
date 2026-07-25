@@ -1,57 +1,52 @@
 {
-  "schemaVersion": 4,
-  "version": "3.5.0",
-  "tag": "v3.5.0",
-  "status": "release-approved",
+  "schemaVersion": 5,
+  "version": "3.6.0",
+  "tag": "v3.6.0",
+  "status": "implementation-candidate",
   "published": false,
   "signed": false,
-  "distribution": "stable-unsigned-manual-download",
+  "distribution": "signed-stable-pending-evidence",
   "repository": "Onmaynec/Nexora",
-  "branch": "release/3.5.0-unsigned-publication",
-  "baseline": "3.4.0-source",
-  "ownerAuthorization": {
-    "authorized": true,
-    "scope": "publish-v3.5.0-as-normal-github-release-with-unsigned-windows-and-android-binaries",
-    "authorizedAt": "2026-07-25T13:14:22Z"
-  },
+  "branch": "release/3.6.0-connect",
+  "baseline": "3.5.0",
   "publicationPolicy": {
     "prerelease": false,
     "latest": true,
-    "manualDownloadOnly": true,
+    "requiresSignedArtifacts": true,
     "updaterMetadataPublished": false,
-    "explicitUnsignedNames": true,
     "sha256Required": true,
-    "runtimeEvidenceGeneratedByWorkflow": true
+    "sbomRequired": true,
+    "crossPlatformCallAcceptanceRequired": true
   },
-  "remainingOperationalRequirements": [
-    "configure-production-push-gateway-for-background-delivery",
-    "perform-platform-acceptance-for-production-deployment",
-    "obtain-code-signing-certificates-for-a-future-signed-build"
+  "releaseBlockers": [
+    "complete-independent-security-review-with-no-unresolved-high-or-critical-findings",
+    "configure-and-verify-production-turn-with-short-lived-credentials",
+    "complete-installed-windows-10-and-windows-11-call-acceptance",
+    "complete-android-pwa-windows-cross-platform-call-matrix",
+    "provide-valid-windows-and-android-code-signing-credentials",
+    "complete-release-assets-signature-checksum-and-redownload-smoke-evidence"
   ],
   "guarantees": {
     "ordinaryMessagingWritable": true,
     "trustMlsRuntime": "retired",
     "legacySecureHistory": "read-only",
-    "pushPlaintextDefault": false,
-    "localProfilesIsolated": true,
-    "unsignedOfficialTagAuthorized": true,
-    "automaticUpdaterMetadataExcluded": true,
-    "unsignedStatusMustRemainVisible": true
+    "callMediaStoredByServer": false,
+    "turnCredentialsStaticInClient": false,
+    "blockTerminatesSignaling": true,
+    "stablePublicationAuthorized": false
   },
-  "assets": [
-    "Nexora-Client-Setup-3.5.0-UNSIGNED.exe",
-    "Nexora-Server-Setup-3.5.0-UNSIGNED.exe",
-    "Nexora-Android-3.5.0-UNSIGNED.apk",
-    "Nexora-PWA-3.5.0.zip",
-    "Nexora-3.5.0-source.zip",
-    "Nexora-3.5.0.spdx.json",
-    "WINDOWS-UNSIGNED-EVIDENCE.json",
-    "ANDROID-UNSIGNED-EVIDENCE.txt",
+  "plannedAssets": [
+    "Nexora-Client-Setup-3.6.0.exe",
+    "Nexora-Server-Setup-3.6.0.exe",
+    "Nexora-Android-3.6.0.apk",
+    "Nexora-PWA-3.6.0.zip",
+    "Nexora-3.6.0-source.zip",
+    "Nexora-3.6.0.spdx.json",
     "RELEASE-EVIDENCE.json",
     "SHA256SUMS.txt"
   ],
   "verification": {
-    "status": "requires-exact-head-ci-before-publication",
+    "status": "requires-green-exact-head-ci-and-external-evidence",
     "head": null,
     "ciRuns": [],
     "productionDependencyAudit": {

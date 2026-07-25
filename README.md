@@ -2,7 +2,7 @@
 
 [![Website](https://img.shields.io/badge/website-open-c69cff)](https://onmaynec.github.io/Nexora/)
 [![CI](https://github.com/Onmaynec/Nexora/actions/workflows/ci.yml/badge.svg)](https://github.com/Onmaynec/Nexora/actions/workflows/ci.yml)
-![Current version](https://img.shields.io/badge/current-3.5.0-c69cff)
+![Current version](https://img.shields.io/badge/current-3.6.0-c69cff)
 ![Distribution](https://img.shields.io/badge/distribution-unsigned%20manual-orange)
 ![API](https://img.shields.io/badge/API-v3%20%2B%20legacy%20read--only-70e6b1)
 ![Database](https://img.shields.io/badge/SQLite-schema%209-70e6b1)

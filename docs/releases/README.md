@@ -30,3 +30,5 @@ Older root-level release documents are preserved temporarily to avoid breaking h
 
 - [3.5.0 release notes](3.5.0/RELEASE_NOTES.md)
 - [3.5.0 release verification](3.5.0/RELEASE_VERIFICATION.md)
+- [Nexora 3.6.0 release notes](3.6.0/RELEASE_NOTES.md)
+- [Nexora 3.6.0 release verification](3.6.0/RELEASE_VERIFICATION.md)

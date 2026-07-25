@@ -182,3 +182,5 @@ Connections join session/user/conversation scopes only after authentication and 
 - signed Windows acceptance requires external credentials and Windows environments;
 - current branch cannot be a stable release without a verified 3.3.4 baseline and independent review closure.
 > Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.
+
+> Current implementation candidate: Nexora 3.6.0 Connect. Signed stable publication remains blocked pending required external evidence.

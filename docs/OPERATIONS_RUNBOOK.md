@@ -203,3 +203,5 @@ Record:
 - regression test;
 - recovery/closure evidence.
 > Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.
+
+> Current implementation candidate: Nexora 3.6.0 Connect. Signed stable publication remains blocked pending required external evidence.

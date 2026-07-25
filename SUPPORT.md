@@ -99,3 +99,5 @@ Official `v3.4.0` support begins only after:
 
 Before then, support is limited to source release-candidate testing and defect triage.
 > Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.
+
+> Current implementation candidate: Nexora 3.6.0 Connect. Signed stable publication remains blocked pending required external evidence.

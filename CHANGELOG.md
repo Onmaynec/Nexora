@@ -1,6 +1,6 @@
 # Changelog
 
-## [3.5.0] - Unreleased
+## [3.6.0] - Unreleased\n\n### Added\n\n- Contact request lifecycle, privacy-aware user search, block-aware profiles and access-validated deep links.\n- Scoped presence, last-seen precision and server-filtered read-receipt visibility.\n- One-to-one WebRTC, voice calls with participant-bound Socket.IO signaling, minimal call history and short-lived TURN credentials.\n- Additive SQLite schema 10 migration with verified backup, transaction, integrity and downgrade protection.\n\n### Security\n\n- Call signaling validates active session, participant scope, contact/block policy, state, sequence, payload bounds and rate limits.\n- Voice media is not stored by Local Server; diagnostics exclude SDP, ICE candidates, IP addresses and secrets.\n- Stable publication remains blocked pending signed artifacts, independent review and installed cross-platform call acceptance.\n\n## [3.5.0] - Unreleased
 
 ### Added
 

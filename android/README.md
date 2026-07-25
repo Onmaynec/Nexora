@@ -152,3 +152,5 @@ Nexora 3.4.0 does not claim traffic-analysis resistance before external review e
 
 See [Documentation Portal](../docs/README.md), [Security Model](../docs/SECURITY_MODEL.md), [Security Policy](../SECURITY.md) and [Release Verification 3.4.0](../docs/releases/3.4.0/RELEASE_VERIFICATION.md).
 > Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.
+
+> Current implementation candidate: Nexora 3.6.0 Connect. Signed stable publication remains blocked pending required external evidence.

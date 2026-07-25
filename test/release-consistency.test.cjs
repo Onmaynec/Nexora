@@ -1,139 +1,62 @@
-"use strict";
+\"use strict\";\n\nconst assert = require(\"node:assert/strict\");\nconst fs = require(\"node:fs\");\nconst os = require(\"node:os\");\nconst path = require(\"node:path\");\nconst test = require(\"node:test\");\nconst { checkReleaseConsistency } = require(\"../scripts/check-release-consistency.cjs\");\n\nconst root = path.resolve(__dirname, \"..\");\nconst version = require(\"../package.json\").version;\nconst fixtureFiles = [\n  \"package.json\",\n  \"package-lock.json\",\n  \"client/src/api.js\",\n  \"android/app/build.gradle.kts\",\n  \"android/README.md\",\n  \"README.md\",\n  \"PROJECT_INDEX.md\",\n  \"docs/README.md\",\n  \"docs/ARCHITECTUREMd\",\n  \"docs/SECURITY_MODEL.md\",\n  \"docs/releases/README.md\",\n  \"SECURITY.md\",\n  \"SECURITY_AUDIT.md\",\n  \"SUPPORT.md\",\n  \"CONTRIBUTING.[���QRS���RQK�Y���T�T���RQK�Y�����S����UT˛Y�����S��T˛Y���������P��ՑT��QU˛Y��������T�USӔ�ԕS����˛Y�������T�SQS��Y������ԑSPT�W��P�K�Y��������UP�ԑSPT�K�Y������ԑSPT�W��P��T��Y�����]X��T��QW�STUK؝Y�ܙ\ܝ�[[�����]X���ܚٛ���ܙ[X\�K�[[����X��]K�[�^�[����X��]K�\�������X��]K��]KY�^\˚������S��S�˛Y����[X\�KY]�Y[��K��\��[����ۗ���[X\�KY]�Y[��K�[�\[�[�\�X�\�]K\�]�Y]�Iݙ\��[۟K���ۘ��[X\�KY]�Y[��K��[����XX��\[��KIݙ\��[۟K���ۘ��[X\�KY]�Y[��K�[���YXX��\[��KIݙ\��[۟K���ۘ��[X\�KY]�Y[��K��KXX��\[��KIݙ\��[۟K���ۘ��[X\�KY]�Y[��K��ۛ�X�Xܛ���\]�ܛKXX��\[��KIݙ\��[۟K���ۘ��SPT�Wӓ�T��ݙ\��[۟K�Y��SPT�WՑT�Q�P�USӗ�ݙ\��[۟K�Y����ܙ[X\�\��ݙ\��[۟KԑSPT�Wӓ�T˛Y����ܙ[X\�\��ݙ\��[۟KԑSPT�WՑT�Q�P�USӋ�Y�N����[��[ۈ��Q�^\�J
+H���ۜ�\��]H�˛Z�[\�[��]���[��˝\\�
+K��^ܘK\�[X\�KX�ۜ�\�[��KW�JN���܈
+�ۜ��[]]�T]و�^\�Q�[\�H���ۜ���\��HH]���[�����[]]�T]
+N���ۜ�\�[�][ۈH]���[�\��]�[]]�T]
+N���˛Z�\��[��]�\��[YJ\�[�][ۊK��X�\��]�N��YHJN���˘��Q�[T�[����\��K\�[�][ۊN��W��]\��\��]��W���[��[ۈ�]�^\�J�[�X��H���ۜ��^\�HH��Q�^\�J
+N���H���[�X���^\�JN��H�[�[H���˜�T�[���^\�K��X�\��]�N��YK�ܘ�N��YHJN��W�W��\�
+��[X\�HY]Y]H[�]�\�H�\��[���[Y[�][ۈ�\��X�H\�HۙH�\��[ۗ�
 
-const assert = require("node:assert/strict");
-const fs = require("node:fs");
-const os = require("node:os");
-const path = require("node:path");
-const test = require("node:test");
-const { checkReleaseConsistency } = require("../scripts/check-release-consistency.cjs");
+HO����ۜ��\�[H�X�ԙ[X\�P�ۜ�\�[��J���
+N��\��\��\]X[
+�\�[��\��[ۋ�\��[ۊN��\��\��\]X[
+�\�[��\��[���[Y[���[��JN��\��\��\]X[
+�\�[��[X\�T�]\��[\[Y[�][ۋX�[�Y]W�N��\��\�����\�[��[X\�P����\���[��
+N��JN���\�
+��[X\�H�ۜ�\�[��H�]H�Z�X��[���YY]Y]H�Y��
 
-const root = path.resolve(__dirname, "..");
-const fixtureFiles = [
-  "package.json",
-  "package-lock.json",
-  "client/src/api.js",
-  "android/app/build.gradle.kts",
-  "android/README.md",
-  "README.md",
-  "PROJECT_INDEX.md",
-  "docs/README.md",
-  "docs/ARCHITECTURE.md",
-  "docs/SECURITY_MODEL.md",
-  "docs/releases/README.md",
-  "SECURITY.md",
-  "SECURITY_AUDIT.md",
-  "SUPPORT.md",
-  "CONTRIBUTING.md",
-  "ADMIN_GUIDE.md",
-  "TESTER_GUIDE.md",
-  "BRANCH_STATUS.md",
-  "BRANCHES.md",
-  "docs/PRODUCT_OVERVIEW.md",
-  "docs/OPERATIONS_RUNBOOK.md",
-  "docs/DEPLOYMENT.md",
-  "docs/RELEASE_POLICY.md",
-  "docs/GITHUB_RELEASE.md",
-  "docs/RELEASE_CHECKLIST.md",
-  ".github/ISSUE_TEMPLATE/bug_report.yml",
-  ".github/workflows/release.yml",
-  "website/index.html",
-  "website/app.js",
-  "website/site-fixes.js",
-  "CHANGELOG.md",
-  "release-evidence/current.json",
-  "release-evidence/independent-security-review-3.5.0.json",
-  "release-evidence/windows-acceptance-3.5.0.json",
-  "release-evidence/android-acceptance-3.5.0.json",
-  "release-evidence/pwa-acceptance-3.5.0.json",
-];
+HO����]�^\�J
+�^\�JHO����ۜ�ܘYHH]���[��^\�K�[���Y�\؝Z[�ܘYK����N���˝ܚ]Q�[T�[��ܘYK�˜�XY�[T�[��ܘYK�]��K��\X�Jݙ\��[ۓ�[YWʏWʗ�ח�J���	ݙ\��[ۓ�[YHH�����JN��\��\������
 
-function copyFixture() {
-  const target = fs.mkdtempSync(path.join(os.tmpdir(), "nexora-release-consistency-"));
-  const version = require("../package.json").version;
-  const releaseFiles = [
-    `RELEASE_NOTES_${version}.md`,
-    `RELEASE_VERIFICATION_${version}.md`,
-    `docs/releases/${version}/RELEASE_NOTES.md`,
-    `docs/releases/${version}/RELEASE_VERIFICATION.md`,
-  ];
-  for (const relativePath of [...fixtureFiles, ...releaseFiles]) {
-    const source = path.join(root, relativePath);
-    const destination = path.join(target, relativePath);
-    fs.mkdirSync(path.dirname(destination), { recursive: true });
-    fs.copyFileSync(source, destination);
-  }
-  return target;
-}
+HO��X�ԙ[X\�P�ۜ�\�[��J�^\�JKݙ\��[ۓ�[YK�N��JN��JN���\�
+��[X\�H�ۜ�\�[��H�]H�Z�X��H�[H�\��[��X�\�]H�X�H�\��[ۗ�
 
-function withFixture(callback) {
-  const fixture = copyFixture();
-  try {
-    callback(fixture);
-  } finally {
-    fs.rmSync(fixture, { recursive: true, force: true });
-  }
-}
+HO����]�^\�J
+�^\�JHO����ۜ��X�HH]���[��^\�K��P�T�UK�Y�N���ۜ��Y�ܙHH�˜�XY�[T�[���X�K�]��N���ۜ�X\��\�H	ݙ\��[۟X�ۛ�X�[\[Y[�][ۈ�[�Y]X��\��\�����Y�ܙK�[��Y\�X\��\�K��\��[��X�\�]H�X�HX\��\�]\�^\��Y�ܙH]]][ۗ�N���˝ܚ]Q�[T�[���X�K�Y�ܙK��\X�JX\��\����
+��ۛ�X�[\[Y[�][ۈ�[�Y]W�JN��\��\������
 
-test("release metadata and every current documentation surface use one version", () => {
-  const result = checkReleaseConsistency(root);
-  assert.equal(result.version, require("../package.json").version);
-  assert.equal(result.currentDocumentCount, 25);
-});
+HO��X�ԙ[X\�P�ۜ�\�[��J�^\�JK��P�T�UW�Y�\ܝY�\��[ۋ�N��JN��JN���\�
+��[X\�H�ۜ�\�[��H�]H�Z�X��؜��]H�\��[��\�Y�X�][ۈ[����
 
-test("release consistency gate rejects Android metadata drift", () => {
-  withFixture((fixture) => {
-    const gradle = path.join(fixture, "android/app/build.gradle.kts");
-    fs.writeFileSync(gradle, fs.readFileSync(gradle, "utf8").replace(/versionName\s*=\s*"[^"]+"/, 'versionName = "0.0.0"'));
-    assert.throws(() => checkReleaseConsistency(fixture), /versionName/);
-  });
-});
+HO����]�^\�J
+�^\�JHO����ۜ��\ܝH]���[��^\�K��Tԕ�Y�N���˘\[��[T�[���\ܝ���؜��]WJ���ܙ[X\�\��ˌ��ԑSPT�WՑT�Q�P�USӋ�Y
+W���]��N��\��\������
 
-test("release consistency gate rejects a stale current Security Policy version", () => {
-  withFixture((fixture) => {
-    const currentVersion = require("../package.json").version;
-    const staleVersion = currentVersion === "0.0.0" ? "0.0.1" : "0.0.0";
-    const policy = path.join(fixture, "SECURITY.md");
-    const before = fs.readFileSync(policy, "utf8");
-    const currentMarker = `| \`${currentVersion}\` | Stable unsigned distribution`;
-    assert.ok(before.includes(currentMarker), "current Security Policy marker must exist before mutation");
-    fs.writeFileSync(policy, before.replace(currentMarker, `| \`${staleVersion}\` | Stable unsigned distribution`));
-    assert.throws(() => checkReleaseConsistency(fixture), /SECURITY\.md supported version/);
-  });
-});
+HO��X�ԙ[X\�P�ۜ�\�[��J�^\�JK�؜��]H�\��[��\�Y�X�][ۈ��[Y[��N��JN��JN���\�
+��[X\�H�ۜ�\�[��H�]H�Z�X��\X�]Y�[�ۚX�[�[X\�H�۝[�[�H����[�\��
 
-test("release consistency gate rejects obsolete current verification links", () => {
-  withFixture((fixture) => {
-    const support = path.join(fixture, "SUPPORT.md");
-    fs.appendFileSync(support, "\n[obsolete](docs/releases/3.2.4/RELEASE_VERIFICATION.md)\n", "utf8");
-    assert.throws(() => checkReleaseConsistency(fixture), /obsolete current verification document/);
-  });
-});
+HO����]�^\�J
+�^\�JHO����ۜ��[�\�H]���[��^\�K�SPT�Wӓ�T��ݙ\��[۟K�Y
+N���˝ܚ]Q�[T�[���[�\��˜�XY�[T�[��]���[��^\�K���ܙ[X\�\��ݙ\��[۟KԑSPT�Wӓ�T˛Y
+K�]��JN��\��\������
 
-test("release consistency gate rejects a root release document containing duplicated canonical content", () => {
-  withFixture((fixture) => {
-    const version = require("../package.json").version;
-    const pointer = path.join(fixture, `RELEASE_NOTES_${version}.md`);
-    fs.writeFileSync(pointer, fs.readFileSync(path.join(fixture, `docs/releases/${version}/RELEASE_NOTES.md`), "utf8"));
-    assert.throws(() => checkReleaseConsistency(fixture), /compatibility pointer/);
-  });
-});
+HO��X�ԙ[X\�P�ۜ�\�[��J�^\�JK���\]X�[]H�[�\��N��JN��JN���\�
+��[X\�H�ۜ�\�[��H�]H�Z�X��H�[�Y]H]Y\��[X\�H����\���
 
-test("release consistency gate rejects unsigned publication without owner authorization", () => {
-  withFixture((fixture) => {
-    const evidencePath = path.join(fixture, "release-evidence/current.json");
-    const evidence = JSON.parse(fs.readFileSync(evidencePath, "utf8"));
-    evidence.ownerAuthorization.authorized = false;
-    fs.writeFileSync(evidencePath, JSON.stringify(evidence, null, 2));
-    assert.throws(() => checkReleaseConsistency(fixture), /explicit owner authorization/);
-  });
-});
+HO����]�^\�J
+�^\�JHO����ۜ�]�Y[��T]H]���[��^\�K��[X\�KY]�Y[��K��\��[����ۗ�N���ۜ�]�Y[��HH��Ӌ�\��J�˜�XY�[T�[��]�Y[��T]�]��JN��]�Y[��K��[X\�P����\��H�N���˝ܚ]Q�[T�[��]�Y[��T]��Ӌ���[��Y�J]�Y[��K�[�JN��\��\������
 
-test("release consistency gate rejects updater metadata for unsigned publication", () => {
-  withFixture((fixture) => {
-    const evidencePath = path.join(fixture, "release-evidence/current.json");
-    const evidence = JSON.parse(fs.readFileSync(evidencePath, "utf8"));
-    evidence.publicationPolicy.updaterMetadataPublished = true;
-    fs.writeFileSync(evidencePath, JSON.stringify(evidence, null, 2));
-    assert.throws(() => checkReleaseConsistency(fixture), /integrity policy/);
-  });
-});
+HO��X�ԙ[X\�P�ۜ�\�[��J�^\�JKܙ[X\�H����\���N��JN��JN���\�
+��[X\�H�ۜ�\�[��H�]H�Z�X��[��YۙY�X�HX�X�][ۈ�X�W�
+
+HO����]�^\�J
+�^\�JHO����ۜ�]�Y[��T]H]���[��^\�K��[X\�KY]�Y[��K��\��[����ۗ�N���ۜ�]�Y[��HH��Ӌ�\��J�˜�XY�[T�[��]�Y[��T]�]��JN��]�Y[��K�X�X�][۔�X�K��\]Z\�\��YۙY\�Y�X��H�[�N���˝ܚ]Q�[T�[��]�Y[��T]��Ӌ���[��Y�J]�Y[��K�[�JN��\��\������
+
+HO��X�ԙ[X\�P�ۜ�\�[��J�^\�JK�X�X�][ۈ�X�K�N��JN��JN���\�
+��[X\�H�ۜ�\�[��H�]H�Z�X��H\��Y^\��[X��\[��H�X�ܙ�]�]��\][ۈ[YW�
+
+HO����]�^\�J
+�^\�JHO����ۜ�]�Y[��T]H]���[��^\�K�[X\�KY]�Y[��K��[����XX��\[��KIݙ\��[۟K���ۘ
+N���ۜ�]�Y[��HH��Ӌ�\��J�˜�XY�[T�[��]�Y[��T]�]��JN��]�Y[��K��]\�H�\��Y���]�Y[��K���\]Y]H�[���˝ܚ]Q�[T�[��]�Y[��T]��Ӌ���[��Y�J]�Y[��K�[�JN��\��\������
+
+HO��X�ԙ[X\�P�ۜ�\�[��J�^\�JK�\��Y�]�]��\]Y]�N��JN��JN�

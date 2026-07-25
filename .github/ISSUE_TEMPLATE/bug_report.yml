@@ -181,3 +181,5 @@ body:
         - label: This is not a private vulnerability report.
           required: true
 # Current release candidate: Nexora 3.5.0 Mobile Continuity.
+
+# Current implementation candidate: Nexora 3.6.0 Connect. Signed stable publication remains blocked pending required external evidence.

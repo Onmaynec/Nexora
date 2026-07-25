@@ -165,3 +165,5 @@ Automated coverage includes:
 
 These conditions prohibit merge to a release commit, official `v3.4.0` tag and stable GitHub Release.
 > Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.
+
+> Current implementation candidate: Nexora 3.6.0 Connect. Signed stable publication remains blocked pending required external evidence.

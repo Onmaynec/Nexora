@@ -4,7 +4,7 @@
 
 | Параметр | Значение |
 |---|---|
-| Repository version | `3.5.0` |
+| Repository version | `3.6.0` |
 | Classification | Release candidate — Mobile Continuity |
 | Publication | Заблокирована до опубликованной `v3.4.0`, platform acceptance, signing и independent security review |
 | Signed production baseline | `3.1.2` |

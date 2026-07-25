@@ -61,3 +61,4 @@ Unsigned release assets must:
 ## Out of scope claims
 
 Nexora does not claim protection against a compromised operating-system administrator, malicious local operator, stolen build environment or insecure reverse proxy configuration. A self-hosted deployment remains responsible for OS patching, firewall, TLS, backup custody, secrets and monitoring. SHA-256 verifies downloaded bytes but does not prove publisher identity.
+| `3.6.0` | Connect implementation candidate — signed stable publication blocked pending required evidence |
