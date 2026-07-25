@@ -1,12 +1,12 @@
 # Политика безопасности Nexora
 
-> **Stable Core 3.4.0 RC:** ordinary server-readable messaging is writable; legacy Trust/MLS history is read-only. Stable publication remains blocked by verified v3.3.4, signing/Windows acceptance and independent review.
+> **Nexora 3.5.0:** актуальная версия публикуется как обычный GitHub Release с явно неподписанными Windows- и Android-артефактами. Автоматические обновления для этой публикации отключены; перед ручной установкой требуется сверка SHA-256.
 
 ## Supported versions
 
 | Version | Channel | Security status |
 |---|---|---|
-| `3.5.0` | Release candidate | Security fixes accepted on the release branch; publication remains blocked by platform/signing/review gates. |
+| `3.5.0` | Stable unsigned distribution | Supported for security fixes. Windows and Android binaries have no publisher signature; asset names, evidence and release notes expose this state explicitly. |
 | `3.3.3` | Published `UNSIGNED-TEST` prerelease | Supported for regression/security reports; not a signed stable baseline |
 | `3.1.x` | Signed production baseline | Supported |
 | `3.0.x` and older | Historical | Unsupported |
@@ -29,25 +29,35 @@ Provide:
 
 Use the repository security advisory/private reporting channel where available. If that channel is unavailable, contact the maintainer through a private channel listed on the GitHub profile and disclose only the minimum needed to establish contact.
 
-## Scope for 3.4.0 review
+## Scope for 3.5.0 review
 
 - authentication, sessions, device revoke and realtime disconnect;
 - Origin/CSRF and direct API bypass;
 - room roles, higher-privilege protection and active bans;
-- ordinary upload type/size/path controls;
+- ordinary and resumable upload type/size/hash/path controls;
+- push-token encryption, gateway TLS/HMAC/DNS pinning and private-target rejection;
+- replay/outbox ordering, idempotency and profile isolation;
 - retired Trust/MLS HTTP/Socket.IO writes and plaintext leakage;
 - local read-only legacy cache adapter/export;
 - migration, backup verify, restore rollback and future schema;
 - Electron IPC/profile/certificate pinning;
-- Client/Server updater, Authenticode identity, timestamp and no-downgrade;
+- PWA cache/update boundary;
+- Android TLS, WebView, permissions and lifecycle;
+- unsigned release transparency, checksum verification and updater-metadata exclusion;
 - Pulse authority boundary and secret redaction.
 
 ## Disclosure and release policy
 
-High/critical findings block merge, tag and stable publication. Each finding must record severity, root cause, fix, regression evidence and closure/retest. Public summaries must not expose credentials or weaponized details before coordinated disclosure.
+High/critical findings block source promotion until corrected. The owner-authorized unsigned `v3.5.0` publication relaxes only binary publisher-signature requirements; it does not relax source security tests, checksum generation, immutable tagging, package smoke or post-publication re-download verification.
 
-The `SECURITY_REVIEW_3.4.0.md` file is an internal scope/closure ledger, not an independent assessment. The independent review remains a mandatory release blocker.
+Unsigned release assets must:
+
+- contain `UNSIGNED` in Windows and Android filenames;
+- include signing-state evidence;
+- include SHA-256 checksums;
+- exclude `latest.yml` and `server.yml`;
+- avoid claims of Authenticode or Android signer identity.
 
 ## Out of scope claims
 
-Nexora does not claim protection against a compromised operating-system administrator, malicious local operator, stolen signing environment or insecure reverse proxy configuration. A self-hosted deployment remains responsible for OS patching, firewall, TLS, backup custody, secrets and monitoring.
+Nexora does not claim protection against a compromised operating-system administrator, malicious local operator, stolen build environment or insecure reverse proxy configuration. A self-hosted deployment remains responsible for OS patching, firewall, TLS, backup custody, secrets and monitoring. SHA-256 verifies downloaded bytes but does not prove publisher identity.
