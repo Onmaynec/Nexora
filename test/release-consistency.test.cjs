@@ -146,3 +146,21 @@ test("release consistency gate rejects a passed external acceptance record witho
     assert.throws(() => checkReleaseConsistency(fixture), /passed without completedAt/);
   });
 });
+
+test("release consistency gate requires signed updater assets for 3.6.0", () => {
+  withFixture((fixture) => {
+    const evidencePath = path.join(fixture, "release-evidence/current.json");
+    const evidence = JSON.parse(fs.readFileSync(evidencePath, "utf8"));
+    evidence.plannedAssets = evidence.plannedAssets.filter((asset) => asset !== "latest.yml");
+    fs.writeFileSync(evidencePath, JSON.stringify(evidence, null, 2));
+    assert.throws(() => checkReleaseConsistency(fixture), /latest.yml/);
+  });
+});
+
+test("release consistency gate requires the fail-closed signed publication workflow", () => {
+  withFixture((fixture) => {
+    const workflow = path.join(fixture, ".github/workflows/release.yml");
+    fs.writeFileSync(workflow, fs.readFileSync(workflow, "utf8").replace("environment: nexora-production-release", "environment: unprotected"));
+    assert.throws(() => checkReleaseConsistency(fixture), /nexora-production-release/);
+  });
+});

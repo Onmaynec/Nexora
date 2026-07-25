@@ -145,11 +145,18 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
   }
   for (const asset of [
     `Nexora-Client-Setup-${version}.exe`,
+    `Nexora-Client-Setup-${version}.exe.blockmap`,
+    "latest.yml",
     `Nexora-Server-Setup-${version}.exe`,
+    `Nexora-Server-Setup-${version}.exe.blockmap`,
+    "server.yml",
     `Nexora-Android-${version}.apk`,
     `Nexora-PWA-${version}.zip`,
     `Nexora-${version}-source.zip`,
     `Nexora-${version}.spdx.json`,
+    "WINDOWS-SIGNATURE-EVIDENCE.json",
+    "ANDROID-SIGNATURE-EVIDENCE.txt",
+    "RELEASE-EVIDENCE.json",
     "SHA256SUMS.txt",
   ]) {
     if (!evidence.plannedAssets?.includes(asset)) fail(`release-evidence/current.json missing planned asset ${asset}`);
@@ -202,8 +209,21 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
   }
 
   const releaseWorkflow = read(root, ".github/workflows/release.yml");
-  if (releaseWorkflow.includes("Nexora 3.6.0 unsigned stable release")) {
-    fail(".github/workflows/release.yml must not publish 3.6.0 as unsigned stable");
+  for (const marker of [
+    "name: Nexora 3.6.0 signed stable release",
+    "environment: nexora-production-release",
+    "Verify release approval and external evidence",
+    "release:signing-check",
+    "NEXORA_ANDROID_SIGNER_SHA256",
+    "latest.yml",
+    "server.yml",
+    "Create immutable annotated tag",
+    "Re-download and verify immutable release assets",
+  ]) {
+    if (!releaseWorkflow.includes(marker)) fail(`.github/workflows/release.yml missing ${JSON.stringify(marker)}`);
+  }
+  if (/UNSIGNED/i.test(releaseWorkflow) || !releaseWorkflow.includes("requiresSignedArtifacts")) {
+    fail(".github/workflows/release.yml must remain signed-only and evidence-gated for 3.6.0");
   }
   for (const temporary of [
     ".github/workflows/stable-core-migration.yml",
@@ -213,6 +233,10 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
     ".github/workflows/diagnose-release-3.3.4.yml",
     ".github/workflows/connect-diagnostics.yml",
     ".github/workflows/connect-repair.yml",
+    ".github/workflows/apply-connect-release.yml",
+    ".github/workflows/connect-schema10-remediation.yml",
+    ".connect-release-patch",
+    ".connect-remediation",
     ".connect-diagnostics",
     ".connect-repair",
     ".connect-patch-diagnostics.json",

@@ -166,7 +166,7 @@ export default function CallController() {
       for (const track of event.streams[0]?.getTracks?.() || [event.track]) remoteStreamRef.current.addTrack(track);
       if (remoteAudioRef.current) {
         remoteAudioRef.current.srcObject = remoteStreamRef.current;
-        remoteAudioRef.current.play().catch(() => {});
+        remoteAudioRef.current.play().catch((failure) => setError(normalizeError(failure)));
       }
     };
     peer.onicecandidate = (event) => {
@@ -176,11 +176,11 @@ export default function CallController() {
       const current = callRef.current;
       if (!current?.callId) return;
       if (peer.connectionState === "connected") {
-        emitAck(socket, "call:state", { callId: current.callId, state: "active" }).catch(() => {});
+        emitAck(socket, "call:state", { callId: current.callId, state: "active" }).catch((failure) => setError(normalizeError(failure)));
       } else if (peer.connectionState === "disconnected") {
-        emitAck(socket, "call:state", { callId: current.callId, state: "reconnecting" }).catch(() => {});
+        emitAck(socket, "call:state", { callId: current.callId, state: "reconnecting" }).catch((failure) => setError(normalizeError(failure)));
       } else if (peer.connectionState === "failed") {
-        emitAck(socket, "call:state", { callId: current.callId, state: "failed", reason: "peer_connection_failed" }).catch(() => {});
+        emitAck(socket, "call:state", { callId: current.callId, state: "failed", reason: "peer_connection_failed" }).catch((failure) => setError(normalizeError(failure)));
       }
     };
     peer.oniceconnectionstatechange = () => {
@@ -200,7 +200,7 @@ export default function CallController() {
     } catch (failure) {
       const normalized = normalizeError(failure);
       setError(normalized);
-      await emitAck(socket, "call:end", { callId: current.callId, reason: normalized.code }).catch(() => {});
+      await emitAck(socket, "call:end", { callId: current.callId, reason: normalized.code }).catch((failure) => setError(normalizeError(failure)));
     }
   }, [ensurePeer, sendSignal, socket]);
 
@@ -240,14 +240,14 @@ export default function CallController() {
   const decline = useCallback(async () => {
     const candidate = incoming;
     if (!candidate) return;
-    await emitAck(socket, "call:decline", { callId: candidate.callId }).catch(() => {});
+    await emitAck(socket, "call:decline", { callId: candidate.callId }).catch((failure) => setError(normalizeError(failure)));
     setIncoming(null);
   }, [incoming, socket]);
 
   const end = useCallback(async () => {
     const current = callRef.current;
     if (!current?.callId) return;
-    await emitAck(socket, "call:end", { callId: current.callId, reason: "user_ended" }).catch(() => {});
+    await emitAck(socket, "call:end", { callId: current.callId, reason: "user_ended" }).catch((failure) => setError(normalizeError(failure)));
     finishLocal({ ...current, state: "ended", endedAt: new Date().toISOString() });
   }, [finishLocal, socket]);
 
@@ -333,21 +333,21 @@ export default function CallController() {
       } catch (failure) {
         const normalized = normalizeError(failure);
         setError(normalized);
-        emitAck(socket, "call:state", { callId: current.callId, state: "failed", reason: normalized.code }).catch(() => {});
+        emitAck(socket, "call:state", { callId: current.callId, state: "failed", reason: normalized.code }).catch((failure) => setError(normalizeError(failure)));
       }
     };
     const onDisconnect = () => {
       const current = callRef.current;
       if (current) finishLocal({ ...current, state: "failed", reason: "socket_disconnected" }, { code: "TEMPORARY_UNAVAILABLE", message: "Соединение с Local Server потеряно.", requestId: null });
     };
-    const onDeviceChange = () => refreshDevices().catch(() => {});
+    const onDeviceChange = () => refreshDevices().catch((failure) => setError(normalizeError(failure)));
     window.addEventListener("nexora:start-call", onStart);
     socket.on("call.incoming", onIncoming);
     socket.on("call.state_changed", onState);
     socket.on("call.signal", onSignal);
     socket.on("disconnect", onDisconnect);
     navigator.mediaDevices?.addEventListener?.("devicechange", onDeviceChange);
-    refreshDevices().catch(() => {});
+    refreshDevices().catch((failure) => setError(normalizeError(failure)));
     return () => {
       window.removeEventListener("nexora:start-call", onStart);
       socket.off("call.incoming", onIncoming);

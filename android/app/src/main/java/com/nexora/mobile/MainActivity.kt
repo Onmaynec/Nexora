@@ -150,7 +150,7 @@ class MainActivity : Activity() {
             setPadding(dp(24), dp(32), dp(24), dp(24))
             setBackgroundColor(Color.rgb(5, 3, 8))
         }
-        root.addView(TextView(this).apply { text = "NEXORA 3.5.0"; textSize = 13f; setTextColor(Color.rgb(178, 116, 255)) })
+        root.addView(TextView(this).apply { text = "NEXORA ${BuildConfig.VERSION_NAME}"; textSize = 13f; setTextColor(Color.rgb(178, 116, 255)) })
         root.addView(TextView(this).apply { text = "Выберите сервер"; textSize = 30f; setTextColor(Color.WHITE); setPadding(0, dp(6), 0, dp(4)) })
         root.addView(TextView(this).apply { text = "HTTPS обязателен. Для локального сервера установите его CA-сертификат в Android."; textSize = 14f; setTextColor(Color.rgb(180, 173, 190)); setPadding(0, 0, 0, dp(18)) })
         val input = EditText(this).apply {

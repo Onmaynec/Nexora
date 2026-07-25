@@ -46,3 +46,9 @@ Local Server remains authoritative for contact transitions, privacy filtering, c
 ## Current release blockers
 
 See `docs/releases/3.6.0/RELEASE_VERIFICATION.md` and `release-evidence/current.json`. No `v3.6.0` tag, GitHub Release or updater metadata may be published while a blocker remains.
+
+## Planned signed release assets
+
+Stable publication is signed-only and, after every blocker is closed, must include signed Windows Client/Server installers, both blockmaps, `latest.yml`, `server.yml`, the signed Android APK, PWA/source archives, SPDX SBOM, signature evidence, runtime release evidence and `SHA256SUMS.txt`.
+
+The release workflow creates an immutable annotated `v3.6.0`, publishes the assets once, re-downloads them into a clean directory and verifies every checksum and signer identity. No unsigned stable fallback or partial updater metadata is permitted.

@@ -334,3 +334,12 @@ test("block immediately terminates calls and prevents REST or stale-socket bypas
   aliceSocket.disconnect();
   bobSocket.disconnect();
 });
+
+test("Connect client reports background call failures and Android displays package version", async () => {
+  const callController = await fs.readFile(path.join(__dirname, "..", "client", "src", "components", "CallController.jsx"), "utf8");
+  assert.equal(callController.includes(".catch(() => {})"), false);
+  assert.ok(callController.includes("getTracks().forEach((track) => track.stop())"));
+  assert.ok(callController.includes("setError(normalizeError(failure))"));
+  const android = await fs.readFile(path.join(__dirname, "..", "android", "app", "src", "main", "java", "com", "nexora", "mobile", "MainActivity.kt"), "utf8");
+  assert.ok(android.includes("NEXORA " + "$" + "{BuildConfig.VERSION_NAME}"));
+});
