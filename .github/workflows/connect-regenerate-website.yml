@@ -1,0 +1,39 @@
+name: Regenerate Connect website fallback
+
+on:
+  push:
+    branches: [release/3.6.0-connect]
+    paths:
+      - '.connect-website/READY'
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/3.6.0-connect
+          fetch-depth: 0
+          show-progress: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+      - name: Regenerate deterministic release fallback
+        run: node website/generate-release-fallback.mjs
+      - name: Remove one-shot transport
+        run: |
+          rm -rf .connect-website
+          rm -f .github/workflows/connect-regenerate-website.yml
+      - name: Commit generated catalog
+        run: |
+          set -euo pipefail
+          git config user.name 'nexora-release-bot'
+          git config user.email 'nexora-release-bot@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'fix(website): regenerate 3.6.0 release fallback catalog'
+          git push origin HEAD:release/3.6.0-connect
