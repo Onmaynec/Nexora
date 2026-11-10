@@ -190,20 +190,3 @@ jobs:
         with:
           gradle-version: "8.13"
       - run: gradle -p android :app:assembleDebug --no-daemon
-
-  audit-lock-candidate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 12
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22.16.0
-          cache: npm
-      - name: Recalculate compatible production dependency lockfile
-        shell: bash
-        run: |
-          npm audit fix --package-lock-only --omit=dev || true
-          echo "BEGIN_LOCKFILE_PATCH"
-          git diff --no-ext-diff --unified=3 -- package-lock.json
-          echo "END_LOCKFILE_PATCH"
