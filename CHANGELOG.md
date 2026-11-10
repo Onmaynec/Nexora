@@ -1,6 +1,6 @@
 # Changelog
 
-## [3.5.0] - Unreleased
+## [3.5.0] — 2026-07-25 (unsigned manual release)
 
 ### Added
 
@@ -13,7 +13,7 @@
 
 ### Release status
 
-- Release candidate only; publication is blocked until v3.4.0, signing, platform acceptance and independent review gates are complete.
+- Published as a normal GitHub Release with explicitly unsigned Windows and Android artifacts. Installation is manual; signed updater metadata is not included.
 
 
 Формат основан на Keep a Changelog. Версии следуют Semantic Versioning.

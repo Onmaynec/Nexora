@@ -8,16 +8,16 @@
 
 | Параметр | Значение |
 |---|---|
-| Repository version | `3.4.0` |
-| Classification | Stable Core release candidate |
-| Publication | Заблокирована до verified `v3.3.4`, Authenticode/Windows acceptance и independent security review |
+| Repository version | `3.5.0` |
+| Classification | Published Mobile Continuity — unsigned manual distribution |
+| Publication | `v3.5.0` доступна в GitHub Releases; Windows/Android пакеты unsigned, без automatic updater metadata |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
 | Trust/MLS runtime | retired; write paths return `410/LEGACY_READ_ONLY` |
 | Legacy secure history | read-only compatibility layer; server-side decryption отсутствует |
-| Local Server database | SQLite schema 8 |
+| Local Server database | SQLite schema 9; schema 8 legacy history read-only |
 
-Contribution не должно представлять release-candidate functionality как published stable, production-approved или independently audited.
+Нельзя представлять unsigned-дистрибутив `3.5.0` как подписанный. Изменения `3.6.0 Connect` до проверки и публикации остаются implementation candidate в ветке `release/3.6.0-connect` (PR #110).
 
 ## 2. Каналы взаимодействия
 
@@ -138,5 +138,4 @@ Release evidence принимается только для exact reviewed commi
 - documentation, changelog и release evidence обновлены, если поведение или contract изменились;
 - temporary scripts, diagnostic workflows и generated failure logs удалены.
 
-Для `3.4.0` merge/tag/release дополнительно требуются опубликованный verified `v3.3.4`, полный Authenticode policy, Windows 10/11 installed `3.3.4 → 3.4.0` acceptance и independent security review без unresolved high/critical findings.
-> Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.
+Требования подписанной публикации следующего релиза определяются его отдельным release verification и не подменяются успешным source CI. Для Connect 3.6.0 это review безопасности, production TURN, проверка звонков между Windows/PWA/Android, подписанные пакеты и post-download verification.

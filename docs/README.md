@@ -7,15 +7,15 @@
 | Параметр | Значение |
 |---|---|
 | Current repository version | `3.5.0` |
-| Classification | Mobile Continuity release candidate |
-| Publication | Blocked — published `v3.4.0`, platform acceptance, signing and independent review are mandatory |
+| Classification | Published Mobile Continuity — unsigned distribution |
+| Publication | `v3.5.0` published as a normal GitHub Release; manual installation; unsigned Windows/Android artifacts |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
 | Legacy Trust/MLS runtime | removed; compatibility history is read-only |
 | Local Server database | SQLite schema 9 |
 | Migration | additive schema 8 → 9 migration is transactional/idempotent; backups and future-schema rejection remain mandatory |
 
-`3.5.0` adds Mobile Continuity on top of the Stable Core baseline: replay/outbox ordering, profile-isolated caches, safe PWA updates, Android lifecycle/deep links, device-scoped push and resumable media. This branch is not published until every blocker in `RELEASE_VERIFICATION_3.5.0.md` is closed.
+`3.5.0` adds Mobile Continuity on top of the Stable Core baseline: replay/outbox ordering, profile-isolated caches, safe PWA updates, Android lifecycle/deep links, device-scoped push and resumable media. Version `v3.5.0` is published. Desktop updater metadata is intentionally absent: these unsigned artifacts are not accepted by the signed updater. Consult [3.5.0 release notes](releases/3.5.0/RELEASE_NOTES.md) and verify `SHA256SUMS.txt` before installation.
 
 ## Quick navigation
 
@@ -25,7 +25,7 @@
 | Изучить модули и API | [Project Index](../PROJECT_INDEX.md) |
 | Понять архитектуру | [Architecture](ARCHITECTURE.md) |
 | Проверить security boundary | [Security Model](SECURITY_MODEL.md) |
-| Запустить development environment | [Repository README](../README.md#быстрый-старт-для-разработки) |
+| Запустить development environment | [Repository README](../README.md#development) |
 | Развернуть Local Server | [Deployment Guide](DEPLOYMENT.md) |
 | Администрировать | [Administrator Guide](../ADMIN_GUIDE.md) |
 | Выполнять maintenance/backup/incidents | [Operations Runbook](OPERATIONS_RUNBOOK.md) |
@@ -37,13 +37,13 @@
 
 | Документ | Scope | Status |
 |---|---|---|
-| [Release Notes 3.5.0](../RELEASE_NOTES_3.5.0.md) | user-visible changes, compatibility and limitations | Release candidate |
-| [Release Verification 3.5.0](../RELEASE_VERIFICATION_3.5.0.md) | code, tests, CI, signing and publication evidence | In progress |
+| [Release Notes 3.5.0](../RELEASE_NOTES_3.5.0.md) | user-visible changes, compatibility and limitations | Published unsigned release |
+| [Release Verification 3.5.0](../RELEASE_VERIFICATION_3.5.0.md) | code, tests, CI, unsigned-state and publication evidence | Published release evidence |
 | [Security Review 3.4.0](../SECURITY_REVIEW_3.4.0.md) | reviewed scope, findings and external review gate | External review pending |
-| [Architecture](ARCHITECTURE.md) | server-readable core, legacy boundary, devices, updater and storage | Current through 3.4.0 RC |
-| [Security Model](SECURITY_MODEL.md) | threats, controls and residual risks | Current through 3.4.0 RC |
-| [Operations Runbook](OPERATIONS_RUNBOOK.md) | rollout, backup/restore, corrupt DB, updater and emergency stop | Current through 3.4.0 RC |
-| [Project Index](../PROJECT_INDEX.md) | entrypoints, modules, API and tests | Current through 3.4.0 RC |
+| [Architecture](ARCHITECTURE.md) | server-readable core, legacy boundary, devices, updater and storage | Architecture reference; see 3.5.0 notes for changes |
+| [Security Model](SECURITY_MODEL.md) | threats, controls and residual risks | Security reference; see release evidence for verification |
+| [Operations Runbook](OPERATIONS_RUNBOOK.md) | rollout, backup/restore, corrupt DB, updater and emergency stop | Operator reference |
+| [Project Index](../PROJECT_INDEX.md) | entrypoints, modules, API and tests | Current 3.5.0 source |
 
 ## Stable Core contract summary
 
@@ -82,15 +82,11 @@ Client and Server use separate signed metadata channels. Stable assets require A
 - Android `assembleDebug`;
 - signed Windows n-1→n installed smoke when external credentials and environments are available.
 
-## Release blockers
+## Distribution and next release
 
-A merge, official tag or stable GitHub Release is prohibited while any of the following remains:
+`v3.5.0` is the published latest release on GitHub. Windows installers and the Android APK are explicitly unsigned; installation is manual. Their checksums and unsigned-state evidence are shipped alongside the binaries. This is not a signed-production claim.
 
-- published verified stable `v3.3.4` is absent;
-- Authenticode credentials/expected signer identity are unavailable;
-- Windows 10/11 installed acceptance is incomplete;
-- independent review has not closed all high/critical findings;
-- CI, migration, restore, security or release evidence is incomplete.
+The ongoing `3.6.0 Connect` implementation is tracked in [Issue #77](https://github.com/Onmaynec/Nexora/issues/77) and [draft PR #110](https://github.com/Onmaynec/Nexora/pull/110). Its source, security, platform acceptance, signing and publication blockers belong to the 3.6.0 verification record; they do not retroactively make `v3.5.0` unpublished.
 
 ## Documentation status vocabulary
 
