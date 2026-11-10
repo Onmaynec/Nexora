@@ -323,13 +323,23 @@ async function mountConnect({
   responseJsonWrapper = function connectPrivacyJson(body) {
     try {
       const request = this.req;
-      const viewerId = request?.pulseAuth?.user?.id || request?.nexora?.user?.id || body?.me?.id || body?.user?.id;
+      const viewerId = request?.pulseAuth?.user?.id || request?.nexora?.user?.id || (request?.path === "/api/bootstrap" ? body?.me?.id : null);
+      const privacyRoute = request?.path === "/api/bootstrap" && Boolean(body?.me)
+        || /^\/api\/users\/[^/]+\/profile$/.test(request?.path || "")
+        || request?.path === "/api/users/search"
+        || /^\/api\/conversations\/[^/]+\/messages$/.test(request?.path || "");
+      if (privacyRoute && !viewerId) throw new Error("Missing authenticated privacy context");
       if (viewerId && body && typeof body === "object") {
         const state = store.read();
         if (request.path === "/api/bootstrap" && body.me) body = sanitizeBootstrap(body, viewerId);
         else if (/^\/api\/users\/[^/]+\/profile$/.test(request.path) && body.user) {
           const user = sanitizeUserView(state, body.user, viewerId);
-          if (user) body = { ...body, user, relationship: { ...body.relationship, blockedMe: undefined, canCall: Boolean(body.relationship?.contact && !isBlockedEither(state, viewerId, user.id)) } };
+          if (!user) {
+            this.status(404);
+            body = { code: "RESOURCE_NOT_FOUND", message: "Профиль недоступен.", requestId: safeRequestId(request.connectRequestId || request.nexoraRequestId), details: {} };
+          } else {
+            body = { ...body, user, relationship: { ...body.relationship, blockedMe: undefined, canCall: Boolean(body.relationship?.contact && !isBlockedEither(state, viewerId, user.id)) } };
+          }
         } else if (request.path === "/api/users/search" && Array.isArray(body.users)) {
           body = { ...body, users: body.users.map((user) => sanitizeUserView(state, user, viewerId, true)).filter(Boolean) };
         } else if (/^\/api\/conversations\/[^/]+\/messages$/.test(request.path) && Array.isArray(body.messages)) {
@@ -343,10 +353,22 @@ async function mountConnect({
           schedulePresence();
         }
       }
+      return originalResponseJson.call(this, body);
     } catch (error) {
-      log(`Connect response sanitizer failed: ${error.message}`, "error");
+      log("Connect response sanitization failed", "error");
+      if (this.headersSent) {
+        this.destroy(error);
+        return this;
+      }
+      this.status(500);
+      this.setHeader("Cache-Control", "no-store");
+      return originalResponseJson.call(this, {
+        code: "RESPONSE_FILTER_FAILED",
+        message: "Не удалось подготовить безопасный ответ.",
+        requestId: safeRequestId(this.req?.connectRequestId || this.req?.nexoraRequestId),
+        details: {},
+      });
     }
-    return originalResponseJson.call(this, body);
   };
   app.response.json = responseJsonWrapper;
 

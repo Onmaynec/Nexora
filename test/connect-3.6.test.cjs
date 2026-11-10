@@ -343,3 +343,26 @@ test("Connect client reports background call failures and Android displays packa
   const android = await fs.readFile(path.join(__dirname, "..", "android", "app", "src", "main", "java", "com", "nexora", "mobile", "MainActivity.kt"), "utf8");
   assert.ok(android.includes("NEXORA " + "$" + "{BuildConfig.VERSION_NAME}"));
 });
+
+test("legacy Connect response sanitizer rejects missing privacy context and failed filtering", async () => {
+  const source = await fs.readFile(path.join(__dirname, "..", "server", "connect.cjs"), "utf8");
+  const wrapper = source.slice(source.indexOf("responseJsonWrapper = function connectPrivacyJson"), source.indexOf("app.response.json = responseJsonWrapper;"));
+  assert.match(wrapper, /Missing authenticated privacy context/);
+  assert.match(wrapper, /if \(!user\)/);
+  assert.match(wrapper, /this\.status\(404\)/);
+  assert.match(wrapper, /catch \(error\)[\s\S]*this\.status\(500\)[\s\S]*RESPONSE_FILTER_FAILED/);
+  assert.match(wrapper, /this\.headersSent[\s\S]*this\.destroy\(error\)/);
+  assert.doesNotMatch(wrapper, /body\?\.user\?\.id/);
+});
+
+test("audio-device changes do not tear down call subscriptions or allocate an idle microphone", async () => {
+  const source = await fs.readFile(path.join(__dirname, "..", "client", "src", "components", "CallController.jsx"), "utf8");
+  const subscriptions = source.slice(source.indexOf("const onStart = (event) => startCall("), source.indexOf("const query = new URLSearchParams(location.search)"));
+  assert.doesNotMatch(subscriptions, /releaseMedia\(\)/);
+  assert.match(source, /useEffect\(\(\) => \(\) => releaseMedia\(\), \[releaseMedia\]\)/);
+  assert.match(source, /const refreshDevices = useCallback\([\s\S]*?setOutputId\([\s\S]*?\}, \[\]\)/);
+  assert.match(source, /preferredId = inputIdRef\.current/);
+  assert.match(source, /if \(!previous\) return/);
+  assert.match(source, /if \(localStreamRef\.current !== previous\)/);
+  assert.match(source, /replacement\?\.getTracks\(\)\.forEach\(\(track\) => track\.stop\(\)\)/);
+});

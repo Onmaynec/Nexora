@@ -131,3 +131,20 @@ test("релиз 3.6.0 собирает signed Connect assets без native SQLi
   assert.doesNotMatch(releaseWorkflow, /github\.event\.workflow_run/);
   assert.match(clientMain, /createUpdateService/);
 });
+
+test("Android BuildConfig is generated for the runtime version label", () => {
+  const gradle = read("android/app/build.gradle.kts");
+  const activity = read("android/app/src/main/java/com/nexora/mobile/MainActivity.kt");
+  assert.match(activity, /BuildConfig\.VERSION_NAME/);
+  assert.match(gradle, /buildFeatures\s*\{\s*buildConfig\s*=\s*true\s*\}/);
+});
+
+test("security audit follows signed Connect release policy", () => {
+  const audit = read("scripts/security-audit.cjs");
+  assert.match(audit, /Official 3\.6\.0 signed release is evidence-gated and updater-safe/);
+  assert.doesNotMatch(audit, /Official 3\.5\.0 unsigned release is transparent/);
+  assert.match(audit, /requiresSignedArtifacts !== true/);
+  assert.match(audit, /Get-AuthenticodeSignature/);
+  assert.match(audit, /NEXORA_ANDROID_SIGNER_SHA256/);
+  assert.match(audit, /updaterMetadataPublished !== true/);
+});

@@ -84,19 +84,27 @@ export default function CallController() {
   const offerStartedRef = useRef(false);
   const callRef = useRef(null);
   const incomingRef = useRef(null);
+  const inputIdRef = useRef("");
 
+  useEffect(() => { inputIdRef.current = inputId; }, [inputId]);
   useEffect(() => { callRef.current = call; }, [call]);
   useEffect(() => { incomingRef.current = incoming; }, [incoming]);
 
   const refreshDevices = useCallback(async () => {
-    if (!navigator.mediaDevices?.enumerateDevices) return setDevices({ inputs: [], outputs: [] });
+    if (!navigator.mediaDevices?.enumerateDevices) {
+      setDevices({ inputs: [], outputs: [] });
+      return;
+    }
     const items = await navigator.mediaDevices.enumerateDevices();
     const inputs = items.filter((item) => item.kind === "audioinput");
     const outputs = items.filter((item) => item.kind === "audiooutput");
     setDevices({ inputs, outputs });
-    if (!inputId && inputs[0]) setInputId(inputs[0].deviceId);
-    if (!outputId && outputs[0]) setOutputId(outputs[0].deviceId);
-  }, [inputId, outputId]);
+    if (!inputIdRef.current && inputs[0]) {
+      inputIdRef.current = inputs[0].deviceId;
+      setInputId(inputs[0].deviceId);
+    }
+    setOutputId((current) => current || outputs[0]?.deviceId || "");
+  }, []);
 
   const releaseMedia = useCallback(() => {
     peerRef.current?.close();
@@ -139,7 +147,7 @@ export default function CallController() {
     }, 10_000);
   }, [socket]);
 
-  const ensureLocalStream = useCallback(async (preferredId = inputId) => {
+  const ensureLocalStream = useCallback(async (preferredId = inputIdRef.current) => {
     if (!navigator.mediaDevices?.getUserMedia || !globalThis.RTCPeerConnection) {
       throw Object.assign(new Error("WebRTC не поддерживается этой платформой."), { code: "PEER_UNSUPPORTED" });
     }
@@ -152,7 +160,7 @@ export default function CallController() {
     setMuted(false);
     await refreshDevices();
     return stream;
-  }, [inputId, refreshDevices]);
+  }, [refreshDevices]);
 
   const ensurePeer = useCallback(async (callId) => {
     if (peerRef.current) return peerRef.current;
@@ -260,16 +268,40 @@ export default function CallController() {
   }, [muted]);
 
   const switchInput = useCallback(async (deviceId) => {
+    const oldId = inputIdRef.current;
+    inputIdRef.current = deviceId;
     setInputId(deviceId);
+    const previous = localStreamRef.current;
+    if (!previous) return;
+
+    let replacement;
     try {
-      const replacement = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId }, echoCancellation: true, noiseSuppression: true }, video: false });
+      replacement = await navigator.mediaDevices.getUserMedia({
+        audio: { deviceId: { exact: deviceId }, echoCancellation: true, noiseSuppression: true },
+        video: false,
+      });
+      if (localStreamRef.current !== previous) {
+        replacement.getTracks().forEach((track) => track.stop());
+        return;
+      }
       const track = replacement.getAudioTracks()[0];
+      if (!track) throw new Error("Выбранный микрофон не передаёт аудио.");
       const sender = peerRef.current?.getSenders().find((item) => item.track?.kind === "audio");
-      if (sender && track) await sender.replaceTrack(track);
-      localStreamRef.current?.getTracks().forEach((item) => item.stop());
+      if (peerRef.current && !sender) throw new Error("Аудиоканал звонка недоступен.");
+      const enabled = previous.getAudioTracks()[0]?.enabled !== false;
+      track.enabled = enabled;
+      if (sender) await sender.replaceTrack(track);
+      if (localStreamRef.current !== previous) {
+        replacement.getTracks().forEach((item) => item.stop());
+        return;
+      }
       localStreamRef.current = replacement;
-      setMuted(false);
+      previous.getTracks().forEach((item) => item.stop());
+      setMuted(!enabled);
     } catch (failure) {
+      replacement?.getTracks().forEach((track) => track.stop());
+      inputIdRef.current = oldId;
+      setInputId(oldId);
       setError(normalizeError(failure));
     }
   }, []);
@@ -282,6 +314,8 @@ export default function CallController() {
       setError(normalizeError(failure, "OUTPUT_DEVICE_FAILED"));
     }
   }, []);
+
+  useEffect(() => () => releaseMedia(), [releaseMedia]);
 
   useEffect(() => {
     const onStart = (event) => startCall(event.detail?.user);
@@ -355,9 +389,8 @@ export default function CallController() {
       socket.off("call.signal", onSignal);
       socket.off("disconnect", onDisconnect);
       navigator.mediaDevices?.removeEventListener?.("devicechange", onDeviceChange);
-      releaseMedia();
     };
-  }, [ensurePeer, finishLocal, refreshDevices, releaseMedia, sendSignal, socket, startCall, startOffer]);
+  }, [ensurePeer, finishLocal, refreshDevices, sendSignal, socket, startCall, startOffer]);
 
   useEffect(() => {
     const query = new URLSearchParams(location.search);

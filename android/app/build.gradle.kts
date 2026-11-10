@@ -20,6 +20,10 @@ android {
     namespace = "com.nexora.mobile"
     compileSdk = 36
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     defaultConfig {
         applicationId = "com.nexora.mobile"
         minSdk = 26
