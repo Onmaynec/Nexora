@@ -9,13 +9,20 @@
 - One-to-one WebRTC, voice calls with participant-bound Socket.IO signaling, minimal call history and short-lived TURN credentials.
 - Additive SQLite schema 10 migration with verified backup, transaction, integrity and downgrade protection.
 
+### Fixed
+
+- Legacy profile and message response filters now reject missing privacy context and stop with a sanitized error on transformation failure rather than forwarding the original response.
+- Audio-device enumeration no longer rebinds call handlers and closes active WebRTC media; selecting an input while idle does not request microphone access.
+- Android debug builds generate BuildConfig for the displayed package version.
+- The security invariant audit checks signed 3.6.0 release policy and reports vulnerable production packages without downgrading its failure gate.
+
 ### Security
 
 - Call signaling validates active session, participant scope, contact/block policy, state, sequence, payload bounds and rate limits.
 - Voice media is not stored by Local Server; diagnostics exclude SDP, ICE candidates, IP addresses and secrets.
 - Stable publication remains blocked pending signed artifacts, independent review and installed cross-platform call acceptance.
 
-## [3.5.0] - Unreleased
+## [3.5.0] — 2026-07-25 (unsigned manual release)
 
 ### Added
 
@@ -28,7 +35,7 @@
 
 ### Release status
 
-- Release candidate only; publication is blocked until v3.4.0, signing, platform acceptance and independent review gates are complete.
+- Published as a normal GitHub Release with explicitly unsigned Windows and Android artifacts. Installation is manual; signed auto-update metadata is not included.
 
 
 Формат основан на Keep a Changelog. Версии следуют Semantic Versioning.
