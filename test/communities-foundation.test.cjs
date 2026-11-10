@@ -35,6 +35,7 @@ function account(server) {
     post: (url, body) => apply("post", url, body),
     patch: (url, body) => apply("patch", url, body),
     put: (url, body) => apply("put", url, body),
+    remove: (url) => apply("delete", url),
   };
 }
 
@@ -79,11 +80,12 @@ test("experimental Communities enforces hierarchy, role, invite, moderation and 
     await bob.post("/api/v3/communities/" + id + "/categories", { name: "Secret" }).expect(404);
 
     const category = await owner.post("/api/v3/communities/" + id + "/categories", { name: "Operations" }).expect(201);
+    const hiddenCategory = await owner.post("/api/v3/communities/" + id + "/categories", { name: "Owner planning" }).expect(201);
     const publicChannel = await owner.post("/api/v3/communities/" + id + "/channels", {
       name: "General", kind: "text", categoryId: category.body.category.id, isPrivate: false,
     }).expect(201);
     const privateChannel = await owner.post("/api/v3/communities/" + id + "/channels", {
-      name: "Executive", kind: "announcement", isPrivate: true,
+      name: "Executive", kind: "announcement", categoryId: hiddenCategory.body.category.id, isPrivate: true,
     }).expect(201);
     const privateId = privateChannel.body.channel.id;
 
@@ -104,6 +106,8 @@ test("experimental Communities enforces hierarchy, role, invite, moderation and 
     const publicView = await winner.get("/api/v3/communities/" + id).expect(200);
     assert.equal(publicView.body.community.channels.length, 1);
     assert.equal(publicView.body.community.channels[0].id, publicChannel.body.channel.id);
+    assert.equal(publicView.body.community.categories.length, 1);
+    assert.equal(publicView.body.community.categories[0].id, category.body.category.id);
     await winner.get("/api/v3/communities/" + id + "/channels/" + privateId).expect(404);
     await winner.post("/api/v3/communities/" + id + "/channels", { name: "Illegal" }).expect(403);
     await loser.get("/api/v3/communities/" + id).expect(404);
@@ -114,6 +118,10 @@ test("experimental Communities enforces hierarchy, role, invite, moderation and 
     await owner.put("/api/v3/communities/" + id + "/members/" + winnerId + "/roles/" + role.body.role.id, {}).expect(200);
     const privateView = await winner.get("/api/v3/communities/" + id + "/channels/" + privateId).expect(200);
     assert.equal(privateView.body.channel.name, "Executive");
+    const readableCategories = (await winner.get("/api/v3/communities/" + id)).body.community.categories;
+    assert.equal(readableCategories.some((item) => item.id === hiddenCategory.body.category.id), true);
+    assert.equal((await owner.get("/api/v3/communities/" + id + "/roles").expect(200)).body.roles.length, 1);
+    await winner.get("/api/v3/communities/" + id + "/roles").expect(403);
     await winner.post("/api/v3/communities/" + id + "/roles", {
       name: "Owner override", permissions: ["roles.manage"],
     }).expect(400);
@@ -129,6 +137,8 @@ test("experimental Communities enforces hierarchy, role, invite, moderation and 
     const report = await loser.post("/api/v3/communities/" + id + "/reports", { userId: winnerId, reason: "Repeated spam" }).expect(201);
     await loser.get("/api/v3/communities/" + id + "/reports").expect(403);
     await owner.patch("/api/v3/communities/" + id + "/members/" + winnerId + "/role", { role: "moderator" }).expect(200);
+    const memberList = (await owner.get("/api/v3/communities/" + id + "/members").expect(200)).body.members;
+    assert.equal(memberList.some((item) => item.userId === winnerId && item.role === "moderator"), true);
     assert.equal((await winner.get("/api/v3/communities/" + id + "/reports").expect(200)).body.reports.length, 1);
     await winner.patch("/api/v3/communities/" + id + "/reports/" + report.body.reportId, { state: "resolved" }).expect(200);
     await winner.patch("/api/v3/communities/" + id + "/reports/" + report.body.reportId, { state: "rejected" }).expect(409);
@@ -136,6 +146,15 @@ test("experimental Communities enforces hierarchy, role, invite, moderation and 
     await winner.post("/api/v3/communities/" + id + "/bans/" + loserId, { reason: "Repeated spam" }).expect(200);
     await loser.get("/api/v3/communities/" + id).expect(404);
     await loser.post("/api/v3/communities/join", { code: secondInvite.body.code }).expect(403);
+    const revokable = await owner.post("/api/v3/communities/" + id + "/invites", { maxUses: 2, expiresInHours: 1 }).expect(201);
+    const revokableList = (await owner.get("/api/v3/communities/" + id + "/invites").expect(200)).body.invites;
+    const pending = revokableList.find((item) => item.uses === 0 && !item.revokedAt);
+    assert.ok(pending);
+    await owner.post("/api/v3/communities/" + id + "/reports", { userId: aliceUser.id, reason: "Self report" }).expect(400);
+    await owner.remove("/api/v3/communities/" + id + "/invites/" + revokable.body.inviteId).expect(200);
+    await loser.post("/api/v3/communities/join", { code: revokable.body.code }).expect(404);
+    const revokedList = (await owner.get("/api/v3/communities/" + id + "/invites").expect(200)).body.invites;
+    assert.ok(revokedList.some((item) => item.id === revokable.body.inviteId && item.revokedAt));
 
     await winner.post("/api/v3/communities/" + id + "/transfer", { userId: winnerId }).expect(403);
     await owner.post("/api/v3/communities/" + id + "/transfer", { userId: winnerId }).expect(200);

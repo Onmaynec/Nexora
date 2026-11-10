@@ -109,13 +109,15 @@ function visibleChannels(db, id, userId, role) {
 }
 function view(db, id, userId) {
   const scope = access(db, id, userId);
+  const allowed = permissions(db, id, userId, scope.role);
+  const channels = visibleChannels(db, id, userId, scope.role);
+  const categories = db.prepare("SELECT id,name,position FROM community_categories WHERE community_id=? ORDER BY position,id").all(id)
+    .filter((category) => allowed.has("channel.view_private") || channels.some((channel) => channel.categoryId === category.id));
   return {
     id, name: scope.community.name, description: scope.community.description,
     revision: scope.community.revision, ownerId: scope.community.owner_id,
     viewerRole: scope.role,
-    permissions: [...permissions(db, id, userId, scope.role)].sort(),
-    categories: db.prepare("SELECT id,name,position FROM community_categories WHERE community_id=? ORDER BY position,id").all(id),
-    channels: visibleChannels(db, id, userId, scope.role),
+    permissions: [...allowed].sort(), categories, channels,
     memberCount: db.prepare("SELECT COUNT(*) AS count FROM community_members WHERE community_id=?").get(id).count,
   };
 }
@@ -243,6 +245,28 @@ function mountCommunities({ app, store, io, authRequired, log = () => {} }) {
     return ok({ revision: next });
   }, true));
 
+  app.get("/api/v3/communities/:communityId/members", ...guarded((request, userId) => {
+    const id = validId(request.params.communityId);
+    requirePermission(db,id,userId,"members.moderate");
+    const members = db.prepare("SELECT user_id AS userId,role,joined_at AS joinedAt FROM community_members WHERE community_id=? ORDER BY joined_at LIMIT 1000").all(id);
+    return ok({ members });
+  }));
+
+  app.get("/api/v3/communities/:communityId/roles", ...guarded((request, userId) => {
+    const id = validId(request.params.communityId);
+    requirePermission(db,id,userId,"roles.manage");
+    const roles = db.prepare("SELECT id,name,permissions FROM community_roles WHERE community_id=? ORDER BY name LIMIT 30").all(id)
+      .map((row) => ({ ...row, permissions: JSON.parse(row.permissions) }));
+    return ok({ roles });
+  }));
+
+  app.get("/api/v3/communities/:communityId/invites", ...guarded((request, userId) => {
+    const id = validId(request.params.communityId);
+    requirePermission(db,id,userId,"invites.create");
+    const invites = db.prepare("SELECT id,max_uses AS maxUses,uses,expires_at AS expiresAt,revoked_at AS revokedAt FROM community_invites WHERE community_id=? ORDER BY expires_at DESC LIMIT 100").all(id);
+    return ok({ invites });
+  }));
+
   app.post("/api/v3/communities/:communityId/roles", ...guarded((request, userId) => {
     const id = validId(request.params.communityId);
     const label = name(request.body?.name);
@@ -278,14 +302,27 @@ function mountCommunities({ app, store, io, authRequired, log = () => {} }) {
     const hours = bounded(request.body?.expiresInHours, 720);
     if (!maxUses || !hours) fail("VALIDATION_FAILED");
     const secret = crypto.randomBytes(32).toString("base64url");
+    const inviteId = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + hours * 3600_000).toISOString();
     withTransaction(db, () => {
       requirePermission(db, id, userId, "invites.create");
       db.prepare("INSERT INTO community_invites (id,community_id,code_hash,max_uses,expires_at,created_by) VALUES (?,?,?,?,?,?)")
-        .run(crypto.randomUUID(), id, hash(secret), maxUses, expiresAt, userId);
+        .run(inviteId, id, hash(secret), maxUses, expiresAt, userId);
       audit(db, id, userId, "invite.created");
     });
-    return ok({ code: secret, maxUses, expiresAt }, 201);
+    return ok({ inviteId, code: secret, maxUses, expiresAt }, 201);
+  }, true));
+
+  app.delete("/api/v3/communities/:communityId/invites/:inviteId", ...guarded((request, userId) => {
+    const id = validId(request.params.communityId), inviteId = validId(request.params.inviteId);
+    withTransaction(db, () => {
+      requirePermission(db,id,userId,"invites.create");
+      const result = db.prepare("UPDATE community_invites SET revoked_at=? WHERE community_id=? AND id=? AND revoked_at IS NULL")
+        .run(now(),id,inviteId);
+      if (result.changes !== 1) fail("RESOURCE_NOT_FOUND",404);
+      audit(db,id,userId,"invite.revoked",inviteId);
+    });
+    return ok({});
   }, true));
 
   app.post("/api/v3/communities/join", ...guarded((request, userId) => {

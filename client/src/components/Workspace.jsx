@@ -10,6 +10,7 @@ import HoverDock from "./HoverDock";
 import GlobalSearch from "./GlobalSearch";
 import LegacySecureHistoryPane from "./LegacySecureHistoryPane";
 import MessagePane from "./MessagePane";
+import CommunitiesPanel from "./CommunitiesPanel";
 import NotificationsPage from "./NotificationsPage";
 import PulsePage from "./PulsePage";
 import AccountSettingsPage from "./SettingsPage";
@@ -370,6 +371,15 @@ export default function Workspace({ me, bootstrap, socket, onlineUserIds, onRefr
   const [jumpTarget, setJumpTarget] = useState(null);
   const [profileUser, setProfileUser] = useState(null);
   const [appealRoom, setAppealRoom] = useState(null);
+  const [communitiesAvailable, setCommunitiesAvailable] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    api("/api/v3/communities")
+      .then((result) => { if (active && Array.isArray(result?.communities)) setCommunitiesAvailable(true); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   const activeConversation = bootstrap.conversations.find((conversation) => conversation.id === activeConversationId) ?? null;
   useEffect(() => {
@@ -429,6 +439,7 @@ export default function Workspace({ me, bootstrap, socket, onlineUserIds, onRefr
           {section === "search" && <><div className="rail-heading"><div><span>MESSAGE INDEX</span><h2>Поиск</h2></div></div><div className="settings-rail-copy"><Search size={22} /><p>Серверный индекс охватывает обычные server-readable сообщения. Legacy MLS history доступна только через отдельный read-only viewer.</p></div></>}
           {section === "notifications" && <><div className="rail-heading"><div><span>ACTIVITY</span><h2>Уведомления</h2></div>{bootstrap.notificationCount > 0 && <b>{bootstrap.notificationCount}</b>}</div><div className="settings-rail-copy"><BellOff size={22} /><p>Упоминания, ответы и события безопасности собраны в одном месте.</p></div></>}
           {section === "rooms" && <RoomsRail rooms={bootstrap.rooms} onOpen={(room) => room.joined && openConversation(room.conversationId)} onCreate={() => setModal("create-room")} onJoinCode={() => setModal("join-code")} />}
+          {section === "rooms" && communitiesAvailable && <button type="button" className="rail-primary-action" onClick={() => { setSection("communities"); setRailOpen(false); }}><UsersRound size={17} /> Открыть сообщества</button>}
           {section === "contacts" && <ContactsRail contacts={bootstrap.contacts} requests={bootstrap.contactRequests} onOpen={openConversation} onOpenProfile={setProfileUser} onAccept={async (requestItem) => { const result = await run(() => post(`/api/contacts/requests/${requestItem.id}/accept`), "Контакт добавлен"); if (result) openConversation(result.conversationId); }} onReject={(requestItem) => run(() => post(`/api/contacts/requests/${requestItem.id}/reject`), "Заявка отклонена")} />}
           {section === "files" && <><div className="rail-heading"><div><span>ARCHIVE</span><h2>Файлы</h2></div>{bootstrap.files.length > 0 && <b>{bootstrap.files.length}</b>}</div><div className="file-rail-summary"><FileImage size={20} /><span><strong>{bootstrap.files.filter((file) => file.kind === "image").length}</strong> изображений</span></div><div className="file-rail-summary"><FileArchive size={20} /><span><strong>{bootstrap.files.filter((file) => file.kind !== "image").length}</strong> остальных файлов</span></div></>}
           {section === "pulse" && <><div className="rail-heading"><div><span>NEXORA PLUS</span><h2>Pulse</h2></div>{bootstrap.pulse?.wallet?.balance > 0 && <b>{bootstrap.pulse.wallet.balance}</b>}</div><div className="settings-rail-copy"><Sparkles size={22} /><p>Plus, импульсы и коллективные цели комнат. Общение остаётся бесплатным.</p></div></>}
@@ -465,6 +476,7 @@ export default function Workspace({ me, bootstrap, socket, onlineUserIds, onRefr
           else if (result?.conversationId) { showToast("Вы присоединились к комнате"); openConversation(result.conversationId); }
         }} />}
         {section === "contacts" && <ContactSearch showToast={showToast} onOpenProfile={setProfileUser} onRequest={(user) => run(() => post("/api/contacts/requests", { userId: user.id }), "Заявка отправлена")} onBlock={(user) => run(() => post(`/api/blocks/${user.id}`), "Пользователь заблокирован")} />}
+        {section === "communities" && communitiesAvailable && <CommunitiesPanel onBack={() => setSection("rooms")} showToast={showToast} />}
         {section === "files" && <FilesPage files={bootstrap.files} />}
         {section === "pulse" && <PulsePage initialOverview={bootstrap.pulse} rooms={bootstrap.rooms} me={me} onMeChanged={onMeChanged} onRefresh={onRefresh} showToast={showToast} />}
         {section === "settings" && <AccountSettingsPage me={me} blocked={bootstrap.blocked} version={bootstrap.version} server={bootstrap.server} preferences={bootstrap.preferences} passwordPolicy={bootstrap.passwordPolicy} onMeChanged={onMeChanged} onOpenProfile={setProfileUser} onUnblock={(user) => run(() => remove(`/api/blocks/${user.id}`), "Пользователь разблокирован")} onLogout={onLogout} showToast={showToast} />}

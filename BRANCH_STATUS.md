@@ -8,7 +8,7 @@
 - API: экспериментальные маршруты под `/api/v3/communities`, включаются только опцией `experimentalCommunities: true`.
 - База: отдельные таблицы для прототипа поверх schema 10. Schema 11, миграции, резервные копии для нового контура и downgrade protection не готовы.
 - Реализовано: транзакционная база сообществ, роли, категории, каналы-метаданные, приглашения, блокировки, очередь жалоб, owner transfer, базовые ограничения API.
-- Не готово: интеграция существующих rooms/messages/Socket.IO/uploads/search, полноценное клиентское управление, release/security/installed evidence, production acceptance.
+- Не готово: интеграция существующих rooms/messages/Socket.IO/uploads/search, полный функционал клиентского управления, release/security/installed evidence, production acceptance. Предварительный экран Communities доступен только при включённой опции.
 - Публикация: запрещена; нельзя заявлять stable, independently audited или signed.
 - Документация ветки описывает только этот commit и не заменяет README/Release Notes в `main`.
 - Подробности: [Communities foundation](docs/COMMUNITIES_FOUNDATION.md).

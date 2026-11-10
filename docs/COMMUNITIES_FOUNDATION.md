@@ -24,10 +24,13 @@ Issue #78 запрещает создавать официальную рели�
 | POST | `/communities/:communityId/channels` | Создание text/announcement канала |
 | GET | `/communities/:communityId/channels/:channelId` | Получение канала с проверкой приватности |
 | PATCH | `/communities/:communityId/channels/order` | Атомарная сортировка с expectedRevision |
-| POST | `/communities/:communityId/roles` | Создание ограниченной пользовательской роли |
+| GET, POST | `/communities/:communityId/roles` | Список ролей для владельца / создание ограниченной роли |
 | PUT | `/communities/:communityId/members/:userId/roles/:roleId` | Назначение пользовательской роли |
+| GET | `/communities/:communityId/members` | Ограниченный список участников для модерации |
 | PATCH | `/communities/:communityId/members/:userId/role` | Назначение moderator/member владельцем |
-| POST | `/communities/:communityId/invites` | Краткоживущее приглашение с лимитом использований |
+| PATCH | `/communities/:communityId/members/:userId/role` | Назначение moderator/member владельцем |
+| GET, POST | `/communities/:communityId/invites` | Список метаданных приглашений / создание токена |
+| DELETE | `/communities/:communityId/invites/:inviteId` | Отзыв приглашения |
 | POST | `/communities/join` | Вступление по приглашению; лимит и membership в одной транзакции |
 | POST | `/communities/:communityId/transfer` | Передача единственного owner одной транзакцией |
 | POST | `/communities/:communityId/bans/:userId` | Блокировка (без изменения owner и защищённых модераторов) |
@@ -36,6 +39,10 @@ Issue #78 запрещает создавать официальную рели�
 
 Изменения администрирования записываются в `community_audit`. Временная реализация rate limit: 60 мутаций и 180 чтений за минуту на аккаунт. Ключи приглашений не сохраняются открытым текстом, только SHA-256 от случайных 32 байт.
 
+## Экспериментальный интерфейс
+
+На Local Server с включённой опцией `experimentalCommunities: true` экран сообществ появляется из раздела «Комнаты». Доступны создание и вступление, просмотр доступных каналов, создание категорий/каналов, приглашения, простые пользовательские роли и очередь жалоб. В обычном 3.6.0 пункт скрыт. UI не утверждён для production.
+
 ## Что ещё не готово до релиза 3.7.0
 
 - Schema 11, migration 10 → 11, backup/restore, explicit downgrade protection.
@@ -43,7 +50,7 @@ Issue #78 запрещает создавать официальную рели�
 - Живые сообщения в community channels, централизованная проверка доступа в REST, Socket.IO, upload, search, notifications и delivery fanout. Сейчас каналы — **только метаданные**, не новый работающий контур сообщений.
 - Realtime-события и отписка сессий после удаления или блокировки, системные сообщения и полноценные audit-представления.
 - Механизмы screening/join requests, onboarding, события, анонсы, анти-рейд, уведомления, крупные сообщества и нагрузочные границы.
-- Полная UI-матрица, Android/PWA accessibility, cross-platform acceptance, review безопасности.
+- Полная UI-матрица (уже есть предварительный экран), Android/PWA accessibility, cross-platform acceptance, review безопасности.
 - Publication gates; issue #78 не закрывать и релиз 3.7.0 не создавать.
 
 ## Локальная проверка
