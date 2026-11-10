@@ -45,9 +45,11 @@ function installTables(db) {
     "CREATE INDEX IF NOT EXISTS community_channels_parent ON community_channels(community_id,position,id)",
     "CREATE TABLE IF NOT EXISTS community_roles (id TEXT PRIMARY KEY, community_id TEXT NOT NULL, name TEXT NOT NULL, permissions TEXT NOT NULL)",
     "CREATE TABLE IF NOT EXISTS community_role_assignments (community_id TEXT NOT NULL, role_id TEXT NOT NULL, user_id TEXT NOT NULL, PRIMARY KEY(community_id,role_id,user_id))",
+    "CREATE INDEX IF NOT EXISTS community_role_assignments_lookup ON community_role_assignments(community_id,user_id)",
     "CREATE TABLE IF NOT EXISTS community_invites (id TEXT PRIMARY KEY, community_id TEXT NOT NULL, code_hash TEXT NOT NULL UNIQUE, max_uses INTEGER NOT NULL CHECK(max_uses BETWEEN 1 AND 100), uses INTEGER NOT NULL DEFAULT 0, expires_at TEXT NOT NULL, revoked_at TEXT, created_by TEXT NOT NULL)",
     "CREATE TABLE IF NOT EXISTS community_bans (community_id TEXT NOT NULL, user_id TEXT NOT NULL, reason TEXT NOT NULL, by_user_id TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY(community_id,user_id))",
     "CREATE TABLE IF NOT EXISTS community_reports (id TEXT PRIMARY KEY, community_id TEXT NOT NULL, reporter_id TEXT NOT NULL, target_id TEXT NOT NULL, reason TEXT NOT NULL, state TEXT NOT NULL CHECK(state IN ('open','resolved','rejected')), created_at TEXT NOT NULL, handled_by TEXT)",
+    "CREATE INDEX IF NOT EXISTS community_reports_lookup ON community_reports(community_id,created_at)",
     "CREATE TABLE IF NOT EXISTS community_audit (id TEXT PRIMARY KEY, community_id TEXT NOT NULL, actor_id TEXT NOT NULL, action TEXT NOT NULL, target_id TEXT, created_at TEXT NOT NULL)",
     "CREATE INDEX IF NOT EXISTS community_audit_scope ON community_audit(community_id,created_at)",
   ].join(";\n") + ";");
@@ -133,6 +135,10 @@ function mountCommunities({ app, store, io, authRequired, log = () => {} }) {
   if (!app || !store?.db || !authRequired) throw new Error("Communities requires app, store and authentication");
   const db = store.db;
   installTables(db);
+  app.use("/api/v3/communities", (_request, response, next) => {
+    response.setHeader("Cache-Control", "private, no-store");
+    next();
+  });
   const limits = new Map();
   function guarded(handler, mutates = false) {
     return [authRequired, async (request, response) => {
@@ -218,6 +224,25 @@ function mountCommunities({ app, store, io, authRequired, log = () => {} }) {
     return ok({ channel: result }, 201);
   }, true));
 
+
+  app.patch("/api/v3/communities/:communityId/categories/order", ...guarded((request, userId) => {
+    const id = validId(request.params.communityId);
+    const revision = bounded(request.body?.expectedRevision, Number.MAX_SAFE_INTEGER);
+    const order = request.body?.ids;
+    if (!Array.isArray(order) || order.length > 100 || !order.every((value) => typeof value === "string" && ID.test(value)) || new Set(order).size !== order.length) fail("VALIDATION_FAILED");
+    const next = withTransaction(db, () => {
+      const scope = requirePermission(db,id,userId,"channel.order");
+      if (scope.community.revision !== revision) fail("STATE_CONFLICT",409);
+      const existing = db.prepare("SELECT id FROM community_categories WHERE community_id=?").all(id).map((row) => row.id);
+      if (existing.length !== order.length || existing.some((categoryId) => !order.includes(categoryId))) fail("VALIDATION_FAILED");
+      const update = db.prepare("UPDATE community_categories SET position=? WHERE id=? AND community_id=?");
+      order.forEach((categoryId,index) => update.run(index,categoryId,id));
+      db.prepare("UPDATE communities SET revision=revision+1 WHERE id=?").run(id);
+      audit(db,id,userId,"categories.reordered");
+      return scope.community.revision + 1;
+    });
+    return ok({ revision: next });
+  }, true));
 
   app.patch("/api/v3/communities/:communityId/categories/:categoryId", ...guarded((request, userId) => {
     const id = validId(request.params.communityId), categoryId = validId(request.params.categoryId);

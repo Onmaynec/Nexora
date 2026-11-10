@@ -71,6 +71,7 @@ test("experimental Communities enforces hierarchy, role, invite, moderation and 
     assert.equal(anonymous.body.code, "AUTH_REQUIRED");
 
     const created = await owner.post("/api/v3/communities", { name: "Product Team", description: "Private work and public chat" }).expect(201);
+    assert.match(created.headers["cache-control"], /no-store/);
     const id = created.body.community.id;
     assert.equal(created.body.community.ownerId, aliceUser.id);
     assert.equal(created.body.community.viewerRole, "owner");
@@ -88,6 +89,13 @@ test("experimental Communities enforces hierarchy, role, invite, moderation and 
     const privateChannel = await owner.post("/api/v3/communities/" + id + "/channels", {
       name: "Executive", kind: "announcement", categoryId: hiddenCategory.body.category.id, isPrivate: true,
     }).expect(201);
+    const categoryRevision = (await owner.get("/api/v3/communities/" + id)).body.community.revision;
+    await owner.patch("/api/v3/communities/" + id + "/categories/order", {
+      ids: [hiddenCategory.body.category.id, category.body.category.id], expectedRevision: categoryRevision,
+    }).expect(200);
+    await owner.patch("/api/v3/communities/" + id + "/categories/order", {
+      ids: [category.body.category.id, hiddenCategory.body.category.id], expectedRevision: categoryRevision,
+    }).expect(409);
     const privateId = privateChannel.body.channel.id;
     await owner.remove("/api/v3/communities/" + id + "/categories/" + hiddenCategory.body.category.id).expect(409);
 
