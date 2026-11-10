@@ -245,6 +245,25 @@ function mountCommunities({ app, store, io, authRequired, log = () => {} }) {
     return ok({});
   }, true));
 
+  app.patch("/api/v3/communities/:communityId/channels/order", ...guarded((request, userId) => {
+    const id = validId(request.params.communityId);
+    const revision = bounded(request.body?.expectedRevision, Number.MAX_SAFE_INTEGER);
+    const order = request.body?.ids;
+    if (!Array.isArray(order) || order.length > 500 || !order.every((value) => typeof value === "string" && ID.test(value)) || new Set(order).size !== order.length) fail("VALIDATION_FAILED");
+    const next = withTransaction(db, () => {
+      const scope = requirePermission(db, id, userId, "channel.order");
+      if (scope.community.revision !== revision) fail("STATE_CONFLICT", 409);
+      const existing = db.prepare("SELECT id FROM community_channels WHERE community_id=?").all(id).map((row) => row.id);
+      if (existing.length !== order.length || existing.some((value) => !order.includes(value))) fail("VALIDATION_FAILED");
+      const update = db.prepare("UPDATE community_channels SET position=? WHERE id=? AND community_id=?");
+      for (let index = 0; index < order.length; index += 1) update.run(index, order[index], id);
+      db.prepare("UPDATE communities SET revision=revision+1 WHERE id=?").run(id);
+      audit(db, id, userId, "channels.reordered");
+      return scope.community.revision + 1;
+    });
+    return ok({ revision: next });
+  }, true));
+
   app.patch("/api/v3/communities/:communityId/channels/:channelId", ...guarded((request, userId) => {
     const id = validId(request.params.communityId), channelId = validId(request.params.channelId);
     const body = request.body;
@@ -289,25 +308,6 @@ function mountCommunities({ app, store, io, authRequired, log = () => {} }) {
     if (!c || (c.isPrivate && !permissions(db, id, userId, scope.role).has("channel.view_private"))) fail("RESOURCE_NOT_FOUND", 404);
     return ok({ channel: { ...c, isPrivate: Boolean(c.isPrivate) } });
   }));
-
-  app.patch("/api/v3/communities/:communityId/channels/order", ...guarded((request, userId) => {
-    const id = validId(request.params.communityId);
-    const revision = bounded(request.body?.expectedRevision, Number.MAX_SAFE_INTEGER);
-    const order = request.body?.ids;
-    if (!Array.isArray(order) || order.length > 500 || !order.every((value) => typeof value === "string" && ID.test(value)) || new Set(order).size !== order.length) fail("VALIDATION_FAILED");
-    const next = withTransaction(db, () => {
-      const scope = requirePermission(db, id, userId, "channel.order");
-      if (scope.community.revision !== revision) fail("STATE_CONFLICT", 409);
-      const existing = db.prepare("SELECT id FROM community_channels WHERE community_id=?").all(id).map((row) => row.id);
-      if (existing.length !== order.length || existing.some((value) => !order.includes(value))) fail("VALIDATION_FAILED");
-      const update = db.prepare("UPDATE community_channels SET position=? WHERE id=? AND community_id=?");
-      for (let index = 0; index < order.length; index += 1) update.run(index, order[index], id);
-      db.prepare("UPDATE communities SET revision=revision+1 WHERE id=?").run(id);
-      audit(db, id, userId, "channels.reordered");
-      return scope.community.revision + 1;
-    });
-    return ok({ revision: next });
-  }, true));
 
   app.get("/api/v3/communities/:communityId/members", ...guarded((request, userId) => {
     const id = validId(request.params.communityId);
