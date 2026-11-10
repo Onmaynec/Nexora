@@ -32,3 +32,9 @@
 .communities-code label, .communities-report div { flex: 1; min-width: 160px; overflow-wrap: anywhere; }
 .communities-invite span { flex: 1; font-size: 13px; }
 @media (max-width: 900px) { .communities-layout { grid-template-columns: minmax(0,1fr); } .communities-controls { grid-template-columns: minmax(0,1fr); } }
+
+.communities-order { display: inline-flex; gap: 4px; margin-left: auto; }
+.communities-order button { min-width: 34px; min-height: 34px; border-radius: 9px; background: rgba(176,144,226,.12); border: 1px solid rgba(176,144,226,.25); color: inherit; cursor: pointer; }
+.communities-order button:disabled { opacity: .35; cursor: not-allowed; }
+.communities-leave { margin-top: 16px; background: rgba(178,66,97,.14); border: 1px solid rgba(178,66,97,.3); padding: 10px 14px; border-radius: 10px; color: inherit; cursor: pointer; }
+.communities-audit { overflow-wrap: anywhere; font-size: 12px; color: var(--text-secondary, #9b94a9); }

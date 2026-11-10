@@ -16,6 +16,7 @@ export default function CommunitiesPanel({ onBack, showToast }) {
   const [roles, setRoles] = useState([]);
   const [reports, setReports] = useState([]);
   const [invites, setInvites] = useState([]);
+  const [auditEntries, setAuditEntries] = useState([]);
   const [newCode, setNewCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -36,13 +37,15 @@ export default function CommunitiesPanel({ onBack, showToast }) {
       perms(item, "roles.manage") ? api(prefix + "/roles") : Promise.resolve({ roles: [] }),
       perms(item, "reports.manage") ? api(prefix + "/reports") : Promise.resolve({ reports: [] }),
       perms(item, "invites.create") ? api(prefix + "/invites") : Promise.resolve({ invites: [] }),
+      perms(item, "reports.manage") ? api(prefix + "/audit") : Promise.resolve({ entries: [] }),
     ];
-    const [memberResult, roleResult, reportResult, inviteResult] = await Promise.all(jobs);
+    const [memberResult, roleResult, reportResult, inviteResult, auditResult] = await Promise.all(jobs);
     setCommunity(item);
     setMembers(memberResult.members || []);
     setRoles(roleResult.roles || []);
     setReports(reportResult.reports || []);
     setInvites(inviteResult.invites || []);
+    setAuditEntries(auditResult.entries || []);
   }, []);
 
   useEffect(() => {
@@ -154,6 +157,42 @@ export default function CommunitiesPanel({ onBack, showToast }) {
     }), "Роль назначена");
   }
 
+  async function reorder(index, delta) {
+    const channels = community?.channels || [];
+    const next = index + delta;
+    if (next < 0 || next >= channels.length) return;
+    const ids = channels.map((channel) => channel.id);
+    [ids[index], ids[next]] = [ids[next], ids[index]];
+    await perform(() => patch(ROOT + "/" + currentId + "/channels/order", {
+      ids, expectedRevision: community.revision,
+    }), "Порядок каналов обновлён");
+  }
+
+  async function moderate(event) {
+    event.preventDefault();
+    const fields = new FormData(event.currentTarget);
+    const target = String(fields.get("userId") || "");
+    if (!target || !window.confirm("Заблокировать выбранного участника?")) return;
+    const result = await perform(() => post(ROOT + "/" + currentId + "/bans/" + encodeURIComponent(target), {
+      reason: fields.get("reason"),
+    }), "Участник заблокирован");
+    if (result) event.currentTarget.reset();
+  }
+
+  async function transfer(event) {
+    event.preventDefault();
+    const fields = new FormData(event.currentTarget);
+    const target = String(fields.get("userId") || "");
+    if (!target || !window.confirm("Передать владение сообществом? Отменить это действие автоматически нельзя.")) return;
+    await perform(() => post(ROOT + "/" + currentId + "/transfer", { userId: target }), "Владение передано");
+  }
+
+  async function leave() {
+    if (!window.confirm("Покинуть сообщество?")) return;
+    const result = await perform(() => post(ROOT + "/" + currentId + "/leave", {}), "Вы покинули сообщество");
+    if (result) { setCurrentId(null); setCommunity(null); }
+  }
+
   async function reportAction(reportId, state) {
     await perform(() => patch(ROOT + "/" + currentId + "/reports/" + reportId, { state }), "Жалоба обработана");
   }
@@ -205,11 +244,15 @@ export default function CommunitiesPanel({ onBack, showToast }) {
             </div>
             <div className="communities-channel-list">
               <h3>Каналы</h3>
-              {community.channels.map((channel) => (
+              {community.channels.map((channel, index) => (
                 <div className="communities-channel" key={channel.id}>
                   {channel.isPrivate ? <LockKeyhole size={17} /> : <Hash size={17} />}
                   <span><strong>{channel.name}</strong><small>{channel.kind === "announcement" ? "Объявления" : "Текстовый"} · {community.categories.find((cat) => cat.id === channel.categoryId)?.name || "Без категории"}</small></span>
                   {channel.isPrivate && <span>Закрытый</span>}
+                  {perms(community, "channel.order") && <div className="communities-order">
+                    <button type="button" disabled={busy || index === 0} aria-label={"Поднять " + channel.name} onClick={() => reorder(index, -1)}>↑</button>
+                    <button type="button" disabled={busy || index === community.channels.length - 1} aria-label={"Опустить " + channel.name} onClick={() => reorder(index, 1)}>↓</button>
+                  </div>}
                 </div>
               ))}
               {!community.channels.length && <p>Доступных каналов пока нет.</p>}
@@ -246,6 +289,20 @@ export default function CommunitiesPanel({ onBack, showToast }) {
                 <button disabled={busy || !members.some((item) => item.role !== "owner")} type="submit">Назначить</button>
               </form>}
             </section>}
+            {perms(community, "members.moderate") && <section className="communities-manage">
+              <h3>Участники и модерация</h3>
+              <p>{members.length} участников в текущем списке. Владелец и защищённые модераторы недоступны для блокировки.</p>
+              <form className="communities-horizontal" onSubmit={moderate}>
+                <label>Участник<select name="userId">{members.filter((item) => item.userId !== community.ownerId).map((item) => <option key={item.userId} value={item.userId}>{item.userId} ({item.role})</option>)}</select></label>
+                <label>Причина<input name="reason" required minLength={2} maxLength={240} /></label>
+                <button type="submit" disabled={busy || members.length <= 1}>Заблокировать</button>
+              </form>
+              {community.viewerRole === "owner" && <form className="communities-horizontal" onSubmit={transfer}>
+                <label>Новый владелец<select name="userId">{members.filter((item) => item.userId !== community.ownerId).map((item) => <option key={item.userId} value={item.userId}>{item.userId}</option>)}</select></label>
+                <button type="submit" disabled={busy || members.length <= 1}>Передать владение</button>
+              </form>}
+            </section>}
+            {community.viewerRole !== "owner" && <button type="button" disabled={busy} className="communities-leave" onClick={leave}>Покинуть сообщество</button>}
             {perms(community, "reports.manage") && <section className="communities-manage">
               <h3>Жалобы</h3>
               {reports.filter((item) => item.state === "open").map((item) => <div className="communities-report" key={item.id}>
@@ -254,6 +311,8 @@ export default function CommunitiesPanel({ onBack, showToast }) {
                 <button type="button" disabled={busy} onClick={() => reportAction(item.id, "rejected")}>Отклонить</button>
               </div>)}
               {!reports.some((item) => item.state === "open") && <p>Новых жалоб нет.</p>}
+              <h3>Журнал действий</h3>
+              {auditEntries.slice(0, 20).map((item, index) => <p className="communities-audit" key={item.createdAt + index}>{item.action} · {new Date(item.createdAt).toLocaleString("ru-RU")}</p>)}
             </section>}
           </>}
         </div>

@@ -81,6 +81,7 @@ test("experimental Communities enforces hierarchy, role, invite, moderation and 
 
     const category = await owner.post("/api/v3/communities/" + id + "/categories", { name: "Operations" }).expect(201);
     const hiddenCategory = await owner.post("/api/v3/communities/" + id + "/categories", { name: "Owner planning" }).expect(201);
+    await owner.patch("/api/v3/communities/" + id + "/categories/" + category.body.category.id, { name: "Operations HQ" }).expect(200);
     const publicChannel = await owner.post("/api/v3/communities/" + id + "/channels", {
       name: "General", kind: "text", categoryId: category.body.category.id, isPrivate: false,
     }).expect(201);
@@ -88,6 +89,7 @@ test("experimental Communities enforces hierarchy, role, invite, moderation and 
       name: "Executive", kind: "announcement", categoryId: hiddenCategory.body.category.id, isPrivate: true,
     }).expect(201);
     const privateId = privateChannel.body.channel.id;
+    await owner.remove("/api/v3/communities/" + id + "/categories/" + hiddenCategory.body.category.id).expect(409);
 
     const oneUse = await owner.post("/api/v3/communities/" + id + "/invites", { maxUses: 1, expiresInHours: 2 }).expect(201);
     assert.equal(oneUse.body.code.length > 30, true);
@@ -131,6 +133,10 @@ test("experimental Communities enforces hierarchy, role, invite, moderation and 
     await owner.patch("/api/v3/communities/" + id + "/channels/order", { ids: order, expectedRevision: revision }).expect(200);
     await owner.patch("/api/v3/communities/" + id + "/channels/order", { ids: order, expectedRevision: revision }).expect(409);
     assert.deepEqual((await owner.get("/api/v3/communities/" + id)).body.community.channels.map((item) => item.id), order);
+    await owner.patch("/api/v3/communities/" + id + "/channels/" + privateId, { name: "Leadership" }).expect(200);
+    assert.equal((await owner.get("/api/v3/communities/" + id + "/channels/" + privateId).expect(200)).body.channel.name, "Leadership");
+    await owner.remove("/api/v3/communities/" + id + "/channels/" + publicChannel.body.channel.id).expect(200);
+    assert.equal((await owner.get("/api/v3/communities/" + id)).body.community.channels.length, 1);
 
     const secondInvite = await owner.post("/api/v3/communities/" + id + "/invites", { maxUses: 2, expiresInHours: 1 }).expect(201);
     await loser.post("/api/v3/communities/join", { code: secondInvite.body.code }).expect(200);
@@ -142,6 +148,8 @@ test("experimental Communities enforces hierarchy, role, invite, moderation and 
     assert.equal((await winner.get("/api/v3/communities/" + id + "/reports").expect(200)).body.reports.length, 1);
     await winner.patch("/api/v3/communities/" + id + "/reports/" + report.body.reportId, { state: "resolved" }).expect(200);
     await winner.patch("/api/v3/communities/" + id + "/reports/" + report.body.reportId, { state: "rejected" }).expect(409);
+    assert.ok((await winner.get("/api/v3/communities/" + id + "/audit").expect(200)).body.entries.some((e) => e.action === "report.resolved"));
+    await loser.get("/api/v3/communities/" + id + "/audit").expect(403);
     await winner.post("/api/v3/communities/" + id + "/bans/" + aliceUser.id, { reason: "Owner protected" }).expect(403);
     await winner.post("/api/v3/communities/" + id + "/bans/" + loserId, { reason: "Repeated spam" }).expect(200);
     await loser.get("/api/v3/communities/" + id).expect(404);
@@ -162,6 +170,10 @@ test("experimental Communities enforces hierarchy, role, invite, moderation and 
     assert.equal(counts.n, 1);
     assert.equal((await winner.get("/api/v3/communities/" + id)).body.community.ownerId, winnerId);
     await owner.post("/api/v3/communities/" + id + "/roles", { name: "Denied", permissions: [] }).expect(403);
+    await owner.post("/api/v3/communities/" + id + "/leave", {}).expect(200);
+    await owner.get("/api/v3/communities/" + id).expect(404);
+    await winner.post("/api/v3/communities/" + id + "/leave", {}).expect(409);
+    assert.equal(instance.store.db.prepare("SELECT COUNT(*) AS n FROM community_members WHERE community_id=? AND role='owner'").get(id).n, 1);
     const consumed = instance.store.db.prepare("SELECT uses,max_uses FROM community_invites WHERE code_hash=?").get(
       crypto.createHash("sha256").update(oneUse.body.code).digest("hex"),
     );

@@ -21,8 +21,9 @@ Issue #78 запрещает создавать официальную рели�
 | GET, POST | `/communities` | Список моих сообществ / создание |
 | GET | `/communities/:communityId` | Данные, категории и доступные каналы |
 | POST | `/communities/:communityId/categories` | Создание категории |
+| PATCH, DELETE | `/communities/:communityId/categories/:categoryId` | Переименование / удаление пустой категории |
 | POST | `/communities/:communityId/channels` | Создание text/announcement канала |
-| GET | `/communities/:communityId/channels/:channelId` | Получение канала с проверкой приватности |
+| GET, PATCH, DELETE | `/communities/:communityId/channels/:channelId` | Доступ к каналу, редактирование и удаление с проверкой приватности |
 | PATCH | `/communities/:communityId/channels/order` | Атомарная сортировка с expectedRevision |
 | GET, POST | `/communities/:communityId/roles` | Список ролей для владельца / создание ограниченной роли |
 | PUT | `/communities/:communityId/members/:userId/roles/:roleId` | Назначение пользовательской роли |
@@ -33,6 +34,9 @@ Issue #78 запрещает создавать официальную рели�
 | DELETE | `/communities/:communityId/invites/:inviteId` | Отзыв приглашения |
 | POST | `/communities/join` | Вступление по приглашению; лимит и membership в одной транзакции |
 | POST | `/communities/:communityId/transfer` | Передача единственного owner одной транзакцией |
+| POST | `/communities/:communityId/leave` | Выход участника; owner выйти без передачи владения не может |
+| DELETE | `/communities/:communityId/members/:userId/roles/:roleId` | Отзыв пользовательской роли |
+| GET | `/communities/:communityId/audit` | Ограниченный журнал действий для модераторов |
 | POST | `/communities/:communityId/bans/:userId` | Блокировка (без изменения owner и защищённых модераторов) |
 | GET, POST | `/communities/:communityId/reports` | Очередь модерации / жалоба |
 | PATCH | `/communities/:communityId/reports/:reportId` | Закрытие или отклонение жалобы |
@@ -41,7 +45,7 @@ Issue #78 запрещает создавать официальную рели�
 
 ## Экспериментальный интерфейс
 
-На Local Server с включённой опцией `experimentalCommunities: true` экран сообществ появляется из раздела «Комнаты». Доступны создание и вступление, просмотр доступных каналов, создание категорий/каналов, приглашения, простые пользовательские роли и очередь жалоб. В обычном 3.6.0 пункт скрыт. UI не утверждён для production.
+На Local Server с включённой опцией `experimentalCommunities: true` экран сообществ появляется из раздела «Комнаты». Доступны создание и вступление, просмотр доступных каналов, создание категорий/каналов, приглашения, простые пользовательские роли, управление участниками, передачу владения и очередь жалоб. В обычном 3.6.0 пункт скрыт. UI не утверждён для production.
 
 ## Что ещё не готово до релиза 3.7.0
 

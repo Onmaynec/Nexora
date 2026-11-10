@@ -218,6 +218,70 @@ function mountCommunities({ app, store, io, authRequired, log = () => {} }) {
     return ok({ channel: result }, 201);
   }, true));
 
+
+  app.patch("/api/v3/communities/:communityId/categories/:categoryId", ...guarded((request, userId) => {
+    const id = validId(request.params.communityId), categoryId = validId(request.params.categoryId);
+    const label = name(request.body?.name);
+    withTransaction(db, () => {
+      requirePermission(db,id,userId,"channel.create");
+      const result = db.prepare("UPDATE community_categories SET name=? WHERE id=? AND community_id=?").run(label,categoryId,id);
+      if (result.changes !== 1) fail("RESOURCE_NOT_FOUND",404);
+      db.prepare("UPDATE communities SET revision=revision+1 WHERE id=?").run(id);
+      audit(db,id,userId,"category.updated",categoryId);
+    });
+    return ok({});
+  }, true));
+
+  app.delete("/api/v3/communities/:communityId/categories/:categoryId", ...guarded((request, userId) => {
+    const id = validId(request.params.communityId), categoryId = validId(request.params.categoryId);
+    withTransaction(db, () => {
+      requirePermission(db,id,userId,"channel.create");
+      if (db.prepare("SELECT 1 FROM community_channels WHERE community_id=? AND category_id=? LIMIT 1").get(id,categoryId)) fail("CATEGORY_NOT_EMPTY",409);
+      const result = db.prepare("DELETE FROM community_categories WHERE id=? AND community_id=?").run(categoryId,id);
+      if (result.changes !== 1) fail("RESOURCE_NOT_FOUND",404);
+      db.prepare("UPDATE communities SET revision=revision+1 WHERE id=?").run(id);
+      audit(db,id,userId,"category.deleted",categoryId);
+    });
+    return ok({});
+  }, true));
+
+  app.patch("/api/v3/communities/:communityId/channels/:channelId", ...guarded((request, userId) => {
+    const id = validId(request.params.communityId), channelId = validId(request.params.channelId);
+    const body = request.body;
+    if (!body || typeof body !== "object" || Array.isArray(body) || !Object.keys(body).length ||
+        Object.keys(body).some((key) => !["name","kind","isPrivate","categoryId"].includes(key))) fail("VALIDATION_FAILED");
+    const label = body.name === undefined ? undefined : name(body.name);
+    const kind = body.kind;
+    if (kind !== undefined && !["text","announcement"].includes(kind)) fail("VALIDATION_FAILED");
+    if (body.isPrivate !== undefined && typeof body.isPrivate !== "boolean") fail("VALIDATION_FAILED");
+    const categoryId = body.categoryId === undefined ? undefined : body.categoryId == null ? null : validId(body.categoryId);
+    withTransaction(db, () => {
+      const scope = requirePermission(db,id,userId,"channel.create");
+      const existing = db.prepare("SELECT * FROM community_channels WHERE id=? AND community_id=?").get(channelId,id);
+      if (!existing || (existing.is_private && !permissions(db,id,userId,scope.role).has("channel.view_private"))) fail("RESOURCE_NOT_FOUND",404);
+      if (categoryId && !db.prepare("SELECT 1 FROM community_categories WHERE id=? AND community_id=?").get(categoryId,id)) fail("RESOURCE_NOT_FOUND",404);
+      db.prepare("UPDATE community_channels SET name=?,kind=?,is_private=?,category_id=? WHERE id=? AND community_id=?").run(
+        label ?? existing.name,kind ?? existing.kind,body.isPrivate === undefined ? existing.is_private : Number(body.isPrivate),
+        categoryId === undefined ? existing.category_id : categoryId,channelId,id);
+      db.prepare("UPDATE communities SET revision=revision+1 WHERE id=?").run(id);
+      audit(db,id,userId,"channel.updated",channelId);
+    });
+    return ok({});
+  }, true));
+
+  app.delete("/api/v3/communities/:communityId/channels/:channelId", ...guarded((request, userId) => {
+    const id = validId(request.params.communityId), channelId = validId(request.params.channelId);
+    withTransaction(db, () => {
+      const scope = requirePermission(db,id,userId,"channel.create");
+      const existing = db.prepare("SELECT is_private FROM community_channels WHERE id=? AND community_id=?").get(channelId,id);
+      if (!existing || (existing.is_private && !permissions(db,id,userId,scope.role).has("channel.view_private"))) fail("RESOURCE_NOT_FOUND",404);
+      db.prepare("DELETE FROM community_channels WHERE id=? AND community_id=?").run(channelId,id);
+      db.prepare("UPDATE communities SET revision=revision+1 WHERE id=?").run(id);
+      audit(db,id,userId,"channel.deleted",channelId);
+    });
+    return ok({});
+  }, true));
+
   app.get("/api/v3/communities/:communityId/channels/:channelId", ...guarded((request, userId) => {
     const id = validId(request.params.communityId);
     const scope = access(db, id, userId);
@@ -357,6 +421,38 @@ function mountCommunities({ app, store, io, authRequired, log = () => {} }) {
     });
     return ok({});
   }, true));
+
+
+  app.delete("/api/v3/communities/:communityId/members/:userId/roles/:roleId", ...guarded((request, userId) => {
+    const id = validId(request.params.communityId), target = validId(request.params.userId), roleId = validId(request.params.roleId);
+    withTransaction(db, () => {
+      const scope = requirePermission(db,id,userId,"roles.manage");
+      if (scope.role !== "owner") fail("FORBIDDEN",403);
+      const result = db.prepare("DELETE FROM community_role_assignments WHERE community_id=? AND user_id=? AND role_id=?").run(id,target,roleId);
+      if (result.changes !== 1) fail("RESOURCE_NOT_FOUND",404);
+      audit(db,id,userId,"role.revoked",target);
+    });
+    return ok({});
+  }, true));
+
+  app.post("/api/v3/communities/:communityId/leave", ...guarded((request, userId) => {
+    const id = validId(request.params.communityId);
+    withTransaction(db, () => {
+      const scope = access(db,id,userId);
+      if (scope.role === "owner") fail("OWNER_REQUIRED",409);
+      db.prepare("DELETE FROM community_members WHERE community_id=? AND user_id=?").run(id,userId);
+      db.prepare("DELETE FROM community_role_assignments WHERE community_id=? AND user_id=?").run(id,userId);
+      audit(db,id,userId,"member.left",userId);
+    });
+    io?.to("user:" + userId).emit("data:refresh");
+    return ok({});
+  }, true));
+
+  app.get("/api/v3/communities/:communityId/audit", ...guarded((request, userId) => {
+    const id = validId(request.params.communityId);
+    requirePermission(db,id,userId,"reports.manage");
+    return ok({ entries: db.prepare("SELECT actor_id AS actorId,action,target_id AS targetId,created_at AS createdAt FROM community_audit WHERE community_id=? ORDER BY created_at DESC,id DESC LIMIT 100").all(id) });
+  }));
 
   app.post("/api/v3/communities/:communityId/transfer", ...guarded((request, userId) => {
     const id = validId(request.params.communityId), target = validId(request.body?.userId);
