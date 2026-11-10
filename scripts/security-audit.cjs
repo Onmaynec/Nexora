@@ -153,9 +153,17 @@ try {
   const high = Number(report.metadata?.vulnerabilities?.high || 0);
   const critical = Number(report.metadata?.vulnerabilities?.critical || 0);
   console.log(`${high + critical === 0 ? "PASS" : "FAIL"} production dependencies: high=${high}, critical=${critical}`);
+  for (const [name, item] of Object.entries(report.vulnerabilities || {})) {
+    if (!["high", "critical"].includes(item.severity)) continue;
+    const via = (item.via || []).map((entry) => typeof entry === "string" ? entry : entry.name).filter(Boolean).join(", ");
+    const resolution = item.fixAvailable === false ? "no automatic fix" : item.fixAvailable === true ? "compatible fix" : "dependency update required";
+    console.log(`FAIL dependency ${name}: ${item.severity}; via=${via || name}; ${resolution}`);
+  }
+  if (!report.metadata?.vulnerabilities || report.error) throw new Error("npm audit metadata unavailable");
   if (high || critical) failed = true;
 } catch (error) {
-  console.log(`WARN npm audit result unavailable: ${String(error?.message || "unknown error")}`);
+  console.log(`FAIL npm audit result unavailable: ${String(error?.message || "unknown error")}`);
+  failed = true;
 }
 
 if (failed) process.exitCode = 1;
