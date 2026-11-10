@@ -137,18 +137,26 @@ for (const [name, pattern, source] of checks) {
   if (!ok) failed = true;
 }
 
-const audit = spawnSync(process.platform === "win32" ? "npm.cmd" : "npm", ["audit", "--omit=dev", "--audit-level=high", "--json"], {
+const npmCli = [
+  process.env.npm_execpath,
+  path.join(path.dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js"),
+  path.join(path.dirname(process.execPath), "..", "lib", "node_modules", "npm", "bin", "npm-cli.js"),
+  path.join(path.dirname(process.execPath), "..", "node_modules", "npm", "bin", "npm-cli.js"),
+].find((candidate) => candidate && path.basename(candidate).toLowerCase() === "npm-cli.js" && fs.existsSync(candidate));
+
+const audit = npmCli ? spawnSync(process.execPath, [npmCli, "audit", "--omit=dev", "--audit-level=high", "--json"], {
   cwd: root,
   encoding: "utf8",
   shell: false,
   env: { ...process.env, NPM_CONFIG_CACHE: process.env.NPM_CONFIG_CACHE || path.join(osTmp(), "nexora-npm-cache") },
-});
+}) : { error: new Error("npm CLI entrypoint is not available"), stdout: "" };
 
 function osTmp() {
   return process.env.TEMP || process.env.TMP || "/tmp";
 }
 
 try {
+  if (audit.error) throw audit.error;
   const report = JSON.parse(audit.stdout || "{}");
   const high = Number(report.metadata?.vulnerabilities?.high || 0);
   const critical = Number(report.metadata?.vulnerabilities?.critical || 0);
@@ -160,6 +168,7 @@ try {
     console.log(`FAIL dependency ${name}: ${item.severity}; via=${via || name}; ${resolution}`);
   }
   if (!report.metadata?.vulnerabilities || report.error) throw new Error("npm audit metadata unavailable");
+  if (audit.status !== 0 && high + critical === 0) throw new Error(`npm audit exited with status ${audit.status} without vulnerability evidence`);
   if (high || critical) failed = true;
 } catch (error) {
   console.log(`FAIL npm audit result unavailable: ${String(error?.message || "unknown error")}`);

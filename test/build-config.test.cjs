@@ -148,3 +148,12 @@ test("security audit follows signed Connect release policy", () => {
   assert.match(audit, /NEXORA_ANDROID_SIGNER_SHA256/);
   assert.match(audit, /updaterMetadataPublished !== true/);
 });
+
+test("security audit runs the npm CLI with Node on Windows and Linux", () => {
+  const audit = read("scripts/security-audit.cjs");
+  assert.match(audit, /process\.env\.npm_execpath/);
+  assert.match(audit, /spawnSync\(process\.execPath, \[npmCli, "audit"/);
+  assert.match(audit, /shell: false/);
+  assert.match(audit, /npm audit metadata unavailable/);
+  assert.doesNotMatch(audit, /process\.platform === "win32" \? "npm\.cmd"/);
+});
