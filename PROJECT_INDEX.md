@@ -5,14 +5,14 @@
 | Параметр | Значение |
 |---|---|
 | Repository version | `3.5.0` |
-| Classification | Release candidate — Mobile Continuity |
-| Publication | Заблокирована до опубликованной `v3.4.0`, platform acceptance, signing и independent security review |
+| Classification | Published Mobile Continuity — unsigned manual distribution |
+| Publication | GitHub Release `v3.5.0` опубликован; Windows и Android пакеты unsigned, updater metadata отсутствует |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
 | Legacy Trust/MLS API | retired; write paths return `410/LEGACY_READ_ONLY` |
 | Local Server database | SQLite schema 9 with schema 8 compatibility layer |
 
-Этот индекс описывает ветку `release/3.5.0-mobile-continuity` и stacked draft PR. До merge он не является описанием опубликованного `main`.
+Этот индекс относится к текущим исходникам `main` для Nexora 3.5.0. Разработка 3.6.0 Connect ведётся отдельно в `release/3.6.0-connect` и [PR #110](https://github.com/Onmaynec/Nexora/pull/110).
 
 ## Entry points
 
@@ -110,7 +110,7 @@ Mutating browser requests require authentication, Origin/CSRF, resource scope, p
 | `test/update-service.test.cjs` | Client/Server channels, tamper errors and no-downgrade |
 | `test/security-hardening-3.2.3.test.cjs` | CSRF, bans, cleanup, admin signing status and retired APIs |
 | `scripts/security-audit.cjs` | Stable Core controls and production dependency audit |
-| `test/performance.test.cjs` | schema 8 performance and integrity |
+| `test/performance.test.cjs` | SQLite performance and integrity checks |
 | `scripts/soak-test.cjs` | long-running state, backup and integrity |
 
 ## Verification commands
@@ -127,12 +127,9 @@ Mutating browser requests require authentication, Origin/CSRF, resource scope, p
 | `gradle -p android :app:assembleDebug --no-daemon` | Android source build |
 | `npm run release:windows:signed` | signed Windows build after external prerequisites are configured |
 
-## Release blockers
+## Публикация и активная разработка
 
-The branch must remain draft and must not publish `v3.4.0` while any item remains:
-
-1. verified published stable `v3.3.4` is absent;
-2. Authenticode credentials/expected signer identity are unavailable;
-3. Windows 10/11 installed and n-1→n acceptance is incomplete;
-4. independent review has unresolved or unperformed high/critical scope;
-5. required CI/release checks are not green.
+- `v3.5.0` — опубликованный latest GitHub Release; Windows и Android дистрибутивы распространяются без подписи и устанавливаются вручную.
+- Установочные пакеты проверяются по `SHA256SUMS.txt`. Для unsigned 3.5.0 не публикуются `latest.yml` и `server.yml`, чтобы подписанный updater не использовал неподписанный канал.
+- `3.6.0 Connect` — текущая ветка разработки, [Issue #77](https://github.com/Onmaynec/Nexora/issues/77), [draft PR #110](https://github.com/Onmaynec/Nexora/pull/110). Код и release evidence следующей версии не являются частью опубликованного `main`.
+- Полный перечень blockers 3.6.0 находится в `docs/releases/3.6.0/RELEASE_VERIFICATION.md` соответствующей ветки. До фактического завершения CI, signing, security review и platform acceptance релиз не публикуется.

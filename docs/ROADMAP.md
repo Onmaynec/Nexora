@@ -1,12 +1,14 @@
 # Nexora Roadmap 3.4.0–4.0.0
 
-> Status: approved planning baseline for implementation after Nexora 3.3.4. This roadmap is a sequence of release outcomes and gates, not a calendar commitment.
+> Статус: утверждённый план версий до 4.0.0. Реальное состояние публикаций фиксируется отдельно в Issues и release evidence; запланированные критерии не считаются выполненными автоматически.
 
 ## Current baseline and prerequisite
 
-The current `main` line is Nexora 3.3.3. The approved 3.3.4 direction removes MLS/Trust Core runtime, restores server-readable Local Server messaging, keeps legacy MLS history read-only, and completes the related UX/release fixes. **No release in this roadmap starts before 3.3.4 is merged, verified, tagged and published.**
+В `main` опубликована Nexora `3.5.0 Mobile Continuity`. Релиз `v3.5.0` доступен как обычный GitHub Release с unsigned Windows/Android пакетами и ручной установкой; updater metadata отсутствует. Исходники `3.4.0 Stable Core` объединены после `v3.4.0-rc.1`, но подписанный stable-дистрибутив 3.4.0 не публиковался. Для source promotion было принято отдельное исключение.
 
-The old `Stable Trust` direction is superseded by the approved post-MLS architecture. The first new minor release is therefore **3.4.0 Stable Core**.
+Текущая разработка — `3.6.0 Connect`, [Issue #77](https://github.com/Onmaynec/Nexora/issues/77), [draft PR #110](https://github.com/Onmaynec/Nexora/pull/110). Он остаётся implementation candidate до подтверждения CI, проверки безопасности, production TURN, signed artifacts и installed cross-platform acceptance.
+
+Ниже сохранён утверждённый scope версий, включая первоначальные условия signed Stable Core. Эти условия — исходный release contract, а не утверждение, что подписанная версия уже выпущена.
 
 ## Planning principles
 
@@ -271,7 +273,7 @@ The old `Stable Trust` direction is superseded by the approved post-MLS architec
 
 ## Cross-release dependency chain
 
-1. **3.4.0** establishes the signed stable post-MLS baseline and verified data/upgrade boundary.
+1. **3.4.0** established the post-MLS source baseline and data/upgrade boundary; signed stable distribution was deferred under a documented source-promotion exception.
 2. **3.5.0** builds reliable cross-platform offline/mobile continuity on that stable core.
 3. **3.6.0** adds contacts, privacy-aware presence and one-to-one voice calls.
 4. **3.7.0** scales rooms into structured communities with stronger moderation.
