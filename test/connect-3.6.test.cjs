@@ -366,3 +366,27 @@ test("audio-device changes do not tear down call subscriptions or allocate an id
   assert.match(source, /if \(localStreamRef\.current !== previous\)/);
   assert.match(source, /replacement\?\.getTracks\(\)\.forEach\(\(track\) => track\.stop\(\)\)/);
 });
+
+test("legacy bootstrap never returns raw profile data when privacy serialization fails", async () => {
+  const alice = accounts.get("Alice");
+  const originalRead = instance.store.read;
+  let forced = 0;
+  instance.store.read = function (...args) {
+    if (new Error().stack?.includes("connectPrivacyJson")) {
+      forced += 1;
+      throw new Error("forced privacy sanitizer failure");
+    }
+    return originalRead.apply(this, args);
+  };
+
+  try {
+    const response = await alice.agent.get("/api/bootstrap").expect(500);
+    assert.ok(forced > 0, "the failure must occur in the response privacy filter");
+    assert.equal(response.body.code, "RESPONSE_FILTER_FAILED");
+    assert.equal(response.body.details && Object.keys(response.body.details).length, 0);
+    assert.equal(response.body.me, undefined);
+    assert.ok(!response.text.includes(alice.user.username));
+  } finally {
+    instance.store.read = originalRead;
+  }
+});
