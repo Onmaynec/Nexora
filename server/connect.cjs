@@ -328,8 +328,9 @@ async function mountConnect({
         || /^\/api\/users\/[^/]+\/profile$/.test(request?.path || "")
         || request?.path === "/api/users/search"
         || /^\/api\/conversations\/[^/]+\/messages$/.test(request?.path || "");
-      if (privacyRoute && !viewerId) throw new Error("Missing authenticated privacy context");
-      if (viewerId && body && typeof body === "object") {
+      const successfulResponse = this.statusCode >= 200 && this.statusCode < 300 && body && typeof body === "object";
+      if (privacyRoute && successfulResponse && !viewerId) throw new Error("Missing authenticated privacy context");
+      if (viewerId && successfulResponse) {
         const state = store.read();
         if (request.path === "/api/bootstrap" && body.me) body = sanitizeBootstrap(body, viewerId);
         else if (/^\/api\/users\/[^/]+\/profile$/.test(request.path) && body.user) {

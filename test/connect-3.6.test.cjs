@@ -348,6 +348,7 @@ test("legacy Connect response sanitizer rejects missing privacy context and fail
   const source = await fs.readFile(path.join(__dirname, "..", "server", "connect.cjs"), "utf8");
   const wrapper = source.slice(source.indexOf("responseJsonWrapper = function connectPrivacyJson"), source.indexOf("app.response.json = responseJsonWrapper;"));
   assert.match(wrapper, /Missing authenticated privacy context/);
+  assert.match(wrapper, /this\.statusCode >= 200 && this\.statusCode < 300/);
   assert.match(wrapper, /if \(!user\)/);
   assert.match(wrapper, /this\.status\(404\)/);
   assert.match(wrapper, /catch \(error\)[\s\S]*this\.status\(500\)[\s\S]*RESPONSE_FILTER_FAILED/);
@@ -389,4 +390,10 @@ test("legacy bootstrap never returns raw profile data when privacy serialization
   } finally {
     instance.store.read = originalRead;
   }
+});
+
+test("unauthenticated legacy profile search preserves the authentication error", async () => {
+  const response = await request(instance.app).get("/api/users/search?q=test");
+  assert.equal(response.status, 401);
+  assert.notEqual(response.body.code, "RESPONSE_FILTER_FAILED");
 });
