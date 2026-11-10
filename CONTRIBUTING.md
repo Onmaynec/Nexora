@@ -8,16 +8,16 @@
 
 | Параметр | Значение |
 |---|---|
-| Repository version | `3.4.0` |
-| Classification | Stable Core release candidate |
-| Publication | Заблокирована до verified `v3.3.4`, Authenticode/Windows acceptance и independent security review |
+| Repository version | `3.6.0` (ветка `release/3.6.0-connect`) |
+| Classification | Connect implementation candidate; PR #110 — draft |
+| Publication | Не опубликована: подписанные пакеты, Windows/Android/PWA acceptance, production TURN и independent review не завершены |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
 | Trust/MLS runtime | retired; write paths return `410/LEGACY_READ_ONLY` |
 | Legacy secure history | read-only compatibility layer; server-side decryption отсутствует |
-| Local Server database | SQLite schema 8 |
+| Local Server database | SQLite schema 10; schema 8 legacy history read-only |
 
-Contribution не должно представлять release-candidate functionality как published stable, production-approved или independently audited.
+Ветка 3.6.0 основана на опубликованной `v3.5.0` (unsigned manual distribution). Source CI не подтверждает установленную работу звонков на всех платформах, подписанный релиз или независимый аудит.
 
 ## 2. Каналы взаимодействия
 
@@ -138,7 +138,4 @@ Release evidence принимается только для exact reviewed commi
 - documentation, changelog и release evidence обновлены, если поведение или contract изменились;
 - temporary scripts, diagnostic workflows и generated failure logs удалены.
 
-Для `3.4.0` merge/tag/release дополнительно требуются опубликованный verified `v3.3.4`, полный Authenticode policy, Windows 10/11 installed `3.3.4 → 3.4.0` acceptance и independent security review без unresolved high/critical findings.
-> Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.
-
-> Current implementation candidate: Nexora 3.6.0 Connect. Signed stable publication remains blocked pending required external evidence.
+Для 3.6.0 required gates перечислены в [release verification](docs/releases/3.6.0/RELEASE_VERIFICATION.md). PR остаётся draft, пока не пройдены exact-head CI, security review, signed Windows/Android packages, установленная проверка Windows 10/11 и cross-platform WebRTC/TURN acceptance. Исключение unsigned publication 3.5.0 не переносится на 3.6.0.

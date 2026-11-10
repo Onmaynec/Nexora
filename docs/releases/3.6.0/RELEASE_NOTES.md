@@ -17,6 +17,13 @@ Nexora 3.6.0 adds a server-scoped personal connection layer: contact requests, b
 - Minimal SQLite call history without media, SDP, ICE candidates or call content.
 - Safe profile deep links bound to Server ID and object ID.
 
+## Candidate validation fixes
+
+- Legacy Connect response filtering rejects missing privacy context and hides unavailable profiles; transformation failures return an error instead of an unfiltered payload.
+- Device refresh no longer releases active call media through a subscription cleanup; input selection only requests microphone access for an active stream, and failed replacement releases temporary tracks.
+- Android enables BuildConfig generation for the displayed app version.
+- The security audit checks signed 3.6.0 distribution requirements rather than the superseded unsigned 3.5.0 workflow. A dependency audit failure still blocks publication.
+
 ## Data migration
 
 Local Server upgrades schema 9 to additive schema 10 before network listen. Migration performs source integrity verification, free-space validation, a verified pre-migration backup, one SQLite transaction, target integrity verification and downgrade protection.
