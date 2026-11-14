@@ -182,6 +182,39 @@ test("experimental Communities enforces hierarchy, role, invite, moderation and 
     await owner.get("/api/v3/communities/" + id).expect(404);
     await winner.post("/api/v3/communities/" + id + "/leave", {}).expect(409);
     assert.equal(instance.store.db.prepare("SELECT COUNT(*) AS n FROM community_members WHERE community_id=? AND role='owner'").get(id).n, 1);
+    // A large membership list must stay reachable even when created_at ties.
+    const insertCommunity = instance.store.db.prepare(
+      "INSERT INTO communities (id,owner_id,name,description,created_at) VALUES (?,?,?,?,?)",
+    );
+    const insertMember = instance.store.db.prepare("INSERT INTO community_members VALUES (?,?,?,?)");
+    const createdAt = "2025-01-01T00:00:00.000Z";
+    const expectedCommunityIds = new Set();
+    for (let index = 0; index < 105; index += 1) {
+      const communityId = crypto.randomUUID();
+      expectedCommunityIds.add(communityId);
+      insertCommunity.run(communityId, aliceUser.id, "Cursor proof " + index, "", createdAt);
+      insertMember.run(communityId, aliceUser.id, "owner", createdAt);
+    }
+    let nextCursor = null;
+    const seenCommunityIds = new Set();
+    for (let index = 0; index < 10; index += 1) {
+      const query = { limit: 20 };
+      if (nextCursor) query.cursor = nextCursor;
+      const response = await owner.get("/api/v3/communities").query(query).expect(200);
+      assert.ok(response.body.communities.length > 0 && response.body.communities.length <= 20);
+      for (const item of response.body.communities) {
+        assert.equal(seenCommunityIds.has(item.id), false, "duplicate community in cursor pages");
+        seenCommunityIds.add(item.id);
+      }
+      nextCursor = response.body.nextCursor;
+      if (!nextCursor) break;
+    }
+    assert.deepEqual(seenCommunityIds, expectedCommunityIds);
+    assert.equal(nextCursor, null);
+    const malformedCursor = Buffer.from(JSON.stringify({ createdAt: {}, id: 123 })).toString("base64url");
+    await owner.get("/api/v3/communities").query({ cursor: malformedCursor }).expect(400);
+    await owner.get("/api/v3/communities").query({ limit: 0 }).expect(400);
+
     const consumed = instance.store.db.prepare("SELECT uses,max_uses FROM community_invites WHERE code_hash=?").get(
       crypto.createHash("sha256").update(oneUse.body.code).digest("hex"),
     );
