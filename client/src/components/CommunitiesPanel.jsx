@@ -10,6 +10,8 @@ const errorText = (error) => error?.code === "STATE_CONFLICT"
 
 export default function CommunitiesPanel({ onBack, showToast }) {
   const [communities, setCommunities] = useState([]);
+  const [nextCursor, setNextCursor] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [currentId, setCurrentId] = useState(null);
   const [community, setCommunity] = useState(null);
   const [members, setMembers] = useState([]);
@@ -23,8 +25,9 @@ export default function CommunitiesPanel({ onBack, showToast }) {
   const [error, setError] = useState("");
 
   const refreshList = useCallback(async () => {
-    const result = await api(ROOT);
+    const result = await api(ROOT + "?limit=50");
     setCommunities(result.communities || []);
+    setNextCursor(result.nextCursor || null);
   }, []);
 
   const load = useCallback(async (id) => {
@@ -52,8 +55,11 @@ export default function CommunitiesPanel({ onBack, showToast }) {
     let active = true;
     (async () => {
       try {
-        const result = await api(ROOT);
-        if (active) setCommunities(result.communities || []);
+        const result = await api(ROOT + "?limit=50");
+        if (active) {
+          setCommunities(result.communities || []);
+          setNextCursor(result.nextCursor || null);
+        }
       } catch (failure) {
         if (active) setError(errorText(failure));
       } finally {
@@ -93,6 +99,24 @@ export default function CommunitiesPanel({ onBack, showToast }) {
       return null;
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function loadMoreCommunities() {
+    if (!nextCursor || loadingMore || busy) return;
+    setLoadingMore(true);
+    setError("");
+    try {
+      const result = await api(ROOT + "?limit=50&cursor=" + encodeURIComponent(nextCursor));
+      setCommunities((current) => {
+        const seen = new Set(current.map((item) => item.id));
+        return [...current, ...(result.communities || []).filter((item) => !seen.has(item.id))];
+      });
+      setNextCursor(result.nextCursor || null);
+    } catch (failure) {
+      setError(errorText(failure));
+    } finally {
+      setLoadingMore(false);
     }
   }
 
@@ -222,6 +246,10 @@ export default function CommunitiesPanel({ onBack, showToast }) {
             </button>
           ))}
           {!communities.length && !loading && <p>Вы пока не вступили ни в одно сообщество.</p>}
+          {nextCursor && <button type="button" disabled={loadingMore || busy}
+            aria-busy={loadingMore} onClick={loadMoreCommunities}>
+            {loadingMore ? "Загружаем…" : "Показать ещё сообщества"}
+          </button>}
           <h3>Создать сообщество</h3>
           <form onSubmit={create}>
             <label>Название<input name="name" minLength={2} maxLength={80} required /></label>
