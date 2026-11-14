@@ -25,10 +25,11 @@ function mountCommunityChannelMessages({ app, db, guarded, ok, fail, validId, ac
     return { ...scope, channel };
   }
 
-  function messageView(row) {
+  function messageView(row, viewerId) {
     return {
       id: row.id,
       authorId: row.authorId,
+      mine: row.authorId === viewerId,
       body: row.deletedAt ? "" : row.body,
       createdAt: row.createdAt,
       deletedAt: row.deletedAt || null,
@@ -77,7 +78,7 @@ function mountCommunityChannelMessages({ app, db, guarded, ok, fail, validId, ac
     const page = rows.slice(0, limit);
     const oldest = page.at(-1);
     return ok({
-      messages: page.map(messageView),
+      messages: page.map((row) => messageView(row, userId)),
       nextCursor: rows.length > limit && oldest
         ? Buffer.from(JSON.stringify({ createdAt: oldest.createdAt, id: oldest.id })).toString("base64url")
         : null,
@@ -102,7 +103,7 @@ function mountCommunityChannelMessages({ app, db, guarded, ok, fail, validId, ac
         .get(communityId, channelId, userId, nonce);
       if (previous) {
         if (previous.body !== trimmed || previous.deletedAt) fail("STATE_CONFLICT", 409);
-        return { message: messageView(previous), existing: true };
+        return { message: messageView(previous, userId), existing: true };
       }
       if (db.prepare("SELECT COUNT(*) AS n FROM community_channel_messages WHERE community_id=? AND channel_id=?")
         .get(communityId, channelId).n >= 50000) fail("RESOURCE_LIMIT", 409);
@@ -112,7 +113,7 @@ function mountCommunityChannelMessages({ app, db, guarded, ok, fail, validId, ac
       db.prepare(`INSERT INTO community_channel_messages
         (id,community_id,channel_id,author_id,client_nonce,body,created_at)
         VALUES (?,?,?,?,?,?,?)`).run(id, communityId, channelId, userId, nonce, trimmed, createdAt);
-      return { message: { id, authorId: userId, body: trimmed, createdAt, deletedAt: null }, existing: false };
+      return { message: { id, authorId: userId, mine: true, body: trimmed, createdAt, deletedAt: null }, existing: false };
     });
     // Clients refresh only after a scoped GET. No unrestricted Socket.IO fanout of private content.
     return ok({ message: saved.message }, saved.existing ? 200 : 201);
