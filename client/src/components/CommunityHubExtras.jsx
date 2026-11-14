@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, post, patch, put } from "../api";
+import { api, post, patch } from "../api";
 import { CalendarDays, Compass, ShieldCheck, UserCheck, UsersRound } from "lucide-react";
 
 const ROOT = "/api/v3/communities";
@@ -223,8 +223,8 @@ export function CommunityHubExtras({ community, showToast, onRefresh }) {
         {item.status === "scheduled" && <div className="communities-event-actions">
           {[["going", "Буду"], ["interested", "Интересно"], ["declined", "Не пойду"]].map(([value, label]) =>
             <button key={value} type="button" disabled={busy} aria-pressed={item.myRsvp === value}
-              onClick={() => action(() => put(base + "/events/" + encodeURIComponent(item.id) + "/rsvp",
-                { status: value }), "Участие обновлено")}>{label}</button>)}
+              onClick={() => action(() => api(base + "/events/" + encodeURIComponent(item.id) + "/rsvp",
+                { method: "PUT", body: JSON.stringify({ status: value }) }), "Участие обновлено")}>{label}</button>)}
           {canManageEvents && <button type="button" disabled={busy}
             onClick={() => action(() => patch(base + "/events/" + encodeURIComponent(item.id),
               { status: "cancelled" }), "Событие отменено")}>Отменить</button>}
