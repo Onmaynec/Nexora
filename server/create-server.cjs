@@ -1238,7 +1238,8 @@ async function createNexoraServer(options = {}) {
     const viewerId = request.nexora.user.id;
     const state = store.read();
     const users = state.users
-      .filter((user) => !user.disabledAt && user.id !== viewerId && (user.username.includes(query) || user.displayName.toLowerCase().includes(query)))
+      .filter((user) => !user.disabledAt && user.id !== viewerId && !isBlockedEither(state, viewerId, user.id)
+        && (user.username.includes(query) || user.displayName.toLowerCase().includes(query)))
       .slice(0, 20)
       .map((user) => {
         const requestItem = state.contactRequests.find(
