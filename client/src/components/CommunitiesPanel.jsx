@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, post, patch, remove } from "../api";
+import CommunityMessages from "./CommunityMessages";
 import { ChevronLeft, Hash, LockKeyhole, Plus, ShieldCheck, Ticket, UsersRound } from "lucide-react";
 
 const ROOT = "/api/v3/communities";
@@ -13,6 +14,7 @@ export default function CommunitiesPanel({ onBack, showToast }) {
   const [nextCursor, setNextCursor] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [currentId, setCurrentId] = useState(null);
+  const [selectedChannelId, setSelectedChannelId] = useState(null);
   const [community, setCommunity] = useState(null);
   const [members, setMembers] = useState([]);
   const [memberNextCursor, setMemberNextCursor] = useState(null);
@@ -81,6 +83,8 @@ export default function CommunitiesPanel({ onBack, showToast }) {
     });
     return () => { active = false; };
   }, [currentId, load]);
+
+  useEffect(() => { setSelectedChannelId(null); }, [currentId]);
 
   async function perform(action, successText, options = {}) {
     if (busy) return null;
@@ -251,7 +255,7 @@ export default function CommunitiesPanel({ onBack, showToast }) {
         <div>
           <span>COMMUNITIES · EXPERIMENTAL</span>
           <h1>Сообщества</h1>
-          <p>Категории, каналы и управление доступом. Общение внутри новых каналов пока не подключено.</p>
+          <p>Категории, каналы, сообщения и управление доступом.</p>
         </div>
         <button type="button" className="communities-back" onClick={onBack}><ChevronLeft size={17} /> К комнатам</button>
       </header>
@@ -297,9 +301,9 @@ export default function CommunitiesPanel({ onBack, showToast }) {
             <div className="communities-channel-list">
               <h3>Каналы</h3>
               {community.channels.map((channel, index) => (
-                <div className="communities-channel" key={channel.id}>
+                <div className={"communities-channel" + (selectedChannelId === channel.id ? " selected" : "")} key={channel.id}>
                   {channel.isPrivate ? <LockKeyhole size={17} /> : <Hash size={17} />}
-                  <span><strong>{channel.name}</strong><small>{channel.kind === "announcement" ? "Объявления" : "Текстовый"} · {community.categories.find((cat) => cat.id === channel.categoryId)?.name || "Без категории"}</small></span>
+                  <span><button type="button" className="communities-channel-open" aria-pressed={selectedChannelId === channel.id} onClick={() => setSelectedChannelId(channel.id)}><strong>{channel.name}</strong><small>{channel.kind === "announcement" ? "Объявления" : "Текстовый"} · {community.categories.find((cat) => cat.id === channel.categoryId)?.name || "Без категории"}</small></button></span>
                   {channel.isPrivate && <span>Закрытый</span>}
                   {perms(community, "channel.order") && <div className="communities-order">
                     <button type="button" disabled={busy || index === 0} aria-label={"Поднять " + channel.name} onClick={() => reorder(index, -1)}>↑</button>
@@ -309,6 +313,9 @@ export default function CommunitiesPanel({ onBack, showToast }) {
               ))}
               {!community.channels.length && <p>Доступных каналов пока нет.</p>}
             </div>
+            {selectedChannelId && community.channels.some((channel) => channel.id === selectedChannelId) && <CommunityMessages
+              key={community.id + ":" + selectedChannelId} community={community}
+              channel={community.channels.find((channel) => channel.id === selectedChannelId)} />}
             {perms(community, "channel.create") && <div className="communities-controls">
               <form onSubmit={createCategory}><h3>Новая категория</h3><label>Название<input required name="name" minLength={2} maxLength={80} /></label>
                 <button disabled={busy} type="submit">Добавить категорию</button></form>
