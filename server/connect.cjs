@@ -342,7 +342,7 @@ async function mountConnect({
             body = { ...body, user, relationship: { ...body.relationship, blockedMe: undefined, canCall: Boolean(body.relationship?.contact && !isBlockedEither(state, viewerId, user.id)) } };
           }
         } else if (request.path === "/api/users/search" && Array.isArray(body.users)) {
-          body = { ...body, users: body.users.map((user) => sanitizeUserView(state, user, viewerId, true)).filter(Boolean) };
+          body = { ...body, users: body.users.map((user) => sanitizeUserView(state, user, viewerId)).filter(Boolean) };
         } else if (/^\/api\/conversations\/[^/]+\/messages$/.test(request.path) && Array.isArray(body.messages)) {
           body = { ...body, messages: body.messages.map((message) => sanitizeMessageView(state, message, viewerId)) };
         }

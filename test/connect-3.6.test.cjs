@@ -355,6 +355,13 @@ test("block immediately terminates calls and prevents REST or stale-socket bypas
   await alice.agent.post("/api/v3/contacts/requests").set("Idempotency-Key", `blocked-${crypto.randomUUID()}`).send({ userId: bob.user.id }).expect(403)
     .expect((response) => assert.equal(response.body.code, "CONTACT_BLOCKED"));
 
+  const legacySearch = await alice.agent.get("/api/users/search")
+    .query({ q: bob.user.username }).expect(200);
+  const modernSearch = await alice.agent.get("/api/v3/users/search")
+    .query({ q: bob.user.username }).expect(200);
+  assert.equal(legacySearch.body.users.some((user) => user.id === bob.user.id), false);
+  assert.equal(modernSearch.body.users.some((user) => user.id === bob.user.id), false);
+
   const history = await alice.agent.get("/api/v3/calls/history").expect(200);
   assert.equal(history.body.calls.some((item) => item.callId === callId && item.outcome === "blocked"), true);
   aliceSocket.disconnect();
