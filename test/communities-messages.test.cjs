@@ -71,7 +71,7 @@ test("Communities messages enforce scoped read/write, announcements, idempotency
     const publicPath = await channel("general");
     const privatePath = await channel("private", "text", true);
     const announcements = await channel("news", "announcement");
-    const message = async (actor, target, body) => actor.post(target, { body, clientNonce: nonce() });
+    const message = (actor, target, body) => actor.post(target, { body, clientNonce: nonce() });
 
     await stranger.get(publicPath).expect(404);
     await stranger.post(publicPath, { body: "injected", clientNonce: nonce() }).expect(404);
