@@ -6,14 +6,14 @@
 
 В `main` опубликована Nexora `3.5.0 Mobile Continuity`. Релиз `v3.5.0` доступен как обычный GitHub Release с unsigned Windows/Android пакетами и ручной установкой; updater metadata отсутствует. Исходники `3.4.0 Stable Core` объединены после `v3.4.0-rc.1`, но подписанный stable-дистрибутив 3.4.0 не публиковался. Для source promotion было принято отдельное исключение.
 
-Текущая разработка — `3.6.0 Connect`, [Issue #77](https://github.com/Onmaynec/Nexora/issues/77), [draft PR #110](https://github.com/Onmaynec/Nexora/pull/110). Он остаётся implementation candidate до подтверждения CI, проверки безопасности, production TURN, signed artifacts и installed cross-platform acceptance.
+Исходники `3.6.0 Connect` объединены с `main` через [PR #110](https://github.com/Onmaynec/Nexora/pull/110), но стабильный релиз `v3.6.0` ещё не опубликован: [Issue #77](https://github.com/Onmaynec/Nexora/issues/77) остаётся открытым до независимого review, production TURN, signed artifacts и installed cross-platform acceptance. Экспериментальные Communities добавлены в `main` через [PR #114](https://github.com/Onmaynec/Nexora/pull/114) с выключенным по умолчанию флагом; [Issue #78](https://github.com/Onmaynec/Nexora/issues/78) также не является завершённым релизом.
 
 Ниже сохранён утверждённый scope версий, включая первоначальные условия signed Stable Core. Эти условия — исходный release contract, а не утверждение, что подписанная версия уже выпущена.
 
 ## Planning principles
 
 - Every release follows Semantic Versioning and starts from the verified release commit of the previous version.
-- `main` remains the only current product source; implementation uses a separate branch and Pull Request.
+- `main` is the only maintained branch; unreleased implementation may be merged after green source CI, but is not considered a release before signed artifacts, external acceptance, tag and publication.
 - Critical authorization, validation, policies, quotas and state transitions are enforced server-side.
 - Schema changes require automatic backup, transactional/idempotent migration, destination integrity and downgrade protection.
 - Retry-sensitive mutations require idempotency; realtime/client reducers must tolerate duplicate delivery.
