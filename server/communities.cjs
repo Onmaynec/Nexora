@@ -344,6 +344,7 @@ function mountCommunities({ app, store, io, authRequired, log = () => {} }) {
       const scope = requirePermission(db,id,userId,"channel.create");
       const existing = db.prepare("SELECT is_private FROM community_channels WHERE id=? AND community_id=?").get(channelId,id);
       if (!existing || (existing.is_private && !permissions(db,id,userId,scope.role).has("channel.view_private"))) fail("RESOURCE_NOT_FOUND",404);
+      db.prepare("DELETE FROM community_channel_messages WHERE community_id=? AND channel_id=?").run(id,channelId);
       db.prepare("DELETE FROM community_channels WHERE id=? AND community_id=?").run(channelId,id);
       db.prepare("UPDATE communities SET revision=revision+1 WHERE id=?").run(id);
       audit(db,id,userId,"channel.deleted",channelId);
