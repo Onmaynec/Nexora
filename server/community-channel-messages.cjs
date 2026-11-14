@@ -96,6 +96,13 @@ function mountCommunityChannelMessages({ app, db, guarded, ok, fail, validId, ac
     const trimmed = body.trim();
     const saved = withTransaction(db, () => {
       const scope = channelScope(communityId, channelId, userId);
+      const rules = db.prepare("SELECT rules_text AS rulesText,rules_version AS rulesVersion FROM community_hub_settings WHERE community_id=?")
+        .get(communityId);
+      if (scope.role !== "owner" && rules?.rulesText) {
+        const accepted = db.prepare("SELECT version FROM community_rule_acceptance WHERE community_id=? AND user_id=?")
+          .get(communityId, userId);
+        if ((accepted?.version || 0) < rules.rulesVersion) fail("RULES_ACCEPTANCE_REQUIRED", 403);
+      }
       if (scope.channel.kind === "announcement"
           && !permissions(db, communityId, userId, scope.role).has("channel.announce")) fail("FORBIDDEN", 403);
       const previous = db.prepare(`SELECT id,author_id AS authorId,body,created_at AS createdAt,deleted_at AS deletedAt
