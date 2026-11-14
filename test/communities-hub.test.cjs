@@ -150,6 +150,41 @@ test("Community hub enforces owner-managed rules, scoped discovery, join queue, 
     await guest.patch(eventsUrl + "/" + event.body.eventId, { status: "cancelled" }).expect(200);
     await candidate.put(eventsUrl + "/" + event.body.eventId + "/rsvp", { status: "going" }).expect(409);
 
+    // Regression #125: channel.order cannot require IDs of private channels
+    // that the delegate is not allowed to see.
+    const firstCategory = await owner.post(prefix + "/categories", { name: "Public Alpha" }).expect(201);
+    const secondCategory = await owner.post(prefix + "/categories", { name: "Public Beta" }).expect(201);
+    const hiddenCategory = await owner.post(prefix + "/categories", { name: "Hidden Group" }).expect(201);
+    await owner.post(prefix + "/channels", { name: "Alpha room", categoryId: firstCategory.body.category.id }).expect(201);
+    await owner.post(prefix + "/channels", { name: "Beta room", categoryId: secondCategory.body.category.id }).expect(201);
+    const hiddenChannel = await owner.post(prefix + "/channels", {
+      name: "Hidden room", isPrivate: true, categoryId: hiddenCategory.body.category.id,
+    }).expect(201);
+    const organizer = await owner.post(prefix + "/roles", {
+      name: "Channel Organizer", permissions: ["channel.order"],
+    }).expect(201);
+    await owner.put(prefix + "/members/" + guestUser.id + "/roles/" + organizer.body.role.id, {}).expect(200);
+    const limited = (await guest.get(prefix).expect(200)).body.community;
+    assert.equal(limited.channels.some((item) => item.id === hiddenChannel.body.channel.id), false);
+    assert.equal(limited.categories.some((item) => item.id === hiddenCategory.body.category.id), false);
+    const reorderedChannels = limited.channels.map((item) => item.id).reverse();
+    await guest.patch(prefix + "/channels/order", {
+      ids: reorderedChannels, expectedRevision: limited.revision,
+    }).expect(200);
+    const afterChannelOrder = (await owner.get(prefix).expect(200)).body.community;
+    assert.equal(afterChannelOrder.channels.at(-1).id, hiddenChannel.body.channel.id);
+    const delegated = (await guest.get(prefix).expect(200)).body.community;
+    await guest.patch(prefix + "/channels/order", {
+      ids: [...delegated.channels.map((item) => item.id), hiddenChannel.body.channel.id],
+      expectedRevision: delegated.revision,
+    }).expect(400);
+    const categoryOrder = delegated.categories.map((item) => item.id).reverse();
+    await guest.patch(prefix + "/categories/order", {
+      ids: categoryOrder, expectedRevision: delegated.revision,
+    }).expect(200);
+    const afterCategoryOrder = (await owner.get(prefix).expect(200)).body.community;
+    assert.equal(afterCategoryOrder.categories.at(-1).id, hiddenCategory.body.category.id);
+
     await owner.patch(hub, { discoverable: false }).expect(200);
     assert.equal((await outsider.get("/api/v3/communities/discovery/search").expect(200)).body.communities.some((entry) => entry.id === id), false);
     await outsider.post(hub + "/join-requests", {}).expect(404);
