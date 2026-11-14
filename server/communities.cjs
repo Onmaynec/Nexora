@@ -177,7 +177,7 @@ function mountCommunities({ app, store, io, authRequired, log = () => {} }) {
       try { cursor = JSON.parse(Buffer.from(cursorParam, "base64url").toString("utf8")); }
       catch { fail("VALIDATION_FAILED"); }
       if (!cursor || typeof cursor !== "object" || Array.isArray(cursor)
-          || typeof cursor.createdAt !== "string" || !/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$/.test(cursor.createdAt)
+          || typeof cursor.createdAt !== "string" || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}Z$/.test(cursor.createdAt)
           || !Number.isFinite(Date.parse(cursor.createdAt))
           || typeof cursor.id !== "string" || !ID.test(cursor.id)) fail("VALIDATION_FAILED");
     }
