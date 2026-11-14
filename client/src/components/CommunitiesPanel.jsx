@@ -15,6 +15,8 @@ export default function CommunitiesPanel({ onBack, showToast }) {
   const [currentId, setCurrentId] = useState(null);
   const [community, setCommunity] = useState(null);
   const [members, setMembers] = useState([]);
+  const [memberNextCursor, setMemberNextCursor] = useState(null);
+  const [loadingMoreMembers, setLoadingMoreMembers] = useState(false);
   const [roles, setRoles] = useState([]);
   const [reports, setReports] = useState([]);
   const [invites, setInvites] = useState([]);
@@ -31,12 +33,12 @@ export default function CommunitiesPanel({ onBack, showToast }) {
   }, []);
 
   const load = useCallback(async (id) => {
-    if (!id) { setCommunity(null); return; }
+    if (!id) { setCommunity(null); setMembers([]); setMemberNextCursor(null); return; }
     const result = await api(ROOT + "/" + encodeURIComponent(id));
     const item = result.community;
     const prefix = ROOT + "/" + encodeURIComponent(id);
     const jobs = [
-      perms(item, "members.moderate") ? api(prefix + "/members") : Promise.resolve({ members: [] }),
+      perms(item, "members.moderate") ? api(prefix + "/members?limit=50") : Promise.resolve({ members: [], nextCursor: null }),
       perms(item, "roles.manage") ? api(prefix + "/roles") : Promise.resolve({ roles: [] }),
       perms(item, "reports.manage") ? api(prefix + "/reports") : Promise.resolve({ reports: [] }),
       perms(item, "invites.create") ? api(prefix + "/invites") : Promise.resolve({ invites: [] }),
@@ -45,6 +47,7 @@ export default function CommunitiesPanel({ onBack, showToast }) {
     const [memberResult, roleResult, reportResult, inviteResult, auditResult] = await Promise.all(jobs);
     setCommunity(item);
     setMembers(memberResult.members || []);
+    setMemberNextCursor(memberResult.nextCursor || null);
     setRoles(roleResult.roles || []);
     setReports(reportResult.reports || []);
     setInvites(inviteResult.invites || []);
@@ -99,6 +102,27 @@ export default function CommunitiesPanel({ onBack, showToast }) {
       return null;
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function loadMoreMembers() {
+    if (!community || !memberNextCursor || loadingMoreMembers || busy) return;
+    const requestedCommunityId = community.id;
+    setLoadingMoreMembers(true);
+    setError("");
+    try {
+      const prefix = ROOT + "/" + encodeURIComponent(requestedCommunityId);
+      const result = await api(prefix + "/members?limit=50&cursor=" + encodeURIComponent(memberNextCursor));
+      if (requestedCommunityId !== currentId) return;
+      setMembers((current) => {
+        const seen = new Set(current.map((item) => item.userId));
+        return [...current, ...(result.members || []).filter((item) => !seen.has(item.userId))];
+      });
+      setMemberNextCursor(result.nextCursor || null);
+    } catch (failure) {
+      setError(errorText(failure));
+    } finally {
+      setLoadingMoreMembers(false);
     }
   }
 
@@ -319,7 +343,11 @@ export default function CommunitiesPanel({ onBack, showToast }) {
             </section>}
             {perms(community, "members.moderate") && <section className="communities-manage">
               <h3>Участники и модерация</h3>
-              <p>{members.length} участников в текущем списке. Владелец и защищённые модераторы недоступны для блокировки.</p>
+              <p>{members.length} из {community.memberCount} участников загружено. Владелец и защищённые модераторы недоступны для блокировки.</p>
+              {memberNextCursor && <button type="button" disabled={loadingMoreMembers || busy}
+                aria-busy={loadingMoreMembers} onClick={loadMoreMembers}>
+                {loadingMoreMembers ? "Загружаем участников…" : "Показать ещё участников"}
+              </button>}
               <form className="communities-horizontal" onSubmit={moderate}>
                 <label>Участник<select name="userId">{members.filter((item) => item.userId !== community.ownerId).map((item) => <option key={item.userId} value={item.userId}>{item.userId} ({item.role})</option>)}</select></label>
                 <label>Причина<input name="reason" required minLength={2} maxLength={240} /></label>
