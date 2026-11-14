@@ -148,7 +148,8 @@ async function createNexoraServer(options = {}) {
       turnTtlSeconds: options.turnTtlSeconds,
       log,
     });
-    const communities = options.experimentalCommunities === true ? mountCommunities({
+    const communitiesOptIn = options.experimentalCommunities ?? (process.env.NEXORA_EXPERIMENTAL_COMMUNITIES === "1");
+    const communities = communitiesOptIn === true ? mountCommunities({
       app: instance.app,
       store: instance.store,
       io: instance.io,
