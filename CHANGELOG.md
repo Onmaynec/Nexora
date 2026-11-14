@@ -1,6 +1,6 @@
 # Changelog
 
-## [3.7.0] - In development (experimental source)
+## [Unreleased] — Nexora 3.7.0 Communities (experimental source)
 
 ### Added
 
