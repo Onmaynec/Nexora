@@ -215,6 +215,37 @@ test("experimental Communities enforces hierarchy, role, invite, moderation and 
     await owner.get("/api/v3/communities").query({ cursor: malformedCursor }).expect(400);
     await owner.get("/api/v3/communities").query({ limit: 0 }).expect(400);
 
+    // Regression: the configured community ceiling is 10 000, not 1000.
+    const addPagedMember = instance.store.db.prepare("INSERT INTO community_members VALUES (?,?,?,?)");
+    const joinedAt = "2025-01-01T00:00:00.000Z";
+    for (let index = 0; index < 1005; index += 1) {
+      addPagedMember.run(id, crypto.randomUUID(), "member", joinedAt);
+    }
+    const allMemberIds = new Set(instance.store.db.prepare(
+      "SELECT user_id AS userId FROM community_members WHERE community_id=?",
+    ).all(id).map((row) => row.userId));
+    const fetchedMemberIds = new Set();
+    let memberCursor = null;
+    for (let pageNumber = 0; pageNumber < 30; pageNumber += 1) {
+      const query = { limit: 50 };
+      if (memberCursor) query.cursor = memberCursor;
+      const response = await winner.get("/api/v3/communities/" + id + "/members").query(query).expect(200);
+      assert.ok(response.body.members.length > 0 && response.body.members.length <= 50);
+      for (const item of response.body.members) {
+        assert.equal(fetchedMemberIds.has(item.userId), false, "duplicate in member cursor pages");
+        fetchedMemberIds.add(item.userId);
+      }
+      memberCursor = response.body.nextCursor;
+      if (!memberCursor) break;
+    }
+    assert.deepEqual(fetchedMemberIds, allMemberIds);
+    assert.equal(memberCursor, null);
+    await loser.get("/api/v3/communities/" + id + "/members").expect(404);
+    const malformedMemberCursor = Buffer.from(JSON.stringify({ joinedAt: [], userId: {} })).toString("base64url");
+    await winner.get("/api/v3/communities/" + id + "/members")
+      .query({ cursor: malformedMemberCursor }).expect(400);
+    await winner.get("/api/v3/communities/" + id + "/members").query({ limit: 0 }).expect(400);
+
     const consumed = instance.store.db.prepare("SELECT uses,max_uses FROM community_invites WHERE code_hash=?").get(
       crypto.createHash("sha256").update(oneUse.body.code).digest("hex"),
     );

@@ -360,9 +360,32 @@ function mountCommunities({ app, store, io, authRequired, log = () => {} }) {
 
   app.get("/api/v3/communities/:communityId/members", ...guarded((request, userId) => {
     const id = validId(request.params.communityId);
-    requirePermission(db,id,userId,"members.moderate");
-    const members = db.prepare("SELECT user_id AS userId,role,joined_at AS joinedAt FROM community_members WHERE community_id=? ORDER BY joined_at LIMIT 1000").all(id);
-    return ok({ members });
+    requirePermission(db, id, userId, "members.moderate");
+    const limit = request.query.limit == null ? 50 : Number(request.query.limit);
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) fail("VALIDATION_FAILED");
+    let cursor = null;
+    if (request.query.cursor != null && request.query.cursor !== "") {
+      if (typeof request.query.cursor !== "string" || request.query.cursor.length > 512) fail("VALIDATION_FAILED");
+      try { cursor = JSON.parse(Buffer.from(request.query.cursor, "base64url").toString("utf8")); }
+      catch { fail("VALIDATION_FAILED"); }
+      if (!cursor || typeof cursor !== "object" || Array.isArray(cursor)
+          || typeof cursor.joinedAt !== "string"
+          || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}Z$/.test(cursor.joinedAt)
+          || !Number.isFinite(Date.parse(cursor.joinedAt))
+          || typeof cursor.userId !== "string" || !ID.test(cursor.userId)) fail("VALIDATION_FAILED");
+    }
+    const clause = cursor ? " AND (joined_at > ? OR (joined_at = ? AND user_id > ?))" : "";
+    const params = cursor ? [id, cursor.joinedAt, cursor.joinedAt, cursor.userId, limit + 1] : [id, limit + 1];
+    const rows = db.prepare(`SELECT user_id AS userId,role,joined_at AS joinedAt FROM community_members
+      WHERE community_id=?${clause} ORDER BY joined_at,user_id LIMIT ?`).all(...params);
+    const page = rows.slice(0, limit);
+    const last = page.at(-1);
+    return ok({
+      members: page,
+      nextCursor: rows.length > limit && last
+        ? Buffer.from(JSON.stringify({ joinedAt: last.joinedAt, userId: last.userId })).toString("base64url")
+        : null,
+    });
   }));
 
   app.get("/api/v3/communities/:communityId/roles", ...guarded((request, userId) => {
