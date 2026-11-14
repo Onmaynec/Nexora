@@ -216,10 +216,10 @@ test("experimental Communities enforces hierarchy, role, invite, moderation and 
     await owner.get("/api/v3/communities").query({ limit: 0 }).expect(400);
 
     // Regression: the configured community ceiling is 10 000, not 1000.
-    const insertMember = instance.store.db.prepare("INSERT INTO community_members VALUES (?,?,?,?)");
+    const addPagedMember = instance.store.db.prepare("INSERT INTO community_members VALUES (?,?,?,?)");
     const joinedAt = "2025-01-01T00:00:00.000Z";
     for (let index = 0; index < 1005; index += 1) {
-      insertMember.run(id, crypto.randomUUID(), "member", joinedAt);
+      addPagedMember.run(id, crypto.randomUUID(), "member", joinedAt);
     }
     const allMemberIds = new Set(instance.store.db.prepare(
       "SELECT user_id AS userId FROM community_members WHERE community_id=?",
