@@ -67,3 +67,36 @@
   .communities-messages-head { align-items: start; flex-direction: column; }
   .communities-messages-list { max-height: 360px; }
 }
+
+
+/* Communities content expansion: discovery, rules, events, moderated join queue */
+.community-discovery { margin: 22px 0; padding: 16px 0; border-top: 1px solid rgba(176,144,226,.15); border-bottom: 1px solid rgba(176,144,226,.15); }
+.community-discovery h3, .communities-hub h3 { display: flex; align-items: center; gap: 8px; }
+.community-discovery-results { display: grid; gap: 10px; margin-top: 12px; }
+.community-discovery-result { padding: 13px; border: 1px solid rgba(176,144,226,.17); border-radius: 12px; background: rgba(176,144,226,.035); }
+.community-discovery-result strong { display: block; font-size: 14px; overflow-wrap: anywhere; }
+.community-discovery-result small { display: flex; align-items: center; gap: 6px; color: var(--text-secondary,#9b94a9); font-size: 12px; margin-top: 4px; }
+.community-discovery-result p, .communities-event p { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.5; color: var(--text-secondary,#9b94a9); }
+.community-discovery-result button, .communities-hub button { border: 1px solid rgba(176,144,226,.28); background: rgba(176,144,226,.11); border-radius: 9px; padding: 7px 11px; color: inherit; cursor: pointer; }
+.community-discovery-result button { margin-top: 8px; font-size: 12px; }
+.communities-hub { margin: 20px 0; padding: 18px; border: 1px solid rgba(176,144,226,.21); background: rgba(176,144,226,.035); border-radius: 16px; }
+.communities-hub h3 { margin-top: 0; font-size: 15px; }
+.communities-hint { color: var(--text-secondary,#9b94a9); font-size: 13px; }
+.communities-rules { border-left: 3px solid rgba(176,144,226,.75); padding: 9px 12px; margin: 12px 0; background: rgba(176,144,226,.045); border-radius: 0 9px 9px 0; }
+.communities-rules p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; margin: 0 0 7px; font-size: 13px; }
+.communities-rules small, .communities-join-request small, .communities-event small { display: block; color: var(--text-secondary,#9b94a9); font-size: 12px; margin-top: 4px; }
+.communities-hub-form { margin: 14px 0 8px; border: 1px solid rgba(176,144,226,.15); padding: 14px; border-radius: 12px; background: rgba(16,13,25,.15); }
+.communities-join-requests, .communities-calendar { margin-top: 20px; border-top: 1px solid rgba(176,144,226,.15); padding-top: 18px; }
+.communities-join-request { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 11px 0; border-bottom: 1px solid rgba(176,144,226,.12); }
+.communities-join-request > span { flex: 1; min-width: 80px; overflow-wrap: anywhere; }
+.communities-event { padding: 15px 0; border-top: 1px solid rgba(176,144,226,.12); overflow-wrap: anywhere; }
+.communities-event > div:first-child { display: grid; gap: 3px; }
+.communities-event strong { font-size: 14px; }
+.communities-event-actions { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 11px; }
+.communities-event-actions button[aria-pressed=true] { border-color: rgba(177,140,232,.8); background: rgba(176,144,226,.3); }
+.communities-event-dates { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 9px; }
+@media (max-width: 650px) {
+ .communities-event-dates { grid-template-columns: minmax(0,1fr); }
+ .communities-hub { padding: 13px; }
+ .communities-join-request > span { flex-basis: 100%; }
+}
