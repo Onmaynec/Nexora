@@ -167,9 +167,33 @@ function mountCommunities({ app, store, io, authRequired, log = () => {} }) {
   }
   const ok = (body, status = 200) => ({ status, body: { ok: true, ...body } });
 
-  app.get("/api/v3/communities", ...guarded((_request, userId) => {
-    const rows = db.prepare("SELECT c.id,c.name,c.description,m.role AS viewerRole FROM communities c JOIN community_members m ON m.community_id=c.id WHERE m.user_id=? ORDER BY c.created_at DESC LIMIT 100").all(userId);
-    return ok({ communities: rows });
+  app.get("/api/v3/communities", ...guarded((request, userId) => {
+    const limit = request.query.limit == null ? 50 : Number(request.query.limit);
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) fail("VALIDATION_FAILED");
+    const cursorParam = request.query.cursor;
+    let cursor = null;
+    if (cursorParam != null && cursorParam !== "") {
+      if (typeof cursorParam !== "string" || cursorParam.length > 512) fail("VALIDATION_FAILED");
+      try { cursor = JSON.parse(Buffer.from(cursorParam, "base64url").toString("utf8")); }
+      catch { fail("VALIDATION_FAILED"); }
+      if (!cursor || typeof cursor !== "object" || Array.isArray(cursor)
+          || typeof cursor.createdAt !== "string" || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}Z$/.test(cursor.createdAt)
+          || !Number.isFinite(Date.parse(cursor.createdAt))
+          || typeof cursor.id !== "string" || !ID.test(cursor.id)) fail("VALIDATION_FAILED");
+    }
+    const whereCursor = cursor ? " AND (c.created_at < ? OR (c.created_at = ? AND c.id < ?))" : "";
+    const params = cursor ? [userId, cursor.createdAt, cursor.createdAt, cursor.id, limit + 1] : [userId, limit + 1];
+    const rows = db.prepare(`SELECT c.id,c.name,c.description,m.role AS viewerRole,c.created_at AS createdAt
+      FROM communities c JOIN community_members m ON m.community_id=c.id
+      WHERE m.user_id=?${whereCursor} ORDER BY c.created_at DESC,c.id DESC LIMIT ?`).all(...params);
+    const page = rows.slice(0, limit);
+    const last = page.at(-1);
+    return ok({
+      communities: page.map(({ createdAt, ...item }) => item),
+      nextCursor: rows.length > limit && last
+        ? Buffer.from(JSON.stringify({ createdAt: last.createdAt, id: last.id })).toString("base64url")
+        : null,
+    });
   }));
 
   app.post("/api/v3/communities", ...guarded((request, userId) => {
