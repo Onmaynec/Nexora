@@ -26,37 +26,34 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check there are no outstanding pull requests
+      - name: Verify all pull requests are closed
         shell: bash
         run: |
           set -euo pipefail
           open_count="$(gh api "repos/$GITHUB_REPOSITORY/pulls?state=open&per_page=100" --jq 'length')"
           if [[ "$open_count" -ne 0 ]]; then
-            echo "Refusing branch cleanup: $open_count open pull request(s) remain." >&2
+            echo "Refusing cleanup while $open_count pull request(s) are open." >&2
             exit 1
           fi
-          if git ls-remote --exit-code origin "refs/tags/$ARCHIVE_TAG" >/dev/null 2>&1; then
-            echo "Archive tag already exists; remaining branches must be ancestors of that archive."
-          fi
 
-      - name: Capture all branch heads and create a single recoverable archive tag
+      - name: Save all former branch histories in one archive tag
         shell: bash
         run: |
           set -euo pipefail
           git fetch origin '+refs/heads/*:refs/remotes/origin/*'
-          git for-each-ref --format='%(refname:strip=3)%09%(objectname)'             'refs/remotes/origin/' | grep -v '^main[[:space:]]' > "$RUNNER_TEMP/branches.tsv"
+          git for-each-ref --format='%(refname:strip=3)%09%(objectname)' 'refs/remotes/origin/' |
+            grep -v '^main[[:space:]]' > "$RUNNER_TEMP/branches.tsv" || true
           if [[ ! -s "$RUNNER_TEMP/branches.tsv" ]]; then
-            echo "There are no non-main branches."
+            echo "No old branches."
             exit 0
           fi
           main_sha="$(git rev-parse refs/remotes/origin/main)"
-          main_tree="$(git rev-parse "${main_sha}^{tree}")"
+          main_tree="$(git rev-parse "$main_sha^{tree}")"
           declare -A seen=()
           parents=(-p "$main_sha")
           seen["$main_sha"]=1
           while IFS=$'\t' read -r branch sha; do
-            [[ -n "$branch" && -n "$sha" ]] || continue
-            [[ "$branch" != main ]] || { echo "Unexpected main branch in removal list" >&2; exit 1; }
+            [[ -n "$branch" && -n "$sha" && "$branch" != main ]] || exit 1
             [[ "$(git cat-file -t "$sha")" == commit ]] || exit 1
             if [[ -z "${seen[$sha]:-}" ]]; then
               seen["$sha"]=1
@@ -71,27 +68,30 @@ jobs:
             git fetch origin "refs/tags/$ARCHIVE_TAG:refs/tags/$ARCHIVE_TAG"
             archive_sha="$(git rev-parse "refs/tags/$ARCHIVE_TAG^{}")"
           else
-            archive_sha="$(git commit-tree "$main_tree" "${parents[@]}" -m "Archive 2026-11-14: all former branch histories prior to main-only cleanup")"
+            archive_sha="$(git commit-tree "$main_tree" "${parents[@]}" -m "Archive 2026-11-14: branch history prior to main-only cleanup")"
             git tag -a "$ARCHIVE_TAG" "$archive_sha" -m "Nexora branch consolidation backup, 2026-11-14"
             git push origin "refs/tags/$ARCHIVE_TAG"
           fi
           git ls-remote --exit-code origin "refs/tags/$ARCHIVE_TAG" >/dev/null
-          while IFS=
+          while IFS=$'\t' read -r branch sha; do
+            git merge-base --is-ancestor "$sha" "$archive_sha" || {
+              echo "Archive missing branch $branch ($sha)" >&2
+              exit 1
+            }
+          done < "$RUNNER_TEMP/branches.tsv"
           echo "Archived $(wc -l < "$RUNNER_TEMP/branches.tsv") branch heads in $ARCHIVE_TAG"
-          echo "Archive commit: $archive_sha"
 
-      - name: Remove every branch except main
+      - name: Delete branches other than main and verify
         shell: bash
         run: |
           set -euo pipefail
           [[ -s "$RUNNER_TEMP/branches.tsv" ]] || exit 0
           git ls-remote --exit-code origin "refs/tags/$ARCHIVE_TAG" >/dev/null
-          while IFS=$'\t' read -r branch expected_sha; do
-            [[ -n "$branch" && -n "$expected_sha" ]] || continue
-            [[ "$branch" != main ]] || exit 1
+          while IFS=$'\t' read -r branch sha; do
+            [[ -n "$branch" && -n "$sha" && "$branch" != main ]] || exit 1
             current_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" --jq '.object.sha')"
-            if [[ "$current_sha" != "$expected_sha" ]]; then
-              echo "Branch $branch moved; refusing deletion. Was $expected_sha, now $current_sha" >&2
+            if [[ "$current_sha" != "$sha" ]]; then
+              echo "Branch $branch changed; refusing deletion." >&2
               exit 1
             fi
             gh api --silent -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$branch"
@@ -99,36 +99,7 @@ jobs:
           done < "$RUNNER_TEMP/branches.tsv"
           remaining="$(gh api --paginate "repos/$GITHUB_REPOSITORY/branches?per_page=100" --jq '.[].name' | grep -v '^main$' || true)"
           if [[ -n "$remaining" ]]; then
-            printf 'Remaining branches:\n%s\n' "$remaining" >&2
+            echo "Remaining branches: $remaining" >&2
             exit 1
           fi
-          echo "Verified: main is the only remaining branch."
-\t' read -r branch sha; do
-            git merge-base --is-ancestor "$sha" "$archive_sha" || { echo "Archive does not contain $branch ($sha)" >&2; exit 1; }
-          done < "$RUNNER_TEMP/branches.tsv"
-          echo "Archived $(wc -l < "$RUNNER_TEMP/branches.tsv") branch heads in $ARCHIVE_TAG"
-          echo "Archive commit: $archive_sha"
-
-      - name: Remove every branch except main
-        shell: bash
-        run: |
-          set -euo pipefail
-          [[ -s "$RUNNER_TEMP/branches.tsv" ]] || exit 0
-          git ls-remote --exit-code origin "refs/tags/$ARCHIVE_TAG" >/dev/null
-          while IFS=$'\t' read -r branch expected_sha; do
-            [[ -n "$branch" && -n "$expected_sha" ]] || continue
-            [[ "$branch" != main ]] || exit 1
-            current_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" --jq '.object.sha')"
-            if [[ "$current_sha" != "$expected_sha" ]]; then
-              echo "Branch $branch moved; refusing deletion. Was $expected_sha, now $current_sha" >&2
-              exit 1
-            fi
-            gh api --silent -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$branch"
-            echo "Deleted $branch"
-          done < "$RUNNER_TEMP/branches.tsv"
-          remaining="$(gh api --paginate "repos/$GITHUB_REPOSITORY/branches?per_page=100" --jq '.[].name' | grep -v '^main$' || true)"
-          if [[ -n "$remaining" ]]; then
-            printf 'Remaining branches:\n%s\n' "$remaining" >&2
-            exit 1
-          fi
-          echo "Verified: main is the only remaining branch."
+          echo "Verified that main is the only branch."
