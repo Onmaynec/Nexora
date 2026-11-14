@@ -692,7 +692,19 @@ async function mountConnect({
       .filter((user) => !user.disabledAt && user.id !== auth.user.id && !isBlockedEither(state, auth.user.id, user.id))
       .filter((user) => user.username.toLowerCase().includes(query) || user.displayName.toLowerCase().includes(query))
       .sort((left, right) => left.username.localeCompare(right.username) || left.id.localeCompare(right.id));
-    const foundStart = cursor ? sorted.findIndex((user) => user.username > cursor.username || (user.username === cursor.username && user.id > cursor.id)) : 0;
+    if (cursor && (
+      Array.isArray(cursor)
+      || typeof cursor.username !== "string"
+      || !/^[a-z0-9_.-]{3,24}$/.test(cursor.username)
+      || typeof cursor.id !== "string"
+      || !SAFE_ID.test(cursor.id)
+    )) {
+      throw connectError("Некорректный cursor.", "VALIDATION_FAILED", 400);
+    }
+    const foundStart = cursor ? sorted.findIndex((user) =>
+      user.username.localeCompare(cursor.username) > 0
+      || (user.username === cursor.username && user.id.localeCompare(cursor.id) > 0)
+    ) : 0;
     const start = foundStart < 0 ? sorted.length : foundStart;
     const page = sorted.slice(start, start + limit);
     const users = page.map((user) => {

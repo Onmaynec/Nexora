@@ -41,12 +41,12 @@ function cookieFrom(response) {
   return response.headers["set-cookie"][0].split(";")[0];
 }
 
-async function register(label) {
+async function register(label, usernameOverride = null) {
   let csrf = "";
   const agent = browserAgent(request.agent(instance.app), () => csrf);
   const response = await agent.post("/api/auth/register").send({
     displayName: label,
-    username: `${label.toLowerCase().replace(/[^a-z0-9]/g, "")}_${crypto.randomBytes(3).toString("hex")}`,
+    username: usernameOverride || `${label.toLowerCase().replace(/[^a-z0-9]/g, "")}_${crypto.randomBytes(3).toString("hex")}`,
     password: "ConnectTest123!",
   }).expect(201);
   csrf = response.body.csrfToken;
@@ -160,6 +160,32 @@ test("schema 10 migration and Connect status are active", async () => {
   for (const table of ["connect_privacy", "connect_call_history", "connect_idempotency", "connect_audit"]) {
     assert.equal(instance.store.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(table).name, table);
   }
+});
+
+test("Connect user search cursor uses the same collation as sorted results", async () => {
+  const viewer = await register("Search Cursor Viewer");
+  const usernames = ["cursorproof_aa", "cursorproof-aa", "cursorproof.aa", "cursorproof0aa"];
+  for (const [index, username] of usernames.entries()) {
+    await register(`Search Cursor Target ${index}`, username);
+  }
+  const expected = [...usernames].sort((a, b) => a.localeCompare(b));
+  const found = [];
+  let cursor = null;
+  for (let index = 0; index < usernames.length + 1; index += 1) {
+    const query = { q: "cursorproof", limit: 1 };
+    if (cursor) query.cursor = cursor;
+    const response = await viewer.agent.get("/api/v3/users/search").query(query).expect(200);
+    found.push(...response.body.users.map((user) => user.username));
+    cursor = response.body.nextCursor;
+    if (!cursor) break;
+  }
+  assert.deepEqual(found, expected);
+  assert.equal(cursor, null);
+
+  const malformed = Buffer.from(JSON.stringify({ username: [], id: {} })).toString("base64url");
+  const invalid = await viewer.agent.get("/api/v3/users/search")
+    .query({ q: "cursorproof", limit: 1, cursor: malformed }).expect(400);
+  assert.equal(invalid.body.code, "VALIDATION_FAILED");
 });
 
 test("contact mutations require CSRF and idempotency", async () => {
