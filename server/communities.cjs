@@ -1,9 +1,10 @@
 "use strict";
 
 const crypto = require("node:crypto");
+const { mountCommunityChannelMessages } = require("./community-channel-messages.cjs");
 
 const PERMISSIONS = new Set([
-  "channel.create", "channel.order", "channel.view_private",
+  "channel.create", "channel.order", "channel.view_private", "channel.announce",
   "invites.create", "members.moderate", "reports.manage", "roles.manage",
 ]);
 const ID = /^[A-Za-z0-9_.:-]{8,160}$/;
@@ -84,7 +85,7 @@ function access(db, communityId, userId) {
 function permissions(db, communityId, userId, role) {
   if (role === "owner") return new Set(PERMISSIONS);
   const out = new Set(role === "moderator" ? [
-    "channel.create", "channel.order", "channel.view_private",
+    "channel.create", "channel.order", "channel.view_private", "channel.announce",
     "invites.create", "members.moderate", "reports.manage",
   ] : []);
   const records = db.prepare("SELECT r.permissions FROM community_roles r JOIN community_role_assignments a ON a.role_id=r.id AND a.community_id=r.community_id WHERE a.community_id=? AND a.user_id=?").all(communityId, userId);
@@ -407,7 +408,7 @@ function mountCommunities({ app, store, io, authRequired, log = () => {} }) {
     const id = validId(request.params.communityId);
     const label = name(request.body?.name);
     const entries = request.body?.permissions;
-    if (!Array.isArray(entries) || entries.length > 7 || new Set(entries).size !== entries.length || !entries.every((p) => PERMISSIONS.has(p) && p !== "roles.manage" && p !== "members.moderate")) fail("VALIDATION_FAILED");
+    if (!Array.isArray(entries) || entries.length > 8 || new Set(entries).size !== entries.length || !entries.every((p) => PERMISSIONS.has(p) && p !== "roles.manage" && p !== "members.moderate")) fail("VALIDATION_FAILED");
     const roleId = withTransaction(db, () => {
       const scope = requirePermission(db, id, userId, "roles.manage");
       if (scope.role !== "owner") fail("FORBIDDEN", 403);
@@ -593,9 +594,12 @@ function mountCommunities({ app, store, io, authRequired, log = () => {} }) {
     return ok({});
   }, true));
 
+  const messageRoutes = mountCommunityChannelMessages({
+    app, db, guarded, ok, fail, validId, access, permissions, withTransaction, audit,
+  });
   return {
-    status: () => ({ enabled: true, experimental: true, schema: "isolated-communities-tables", published: false }),
-    close: () => limits.clear(),
+    status: () => ({ enabled: true, experimental: true, schema: "isolated-communities-tables", published: false, channelMessages: true }),
+    close: () => { limits.clear(); messageRoutes.close(); },
   };
 }
 
