@@ -1,198 +1,274 @@
-# Политика выпусков Nexora 3.5.0
+# Политика выпусков Nexora 3.6.0
 
 ## 1. Semantic Versioning
 
-Nexora использует SemVer:
+Nexora uses Semantic Versioning:
 
-- `MAJOR` — несовместимое изменение продукта, API или формата данных;
-- `MINOR` — обратно совместимая функциональность;
-- `PATCH` — обратно совместимое исправление, security- или operational-hardening.
+- `MAJOR` — incompatible product, API or data-contract change;
+- `MINOR` — backward-compatible functionality;
+- `PATCH` — backward-compatible bug, security or operational fix.
 
-Версия синхронизируется в `package.json`, lock-файле, Client handshake, Android metadata, документации, release notes, verification, machine-readable evidence и tag.
+Version identity must match across:
 
-## 2. Классы выпусков
+- `package.json` and `package-lock.json`;
+- Client handshake;
+- Android `versionName` / `versionCode`;
+- README, documentation and website;
+- changelog and canonical release notes;
+- verification and machine-readable release evidence;
+- installers, updater metadata and official tag.
+
+## 2. Release classes
 
 ### Development
 
-Реализация неполна или содержит незакрытые исходные дефекты. Не распространяется как продуктовый релиз.
+Implementation is incomplete or contains unresolved source defects. It is not a product release.
+
+### Implementation candidate
+
+Feature implementation exists in a release branch/PR, but source checks, review, platform acceptance or release evidence remain incomplete. No official tag or GitHub Release is allowed.
 
 ### Release candidate
 
-Исходный код и автоматические проверки готовы, но публикационная политика ещё не утверждена.
+Exact source commit and automated gates are complete, but at least one external, signing or installed acceptance gate remains. The candidate is testable but not publishable as stable.
 
 ### Stable signed
 
-Нормальный GitHub Release с подписанными Windows/Android-пакетами, verified signer identity, updater metadata и установленной platform acceptance.
+Normal GitHub Release with:
 
-### Stable unsigned manual-download
+- verified signed Windows Client and Server;
+- verified signed Android artifact;
+- complete Client/Server updater metadata;
+- source/PWA archives, SPDX SBOM and checksums;
+- independent review and installed platform evidence;
+- immutable tag and post-publication re-download verification.
 
-Нормальный, не prerelease GitHub Release без цифровой подписи Windows/Android. Допустим только после прямого решения владельца репозитория и при выполнении всех условий:
+### Unsigned test
 
-- `UNSIGNED` присутствует в именах Windows и Android assets;
-- release notes явно сообщают об отсутствии publisher identity;
-- `Get-AuthenticodeSignature` подтверждает `NotSigned`;
-- `apksigner verify` не принимает Android APK как подписанный;
-- signing-state evidence включён в assets;
-- SHA-256 checksums созданы для каждого asset;
-- SPDX SBOM опубликован;
-- автоматические updater metadata `latest.yml` и `server.yml` не публикуются;
-- релиз устанавливается вручную;
-- source CI, tests, security audit, schema soak и package smoke проходят на exact commit;
-- после публикации assets повторно скачиваются и проверяются.
-
-`Stable` в этом классе означает GitHub release channel и завершённость исходной версии. Это не означает подписанную идентичность издателя.
+A non-stable test artifact may be used only when explicitly named `UNSIGNED-TEST` and isolated from stable/update channels. It must not publish `latest.yml` or `server.yml`. It is not an acceptable substitute for a release whose contract requires signed stable distribution.
 
 ### Security patch
 
-Требует reproduction-first теста, исправления первопричины, regression coverage, compatibility statement и coordinated disclosure при необходимости.
+Requires reproduction-first coverage, root-cause correction, regression tests, compatibility statement and coordinated disclosure when appropriate.
 
-### Documentation-only
+## 3. Classification of Nexora 3.6.0
 
-Не меняет runtime, migrations, dependencies или version metadata без отдельного scope.
+`3.6.0` is a MINOR release named **Connect**.
 
-## 3. Классификация Nexora 3.5.0
+Target distribution: **Stable signed**.
 
-`3.5.0` публикуется как **Stable unsigned manual-download**.
+The implementation branch remains an **implementation candidate** while `release-evidence/current.json` contains blockers. The release workflow must not reinterpret pending evidence as approval.
 
-Владелец репозитория разрешил:
+No owner instruction in the current contract authorizes an unsigned normal/stable 3.6.0 publication. An unsigned artifact may only be a separately named test artifact and cannot satisfy the 3.6.0 Definition of Done.
 
-- официальный тег `v3.5.0`;
-- обычный GitHub Release, `prerelease=false`;
-- отметку Latest;
-- неподписанные Windows Client/Server installers;
-- неподписанный Android APK.
+## 4. Prerequisite baseline
 
-Не разрешено:
+The source baseline is published Nexora `3.5.0` Mobile Continuity.
 
-- выдавать assets за подписанные;
-- скрывать signing state;
-- публиковать updater metadata для неподписанных пакетов;
-- отключать signature verification в Electron updater;
-- использовать имена signed release assets без `UNSIGNED`;
-- пропускать CI, checksums, package smoke или post-download verification.
+Before final 3.6.0 approval, verify:
 
-## 4. Automated gates
+- `main` contains the expected 3.5.0 baseline;
+- existing users, conversations, messages, uploads and Mobile Continuity state survive schema 10 migration;
+- the previous supported installed version has a documented upgrade path;
+- release evidence records the exact baseline and release head.
+
+## 5. Automated source gates
+
+Required on the exact release head:
 
 ```bash
 npm ci
+npm run release:consistency
+npm run check
+npm run test:unit
+npm run test:performance
+npm run audit:security
 npm run release:check
 npm run test:soak
 gradle -p android :app:assembleDebug --no-daemon
 ```
 
-Release gate включает:
+The complete gate covers:
 
-- metadata synchronization;
-- release consistency;
-- syntax и Electron builder config;
+- version and documentation synchronization;
+- syntax and Electron Builder configuration;
 - production web build;
-- unit, API, integration и realtime suites;
-- performance tests;
-- security invariant и production dependency audit;
-- Linux full suite;
-- schema 9 soak;
+- unit, repository, API, integration and realtime tests;
+- direct REST/Socket.IO bypass tests;
+- performance budget;
+- dependency/security invariants;
+- schema 10 bounded soak and integrity;
 - Android source build;
-- Project websites validation.
+- project website validation.
 
-## 5. Packaging gates для v3.5.0
+Checks may not be disabled, downgraded to warnings or made less strict solely to obtain green status.
 
-Release workflow дополнительно выполняет:
+## 6. Connect-specific source blockers
 
-1. exact-head checkout после успешного CI на `main`;
-2. source/PWA build;
-3. unsigned Android release assembly;
-4. `apksigner` negative verification;
-5. unsigned Windows Client/Server NSIS build с `CSC_IDENTITY_AUTO_DISCOVERY=false`;
-6. Authenticode `NotSigned` verification;
-7. silent installed-package smoke;
-8. SPDX 2.3 SBOM;
-9. release evidence и SHA-256 checksums;
-10. immutable annotated tag;
-11. normal non-prerelease GitHub Release;
-12. full re-download and checksum verification;
-13. повторную проверку unsigned state;
-14. проверку отсутствия updater metadata.
+Any of the following blocks merge or release approval:
 
-## 6. Security claims
+- contact/block/privacy bypass through REST or Socket.IO;
+- hidden presence, exact last-seen or read receipt disclosure;
+- unrelated user/session can observe or join call signaling;
+- signal replay with a changed payload is accepted;
+- signaling payload or spam controls are unbounded;
+- TURN secret/static credentials are exposed to a client or log;
+- block, session revoke, account disable or shutdown does not terminate access;
+- microphone/peer connection remains active after a terminal path;
+- schema 9 → 10 migration lacks verified backup, transaction, integrity or downgrade protection;
+- unresolved high/critical security finding.
 
-Документация различает:
+## 7. External evidence gates
 
-1. functionality in source;
-2. automated test evidence;
-3. installed package evidence;
-4. distribution/signing state;
-5. independent external review.
+All records below must be factual, version-matched, completed and `passed`:
 
-Для `v3.5.0` допустимы утверждения:
+- `release-evidence/independent-security-review-3.6.0.json`;
+- `release-evidence/windows-acceptance-3.6.0.json`;
+- `release-evidence/android-acceptance-3.6.0.json`;
+- `release-evidence/pwa-acceptance-3.6.0.json`;
+- `release-evidence/connect-cross-platform-acceptance-3.6.0.json`.
 
-- source gates passed;
-- packages built and smoke-tested;
-- release assets checksum-verified;
-- binaries explicitly unsigned.
+A `passed` record requires:
 
-Недопустимы утверждения:
+- non-null completion timestamp;
+- concrete environment/device/build identity;
+- real test results and evidence references;
+- no unresolved high/critical finding or release blocker.
 
-- Authenticode-signed;
-- Android signer verified;
-- automatic updater eligible;
-- independently audited, если такого отчёта нет;
-- cryptographic publisher identity established.
+Source CI cannot fabricate physical-device, signer or production TURN evidence.
 
-## 7. Tag и artifacts
+## 8. Signing policy
 
-- tag: immutable `v3.5.0`;
-- package version равна tag version;
-- GitHub prerelease: false;
-- Latest: true;
-- correction после публикации выполняется новой patch-версией;
-- assets не подменяются без идентичного tag commit и повторной проверки;
-- canonical notes: `docs/releases/3.5.0/RELEASE_NOTES.md`.
+### Windows
 
-Обязательные assets:
+Protected release environment must provide:
 
-- `Nexora-Client-Setup-3.5.0-UNSIGNED.exe`;
-- `Nexora-Server-Setup-3.5.0-UNSIGNED.exe`;
-- `Nexora-Android-3.5.0-UNSIGNED.apk`;
-- PWA и source archives;
-- SPDX SBOM;
-- Windows/Android unsigned evidence;
-- release evidence;
+- Windows certificate material;
+- certificate password;
+- approved signer subject;
+- approved SHA-1 certificate thumbprint.
+
+Both installers and installed executables must have valid Authenticode signatures matching the expected subject/thumbprint and a timestamp certificate.
+
+### Android
+
+Protected release environment must provide:
+
+- keystore bytes through a protected secret;
+- keystore password;
+- key alias and key password;
+- approved signer certificate SHA-256.
+
+Gradle release build must run with signing required. `apksigner verify --verbose --print-certs` must succeed and the signer digest must match the approved identity.
+
+Partial signing configuration fails closed.
+
+## 9. Required stable assets
+
+The signed 3.6.0 release must include:
+
+- `Nexora-Client-Setup-3.6.0.exe`;
+- `Nexora-Client-Setup-3.6.0.exe.blockmap`;
+- `latest.yml`;
+- `Nexora-Server-Setup-3.6.0.exe`;
+- `Nexora-Server-Setup-3.6.0.exe.blockmap`;
+- `server.yml`;
+- `Nexora-Android-3.6.0.apk`;
+- `Nexora-PWA-3.6.0.zip`;
+- `Nexora-3.6.0-source.zip`;
+- `Nexora-3.6.0.spdx.json`;
+- `WINDOWS-SIGNATURE-EVIDENCE.json`;
+- `ANDROID-SIGNATURE-EVIDENCE.txt`;
+- `RELEASE-EVIDENCE.json`;
 - `SHA256SUMS.txt`.
 
-## 8. Updater policy
+Missing, unsigned, mismatched or incomplete assets make the release non-publishable.
 
-Electron updater остаётся fail-closed:
+## 10. Updater policy
 
-- Client channel: `latest`;
-- Server channel: `server`;
-- downgrade и prerelease consumption отключены;
-- signature/checksum mismatch отображается как `UPDATE_SIGNATURE_INVALID`;
-- unsigned `v3.5.0` не публикует `latest.yml`, `server.yml` или updater blockmaps;
-- обновление до 3.5.0 выполняется вручную.
+- Client channel: `latest` / `latest.yml`.
+- Server channel: `server` / `server.yml`.
+- Metadata version must equal `3.6.0`.
+- Installer name, size and SHA-512/blockmap references must resolve to published assets.
+- Windows updater signature verification remains enabled.
+- Downgrade and prerelease consumption remain disabled.
+- Unsigned test artifacts are never updater eligible.
+- Partial or mismatched metadata must not be published.
 
-Будущий signed release может снова публиковать updater metadata после signer verification.
+## 11. Pull Request and merge
 
-## 9. Review и merge
+The 3.6.0 Pull Request must contain:
 
-До merge release-policy PR:
+- implementation summary and user outcome;
+- changed modules;
+- schema migration/tables/indexes;
+- API and realtime contracts;
+- security controls and threat-boundary changes;
+- tests and regression-first cases;
+- exact CI run IDs and results;
+- current blockers and external prerequisites.
 
-- exact-head CI должен быть green;
-- release consistency и security audit должны учитывать unsigned policy;
-- документация, workflow, changelog и current evidence должны совпадать;
-- не должно быть временных debug scripts, failure logs или unresolved source defects.
+Before merge:
 
-Merge commit должен начинаться с `release: Nexora 3.5.0`, чтобы успешный post-merge CI запустил release workflow.
+- PR is not draft;
+- exact-head required checks are green;
+- review comments are resolved;
+- no temporary patch workflow/chunk/log remains;
+- release evidence remains truthful;
+- external approval required by repository policy is complete.
 
-## 10. Post-publication
+The merge commit should start with `release: Nexora 3.6.0` only after the release is genuinely approved. That message enables the signed publication workflow on `main`.
 
-После публикации workflow обязан:
+## 12. Signed publication workflow
 
-- подтвердить tag commit;
-- скачать все assets повторно;
-- проверить SHA-256;
-- подтвердить `NotSigned` для Windows;
-- подтвердить отсутствие валидной Android signature;
-- подтвердить отсутствие `latest.yml` и `server.yml`;
-- сохранить runtime `RELEASE-EVIDENCE.json` в GitHub Release.
+`.github/workflows/release.yml` is fail-closed and uses the protected `nexora-production-release` environment.
 
-Рабочая release-ветка закрывается после сохранения provenance.
+It must:
+
+1. resolve exact `3.6.0` commit/tag identity;
+2. reject an existing immutable release/tag mismatch;
+3. require `release-approved`, `signed: true`, `signed-stable` evidence with zero blockers;
+4. verify all external evidence records;
+5. require complete Windows/Android signing material;
+6. run full source and soak gates;
+7. build/verify signed Windows, Android, PWA, source and SBOM assets;
+8. verify updater metadata;
+9. perform installed-package smoke;
+10. create runtime evidence and checksums;
+11. create immutable annotated `v3.6.0`;
+12. publish GitHub Release;
+13. re-download and verify every asset/checksum/signature;
+14. publish success/failure status on the exact commit.
+
+The workflow must not offer an unsigned stable fallback.
+
+## 13. Tag policy
+
+Official tag: `v3.6.0`.
+
+- create only on the verified release commit;
+- annotated and immutable;
+- never force-replace or retarget;
+- verify before publishing assets;
+- corrections after publication require a new SemVer release.
+
+## 14. Post-publication evidence
+
+After publication record:
+
+- release URL;
+- tag object and peeled commit SHA;
+- source/CI/release workflow run IDs;
+- asset SHA-256 digests;
+- Windows signer subject/thumbprint/timestamp;
+- Android signer SHA-256;
+- updater metadata validation;
+- installed smoke result;
+- re-download verification result;
+- final stable status.
+
+The release branch may be closed only after provenance is retained in canonical evidence.
+
+## 15. Current limitation
+
+At the implementation-candidate stage, the repository may prove source behavior and automated checks. It cannot claim signed stable publication, production TURN quality or cross-platform installed acceptance until the corresponding protected/external evidence is complete.

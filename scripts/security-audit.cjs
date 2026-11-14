@@ -99,25 +99,34 @@ const checks = [
   ["Android TLS errors are cancelled", /onReceivedSslError[\s\S]*handler\.cancel\(\)/, android],
   ["Android never bypasses TLS errors", !/handler\.proceed\(\)/.test(android), "boolean"],
   ["Android retains fail-closed signing support for future signed builds", containsAll(androidBuild, ["nexoraRequireSigning", "NEXORA_ANDROID_KEYSTORE_PATH", "enableV2Signing = true", "enableV3Signing = true", "throw GradleException"]), "boolean"],
-  ["Official 3.5.0 unsigned release is transparent and updater-safe", containsAll(releaseWorkflow, [
-    "This workflow publishes only Nexora 3.5.0",
-    "Build explicitly unsigned Windows installers",
-    "Build explicitly unsigned Android release APK",
-    "Nexora-Client-Setup-$version-UNSIGNED.exe",
-    "Nexora-Server-Setup-$version-UNSIGNED.exe",
-    "Nexora-Android-$version-UNSIGNED.apk",
-    "WINDOWS-UNSIGNED-EVIDENCE.json",
-    "ANDROID-UNSIGNED-EVIDENCE.txt",
-    "updaterMetadataPublished = $false",
-    "publishedAsPrerelease = $false",
-    "Unsigned release must not publish automatic-updater metadata",
+  ["Connect response filtering fails closed", containsAll(read("server/connect.cjs"), [
+    "connectPrivacyJson",
+    "Missing authenticated privacy context",
+    "if (!user)",
+    "RESPONSE_FILTER_FAILED",
+    "this.status(500)",
+    "this.destroy(error)",
+  ]), "boolean"],
+  ["Official 3.6.0 signed release is evidence-gated and updater-safe", containsAll(releaseWorkflow, [
+    "This workflow publishes only Nexora 3.6.0",
+    "environment: nexora-production-release",
+    "requiresSignedArtifacts !== true",
+    "updaterMetadataPublished !== true",
+    "releaseBlockers.length !== 0",
+    "Refuse overwrite of published v3.6.0",
+    "npm run release:signing-check",
+    "gradle -p android :app:assembleRelease -PnexoraRequireSigning=true",
+    "NEXORA_ANDROID_KEYSTORE_BASE64",
+    "NEXORA_ANDROID_SIGNER_SHA256",
+    "apksigner verify",
+    "Get-AuthenticodeSignature",
+    "TimeStamperCertificate",
+    "Nexora-Client-Setup-$version.exe.blockmap",
+    "Nexora-Server-Setup-$version.exe.blockmap",
+    "latest.yml",
+    "server.yml",
     "SHA256SUMS.txt",
-    "Re-download and verify immutable release assets",
-  ]) && !containsAll(releaseWorkflow, [
-    "release:signing-check",
-    "WINDOWS_CERTIFICATE_BASE64",
-    "ANDROID_KEYSTORE_BASE64",
-  ]) && !releaseWorkflow.includes("--prerelease"), "boolean"],
+  ]) && !releaseWorkflow.includes("Nexora-Client-Setup-$version-UNSIGNED.exe"), "boolean"],
   ["No native SQLite dependency", !/better-sqlite3/.test(read("package.json")), "boolean"],
 ];
 
@@ -128,25 +137,42 @@ for (const [name, pattern, source] of checks) {
   if (!ok) failed = true;
 }
 
-const audit = spawnSync(process.platform === "win32" ? "npm.cmd" : "npm", ["audit", "--omit=dev", "--audit-level=high", "--json"], {
+const npmCli = [
+  process.env.npm_execpath,
+  path.join(path.dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js"),
+  path.join(path.dirname(process.execPath), "..", "lib", "node_modules", "npm", "bin", "npm-cli.js"),
+  path.join(path.dirname(process.execPath), "..", "node_modules", "npm", "bin", "npm-cli.js"),
+].find((candidate) => candidate && path.basename(candidate).toLowerCase() === "npm-cli.js" && fs.existsSync(candidate));
+
+const audit = npmCli ? spawnSync(process.execPath, [npmCli, "audit", "--omit=dev", "--audit-level=high", "--json"], {
   cwd: root,
   encoding: "utf8",
   shell: false,
   env: { ...process.env, NPM_CONFIG_CACHE: process.env.NPM_CONFIG_CACHE || path.join(osTmp(), "nexora-npm-cache") },
-});
+}) : { error: new Error("npm CLI entrypoint is not available"), stdout: "" };
 
 function osTmp() {
   return process.env.TEMP || process.env.TMP || "/tmp";
 }
 
 try {
+  if (audit.error) throw audit.error;
   const report = JSON.parse(audit.stdout || "{}");
   const high = Number(report.metadata?.vulnerabilities?.high || 0);
   const critical = Number(report.metadata?.vulnerabilities?.critical || 0);
   console.log(`${high + critical === 0 ? "PASS" : "FAIL"} production dependencies: high=${high}, critical=${critical}`);
+  for (const [name, item] of Object.entries(report.vulnerabilities || {})) {
+    if (!["high", "critical"].includes(item.severity)) continue;
+    const via = (item.via || []).map((entry) => typeof entry === "string" ? entry : entry.name).filter(Boolean).join(", ");
+    const resolution = item.fixAvailable === false ? "no automatic fix" : item.fixAvailable === true ? "compatible fix" : "dependency update required";
+    console.log(`FAIL dependency ${name}: ${item.severity}; via=${via || name}; ${resolution}`);
+  }
+  if (!report.metadata?.vulnerabilities || report.error) throw new Error("npm audit metadata unavailable");
+  if (audit.status !== 0 && high + critical === 0) throw new Error(`npm audit exited with status ${audit.status} without vulnerability evidence`);
   if (high || critical) failed = true;
 } catch (error) {
-  console.log(`WARN npm audit result unavailable: ${String(error?.message || "unknown error")}`);
+  console.log(`FAIL npm audit result unavailable: ${String(error?.message || "unknown error")}`);
+  failed = true;
 }
 
 if (failed) process.exitCode = 1;

@@ -5,6 +5,7 @@ import {
   Volume2, X,
 } from "lucide-react";
 import { api, patch, post, remove, uploadAvatar } from "../api";
+import ConnectSettingsCard from "./ConnectSettingsCard";
 import TrustDevicesCard from "./TrustDevicesCard";
 import { Avatar } from "./ui";
 
@@ -72,11 +73,7 @@ export default function SettingsPage({ me, blocked, version, server, preferences
       const result = await patch("/api/users/me", { displayName, status, bio });
       onMeChanged(result.user);
       showToast("Профиль обновлён");
-    } catch (error) {
-      showToast(error.message, "error");
-    } finally {
-      setSaving(false);
-    }
+    } catch (error) { showToast(error.message, "error"); } finally { setSaving(false); }
   }
 
   async function changeAvatar(files) {
@@ -87,9 +84,7 @@ export default function SettingsPage({ me, blocked, version, server, preferences
       const result = await uploadAvatar(file);
       onMeChanged(result.user);
       showToast("Аватар обновлён");
-    } catch (error) {
-      showToast(error.message, "error");
-    } finally {
+    } catch (error) { showToast(error.message, "error"); } finally {
       setAvatarBusy(false);
       if (avatarInput.current) avatarInput.current.value = "";
     }
@@ -106,11 +101,7 @@ export default function SettingsPage({ me, blocked, version, server, preferences
       event.currentTarget.reset();
       await loadSessions();
       showToast("Пароль изменён, остальные сессии завершены");
-    } catch (error) {
-      showToast(error.message, "error");
-    } finally {
-      setSaving(false);
-    }
+    } catch (error) { showToast(error.message, "error"); } finally { setSaving(false); }
   }
 
   async function toggleNotifications() {
@@ -122,12 +113,8 @@ export default function SettingsPage({ me, blocked, version, server, preferences
 
   async function changeSound(value) {
     setSound(value);
-    try {
-      await patch("/api/users/me", { notificationSound: value });
-      showToast("Звук уведомлений сохранён");
-    } catch (error) {
-      showToast(error.message, "error");
-    }
+    try { await patch("/api/users/me", { notificationSound: value }); showToast("Звук уведомлений сохранён"); }
+    catch (error) { showToast(error.message, "error"); }
   }
 
   async function endSession(session) {
@@ -136,14 +123,13 @@ export default function SettingsPage({ me, blocked, version, server, preferences
       if (result.currentEnded) return onLogout();
       await loadSessions();
       showToast("Сессия завершена");
-    } catch (error) {
-      showToast(error.message, "error");
-    }
+    } catch (error) { showToast(error.message, "error"); }
   }
 
   async function endAllSessions() {
     if (!window.confirm("Завершить все активные сессии Nexora?")) return;
-    try { await post("/api/sessions/revoke-all"); } catch {}
+    try { await post("/api/sessions/revoke-all"); }
+    catch (error) { console.debug("Remote session revocation failed; clearing local state", error); }
     onLogout();
   }
 
@@ -168,7 +154,10 @@ export default function SettingsPage({ me, blocked, version, server, preferences
     const form = new FormData(event.currentTarget);
     try {
       await api("/api/users/me/totp", { method: "DELETE", body: JSON.stringify({ password: form.get("password"), code: form.get("code") }) });
-      setTotpEnabled(false); setRecoveryCodes([]); onMeChanged({ ...me, totpEnabled: false }); event.currentTarget.reset();
+      setTotpEnabled(false);
+      setRecoveryCodes([]);
+      onMeChanged({ ...me, totpEnabled: false });
+      event.currentTarget.reset();
       showToast("Двухфакторная защита выключена");
     } catch (error) { showToast(error.message, "error"); }
   }
@@ -176,6 +165,7 @@ export default function SettingsPage({ me, blocked, version, server, preferences
   async function saveNotificationPreferences() {
     try {
       await patch("/api/users/me/preferences", { notificationMode, quietHoursStart, quietHoursEnd });
+      localStorage.setItem("nexora:quiet-hours", JSON.stringify({ start: quietHoursStart, end: quietHoursEnd }));
       showToast("Режим уведомлений сохранён");
     } catch (error) { showToast(error.message, "error"); }
   }
@@ -198,9 +188,7 @@ export default function SettingsPage({ me, blocked, version, server, preferences
       const message = error?.message || "Не удалось проверить обновления";
       setUpdate((current) => ({ ...(current || {}), status: "error", error: message }));
       showToast(message, "error");
-    } finally {
-      setUpdateBusy(false);
-    }
+    } finally { setUpdateBusy(false); }
   }
 
   async function installPwa() {
@@ -214,7 +202,7 @@ export default function SettingsPage({ me, blocked, version, server, preferences
 
   return (
     <div className="section-page settings-page">
-      <header className="section-page-head"><div><span>IDENTITY & DEVICES</span><h1>Настройки</h1><p>Профиль, безопасность и уведомления Nexora.</p></div><div className="release-badge"><span>RELEASE</span><strong>v{version ?? "3.0.0"}</strong></div></header>
+      <header className="section-page-head"><div><span>IDENTITY & DEVICES</span><h1>Настройки</h1><p>Профиль, безопасность, приватность и уведомления Nexora.</p></div><div className="release-badge"><span>RELEASE</span><strong>v{version ?? "3.0.0"}</strong></div></header>
       <div className="settings-grid settings-grid-v3">
         <section className="settings-card profile-settings-card">
           <div className="settings-card-title"><ShieldCheck size={20} /><div><h3>Профиль</h3><span>@{me.username}</span></div></div>
@@ -223,13 +211,15 @@ export default function SettingsPage({ me, blocked, version, server, preferences
         </section>
 
         <section className="settings-card notification-settings-card">
-          <div className="settings-card-title">{notifications ? <Bell size={20} /> : <BellOff size={20} />}<div><h3>Windows-уведомления</h3><span>Для новых сообщений в фоне</span></div></div>
+          <div className="settings-card-title">{notifications ? <Bell size={20} /> : <BellOff size={20} />}<div><h3>Windows-уведомления</h3><span>Для сообщений и входящих вызовов в фоне</span></div></div>
           <button type="button" className={`toggle${notifications ? " on" : ""}`} onClick={toggleNotifications}><i /><span>{notifications ? "Включены" : "Выключены"}</span></button>
           <label className="sound-select"><span><Volume2 size={16} /> Звук уведомлений</span><select value={sound} onChange={(event) => changeSound(event.target.value)}><option value="none">Без звука</option><option value="subtle">Тихий</option><option value="pulse">Импульс</option><option value="chime">Сигнал</option></select></label>
           <label className="sound-select"><span>Какие события показывать</span><select value={notificationMode} onChange={(event) => setNotificationMode(event.target.value)}><option value="all">Все сообщения</option><option value="mentions">Только упоминания и ответы</option><option value="none">Не показывать</option></select></label>
           <div className="quiet-hours"><label>Тихие часы с<input type="time" value={quietHoursStart} onChange={(event) => setQuietHoursStart(event.target.value)} /></label><label>до<input type="time" value={quietHoursEnd} onChange={(event) => setQuietHoursEnd(event.target.value)} /></label></div>
           <button type="button" className="server-switch" onClick={saveNotificationPreferences}>Сохранить режим</button>
         </section>
+
+        <ConnectSettingsCard showToast={showToast} />
 
         <section className="settings-card totp-card">
           <div className="settings-card-title"><QrCode size={20} /><div><h3>Двухфакторная защита</h3><span>{totpEnabled ? "Включена" : "TOTP и резервные коды"}</span></div></div>
@@ -267,7 +257,7 @@ export default function SettingsPage({ me, blocked, version, server, preferences
         </section>}
 
         <section className="settings-card blocked-card">
-          <div className="settings-card-title"><ShieldBan size={20} /><div><h3>Заблокированные</h3><span>Не могут писать лично и отправлять заявки</span></div></div>
+          <div className="settings-card-title"><ShieldBan size={20} /><div><h3>Заблокированные</h3><span>Не могут писать лично, видеть presence и звонить</span></div></div>
           {blocked.length ? blocked.map((user) => <div className="blocked-row" key={user.id}><Avatar user={user} size="small" onClick={() => onOpenProfile(user)} /><span><strong>{user.displayName}</strong><small>@{user.username}</small></span><button type="button" onClick={() => onUnblock(user)}>Разблокировать</button></div>) : <p className="settings-empty">Список пуст</p>}
         </section>
 

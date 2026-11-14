@@ -10,6 +10,7 @@ import "./trust-devices.css";
 import "./onboarding.css";
 import "./confirm-dialog.css";
 import "./pulse-effects.css";
+import "./connect.css";
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>

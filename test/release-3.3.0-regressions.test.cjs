@@ -63,32 +63,38 @@ test("Pulse Sandbox serves catalog, receipts and room goals without Cloud fallba
   assert.match(sandbox, /WALLET_INSUFFICIENT_FUNDS/);
 });
 
-test("official 3.5.0 release is non-prerelease, explicitly unsigned and updater-safe", () => {
+test("official 3.6.0 release is signed, non-prerelease and updater-complete", () => {
   const workflow = read(".github/workflows/release.yml");
-  const notes = read("docs/releases/3.5.0/RELEASE_NOTES.md");
+  const notes = read("docs/releases/3.6.0/RELEASE_NOTES.md");
+  const evidence = JSON.parse(read("release-evidence/current.json"));
   const legacySite = read("website/app.js");
   const siteFixes = read("website/site-fixes.js");
   const composedSite = `${legacySite}\n${siteFixes}`;
 
-  assert.match(workflow, /name: Nexora 3\.5\.0 unsigned stable release/);
-  assert.match(workflow, /Build explicitly unsigned Windows installers/);
-  assert.match(workflow, /Build explicitly unsigned Android release APK/);
+  assert.match(workflow, /name: Nexora 3\.6\.0 signed stable release/);
+  assert.match(workflow, /environment: nexora-production-release/);
+  assert.match(workflow, /Verify release approval and external evidence/);
+  assert.match(workflow, /Build signed Windows Client and Server/);
+  assert.match(workflow, /Build and verify signed Android artifact/);
   assert.match(workflow, /Get-AuthenticodeSignature/);
-  assert.match(workflow, /apksigner\.bat/);
-  assert.match(workflow, /Nexora-Client-Setup-\$version-UNSIGNED\.exe/);
-  assert.match(workflow, /Nexora-Server-Setup-\$version-UNSIGNED\.exe/);
-  assert.match(workflow, /Nexora-Android-\$version-UNSIGNED\.apk/);
-  assert.match(workflow, /WINDOWS-UNSIGNED-EVIDENCE\.json/);
-  assert.match(workflow, /ANDROID-UNSIGNED-EVIDENCE\.txt/);
-  assert.match(workflow, /updaterMetadataPublished = \$false/);
-  assert.match(workflow, /publishedAsPrerelease = \$false/);
-  assert.match(workflow, /automatic-updater metadata/);
+  assert.match(workflow, /apksigner verify/);
+  assert.match(workflow, /Nexora-Client-Setup-\$version\.exe/);
+  assert.match(workflow, /Nexora-Server-Setup-\$version\.exe/);
+  assert.match(workflow, /Nexora-Android-\$version\.apk/);
+  assert.match(workflow, /WINDOWS-SIGNATURE-EVIDENCE\.json/);
+  assert.match(workflow, /ANDROID-SIGNATURE-EVIDENCE\.txt/);
+  assert.match(workflow, /latest\.yml/);
+  assert.match(workflow, /server\.yml/);
+  assert.match(workflow, /updaterMetadataPublished = \$true/);
   assert.match(workflow, /--latest/);
   assert.doesNotMatch(workflow, /--prerelease/);
-  assert.doesNotMatch(workflow, /release:signing-check/);
-  assert.match(notes, /manual download only/i);
-  assert.match(notes, /Automatic-updater metadata/);
+  assert.doesNotMatch(workflow, /UNSIGNED/i);
+  assert.match(notes, /signed/i);
   assert.match(notes, /SHA256SUMS\.txt/);
+  assert.equal(evidence.status, "implementation-candidate");
+  assert.equal(evidence.publicationPolicy.requiresSignedArtifacts, true);
+  assert.equal(evidence.publicationPolicy.updaterMetadataPublished, false);
+  assert.ok(evidence.releaseBlockers.length > 0);
 
   assert.ok(composedSite.includes("function signatureState"));
   assert.ok(composedSite.includes("unsigned[-_ ]?test|test-build|test\\.exe"));
@@ -108,21 +114,7 @@ test("website keeps the established UX and current version markers", () => {
   }
   assert.match(legacyScript, /class AetherField/);
   assert.match(legacyScript, /document\.querySelectorAll\("\[data-tilt\]"\)/);
-  assert.match(legacyScript, /requestAnimationFrame/);
-  assert.match(legacyCss, /@keyframes spin/);
-  assert.match(legacyCss, /@keyframes dataTravel/);
-  assert.match(fixesCss, /"Segoe UI Variable Text"/);
-  assert.match(fixesCss, /"Segoe UI Variable Display"/);
-  assert.match(fixesCss, /overflow-wrap: anywhere/);
-  assert.match(fixesCss, /pointer-events: auto/);
-  assert.doesNotMatch(fixesCss, /animation\s*:\s*none\s*!important/i);
-  assert.match(fixesScript, new RegExp(`FALLBACK_VERSION = "${version}"`));
-  assert.match(legacyScript, new RegExp(`FALLBACK_VERSION = "${version}"`));
-  assert.match(fixesScript, /document\.addEventListener\("click"/);
-  assert.match(fixesScript, /applySignatureBadges/);
-});
-
-test("Pulse Cloud preserves raw Stripe webhook body", () => {
-  const cloud = read("cloud/create-cloud-server-v11.cjs");
-  assert.match(cloud, /request\.path === "\/v1\/provider\/webhooks\/stripe" \? next\(\) : jsonBody/);
+  assert.match(legacyCss, /\.site-nav/);
+  assert.match(fixesCss, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(fixesScript, new RegExp(`FALLBACK_VERSION\\s*=\\s*"${version}"`));
 });

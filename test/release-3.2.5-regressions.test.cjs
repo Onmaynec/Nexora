@@ -100,33 +100,38 @@ test("message delivery updates previews without forcing full bootstrap per event
   assert.doesNotMatch(pane, /result\.failed[\s\S]{0,180}onRefresh/);
 });
 
-test("official 3.5.0 publication is normal but explicitly unsigned and excludes updater metadata", () => {
+test("official 3.6.0 publication is signed, evidence-gated and updater-complete", () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
   const workflow = fs.readFileSync(path.join(root, ".github", "workflows", "release.yml"), "utf8");
   const clientBuilder = fs.readFileSync(path.join(root, "electron-builder.client.yml"), "utf8");
   const serverBuilder = fs.readFileSync(path.join(root, "electron-builder.server.yml"), "utf8");
+  const evidence = JSON.parse(fs.readFileSync(path.join(root, "release-evidence", "current.json"), "utf8"));
 
-  assert.doesNotMatch(pkg.scripts["release:windows"], /signing-check/);
+  assert.equal(pkg.version, "3.6.0");
   assert.match(pkg.scripts["release:windows:signed"], /signing-check/);
-  assert.match(workflow, /Nexora 3\.5\.0 unsigned stable release/);
-  assert.match(workflow, /CSC_IDENTITY_AUTO_DISCOVERY/);
-  assert.match(workflow, /Build explicitly unsigned Windows installers/);
-  assert.match(workflow, /Build explicitly unsigned Android release APK/);
-  assert.match(workflow, /Nexora-Client-Setup-\$version-UNSIGNED\.exe/);
-  assert.match(workflow, /Nexora-Server-Setup-\$version-UNSIGNED\.exe/);
-  assert.match(workflow, /Nexora-Android-\$version-UNSIGNED\.apk/);
-  assert.match(workflow, /WINDOWS-UNSIGNED-EVIDENCE\.json/);
-  assert.match(workflow, /ANDROID-UNSIGNED-EVIDENCE\.txt/);
-  assert.match(workflow, /publishedAsPrerelease = \$false/);
-  assert.match(workflow, /updaterMetadataPublished = \$false/);
-  assert.match(workflow, /--latest/);
+  assert.match(workflow, /Nexora 3\.6\.0 signed stable release/);
+  assert.match(workflow, /environment: nexora-production-release/);
+  assert.match(workflow, /Verify release approval and external evidence/);
+  assert.match(workflow, /release:signing-check/);
+  assert.match(workflow, /Build signed Windows Client and Server/);
+  assert.match(workflow, /Build and verify signed Android artifact/);
+  assert.match(workflow, /Nexora-Client-Setup-\$version\.exe/);
+  assert.match(workflow, /Nexora-Server-Setup-\$version\.exe/);
+  assert.match(workflow, /Nexora-Android-\$version\.apk/);
+  assert.match(workflow, /WINDOWS-SIGNATURE-EVIDENCE\.json/);
+  assert.match(workflow, /ANDROID-SIGNATURE-EVIDENCE\.txt/);
+  assert.match(workflow, /latest\.yml/);
+  assert.match(workflow, /server\.yml/);
+  assert.match(workflow, /\.exe\.blockmap/);
+  assert.match(workflow, /Re-download and verify immutable release assets/);
   assert.match(workflow, /--publish never/);
+  assert.doesNotMatch(workflow, /UNSIGNED/i);
   assert.match(clientBuilder, /releaseType:\s*draft/);
   assert.match(serverBuilder, /releaseType:\s*draft/);
-  assert.doesNotMatch(workflow, /--prerelease/);
-  assert.doesNotMatch(workflow, /release:signing-check/);
-  assert.doesNotMatch(workflow, /WINDOWS_CERTIFICATE_BASE64/);
-  assert.doesNotMatch(workflow, /ANDROID_KEYSTORE_BASE64/);
+  assert.equal(evidence.status, "implementation-candidate");
+  assert.equal(evidence.publicationPolicy.requiresSignedArtifacts, true);
+  assert.equal(evidence.publicationPolicy.updaterMetadataPublished, false);
+  assert.ok(evidence.releaseBlockers.length > 0);
 });
 
 test("Server control plane styles disabled controls and scrollbars inside the product theme", () => {

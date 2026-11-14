@@ -109,7 +109,7 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
     ["README.md", new RegExp(`current-${escapedVersion}`), `does not expose current version ${version}`],
     ["PROJECT_INDEX.md", new RegExp("Repository version \\| `" + escapedVersion + "`"), `does not match ${version}`],
     ["docs/README.md", new RegExp("Current repository version \\| `" + escapedVersion + "`"), `does not match ${version}`],
-    ["SECURITY.md", new RegExp("\\| `" + escapedVersion + "` \\| Stable unsigned distribution"), `supported version does not match ${version}`],
+    ["SECURITY.md", new RegExp("\\| `" + escapedVersion + "` \\| Connect implementation candidate"), `supported version does not match ${version}`],
     ["website/index.html", new RegExp(`>${escapedVersion}<`), `static version does not match ${version}`],
     ["website/app.js", new RegExp(`FALLBACK_VERSION\\s*=\\s*"${escapedVersion}"`), `fallback version does not match ${version}`],
     ["website/site-fixes.js", new RegExp(`FALLBACK_VERSION\\s*=\\s*"${escapedVersion}"`), `correction fallback version does not match ${version}`],
@@ -123,34 +123,56 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
 
   const evidence = parseJson(root, "release-evidence/current.json");
   if (evidence.version !== version || evidence.tag !== `v${version}`) fail("current release evidence identity mismatch");
-  if (evidence.status !== "release-approved" || evidence.published !== false || evidence.signed !== false) {
-    fail("current evidence must describe an approved but not-yet-published unsigned release");
+  if (evidence.status !== "implementation-candidate" || evidence.published !== false || evidence.signed !== false) {
+    fail("current evidence must describe an unpublished, unsigned implementation candidate");
   }
-  if (evidence.distribution !== "stable-unsigned-manual-download") fail("unsigned distribution identity mismatch");
-  if (evidence.baseline !== "3.4.0-source") fail("Mobile Continuity source baseline must be 3.4.0-source");
-  if (evidence.ownerAuthorization?.authorized !== true) fail("unsigned publication requires explicit owner authorization");
+  if (evidence.distribution !== "signed-stable-pending-evidence") fail("Connect distribution identity mismatch");
+  if (evidence.baseline !== "3.5.0") fail("Connect source baseline must be 3.5.0");
+  if (!Array.isArray(evidence.releaseBlockers) || evidence.releaseBlockers.length === 0) {
+    fail("implementation candidate must retain explicit release blockers");
+  }
   const policy = evidence.publicationPolicy || {};
-  if (policy.prerelease !== false || policy.latest !== true || policy.manualDownloadOnly !== true) {
-    fail("unsigned release publication flags are incomplete");
-  }
-  if (policy.updaterMetadataPublished !== false || policy.explicitUnsignedNames !== true || policy.sha256Required !== true) {
-    fail("unsigned release integrity policy is incomplete");
+  if (
+    policy.prerelease !== false
+    || policy.latest !== true
+    || policy.requiresSignedArtifacts !== true
+    || policy.updaterMetadataPublished !== false
+    || policy.sha256Required !== true
+    || policy.sbomRequired !== true
+    || policy.crossPlatformCallAcceptanceRequired !== true
+  ) {
+    fail("Connect publication policy is incomplete");
   }
   for (const asset of [
-    "Nexora-Client-Setup-3.5.0-UNSIGNED.exe",
-    "Nexora-Server-Setup-3.5.0-UNSIGNED.exe",
-    "Nexora-Android-3.5.0-UNSIGNED.apk",
+    `Nexora-Client-Setup-${version}.exe`,
+    `Nexora-Client-Setup-${version}.exe.blockmap`,
+    "latest.yml",
+    `Nexora-Server-Setup-${version}.exe`,
+    `Nexora-Server-Setup-${version}.exe.blockmap`,
+    "server.yml",
+    `Nexora-Android-${version}.apk`,
+    `Nexora-PWA-${version}.zip`,
+    `Nexora-${version}-source.zip`,
+    `Nexora-${version}.spdx.json`,
+    "WINDOWS-SIGNATURE-EVIDENCE.json",
+    "ANDROID-SIGNATURE-EVIDENCE.txt",
+    "RELEASE-EVIDENCE.json",
     "SHA256SUMS.txt",
   ]) {
-    if (!evidence.assets?.includes(asset)) fail(`release-evidence/current.json missing ${asset}`);
+    if (!evidence.plannedAssets?.includes(asset)) fail(`release-evidence/current.json missing planned asset ${asset}`);
   }
 
-  const review = parseJson(root, "release-evidence/independent-security-review-3.5.0.json");
-  const windows = parseJson(root, "release-evidence/windows-acceptance-3.5.0.json");
-  const androidAcceptance = parseJson(root, "release-evidence/android-acceptance-3.5.0.json");
-  const pwaAcceptance = parseJson(root, "release-evidence/pwa-acceptance-3.5.0.json");
-  if (review.version !== version || windows.version !== version || androidAcceptance.version !== version || pwaAcceptance.version !== version) {
-    fail("external evidence version mismatch");
+  const externalEvidence = [
+    `release-evidence/independent-security-review-${version}.json`,
+    `release-evidence/windows-acceptance-${version}.json`,
+    `release-evidence/android-acceptance-${version}.json`,
+    `release-evidence/pwa-acceptance-${version}.json`,
+    `release-evidence/connect-cross-platform-acceptance-${version}.json`,
+  ].map((relativePath) => [relativePath, parseJson(root, relativePath)]);
+  for (const [relativePath, item] of externalEvidence) {
+    if (item.version !== version) fail(`${relativePath} version mismatch`);
+    if (!["pending", "passed", "blocked"].includes(item.status)) fail(`${relativePath} has invalid status`);
+    if (item.status === "passed" && !item.completedAt) fail(`${relativePath} passed without completedAt`);
   }
 
   const releaseDirectory = `docs/releases/${version}`;
@@ -188,40 +210,36 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
 
   const releaseWorkflow = read(root, ".github/workflows/release.yml");
   for (const marker of [
-    "name: Nexora 3.5.0 unsigned stable release",
-    "Resolve authorized unsigned release identity",
-    "Build explicitly unsigned Android release APK",
-    "Build explicitly unsigned Windows installers",
-    "Nexora-Android-$version-UNSIGNED.apk",
-    "Nexora-Client-Setup-$version-UNSIGNED.exe",
-    "Nexora-Server-Setup-$version-UNSIGNED.exe",
-    "WINDOWS-UNSIGNED-EVIDENCE.json",
-    "ANDROID-UNSIGNED-EVIDENCE.txt",
-    "publishedAsPrerelease = $false",
-    "updaterMetadataPublished = $false",
-    "stable-unsigned-manual-download",
-    "docs/releases/$version/RELEASE_NOTES.md",
+    "name: Nexora 3.6.0 signed stable release",
+    "environment: nexora-production-release",
+    "Verify release approval and external evidence",
+    "release:signing-check",
+    "NEXORA_ANDROID_SIGNER_SHA256",
+    "latest.yml",
+    "server.yml",
+    "Create immutable annotated tag",
     "Re-download and verify immutable release assets",
-    "Unsigned release must not publish automatic-updater metadata",
   ]) {
     if (!releaseWorkflow.includes(marker)) fail(`.github/workflows/release.yml missing ${JSON.stringify(marker)}`);
   }
-  if (
-    releaseWorkflow.includes("release:signing-check")
-    || releaseWorkflow.includes("WINDOWS_CERTIFICATE_BASE64")
-    || releaseWorkflow.includes("ANDROID_KEYSTORE_BASE64")
-    || releaseWorkflow.includes("--prerelease")
-    || releaseWorkflow.includes("Nexora-Android-$version-UNSIGNED-TEST.apk")
-  ) {
-    fail("3.5.0 unsigned workflow contains a conflicting signing or prerelease path");
+  if (/UNSIGNED/i.test(releaseWorkflow) || !releaseWorkflow.includes("requiresSignedArtifacts")) {
+    fail(".github/workflows/release.yml must remain signed-only and evidence-gated for 3.6.0");
   }
-
   for (const temporary of [
     ".github/workflows/stable-core-migration.yml",
     ".github/workflows/stable-core-diagnostics.yml",
     ".github/workflows/dispatch-release-3.3.4.yml",
     ".github/workflows/verify-release-3.3.4.yml",
     ".github/workflows/diagnose-release-3.3.4.yml",
+    ".github/workflows/connect-diagnostics.yml",
+    ".github/workflows/connect-repair.yml",
+    ".github/workflows/apply-connect-release.yml",
+    ".github/workflows/connect-schema10-remediation.yml",
+    ".connect-release-patch",
+    ".connect-remediation",
+    ".connect-diagnostics",
+    ".connect-repair",
+    ".connect-patch-diagnostics.json",
     "scripts/apply-stable-core-3.4.cjs",
     "scripts/apply-stable-core-error-contracts.cjs",
     "scripts/apply-stable-core-bootstrap.cjs",
@@ -229,19 +247,30 @@ function checkReleaseConsistency(root = path.resolve(__dirname, "..")) {
     "scripts/apply-stable-core-runtime-retirement.cjs",
     "scripts/apply-stable-core-docs.cjs",
     "scripts/prepare-3.4-release-docs.cjs",
+    "scripts/repair-connect-3.6.cjs",
     "migration-error.log",
     "unit-failures.log",
   ]) {
     if (fs.existsSync(path.join(root, temporary))) fail(`${temporary} must be removed`);
   }
 
-  return { version, expectedAndroidCode, currentDocumentCount: currentDocuments.length };
+  return {
+    version,
+    expectedAndroidCode,
+    currentDocumentCount: currentDocuments.length,
+    releaseStatus: evidence.status,
+    releaseBlockerCount: evidence.releaseBlockers.length,
+  };
 }
 
 if (require.main === module) {
   try {
     const result = checkReleaseConsistency();
-    console.log(`Release consistency ${result.version} is valid (Android versionCode ${result.expectedAndroidCode}, ${result.currentDocumentCount} current documents).`);
+    console.log(
+      `Release consistency ${result.version} is valid `
+      + `(Android versionCode ${result.expectedAndroidCode}, ${result.currentDocumentCount} current documents, `
+      + `${result.releaseBlockerCount} explicit release blockers).`,
+    );
   } catch (error) {
     console.error(error.stack || error.message);
     process.exit(1);

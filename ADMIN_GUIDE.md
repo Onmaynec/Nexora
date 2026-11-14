@@ -1,185 +1,274 @@
-# Руководство администратора Nexora 3.4.0
+# Руководство администратора Nexora 3.6.0 Connect
 
-## 1. Область
+## 1. Scope and status
 
 | Параметр | Значение |
 |---|---|
-| Repository version | `3.4.0` |
-| Classification | Stable Core release candidate |
-| Publication | Заблокирована до verified `v3.3.4`, Authenticode/Windows acceptance и independent review |
+| Repository version | `3.6.0` |
+| Classification | Connect implementation candidate |
+| Published baseline | Nexora `3.5.0` |
 | Signed production baseline | `3.1.2` |
-| Application API | v3 |
-| Trust/MLS runtime | retired; mutations return `410/LEGACY_READ_ONLY` |
-| Legacy secure history | read-only; Server не расшифровывает ciphertext |
-| Local Server database | SQLite schema 8 |
+| Application API | v3, additively extended |
+| Local Server database | SQLite schema 10 |
+| Voice transport | WebRTC direct or operator TURN relay; no server recording |
+| Legacy Trust/MLS | runtime retired; retained history read-only |
+| Stable publication | blocked pending review, TURN, signing and installed platform evidence |
 
-Документ описывает администрирование release-candidate source. Он не подтверждает опубликованный stable `v3.4.0`.
+This guide describes candidate administration. It does not certify a published or production-approved `v3.6.0`.
 
-## 2. Deployment requirements
+## 2. Deployment boundary
 
-Local Server поддерживает localhost, private LAN/VPN и public HTTPS за reverse proxy.
+Local Server may run on localhost, private LAN/VPN or public HTTPS behind a controlled reverse proxy.
 
-Для public deployment обязательны:
+For public deployment require:
 
-- trusted HTTPS reverse proxy;
-- exact `allowedOrigins`;
-- минимально необходимая firewall exposure;
-- monitoring, alerting и verified backups;
-- отдельный защищённый OS account и disk encryption;
-- production secrets вне repository, artifacts и logs;
-- запрет прямого port forwarding Local Server без reverse proxy и monitoring.
+- trusted HTTPS and exact `allowedOrigins`;
+- minimal firewall exposure;
+- separate protected OS account and encrypted storage;
+- monitoring, alerts and verified backup/restore;
+- production secrets in environment/secret storage only;
+- operator-controlled TURN for reliable calls across NAT;
+- no direct unmanaged port-forwarding without reverse proxy and monitoring.
 
-Network reachability не является trust boundary. Каждая операция проверяет session, exact Origin/CSRF, resource existence, membership, role/permission, active ban, room policy, input scope, quota и rate limit.
+Network reachability is not authorization. REST and Socket.IO operations validate session/device, Origin/CSRF, resource scope, relationship/room policy, block/revoke, state transition, input bounds and rate limits.
 
-## 3. Installation и startup
+## 3. Installation and startup
 
 ```bash
 npm ci
 npm start
 ```
 
-После запуска проверьте:
+After startup verify:
 
-- process state;
-- полный HTTPS URL;
-- Server ID и SHA-256 certificate fingerprint;
-- `GET /healthz/live`;
-- `GET /healthz/ready`;
-- SQLite schema 8 и integrity;
-- free disk space;
-- configured Pulse mode.
+- process and readiness;
+- full HTTPS URL;
+- Server ID and certificate SHA-256 fingerprint;
+- `GET /healthz/live` and `GET /healthz/ready`;
+- SQLite schema `10` and integrity `ok`;
+- adequate free disk space;
+- expected Pulse and Connect status;
+- TURN configuration matches deployment intent.
 
-Первый локальный account получает `server_admin`.
+First local account receives `server_admin` according to existing bootstrap policy.
 
-## 4. Client trust
+## 4. TURN configuration
 
-Передайте пользователю через trusted channel:
+Configure in protected runtime environment:
 
-1. полный HTTPS URL;
+```text
+NEXORA_TURN_URLS=stun:stun.example:3478,turns:turn.example:5349?transport=tcp
+NEXORA_TURN_SECRET=<strong protected secret>
+NEXORA_TURN_TTL_SECONDS=600
+```
+
+Operational rules:
+
+- never put static credentials in Client/PWA/Android source;
+- never log the secret or generated username/credential;
+- use a short TTL within server bounds;
+- keep server clocks synchronized;
+- test relay-only calls from real external networks;
+- document secret rotation and outage handling;
+- expose only required TURN ports/transports.
+
+Without valid URLs/secret, call credential requests return `TURN_UNAVAILABLE`; do not bypass by adding a client fallback.
+
+## 5. Client trust and navigation
+
+Distribute through a trusted channel:
+
+1. exact HTTPS Local Server URL;
 2. Server ID;
-3. SHA-256 certificate fingerprint.
+3. certificate SHA-256 fingerprint or trusted CA instructions.
 
-Electron Client закрепляет fingerprint за Server ID. Browser/PWA/Android используют OS trust store. TLS warning не обходится; смена сертификата требует явного repin/approval.
+Electron isolates data by Server ID and pins certificate identity. Browser/PWA/Android use platform trust. TLS errors are not bypassed. Android accepts audio capture only for the active server origin and opens unrelated HTTPS origins externally.
 
-## 5. Health, metrics и logs
+## 6. Health, metrics and logs
 
 - `GET /healthz/live` — process liveness;
 - `GET /healthz/ready` — database/schema/runtime readiness;
-- `GET /metrics` — Prometheus format.
+- `GET /metrics` — bounded Prometheus metrics.
 
-Remote metrics требует `NEXORA_METRICS_TOKEN`; без token endpoint должен оставаться loopback-only.
+Remote metrics require `NEXORA_METRICS_TOKEN`; otherwise keep them loopback-only.
 
-Operational logs используют request IDs и recursive credential redaction. Перед передачей удалите cookies, passwords, tokens, private keys, message content и personal data.
+Observe aggregate call state/outcome/timeout/rate-limit/TURN health without user IDs or call IDs as labels. Logs use request IDs and recursive redaction. Support exports must remove cookies, passwords, CSRF/session tokens, TURN material, SDP/ICE, message content and private profile data.
 
-Graceful shutdown переводит readiness в `503` до остановки workers, HTTP, Socket.IO и SQLite.
+Graceful shutdown changes readiness before stopping workers, active calls, Socket.IO, HTTP and SQLite.
 
-## 6. Users, devices и sessions
+## 7. Users, devices and sessions
 
-Администратор может:
+Administrators may use supported controls to:
 
-- disable local account;
-- issue temporary password;
+- disable a local account;
+- issue a temporary password;
 - terminate sessions;
 - inspect safe login/audit information.
 
-Пользователь видит server-owned inventory устройств и может:
+Users can revoke a remote device or all other sessions. Current-device remote revoke returns `STATE_CONFLICT`; current logout is separate.
 
-- отозвать конкретное удалённое устройство;
-- отозвать все другие sessions;
-- получить `STATE_CONFLICT` при попытке remote-revoke текущего устройства;
-- завершить текущую session обычным logout.
+Revocation should:
 
-Revocation немедленно создаёт `session.revoked`, отключает соответствующие Socket.IO connections и обновляет `device.updated`.
+- remove authoritative session records;
+- emit `session.revoked`;
+- disconnect target Socket.IO session rooms;
+- refresh `device.updated`;
+- terminate calls bound to the revoked session;
+- reject stale signaling/TURN attempts.
 
-## 7. Rooms и moderation
+Disabling an account must invalidate all sessions, remove presence and prevent profile/search/call access.
 
-Roles:
+## 8. Contacts, block and privacy
 
-- `owner` — ровно один;
-- `moderator` — делегированная moderation;
-- `member` — обычный участник.
+Contact request states are server-owned:
 
-Поддерживаются:
+```text
+pending -> accepted | rejected | cancelled | expired
+```
 
-- назначение и снятие moderator;
-- atomic ownership transfer;
-- removal, ban и unban;
-- join requests;
-- invites с expiry, usage limit и revocation;
-- read-only, slow mode, announcement и pre-approval;
-- file/image/voice restrictions;
-- reports, appeals и temporary restrictions;
-- administrative audit log и system messages.
+Admin/support investigation should inspect:
 
-Removed/banned user немедленно теряет REST и realtime access. Active ban имеет приоритет над stale membership.
+- request actor/recipient/status/timestamps;
+- current contact relation;
+- block records;
+- privacy row;
+- safe Connect audit entries;
+- related request IDs.
 
-## 8. Ordinary messaging и legacy history
+Block:
 
-Writable messaging path — ordinary server-readable messages, files, images и voice.
+- removes contact relation;
+- cancels pending requests;
+- terminates active calls;
+- hides presence/profile detail according to policy;
+- prevents stale-socket signaling.
 
-Legacy Trust/MLS records:
+Unblock does not restore the contact.
 
-- сохраняются в schema 8 ради IDs, timestamps, epochs, ciphertext и audit provenance;
-- открываются только в `LegacySecureHistoryPane`;
-- не имеют composer, upload, voice, edit или delete controls;
-- экспортируются без server-side decryption (`serverDecrypted: false`);
-- любые legacy write requests завершаются `410/LEGACY_READ_ONLY`.
+Privacy controls:
 
-Успешная legacy mutation считается security/integrity defect.
+- presence: everyone/contacts/shared_rooms/nobody;
+- last seen: exact/approximate/hidden;
+- read receipts: everyone/contacts/shared_rooms/nobody.
 
-## 9. Uploads и media
+A disclosure incident must be verified at both query serialization and realtime emission.
 
-Server проверяет:
+## 9. Call operations
 
-- authorization и room restrictions;
-- size/quota;
-- safe filename;
-- actual MIME signature, а не только extension/header;
-- chunk/file SHA-256;
+Call states are ringing, connecting, active, reconnecting and terminal outcomes. Active call state is process-local; terminal history is minimal SQLite metadata.
+
+Server validates on every call/signaling operation:
+
+- authenticated active session;
+- target existence and availability;
+- contact/block policy;
+- exact participant and claimed device session;
+- current call state;
+- signal shape, sequence, expiry and byte bounds;
+- account/device/target/call rate windows.
+
+Call history and diagnostics must not contain media, SDP, ICE candidates, static TURN secret or generated credentials.
+
+For call failures inspect request ID, stable code, state/deadline, bound sessions, TURN status and client permission/device state. Do not capture voice content.
+
+## 10. Rooms and ordinary messaging
+
+Existing room roles remain:
+
+- `owner` — exactly one;
+- `moderator`;
+- `member`.
+
+Existing server-authorized moderation, invitations, bans, join requests, read-only/slow/media restrictions, audit and system messages remain in force. Removed/banned users lose REST and realtime access.
+
+Ordinary messages/files/images/voice remain server-readable and writable under current access policy.
+
+Legacy Trust/MLS history remains read-only:
+
+- retained schema 8 compatibility records preserve ciphertext/provenance;
+- server does not decrypt them;
+- legacy writes return `410/LEGACY_READ_ONLY`;
+- a successful legacy mutation is a security/integrity defect.
+
+## 11. Uploads and media
+
+Local Server validates:
+
+- authorization and room policy;
+- actual size/quota;
+- actual MIME signature;
+- safe filename/path;
+- chunk/file SHA-256 where resumable path applies;
 - dangerous/executable content;
-- cleanup temporary data после cancel/error.
+- temporary cleanup after cancel/error.
 
-Повреждённые images и unsupported/denied microphone flows должны завершаться стабильной ошибкой без падения Client.
+WebRTC call media is not uploaded or recorded by Connect. Voice-message upload remains the ordinary authorized upload path and is separate from direct calls.
 
-## 10. Database, migration и backup
+## 12. Schema 10 migration and backup
 
-Current database — SQLite schema 8 с WAL и `synchronous=FULL`.
+Before upgrade/restore:
 
-Перед upgrade/restore:
+1. verify source integrity;
+2. checkpoint WAL;
+3. confirm free space;
+4. create and verify operator backup;
+5. record exact commit/version;
+6. test rollback on a staging copy.
 
-1. проверьте source integrity;
-2. выполните WAL checkpoint;
-3. подтвердите free disk space;
-4. создайте verified backup;
-5. зафиксируйте exact commit/version;
-6. проверьте rollback procedure.
+Automatic schema 9 → 10 migration creates a verified pre-schema backup and one SQLite transaction, then checks target integrity. It adds privacy, call-history, idempotency and audit tables/indexes.
 
-`POST /api/v3/admin/backups/verify` выполняет non-restoring verification и доступен только `server_admin`. Backup ID должен принадлежать allowlisted backup directory.
+Future schema fails before mutation. Restoring schema 9 through the supported 3.6.0 path upgrades it to schema 10. Do not run an older binary against schema 10 or edit schema metadata manually.
 
-Future schema блокируется до mutation. Replacement failure должен откатывать DB и file store; temporary staged data удаляется после success/error.
+## 13. Backup and restore
 
-## 11. Release и updater
+`POST /api/v3/admin/backups/verify` is server-admin-only and non-restoring. Backup IDs are constrained to the managed backup directory.
 
-Для `3.4.0` официальный stable workflow требует:
+Restore requires staged database and file store, integrity/schema validation, atomic swap and rollback copies. Verify representative accounts, rooms, messages, uploads, privacy rows and call history after restart.
 
-- опубликованный verified `v3.3.4` с Client/Server installers и checksums;
-- полный Authenticode policy: certificate, password, expected subject и thumbprint;
-- signed Client/Server installers, blockmaps и channel metadata;
-- установленный `3.3.4 → 3.4.0` smoke на Windows 10 и Windows 11;
-- independent security review без unresolved high/critical findings;
-- full CI, security, soak, Android и website gates;
-- immutable tag, checksums и post-publication redownload verification.
+## 14. Security and rate-limit incidents
 
-Unsigned local packages не являются официальным release и не публикуют updater metadata.
+Stable Connect codes include:
 
-## 12. Incident response
+- `AUTH_REQUIRED`;
+- `CSRF_INVALID`;
+- `FORBIDDEN`;
+- `RESOURCE_NOT_FOUND`;
+- `STATE_CONFLICT`;
+- `VALIDATION_FAILED`;
+- `RATE_LIMITED`;
+- `POLICY_RESTRICTED`;
+- `CONTACT_BLOCKED`;
+- `CALL_STATE_CONFLICT`;
+- `CALL_TARGET_UNAVAILABLE`;
+- `TURN_UNAVAILABLE`.
 
-При инциденте:
+Do not raise or disable limits merely to clear a test. For abuse incidents, preserve bounded account/device/target counters and sanitized audit, revoke compromised sessions and add regression coverage.
 
-1. сохраните request ID, UTC time, affected account/room и stable error code;
-2. ограничьте exposure и отзовите affected sessions/tokens;
-3. создайте verified backup до destructive actions;
-4. не публикуйте secrets, DB, backups или private messages;
-5. security issues передавайте через private GitHub Security Advisory;
-6. после исправления добавьте regression test, root-cause record и closure evidence.
-> Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.
+## 15. Signed release and updater
+
+Nexora 3.6.0 is signed-stable-only. Publication requires:
+
+- independent review with zero unresolved high/critical findings;
+- production TURN acceptance;
+- signed Windows Client/Server with expected Authenticode subject/thumbprint/timestamp;
+- signed Android APK with expected certificate SHA-256;
+- complete Client/Server blockmaps and updater metadata;
+- installed Windows 10/11, Android and PWA acceptance;
+- Windows↔Android/PWA cross-platform call matrix;
+- source/PWA/SPDX/signature/checksum assets;
+- post-publication re-download verification.
+
+Current candidate evidence deliberately blocks the release workflow until these are factual and approved.
+
+## 16. Incident response
+
+1. record UTC time, exact version/commit, request ID and stable code;
+2. contain exposure: revoke session/account, block relationship, disable TURN or stop traffic as appropriate;
+3. preserve verified database/runtime evidence before destructive action;
+4. redact secrets/content/private data;
+5. use private GitHub Security Advisory for security reports;
+6. identify root cause and add a failing regression first;
+7. restore/redeploy through supported procedures;
+8. record closure and release impact.
+
+A third-party signaling join, privacy disclosure, leaked TURN credential or microphone remaining active after terminal call is a release-blocking incident.

@@ -55,6 +55,22 @@ function areContacts(state, firstUserId, secondUserId) {
   );
 }
 
+function shareRoom(state, firstUserId, secondUserId) {
+  const firstRooms = new Set(state.roomMembers.filter((member) => member.userId === firstUserId).map((member) => member.roomId));
+  return state.roomMembers.some((member) => member.userId === secondUserId && firstRooms.has(member.roomId));
+}
+
+function canSeeReadReceipt(state, viewerId, readerId) {
+  if (viewerId === readerId) return true;
+  const reader = findUser(state, readerId);
+  if (!reader || isBlockedEither(state, viewerId, readerId)) return false;
+  const visibility = reader.readReceiptsVisibility ?? "contacts";
+  if (visibility === "everyone") return true;
+  if (visibility === "contacts") return areContacts(state, viewerId, readerId);
+  if (visibility === "shared_rooms") return shareRoom(state, viewerId, readerId);
+  return false;
+}
+
 function canAccessConversation(state, conversation, userId) {
   if (!conversation) return false;
   if (conversation.type === "dm") return conversation.userIds.includes(userId);
@@ -128,12 +144,13 @@ function serializeMessage(state, message, viewerId) {
     grouped.set(reaction.emoji, group);
   }
 
-  const readCount = state.reads.filter(
+  const readCount = message.senderId === viewerId ? state.reads.filter(
     (read) =>
       read.conversationId === message.conversationId &&
       read.userId !== message.senderId &&
-      Date.parse(read.lastReadAt) >= Date.parse(message.createdAt),
-  ).length;
+      Date.parse(read.lastReadAt) >= Date.parse(message.createdAt) &&
+      canSeeReadReceipt(state, viewerId, read.userId),
+  ).length : 0;
 
   const reply = message.replyToId
     ? messagePreview(state, state.messages.find((candidate) => candidate.id === message.replyToId))
@@ -458,6 +475,7 @@ function safeDownloadName(name) {
 module.exports = {
   accessibleFiles,
   areContacts,
+  canSeeReadReceipt,
   canAccessConversation,
   canModerateConversation,
   contactState,

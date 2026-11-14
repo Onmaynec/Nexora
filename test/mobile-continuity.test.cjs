@@ -113,7 +113,7 @@ test("schema 9 API keeps push secrets private and resumes uploads from confirmed
   });
 
   const status = await instance.listen();
-  assert.equal(status.schemaVersion, 9);
+  assert.equal(status.schemaVersion, 10);
   assert.equal(status.mobileContinuity.tokenPlaintextStored, false);
   let csrf = "";
   const agent = browserAgent(request.agent(instance.app), () => csrf);

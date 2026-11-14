@@ -8,6 +8,7 @@ const test = require("node:test");
 const { checkReleaseConsistency } = require("../scripts/check-release-consistency.cjs");
 
 const root = path.resolve(__dirname, "..");
+const version = require("../package.json").version;
 const fixtureFiles = [
   "package.json",
   "package-lock.json",
@@ -41,22 +42,20 @@ const fixtureFiles = [
   "website/site-fixes.js",
   "CHANGELOG.md",
   "release-evidence/current.json",
-  "release-evidence/independent-security-review-3.5.0.json",
-  "release-evidence/windows-acceptance-3.5.0.json",
-  "release-evidence/android-acceptance-3.5.0.json",
-  "release-evidence/pwa-acceptance-3.5.0.json",
+  `release-evidence/independent-security-review-${version}.json`,
+  `release-evidence/windows-acceptance-${version}.json`,
+  `release-evidence/android-acceptance-${version}.json`,
+  `release-evidence/pwa-acceptance-${version}.json`,
+  `release-evidence/connect-cross-platform-acceptance-${version}.json`,
+  `RELEASE_NOTES_${version}.md`,
+  `RELEASE_VERIFICATION_${version}.md`,
+  `docs/releases/${version}/RELEASE_NOTES.md`,
+  `docs/releases/${version}/RELEASE_VERIFICATION.md`,
 ];
 
 function copyFixture() {
   const target = fs.mkdtempSync(path.join(os.tmpdir(), "nexora-release-consistency-"));
-  const version = require("../package.json").version;
-  const releaseFiles = [
-    `RELEASE_NOTES_${version}.md`,
-    `RELEASE_VERIFICATION_${version}.md`,
-    `docs/releases/${version}/RELEASE_NOTES.md`,
-    `docs/releases/${version}/RELEASE_VERIFICATION.md`,
-  ];
-  for (const relativePath of [...fixtureFiles, ...releaseFiles]) {
+  for (const relativePath of fixtureFiles) {
     const source = path.join(root, relativePath);
     const destination = path.join(target, relativePath);
     fs.mkdirSync(path.dirname(destination), { recursive: true });
@@ -76,8 +75,10 @@ function withFixture(callback) {
 
 test("release metadata and every current documentation surface use one version", () => {
   const result = checkReleaseConsistency(root);
-  assert.equal(result.version, require("../package.json").version);
+  assert.equal(result.version, version);
   assert.equal(result.currentDocumentCount, 25);
+  assert.equal(result.releaseStatus, "implementation-candidate");
+  assert.ok(result.releaseBlockerCount > 0);
 });
 
 test("release consistency gate rejects Android metadata drift", () => {
@@ -90,13 +91,11 @@ test("release consistency gate rejects Android metadata drift", () => {
 
 test("release consistency gate rejects a stale current Security Policy version", () => {
   withFixture((fixture) => {
-    const currentVersion = require("../package.json").version;
-    const staleVersion = currentVersion === "0.0.0" ? "0.0.1" : "0.0.0";
     const policy = path.join(fixture, "SECURITY.md");
     const before = fs.readFileSync(policy, "utf8");
-    const currentMarker = `| \`${currentVersion}\` | Stable unsigned distribution`;
-    assert.ok(before.includes(currentMarker), "current Security Policy marker must exist before mutation");
-    fs.writeFileSync(policy, before.replace(currentMarker, `| \`${staleVersion}\` | Stable unsigned distribution`));
+    const marker = `| \`${version}\` | Connect implementation candidate`;
+    assert.ok(before.includes(marker), "current Security Policy marker must exist before mutation");
+    fs.writeFileSync(policy, before.replace(marker, "| `0.0.0` | Connect implementation candidate"));
     assert.throws(() => checkReleaseConsistency(fixture), /SECURITY\.md supported version/);
   });
 });
@@ -109,31 +108,59 @@ test("release consistency gate rejects obsolete current verification links", () 
   });
 });
 
-test("release consistency gate rejects a root release document containing duplicated canonical content", () => {
+test("release consistency gate rejects duplicated canonical release content in a root pointer", () => {
   withFixture((fixture) => {
-    const version = require("../package.json").version;
     const pointer = path.join(fixture, `RELEASE_NOTES_${version}.md`);
     fs.writeFileSync(pointer, fs.readFileSync(path.join(fixture, `docs/releases/${version}/RELEASE_NOTES.md`), "utf8"));
     assert.throws(() => checkReleaseConsistency(fixture), /compatibility pointer/);
   });
 });
 
-test("release consistency gate rejects unsigned publication without owner authorization", () => {
+test("release consistency gate rejects a candidate that hides release blockers", () => {
   withFixture((fixture) => {
     const evidencePath = path.join(fixture, "release-evidence/current.json");
     const evidence = JSON.parse(fs.readFileSync(evidencePath, "utf8"));
-    evidence.ownerAuthorization.authorized = false;
+    evidence.releaseBlockers = [];
     fs.writeFileSync(evidencePath, JSON.stringify(evidence, null, 2));
-    assert.throws(() => checkReleaseConsistency(fixture), /explicit owner authorization/);
+    assert.throws(() => checkReleaseConsistency(fixture), /release blockers/);
   });
 });
 
-test("release consistency gate rejects updater metadata for unsigned publication", () => {
+test("release consistency gate rejects unsigned stable publication policy", () => {
   withFixture((fixture) => {
     const evidencePath = path.join(fixture, "release-evidence/current.json");
     const evidence = JSON.parse(fs.readFileSync(evidencePath, "utf8"));
-    evidence.publicationPolicy.updaterMetadataPublished = true;
+    evidence.publicationPolicy.requiresSignedArtifacts = false;
     fs.writeFileSync(evidencePath, JSON.stringify(evidence, null, 2));
-    assert.throws(() => checkReleaseConsistency(fixture), /integrity policy/);
+    assert.throws(() => checkReleaseConsistency(fixture), /publication policy/);
+  });
+});
+
+test("release consistency gate rejects a passed external acceptance record without completion time", () => {
+  withFixture((fixture) => {
+    const evidencePath = path.join(fixture, `release-evidence/windows-acceptance-${version}.json`);
+    const evidence = JSON.parse(fs.readFileSync(evidencePath, "utf8"));
+    evidence.status = "passed";
+    evidence.completedAt = null;
+    fs.writeFileSync(evidencePath, JSON.stringify(evidence, null, 2));
+    assert.throws(() => checkReleaseConsistency(fixture), /passed without completedAt/);
+  });
+});
+
+test("release consistency gate requires signed updater assets for 3.6.0", () => {
+  withFixture((fixture) => {
+    const evidencePath = path.join(fixture, "release-evidence/current.json");
+    const evidence = JSON.parse(fs.readFileSync(evidencePath, "utf8"));
+    evidence.plannedAssets = evidence.plannedAssets.filter((asset) => asset !== "latest.yml");
+    fs.writeFileSync(evidencePath, JSON.stringify(evidence, null, 2));
+    assert.throws(() => checkReleaseConsistency(fixture), /latest.yml/);
+  });
+});
+
+test("release consistency gate requires the fail-closed signed publication workflow", () => {
+  withFixture((fixture) => {
+    const workflow = path.join(fixture, ".github/workflows/release.yml");
+    fs.writeFileSync(workflow, fs.readFileSync(workflow, "utf8").replace("environment: nexora-production-release", "environment: unprotected"));
+    assert.throws(() => checkReleaseConsistency(fixture), /nexora-production-release/);
   });
 });

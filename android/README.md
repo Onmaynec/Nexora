@@ -4,14 +4,14 @@
 
 | Параметр | Значение |
 |---|---|
-| Current version | `3.4.0` |
-| Classification | Stable Core release candidate |
+| Current version | `3.6.0` |
+| Classification | Connect implementation candidate |
 | Official distribution | blocked until signed stable gates complete |
 | Signed production baseline | `3.1.2` |
 | Upgrade baseline | published verified `3.3.4` |
 | Application API | v3 |
 | Trust/MLS runtime | retired; legacy secure history is read-only |
-| Local Server database | schema 8 compatibility layer, server-side |
+| Local Server database | schema 10 additive compatibility layer, server-side |
 
 Android application is a controlled WebView shell for the adaptive Nexora Client. CI verifies the source build. Production promotion requires a signed APK/AAB, physical-device acceptance and the external 3.4.0 release gates recorded in the release evidence ledger.
 
@@ -99,7 +99,7 @@ The UI must handle:
 - CI `assembleDebug` passes;
 - release build is produced in a controlled signing environment;
 - clean install/upgrade preserves saved servers and authorized local state;
-- version metadata equals `3.4.0`.
+- version metadata equals `3.6.0`.
 
 ### Connection
 
@@ -152,3 +152,5 @@ Nexora 3.4.0 does not claim traffic-analysis resistance before external review e
 
 See [Documentation Portal](../docs/README.md), [Security Model](../docs/SECURITY_MODEL.md), [Security Policy](../SECURITY.md) and [Release Verification 3.4.0](../docs/releases/3.4.0/RELEASE_VERIFICATION.md).
 > Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.
+
+> Current implementation candidate: Nexora 3.6.0 Connect. Signed stable publication remains blocked pending required external evidence.

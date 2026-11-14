@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "version": "3.6.0",
+  "kind": "connect-cross-platform-call-acceptance",
+  "status": "pending",
+  "completedAt": null,
+  "requirements": [
+    "Windows to Android voice call.",
+    "Windows to PWA voice call.",
+    "Android to PWA voice call.",
+    "TURN-only path, network handover, session revoke, account disable and block termination."
+  ],
+  "results": [],
+  "limitations": [
+    "No production or signed-stable claim is permitted until this record is completed with verifiable evidence."
+  ]
+}

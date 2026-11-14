@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "version": "3.6.0",
+  "kind": "pwa-installed-acceptance",
+  "status": "pending",
+  "completedAt": null,
+  "requirements": [
+    "Installed PWA in supported browsers.",
+    "Offline/reconnect, notification focus behavior, microphone denial and WebRTC capability matrix."
+  ],
+  "results": [],
+  "limitations": [
+    "No production or signed-stable claim is permitted until this record is completed with verifiable evidence."
+  ]
+}

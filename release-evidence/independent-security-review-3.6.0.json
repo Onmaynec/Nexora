@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "version": "3.6.0",
+  "kind": "independent-security-review",
+  "status": "pending",
+  "completedAt": null,
+  "requirements": [
+    "Review contacts/privacy authorization, presence filtering, WebRTC signaling, TURN credentials, deep links and Electron/Android external navigation.",
+    "No unresolved high or critical findings."
+  ],
+  "results": [],
+  "limitations": [
+    "No production or signed-stable claim is permitted until this record is completed with verifiable evidence."
+  ]
+}

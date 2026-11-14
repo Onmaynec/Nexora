@@ -1,178 +1,267 @@
-# Nexora 3.4.0 Release Checklist
+# Nexora 3.6.0 Connect — Release Checklist
 
-## 1. Classification и repository state
+Every checked item requires real evidence. An unchecked external prerequisite blocks merge-to-release, tag and GitHub Release.
 
-- [ ] Classification: Stable Core release candidate until all gates complete.
-- [ ] `package.json`, lockfile, Client handshake и Android metadata show `3.4.0`.
-- [ ] PR head is exact reviewed merge candidate.
-- [ ] `CHANGELOG.md`, canonical release notes, security review и verification are current.
-- [ ] README, docs portal, Security Policy, Architecture, Branch Status и Support agree.
-- [ ] Commit has no secrets, databases, backups, user data, temporary patchers или generated failure logs.
-- [ ] No document describes `3.4.0` as published/signed/independently approved without evidence.
+## 1. Identity and repository state
 
-## 2. Prerequisite baseline
+- [ ] Version is `3.6.0` in package, lockfile, Client handshake, Android and website.
+- [ ] Branch is `release/3.6.0-connect`; changes were not made directly in `main`.
+- [ ] PR targets the latest verified `main` baseline.
+- [ ] README, docs portal, architecture, security, operations and release records agree.
+- [ ] Canonical release notes/verification and root compatibility pointers exist.
+- [ ] `CHANGELOG.md` contains `3.6.0`.
+- [ ] No secret, database, backup, user data, temporary patch chunk/workflow or failure log is committed.
+- [ ] Candidate documents do not claim publication/signing/acceptance without evidence.
 
-- [ ] Published non-draft/non-prerelease `v3.3.4` exists.
-- [ ] `v3.3.4` has required Client installer.
-- [ ] `v3.3.4` has required Server installer.
-- [ ] `v3.3.4` has `SHA256SUMS.txt`.
-- [ ] Baseline assets download and verify.
-- [ ] Release branch descends from merged post-MLS baseline commit.
+## 2. Baseline and compatibility
 
-## 3. Automated gates
+- [ ] Published verified Nexora `3.5.0` baseline exists.
+- [ ] Release branch descends from the intended 3.5.0/main source.
+- [ ] Existing DMs, rooms, messages, files, sessions and Mobile Continuity state survive upgrade.
+- [ ] Application API remains v3 and new contracts are additive.
+- [ ] Legacy Trust/MLS runtime remains retired.
+- [ ] Legacy ciphertext history remains immutable/read-only.
+- [ ] Ordinary messaging remains writable and server-authorized.
+
+## 3. Schema 10 migration
+
+- [ ] Source schema 9 prerequisite enforced.
+- [ ] Future schema rejected before mutation.
+- [ ] Source `integrity_check` passes.
+- [ ] Free-space check passes/fails safely.
+- [ ] WAL checkpoint completes.
+- [ ] Verified pre-schema backup is created.
+- [ ] Migration runs in one immediate transaction.
+- [ ] Failure rolls back without partial schema/state.
+- [ ] Destination integrity passes.
+- [ ] Rerun is idempotent.
+- [ ] Supported restore/replacement path upgrades schema 9 to 10.
+- [ ] `connect_privacy` exists with checks.
+- [ ] `connect_call_history` and participant/time indexes exist.
+- [ ] `connect_idempotency` and expiry index exist.
+- [ ] `connect_audit` and actor/target indexes exist.
+
+## 4. Automated source gates
 
 - [ ] `npm ci` — PASS.
+- [ ] `npm run release:consistency` — PASS.
 - [ ] `npm run check` — PASS.
 - [ ] `npm run test:unit` — PASS.
 - [ ] `npm run test:performance` — PASS.
-- [ ] `npm run audit:security` — PASS.
+- [ ] `npm run audit:security` — PASS; no high/critical production finding.
 - [ ] `npm run release:check` — PASS.
+- [ ] `npm run test:soak` — PASS with schema 10/integrity.
 - [ ] Linux `npm test` — PASS.
-- [ ] Schema 8 soak — PASS.
+- [ ] Windows verification/performance — PASS.
 - [ ] Android `assembleDebug` — PASS.
-- [ ] Focused Nexora 3.4 regressions — PASS.
-- [ ] Introductory website validation/build — PASS.
-- [ ] Advanced Documentation generation/validation/build — PASS.
-- [ ] No high/critical production dependency finding.
+- [ ] Website validation/build — PASS.
+- [ ] Exact-head required checks are green.
 
-## 4. Compatibility and Stable Core boundary
+## 5. Contacts and requests
 
-- [ ] Application API remains v3.
-- [ ] Local Server schema remains 8.
-- [ ] Ordinary messaging is the only writable messaging path.
-- [ ] Executable Trust/MLS runtime and `ts-mls` remain removed.
-- [ ] Legacy schema 8 records remain preserved.
-- [ ] Legacy viewer/export is read-only.
-- [ ] Server never decrypts legacy ciphertext.
-- [ ] Legacy HTTP mutations return `410/LEGACY_READ_ONLY`.
-- [ ] MLS Socket.IO mutations return terminal `LEGACY_READ_ONLY` ack.
-- [ ] Ordinary chats open despite stale/corrupt legacy MLS state.
+- [ ] `pending`, `accepted`, `rejected`, `cancelled`, `expired` transitions are server-owned.
+- [ ] Retry-sensitive routes require valid `Idempotency-Key`.
+- [ ] Identical retry does not duplicate side effects.
+- [ ] Concurrent accept/cancel is deterministic.
+- [ ] Concurrent accept/block cannot leave invalid contact state.
+- [ ] Search is cursor-paginated, rate-limited and privacy-filtered.
+- [ ] Disabled/blocked users and private profile fields are hidden.
+- [ ] Removal does not delete existing message history.
+- [ ] Audit/events exclude sensitive search data.
 
-## 5. Authentication and authorization
+## 6. Block and privacy
 
-- [ ] Session/Origin/CSRF checks pass.
-- [ ] owner/moderator/member boundaries pass.
-- [ ] Exactly one room owner maintained.
-- [ ] Atomic ownership transfer passes.
-- [ ] Active ban overrides stale membership.
-- [ ] Removed/banned users lose REST/realtime access.
-- [ ] Invite expiry/limit/revocation/concurrent final use pass.
-- [ ] TOTP/recovery codes pass.
-- [ ] Stable public error envelope does not leak internals.
+- [ ] Block removes contact and cancels pending requests.
+- [ ] Block prevents new request/call/signaling access.
+- [ ] Stale socket cannot bypass block.
+- [ ] Block terminates an active call.
+- [ ] Unblock does not restore contact/permissions.
+- [ ] Presence supports `everyone/contacts/shared_rooms/nobody`.
+- [ ] Last seen supports `exact/approximate/hidden`.
+- [ ] Read receipts are filtered at query and realtime emission.
+- [ ] Privacy change applies without reconnect.
+- [ ] Multi-device presence remains online while one valid socket remains.
+- [ ] Final disconnect/revoke removes stale online state.
 
-## 6. Devices and sessions
+## 7. Profile and deep-link safety
 
-- [ ] Device inventory is derived from server sessions.
-- [ ] Device ID/name/platform/version/created/last-seen/expiry exposed safely.
-- [ ] Targeted remote revoke invalidates only target sessions.
-- [ ] `session.revoked` emitted.
-- [ ] Target Socket.IO connections disconnected immediately.
-- [ ] `device.updated` emitted.
-- [ ] Current-device remote revoke returns `STATE_CONFLICT`.
-- [ ] Revoke-all-others preserves current session.
+- [ ] Profile fields are scoped to self/contact/shared-room/hidden relationship.
+- [ ] Blocked/hidden profile returns generic unavailable state.
+- [ ] Deep link contains Server ID/type/object ID only.
+- [ ] Wrong Server ID cannot silently switch profile.
+- [ ] Hidden object details are not disclosed in errors.
+- [ ] Electron external URL/IPC policy remains allowlisted.
+- [ ] Android is HTTPS-only and external origins leave WebView.
+- [ ] Deep-link routing is covered on Windows/PWA/Android.
 
-## 7. Uploads, images and voice
+## 8. Call authorization and state machine
 
-- [ ] Authorization and room media restrictions checked server-side.
-- [ ] Size/quota and chunk/file SHA-256 checks pass.
-- [ ] Actual MIME signature checked.
-- [ ] Fake extension/header rejected.
-- [ ] Dangerous/executable content rejected.
-- [ ] Safe filename enforced.
-- [ ] Temporary data removed after cancel/error.
-- [ ] Corrupt image handled safely.
-- [ ] Microphone denial/unsupported format handled.
-- [ ] Voice waveform, played progress, seek and speed pass.
-- [ ] Direct API cannot bypass read-only/slow/media restrictions.
+- [ ] States and allowed transitions match the documented call machine.
+- [ ] Ringing/connecting have bounded timeouts.
+- [ ] Caller and callee existence/session/contact/block policy validated.
+- [ ] First eligible callee session claims ringing call.
+- [ ] All later signals/TURN requests require exact bound session.
+- [ ] Third party cannot answer/signal/end/request TURN.
+- [ ] Same account’s unrelated session cannot take over.
+- [ ] Call ID replay for different target/session returns conflict.
+- [ ] Terminal call history is minimal and correct.
+- [ ] Server stores no voice media, SDP or ICE candidates.
 
-## 8. Backup, restore and migration
+## 9. Signaling and abuse controls
 
-- [ ] Source integrity checked before mutation.
-- [ ] WAL checkpoint and free-space checks pass.
-- [ ] Verified backup created.
-- [ ] Backup verification is non-restoring and server-admin-only.
-- [ ] Backup ID constrained to allowlisted directory.
-- [ ] Future schema blocked before mutation.
-- [ ] Schema 8 migration idempotent.
-- [ ] Disk-full failpoint leaves live state unchanged.
-- [ ] DB/file replacement failure rolls both back.
-- [ ] Temporary staged data cleaned after success/error.
+- [ ] Signal kind, sequence, expiry and payload shape validated.
+- [ ] Empty/malformed SDP rejected.
+- [ ] Oversized SDP/ICE rejected without crash/reflection.
+- [ ] Sequence gaps rejected.
+- [ ] Identical replay is idempotent.
+- [ ] Same sequence with changed payload returns `CALL_STATE_CONFLICT`.
+- [ ] Replay history is bounded.
+- [ ] Per-account/device/target ring limits enforced.
+- [ ] Per-account/device/call signaling limits enforced.
+- [ ] `RATE_LIMITED` includes a positive retry delay.
 
-## 9. Authenticode and packaging
+## 10. TURN
 
-- [ ] `WINDOWS_CERTIFICATE_BASE64` configured.
-- [ ] `WINDOWS_CERTIFICATE_PASSWORD` configured.
-- [ ] Expected signer subject configured.
-- [ ] Expected signer thumbprint configured.
-- [ ] Partial signing configuration rejected.
-- [ ] Client installer signed and timestamped.
-- [ ] Server installer signed and timestamped.
-- [ ] Signer subject/thumbprint match policy.
-- [ ] Client blockmap and `latest.yml` complete.
-- [ ] Server blockmap and `server.yml` complete.
-- [ ] Installer/metadata versions equal `3.4.0`.
-- [ ] No unsigned official-release fallback exists.
+- [ ] Production TURN URLs configured.
+- [ ] Strong secret stored only in protected runtime configuration.
+- [ ] Static credentials absent from all clients.
+- [ ] Credentials are short-lived and session/call scoped.
+- [ ] Secret/credentials absent from logs, history, diagnostics and assets.
+- [ ] `TURN_UNAVAILABLE` is safe/actionable.
+- [ ] Relay-only NAT traversal is accepted in real environments.
+- [ ] Secret rotation/incident procedure documented.
 
-## 10. Windows installed acceptance
+## 11. Client media lifecycle and accessibility
 
-- [ ] Windows 10 clean install.
-- [ ] Windows 10 repair/uninstall.
-- [ ] Windows 10 installed `3.3.4 → 3.4.0` upgrade.
-- [ ] Windows 11 clean install.
-- [ ] Windows 11 repair/uninstall.
-- [ ] Windows 11 installed `3.3.4 → 3.4.0` upgrade.
-- [ ] Installed Client product version equals `3.4.0`.
-- [ ] Installed Server product version equals `3.4.0`.
-- [ ] Installed executables pass Authenticode verification.
-- [ ] Machine-readable Windows evidence identifies exact release candidate.
+- [ ] Microphone allow/deny/revoke handled.
+- [ ] Missing/removing input device handled.
+- [ ] Input switching works.
+- [ ] Mute/unmute works.
+- [ ] Output selection works or is explicitly unsupported/disabled.
+- [ ] Call timer and reconnect state are correct.
+- [ ] End/decline/missed/failed/block/revoke/shutdown release microphone and peer connection.
+- [ ] Navigation/unmount/profile switch releases temporary resources.
+- [ ] No empty failure suppression in Connect call lifecycle.
+- [ ] Controls keyboard reachable with labels/visible focus/logical order.
+- [ ] Reduced motion disables nonessential call animation.
+- [ ] Stable error codes and request ID map consistently.
 
-## 11. Independent security review
+## 12. Session revoke, account disable and shutdown
 
-- [ ] Reviewer and scope recorded.
-- [ ] Reviewed commit is exact release commit or ancestor.
-- [ ] Authentication/authorization/session revocation reviewed.
-- [ ] Legacy read-only/no-plaintext boundary reviewed.
-- [ ] Upload/MIME/hash/quota controls reviewed.
-- [ ] Backup/restore/migration failure paths reviewed.
-- [ ] Updater/signing/tag publication reviewed.
+- [ ] Caller session revoke terminates ringing/active call.
+- [ ] Callee bound-session revoke terminates call.
+- [ ] Account disable invalidates sessions and call access.
+- [ ] Block terminates call and future signaling.
+- [ ] Server shutdown emits terminal state and cleans resources.
+- [ ] Subsequent stale signal/TURN request fails closed.
+- [ ] No reconnect restores revoked access.
+
+## 13. Existing product regression
+
+- [ ] Authentication/bootstrap/password/TOTP.
+- [ ] Rooms and owner/moderator/member boundaries.
+- [ ] Ordinary messages/replies/reactions/edits/deletes/forward/pin.
+- [ ] Files/images/voice and room restrictions.
+- [ ] Drafts/outbox/offline/resumable upload.
+- [ ] PWA lifecycle and push policy.
+- [ ] Device inventory/session revoke.
+- [ ] Backup/restore.
+- [ ] Legacy secure history and `LEGACY_READ_ONLY`.
+- [ ] Pulse contracts/boundaries.
+
+## 14. Independent security review
+
+- [ ] Reviewer, scope and date recorded.
+- [ ] Exact reviewed commit/ancestor recorded.
+- [ ] Contact/block/profile IDOR reviewed.
+- [ ] Presence/read-receipt disclosure reviewed.
+- [ ] Call participant/session binding reviewed.
+- [ ] Signal replay/rate/payload controls reviewed.
+- [ ] TURN credential generation/logging reviewed.
+- [ ] Electron/Android navigation/media permission reviewed.
+- [ ] Migration/restore/release workflow reviewed.
 - [ ] Unresolved critical findings = 0.
 - [ ] Unresolved high findings = 0.
-- [ ] Closure evidence committed in machine-readable file.
+- [ ] Evidence file is `passed` with real results.
 
-## 12. Release assets
+## 15. Installed cross-platform acceptance
 
-- [ ] Signed Client installer and blockmap.
+- [ ] Windows 10 signed clean install/repair/uninstall/upgrade.
+- [ ] Windows 11 signed clean install/repair/uninstall/upgrade.
+- [ ] Installed Client/Server version/signature verified.
+- [ ] Android signed install/upgrade and permission lifecycle.
+- [ ] PWA install/update/media lifecycle.
+- [ ] Windows ↔ Android call matrix.
+- [ ] Windows ↔ PWA call matrix.
+- [ ] Android ↔ PWA call matrix.
+- [ ] Caller/callee reversal.
+- [ ] Direct and TURN-only paths.
+- [ ] Network handover.
+- [ ] Permission denial/recovery and device removal.
+- [ ] Block/session revoke during call.
+- [ ] Evidence files identify exact candidate and environments.
+
+## 16. Signing and packaging
+
+- [ ] Protected environment `nexora-production-release` configured.
+- [ ] Complete Windows certificate/password/subject/thumbprint configured.
+- [ ] Partial Windows signing input rejected.
+- [ ] Client installer signed, timestamped, expected signer.
+- [ ] Server installer signed, timestamped, expected signer.
+- [ ] Complete Android keystore/password/alias/key password configured.
+- [ ] Approved Android signer SHA-256 configured.
+- [ ] Android release build requires signing and matches approved signer.
+- [ ] No unsigned stable fallback exists.
+
+## 17. Required assets
+
+- [ ] Signed Client installer.
+- [ ] Client blockmap.
 - [ ] `latest.yml`.
-- [ ] Signed Server installer and blockmap.
+- [ ] Signed Server installer.
+- [ ] Server blockmap.
 - [ ] `server.yml`.
-- [ ] Source ZIP.
+- [ ] Signed Android APK.
 - [ ] PWA ZIP.
-- [ ] Android evidence APK.
+- [ ] Source ZIP.
 - [ ] SPDX SBOM.
-- [ ] Authenticode evidence JSON.
-- [ ] Release evidence JSON.
+- [ ] Windows signature evidence.
+- [ ] Android signature evidence.
+- [ ] Runtime release evidence.
 - [ ] `SHA256SUMS.txt`.
-- [ ] Canonical release notes used.
+- [ ] Canonical release notes.
 
-## 13. Tag and publication
+## 18. Pull Request and approval
 
-- [ ] PR ready, review threads resolved, all checks green.
-- [ ] Merge commit subject triggers only Nexora `3.4.0` stable workflow.
-- [ ] Official annotated tag `v3.4.0` points to approved merge commit.
+- [ ] PR body contains implementation/migration/security/compatibility/test report.
+- [ ] PR body lists exact-head CI runs and current external blockers.
+- [ ] Review threads resolved.
+- [ ] No temporary tooling/chunks/markers remain.
+- [ ] Evidence is truthful and version-matched.
+- [ ] PR marked ready only after required source checks.
+- [ ] Release merge approved only after external/signing gates.
+
+## 19. Tag and GitHub Release
+
+- [ ] Release-approved merge commit begins `release: Nexora 3.6.0`.
+- [ ] Annotated immutable `v3.6.0` points to exact approved commit.
 - [ ] Existing mismatched tag causes failure.
-- [ ] GitHub Release is neither draft nor prerelease.
-- [ ] Published assets are immutable.
+- [ ] GitHub Release title is `Nexora 3.6.0 — Connect`.
+- [ ] Release is normal/latest, not draft/prerelease.
+- [ ] Every required asset uploaded once.
+- [ ] Updater metadata is complete and version-matched.
 
-## 14. Post-publication verification
+## 20. Post-publication verification
 
-- [ ] Re-download every asset.
-- [ ] SHA-256 matches `SHA256SUMS.txt`.
-- [ ] Authenticode subject/thumbprint/timestamp verified again.
-- [ ] Client/Server updater metadata verified again.
-- [ ] Source/PWA/SBOM content checks pass.
-- [ ] Release URL, tag SHA, run IDs and digests recorded.
-- [ ] `release-evidence/current.json` updated to published state.
-- [ ] Release branch closed/deleted after provenance retention.
+- [ ] Re-download every asset into a clean directory.
+- [ ] Every SHA-256 matches.
+- [ ] Windows signatures/signer/timestamp revalidated.
+- [ ] Android signer revalidated.
+- [ ] Updater metadata/blockmaps revalidated.
+- [ ] Installed smoke result preserved.
+- [ ] Tag object/commit SHA preserved.
+- [ ] CI/release run IDs preserved.
+- [ ] Release URL/digests/final status written to evidence.
+- [ ] Branch closed only after provenance retention.
 
-Official `v3.4.0` is complete only when every applicable item is checked with real evidence.
-> Current release candidate: Nexora 3.5.0 Mobile Continuity. This is not a published stable release.
+Nexora `3.6.0` is complete only when every applicable item is checked with verifiable evidence and the signed GitHub Release has been re-downloaded and validated.

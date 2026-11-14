@@ -17,6 +17,7 @@ const {
   accessibleFiles,
   areContacts,
   canAccessConversation,
+  canSeeReadReceipt,
   canModerateConversation,
   contactState,
   conversationList,
@@ -1237,7 +1238,8 @@ async function createNexoraServer(options = {}) {
     const viewerId = request.nexora.user.id;
     const state = store.read();
     const users = state.users
-      .filter((user) => !user.disabledAt && user.id !== viewerId && (user.username.includes(query) || user.displayName.toLowerCase().includes(query)))
+      .filter((user) => !user.disabledAt && user.id !== viewerId && !isBlockedEither(state, viewerId, user.id)
+        && (user.username.includes(query) || user.displayName.toLowerCase().includes(query)))
       .slice(0, 20)
       .map((user) => {
         const requestItem = state.contactRequests.find(
@@ -2336,7 +2338,11 @@ async function createNexoraServer(options = {}) {
         if (read) read.lastReadAt = lastReadAt;
         else mutable.reads.push({ conversationId, userId: user.id, lastReadAt });
       });
-      io.to(conversationSocketRoom(conversationId)).emit("conversation:read", { conversationId, userId: user.id, lastReadAt });
+      const freshState = store.read();
+      for (const participantId of usersForConversation(freshState, conversation)) {
+        if (!canSeeReadReceipt(freshState, participantId, user.id)) continue;
+        io.to(userSocketRoom(participantId)).emit("conversation:read", { conversationId, userId: user.id, lastReadAt });
+      }
       acknowledge({ ok: true });
     });
 

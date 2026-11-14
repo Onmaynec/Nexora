@@ -8,16 +8,16 @@
 
 | Параметр | Значение |
 |---|---|
-| Repository version | `3.5.0` |
-| Classification | Published Mobile Continuity — unsigned manual distribution |
-| Publication | `v3.5.0` доступна в GitHub Releases; Windows/Android пакеты unsigned, без automatic updater metadata |
+| Repository version | `3.6.0` (ветка `release/3.6.0-connect`) |
+| Classification | Connect implementation candidate; PR #110 — draft |
+| Publication | Не опубликована: подписанные пакеты, Windows/Android/PWA acceptance, production TURN и independent review не завершены |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
 | Trust/MLS runtime | retired; write paths return `410/LEGACY_READ_ONLY` |
 | Legacy secure history | read-only compatibility layer; server-side decryption отсутствует |
-| Local Server database | SQLite schema 9; schema 8 legacy history read-only |
+| Local Server database | SQLite schema 10; schema 8 legacy history read-only |
 
-Нельзя представлять unsigned-дистрибутив `3.5.0` как подписанный. Изменения `3.6.0 Connect` до проверки и публикации остаются implementation candidate в ветке `release/3.6.0-connect` (PR #110).
+Ветка 3.6.0 основана на опубликованной `v3.5.0` (unsigned manual distribution). Source CI не подтверждает установленную работу звонков на всех платформах, подписанный релиз или независимый аудит.
 
 ## 2. Каналы взаимодействия
 
@@ -138,4 +138,4 @@ Release evidence принимается только для exact reviewed commi
 - documentation, changelog и release evidence обновлены, если поведение или contract изменились;
 - temporary scripts, diagnostic workflows и generated failure logs удалены.
 
-Требования подписанной публикации следующего релиза определяются его отдельным release verification и не подменяются успешным source CI. Для Connect 3.6.0 это review безопасности, production TURN, проверка звонков между Windows/PWA/Android, подписанные пакеты и post-download verification.
+Для 3.6.0 required gates перечислены в [release verification](docs/releases/3.6.0/RELEASE_VERIFICATION.md). PR остаётся draft, пока не пройдены exact-head CI, security review, signed Windows/Android packages, установленная проверка Windows 10/11 и cross-platform WebRTC/TURN acceptance. Исключение unsigned publication 3.5.0 не переносится на 3.6.0.

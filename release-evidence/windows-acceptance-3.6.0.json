@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "version": "3.6.0",
+  "kind": "windows-installed-acceptance",
+  "status": "pending",
+  "completedAt": null,
+  "requirements": [
+    "Installed signed Windows Client and Server on Windows 10 and Windows 11.",
+    "Microphone permission deny/recover, device removal, call end cleanup and updater n-1 to n."
+  ],
+  "results": [],
+  "limitations": [
+    "No production or signed-stable claim is permitted until this record is completed with verifiable evidence."
+  ]
+}

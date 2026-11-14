@@ -4,15 +4,15 @@
 
 | Параметр | Значение |
 |---|---|
-| Repository version | `3.5.0` |
-| Classification | Published Mobile Continuity — unsigned manual distribution |
-| Publication | GitHub Release `v3.5.0` опубликован; Windows и Android пакеты unsigned, updater metadata отсутствует |
+| Repository version | `3.6.0` |
+| Classification | Implementation candidate — Connect |
+| Publication | Implementation candidate; `v3.5.0` опубликована unsigned, а 3.6.0 блокируется signing, independent review и platform acceptance |
 | Signed production baseline | `3.1.2` |
 | Application API | v3 |
 | Legacy Trust/MLS API | retired; write paths return `410/LEGACY_READ_ONLY` |
-| Local Server database | SQLite schema 9 with schema 8 compatibility layer |
+| Local Server database | SQLite schema 10 over schema 9, legacy schema 8 read-only |
 
-Этот индекс относится к текущим исходникам `main` для Nexora 3.5.0. Разработка 3.6.0 Connect ведётся отдельно в `release/3.6.0-connect` и [PR #110](https://github.com/Onmaynec/Nexora/pull/110).
+Этот индекс описывает кандидата 3.6.0 в ветке `release/3.6.0-connect` и PR #110. Опубликованная версия в `main` — 3.5.0. До merge, проверки и публикации функции Connect не считаются частью стабильного дистрибутива.
 
 ## Entry points
 
@@ -33,6 +33,8 @@
 | `server/create-server-v31.cjs` | composition root для Pulse и Stable Core |
 | `server/stable-core.cjs` | device inventory/revoke, legacy read-only viewer/export, backup verify и signing status |
 | `server/mobile-continuity.cjs` | device-scoped push, sync diagnostics and resumable media sessions |
+| `server/connect.cjs` | server-owned contacts, privacy, profile filtering and WebRTC signaling |
+| `server/connect-schema10.cjs` | transactional and backed-up schema 9 → 10 upgrade |
 | `server/mobile-continuity-schema9.cjs` | schema 8 → 9 migration, backup, integrity and downgrade protection |
 | `server/v3-features.cjs` | sync, drafts, scheduled messages, polls, moderation, bots, webhooks и legacy guards |
 | `server/events.cjs` | monotonic event stream, visibility и notifications |
@@ -109,8 +111,9 @@ Mutating browser requests require authentication, Origin/CSRF, resource scope, p
 | `test/stable-core-reliability.test.cjs` | backup verify, rollback, future schema and disk-full failpoint |
 | `test/update-service.test.cjs` | Client/Server channels, tamper errors and no-downgrade |
 | `test/security-hardening-3.2.3.test.cjs` | CSRF, bans, cleanup, admin signing status and retired APIs |
-| `scripts/security-audit.cjs` | Stable Core controls and production dependency audit |
-| `test/performance.test.cjs` | SQLite performance and integrity checks |
+| `scripts/security-audit.cjs` | security invariants, signed 3.6.0 release checks and production dependency audit |
+| `test/connect-3.6.test.cjs` | Connect API/realtime/privacy and call lifecycle regressions |
+| `test/performance.test.cjs` | schema 10 performance and integrity |
 | `scripts/soak-test.cjs` | long-running state, backup and integrity |
 
 ## Verification commands
@@ -127,9 +130,15 @@ Mutating browser requests require authentication, Origin/CSRF, resource scope, p
 | `gradle -p android :app:assembleDebug --no-daemon` | Android source build |
 | `npm run release:windows:signed` | signed Windows build after external prerequisites are configured |
 
-## Публикация и активная разработка
+## Release blockers — Nexora 3.6.0
 
-- `v3.5.0` — опубликованный latest GitHub Release; Windows и Android дистрибутивы распространяются без подписи и устанавливаются вручную.
-- Установочные пакеты проверяются по `SHA256SUMS.txt`. Для unsigned 3.5.0 не публикуются `latest.yml` и `server.yml`, чтобы подписанный updater не использовал неподписанный канал.
-- `3.6.0 Connect` — текущая ветка разработки, [Issue #77](https://github.com/Onmaynec/Nexora/issues/77), [draft PR #110](https://github.com/Onmaynec/Nexora/pull/110). Код и release evidence следующей версии не являются частью опубликованного `main`.
-- Полный перечень blockers 3.6.0 находится в `docs/releases/3.6.0/RELEASE_VERIFICATION.md` соответствующей ветки. До фактического завершения CI, signing, security review и platform acceptance релиз не публикуется.
+Ветка остаётся implementation candidate. Нельзя публиковать `v3.6.0`, считать её signed stable или включать updater metadata до закрытия каждого пункта [verification](docs/releases/3.6.0/RELEASE_VERIFICATION.md):
+
+1. Успешные exact-head source checks, включая Android build, security audit, integration и soak.
+2. Независимый security review без незакрытых high/critical findings.
+3. Production TURN configuration и проверка relay-only WebRTC.
+4. Установленная проверка подписанных Windows Client/Server (Windows 10/11), Android и PWA.
+5. Матрица звонков Windows ↔ Android, Windows ↔ PWA и Android ↔ PWA.
+6. Подписи, SBOM, checksums, immutable tag, release asset verification и повторное скачивание опубликованных файлов.
+
+`v3.5.0` при этом уже опубликована отдельно, с ручной установкой неподписанных пакетов.

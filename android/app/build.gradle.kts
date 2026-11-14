@@ -20,12 +20,16 @@ android {
     namespace = "com.nexora.mobile"
     compileSdk = 36
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     defaultConfig {
         applicationId = "com.nexora.mobile"
         minSdk = 26
         targetSdk = 36
-        versionCode = 30500
-        versionName = "3.5.0"
+        versionCode = 30600
+        versionName = "3.6.0"
     }
 
     signingConfigs {

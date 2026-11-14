@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "version": "3.6.0",
+  "kind": "android-installed-acceptance",
+  "status": "pending",
+  "completedAt": null,
+  "requirements": [
+    "Signed Android artifact on supported physical devices.",
+    "Deep links, microphone lifecycle, background/foreground, process death and call cleanup."
+  ],
+  "results": [],
+  "limitations": [
+    "No production or signed-stable claim is permitted until this record is completed with verifiable evidence."
+  ]
+}

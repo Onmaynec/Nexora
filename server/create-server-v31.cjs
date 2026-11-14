@@ -15,6 +15,8 @@ const { upgradeStoreToSchema9 } = require("./mobile-continuity-schema9.cjs");
 const { mountMobileContinuity } = require("./mobile-continuity.cjs");
 const { createMobilePushService } = require("./mobile-push-service.cjs");
 const { createPushGatewayTransport } = require("./push-gateway.cjs");
+const { upgradeStoreToSchema10 } = require("./connect-schema10.cjs");
+const { mountConnect } = require("./connect.cjs");
 
 function parsePublicKeys(options = {}) {
   const values = [];
@@ -53,6 +55,10 @@ async function createNexoraServer(options = {}) {
       log: (message) => log(message, "info"),
     });
     const mobileContinuityMigration = await upgradeStoreToSchema9(instance.store, {
+      databaseFile: instance.status().databaseFile,
+      log: (message) => log(message, "info"),
+    });
+    const connectMigration = await upgradeStoreToSchema10(instance.store, {
       databaseFile: instance.status().databaseFile,
       log: (message) => log(message, "info"),
     });
@@ -130,6 +136,17 @@ async function createNexoraServer(options = {}) {
       pushTokenKey: options.pushTokenKey,
       log,
     });
+    const connect = await mountConnect({
+      app: instance.app,
+      store: instance.store,
+      io: instance.io,
+      serverId: instance.status().serverId,
+      authRequired: pulseRoutes.authRequired,
+      turnSecret: options.turnSecret,
+      turnUrls: options.turnUrls,
+      turnTtlSeconds: options.turnTtlSeconds,
+      log,
+    });
     const pushTransport = options.pushTransport ?? createPushGatewayTransport({
       url: options.pushGatewayUrl ?? process.env.NEXORA_PUSH_GATEWAY_URL,
       secret: options.pushGatewaySecret ?? process.env.NEXORA_PUSH_GATEWAY_SECRET,
@@ -154,13 +171,14 @@ async function createNexoraServer(options = {}) {
     const baseStatus = instance.status.bind(instance);
     instance.status = () => ({
       ...baseStatus(),
-      schemaVersion: 9,
+      schemaVersion: 10,
       pulseV3: { keyCount: 0, ...client.status(), ...(sandbox.enabled() ? { mode: "sandbox", enabled: true, productionReady: false, testMode: true } : {}), sync: syncWorker.status() },
       stableCore: stableCore.status(),
       mobileContinuity: { ...mobileContinuity.status(), pushGateway: mobilePush.status() },
+      connect: connect.status(),
       trust: { runtime: "retired", legacyHistory: "read_only", encryptedAttachments: false, deviceScopedRealtime: false, activeGroups: 0 },
-      migration: pulseMigration,
-      migrations: { pulse: pulseMigration, legacyTrust: legacyTrustMigration, mobileContinuity: mobileContinuityMigration },
+      migration: connectMigration,
+      migrations: { pulse: pulseMigration, legacyTrust: legacyTrustMigration, mobileContinuity: mobileContinuityMigration, connect: connectMigration },
     });
     const baseListen = instance.listen.bind(instance);
     instance.listen = async () => {
@@ -172,6 +190,7 @@ async function createNexoraServer(options = {}) {
     instance.close = async () => {
       syncWorker.stop();
       await mobilePush.close();
+      connect.close();
       mobileContinuity.close();
       await baseClose();
     };
@@ -182,14 +201,16 @@ async function createNexoraServer(options = {}) {
     instance.pulseSandbox = sandbox;
     instance.legacyTrustMigration = legacyTrustMigration;
     instance.mobileContinuityMigration = mobileContinuityMigration;
+    instance.connectMigration = connectMigration;
     instance.stableCore = stableCore;
     instance.mobileContinuity = mobileContinuity;
+    instance.connect = connect;
     instance.mobilePush = mobilePush;
     instance.pushTransport = pushTransport;
     instance.commandService = new DeveloperCommandService({ instance, store: instance.store, pulseSandbox: sandbox, log, clock: options.clock });
     return instance;
   } catch (error) {
-    await instance.close().catch((closeError) => log(`Failed to close Local Server after Mobile Continuity initialization error: ${closeError.message}`, "error"));
+    await instance.close().catch((closeError) => log(`Failed to close Local Server after Connect initialization error: ${closeError.message}`, "error"));
     throw error;
   }
 }
