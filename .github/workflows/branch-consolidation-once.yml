@@ -36,8 +36,7 @@ jobs:
             exit 1
           fi
           if git ls-remote --exit-code origin "refs/tags/$ARCHIVE_TAG" >/dev/null 2>&1; then
-            echo "This one-time cleanup has already produced its archive tag. Refusing to run again." >&2
-            exit 1
+            echo "Archive tag already exists; remaining branches must be ancestors of that archive."
           fi
 
       - name: Capture all branch heads and create a single recoverable archive tag
@@ -68,13 +67,45 @@ jobs:
           done < "$RUNNER_TEMP/branches.tsv"
           git config user.name "Nexora Repository Maintenance"
           git config user.email "127012125+Onmaynec@users.noreply.github.com"
-          archive_sha="$(git commit-tree "$main_tree" "${parents[@]}" -m "Archive 2026-11-14: all former branch histories prior to main-only cleanup")"
-          git tag -a "$ARCHIVE_TAG" "$archive_sha" -m "Nexora branch consolidation backup, 2026-11-14"
-          while IFS=$'\t' read -r branch sha; do
+          if git ls-remote --exit-code origin "refs/tags/$ARCHIVE_TAG" >/dev/null 2>&1; then
+            git fetch origin "refs/tags/$ARCHIVE_TAG:refs/tags/$ARCHIVE_TAG"
+            archive_sha="$(git rev-parse "refs/tags/$ARCHIVE_TAG^{}")"
+          else
+            archive_sha="$(git commit-tree "$main_tree" "${parents[@]}" -m "Archive 2026-11-14: all former branch histories prior to main-only cleanup")"
+            git tag -a "$ARCHIVE_TAG" "$archive_sha" -m "Nexora branch consolidation backup, 2026-11-14"
+            git push origin "refs/tags/$ARCHIVE_TAG"
+          fi
+          git ls-remote --exit-code origin "refs/tags/$ARCHIVE_TAG" >/dev/null
+          while IFS=
+          echo "Archived $(wc -l < "$RUNNER_TEMP/branches.tsv") branch heads in $ARCHIVE_TAG"
+          echo "Archive commit: $archive_sha"
+
+      - name: Remove every branch except main
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -s "$RUNNER_TEMP/branches.tsv" ]] || exit 0
+          git ls-remote --exit-code origin "refs/tags/$ARCHIVE_TAG" >/dev/null
+          while IFS=$'\t' read -r branch expected_sha; do
+            [[ -n "$branch" && -n "$expected_sha" ]] || continue
+            [[ "$branch" != main ]] || exit 1
+            current_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" --jq '.object.sha')"
+            if [[ "$current_sha" != "$expected_sha" ]]; then
+              echo "Branch $branch moved; refusing deletion. Was $expected_sha, now $current_sha" >&2
+              exit 1
+            fi
+            gh api --silent -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$branch"
+            echo "Deleted $branch"
+          done < "$RUNNER_TEMP/branches.tsv"
+          remaining="$(gh api --paginate "repos/$GITHUB_REPOSITORY/branches?per_page=100" --jq '.[].name' | grep -v '^main$' || true)"
+          if [[ -n "$remaining" ]]; then
+            printf 'Remaining branches:\n%s\n' "$remaining" >&2
+            exit 1
+          fi
+          echo "Verified: main is the only remaining branch."
+\t' read -r branch sha; do
             git merge-base --is-ancestor "$sha" "$archive_sha" || { echo "Archive does not contain $branch ($sha)" >&2; exit 1; }
           done < "$RUNNER_TEMP/branches.tsv"
-          git push origin "refs/tags/$ARCHIVE_TAG"
-          git ls-remote --exit-code origin "refs/tags/$ARCHIVE_TAG" >/dev/null
           echo "Archived $(wc -l < "$RUNNER_TEMP/branches.tsv") branch heads in $ARCHIVE_TAG"
           echo "Archive commit: $archive_sha"
 
