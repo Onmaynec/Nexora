@@ -259,10 +259,17 @@ function mountCommunities({ app, store, io, authRequired, log = () => {} }) {
     const next = withTransaction(db, () => {
       const scope = requirePermission(db,id,userId,"channel.order");
       if (scope.community.revision !== revision) fail("STATE_CONFLICT",409);
-      const existing = db.prepare("SELECT id FROM community_categories WHERE community_id=?").all(id).map((row) => row.id);
-      if (existing.length !== order.length || existing.some((categoryId) => !order.includes(categoryId))) fail("VALIDATION_FAILED");
+      const all = db.prepare("SELECT id FROM community_categories WHERE community_id=? ORDER BY position,id").all(id).map((row) => row.id);
+      const seePrivate = permissions(db,id,userId,scope.role).has("channel.view_private");
+      const visible = seePrivate ? all : all.filter((categoryId) => Boolean(db.prepare(
+        "SELECT 1 FROM community_channels WHERE community_id=? AND category_id=? AND is_private=0 LIMIT 1"
+      ).get(id,categoryId)));
+      if (visible.length !== order.length || visible.some((categoryId) => !order.includes(categoryId))) fail("VALIDATION_FAILED");
+      const allowed = new Set(visible);
+      let indexVisible = 0;
+      const merged = all.map((categoryId) => allowed.has(categoryId) ? order[indexVisible++] : categoryId);
       const update = db.prepare("UPDATE community_categories SET position=? WHERE id=? AND community_id=?");
-      order.forEach((categoryId,index) => update.run(index,categoryId,id));
+      merged.forEach((categoryId,index) => update.run(index,categoryId,id));
       db.prepare("UPDATE communities SET revision=revision+1 WHERE id=?").run(id);
       audit(db,id,userId,"categories.reordered");
       return scope.community.revision + 1;
@@ -304,10 +311,15 @@ function mountCommunities({ app, store, io, authRequired, log = () => {} }) {
     const next = withTransaction(db, () => {
       const scope = requirePermission(db, id, userId, "channel.order");
       if (scope.community.revision !== revision) fail("STATE_CONFLICT", 409);
-      const existing = db.prepare("SELECT id FROM community_channels WHERE community_id=?").all(id).map((row) => row.id);
-      if (existing.length !== order.length || existing.some((value) => !order.includes(value))) fail("VALIDATION_FAILED");
+      const all = db.prepare("SELECT id,is_private AS isPrivate FROM community_channels WHERE community_id=? ORDER BY position,id").all(id);
+      const seePrivate = permissions(db,id,userId,scope.role).has("channel.view_private");
+      const visible = all.filter((row) => seePrivate || !row.isPrivate).map((row) => row.id);
+      if (visible.length !== order.length || visible.some((channelId) => !order.includes(channelId))) fail("VALIDATION_FAILED");
+      const allowed = new Set(visible);
+      let indexVisible = 0;
+      const merged = all.map((row) => allowed.has(row.id) ? order[indexVisible++] : row.id);
       const update = db.prepare("UPDATE community_channels SET position=? WHERE id=? AND community_id=?");
-      for (let index = 0; index < order.length; index += 1) update.run(index, order[index], id);
+      merged.forEach((channelId,index) => update.run(index,channelId,id));
       db.prepare("UPDATE communities SET revision=revision+1 WHERE id=?").run(id);
       audit(db, id, userId, "channels.reordered");
       return scope.community.revision + 1;
