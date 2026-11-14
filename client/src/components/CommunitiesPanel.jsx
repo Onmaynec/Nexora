@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, post, patch, remove } from "../api";
 import CommunityMessages from "./CommunityMessages";
+import { CommunityDiscovery, CommunityHubExtras } from "./CommunityHubExtras";
 import { ChevronLeft, Hash, LockKeyhole, Plus, ShieldCheck, Ticket, UsersRound } from "lucide-react";
 
 const ROOT = "/api/v3/communities";
@@ -196,7 +197,7 @@ export default function CommunitiesPanel({ onBack, showToast }) {
     const form = new FormData(event.currentTarget);
     const results = await perform(() => post(ROOT + "/" + currentId + "/roles", {
       name: form.get("name"),
-      permissions: [form.get("viewPrivate") && "channel.view_private", form.get("canAnnounce") && "channel.announce"].filter(Boolean),
+      permissions: [form.get("viewPrivate") && "channel.view_private", form.get("canAnnounce") && "channel.announce", form.get("canManageEvents") && "events.manage"].filter(Boolean),
     }), "Роль создана");
     if (results) event.currentTarget.reset();
   }
@@ -284,6 +285,7 @@ export default function CommunitiesPanel({ onBack, showToast }) {
             <label>Описание<textarea name="description" maxLength={500} rows={2} /></label>
             <button disabled={busy} type="submit" className="violet-button"><Plus size={16} /> Создать</button>
           </form>
+          <CommunityDiscovery showToast={showToast} onRefresh={refreshList} />
           <h3>Войти по приглашению</h3>
           <form onSubmit={join}>
             <label>Код<input name="code" minLength={30} required autoComplete="off" /></label>
@@ -298,6 +300,8 @@ export default function CommunitiesPanel({ onBack, showToast }) {
               <div><h2>{community.name}</h2><p>{community.description || "Описание не указано"}</p></div>
               <span><ShieldCheck size={15} /> {community.viewerRole} · {community.memberCount} участников</span>
             </div>
+            <CommunityHubExtras key={community.id} community={community} showToast={showToast}
+              onRefresh={() => load(community.id)} />
             <div className="communities-channel-list">
               <h3>Каналы</h3>
               {community.channels.map((channel, index) => (
@@ -342,6 +346,7 @@ export default function CommunitiesPanel({ onBack, showToast }) {
               <form className="communities-horizontal" onSubmit={createRole}><label>Название<input name="name" minLength={2} maxLength={80} required /></label>
                 <label className="communities-inline"><input type="checkbox" name="viewPrivate" /> Доступ к приватным каналам</label>
                 <label className="communities-inline"><input type="checkbox" name="canAnnounce" /> Может публиковать объявления</label>
+                <label className="communities-inline"><input type="checkbox" name="canManageEvents" /> Может управлять событиями</label>
                 <button disabled={busy} type="submit">Создать роль</button></form>
               {roles.length > 0 && <form className="communities-horizontal" onSubmit={assignRole}>
                 <label>Участник<select name="userId">{members.filter((item) => item.role !== "owner").map((item) => <option key={item.userId} value={item.userId}>{item.userId}</option>)}</select></label>
