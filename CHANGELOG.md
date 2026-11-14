@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.7.0] - In development (experimental source)
+
+### Added
+
+- Text conversations in community channels: SQLite history, cursor pagination, deduplicated retries, soft delete and moderation.
+- Private-channel access checks on every message operation; announcement publishing through the new `channel.announce` permission for owners, moderators and eligible custom roles.
+- In-app channel selection, message composer, older-history loading, scoped polling and responsive message layout.
+- Integration regression suite for membership, private-channel revocation, announcements, idempotency, ban enforcement and cursor stability.
+
+### Security and compatibility
+
+- No unrestricted Socket.IO broadcast of community messages; authenticated polling remains in place until recipient-scoped realtime delivery is implemented.
+- Experimental tables do not change existing rooms or production schema 10. Deleted channels have their message history removed.
+- This is **not** a published 3.7.0 release. Connect 3.6.0 must complete external acceptance and publication first; Communities #78 remains open.
+
 ## [3.6.0] - Unreleased
 
 ### Added
