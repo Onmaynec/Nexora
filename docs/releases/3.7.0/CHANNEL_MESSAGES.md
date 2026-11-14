@@ -2,6 +2,25 @@
 
 > Состояние: экспериментальные исходники в `main`, стабильный релиз **не опубликован**. Опция `experimentalCommunities` должна быть явно включена оператором Local Server. Текущая package version — 3.6.0 до отдельного процесса release promotion.
 
+## Как включить экспериментальный режим
+
+По умолчанию Communities выключен. Для локального тестирования необходимо перезапустить Nexora Server с `NEXORA_EXPERIMENTAL_COMMUNITIES=1`. Явное значение `experimentalCommunities: false` в API создания сервера имеет приоритет и отключает режим.
+
+PowerShell (Windows):
+
+```powershell
+$env:NEXORA_EXPERIMENTAL_COMMUNITIES = "1"
+npm start
+```
+
+Linux/macOS:
+
+```bash
+NEXORA_EXPERIMENTAL_COMMUNITIES=1 npm start
+```
+
+В интерфейсе Nexora раздел **Комнаты → Открыть сообщества** появляется после успешного запроса доступности API. Используйте тестовую среду и резервную копию базы. Для production-сервера опцию не включать до завершения release gates #77 и #78.
+
 ## Что реализовано
 
 - Текстовые сообщения в каналах `text` и `announcement`.
