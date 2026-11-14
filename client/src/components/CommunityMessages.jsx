@@ -19,11 +19,21 @@ export default function CommunityMessages({ community, channel }) {
   const [olderLoading, setOlderLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [accessRevoked, setAccessRevoked] = useState(false);
   const nonceRef = useRef(null);
   const path = "/api/v3/communities/" + encodeURIComponent(community.id)
     + "/channels/" + encodeURIComponent(channel.id) + "/messages";
-  const allowedToPost = channel.kind !== "announcement" || community.permissions.includes("channel.announce");
+  const allowedToPost = !accessRevoked && (channel.kind !== "announcement" || community.permissions.includes("channel.announce"));
   const moderator = community.permissions.includes("members.moderate");
+  const revokeIfDenied = (failure) => {
+    if (["RESOURCE_NOT_FOUND", "FORBIDDEN", "AUTH_REQUIRED"].includes(failure?.code)) {
+      setMessages([]);
+      setNextCursor(null);
+      setContent("");
+      nonceRef.current = null;
+      setAccessRevoked(true);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -33,9 +43,10 @@ export default function CommunityMessages({ community, channel }) {
         if (!active) return;
         setMessages((existing) => mergeMessages(existing, result.messages || []));
         if (initial) setNextCursor(result.nextCursor || null);
+        setAccessRevoked(false);
         setError("");
       } catch (failure) {
-        if (active) setError(failure?.message || "Не удалось получить сообщения.");
+        if (active) { revokeIfDenied(failure); setError(failure?.message || "Не удалось получить сообщения."); }
       } finally {
         if (active && initial) setLoading(false);
       }
@@ -53,7 +64,7 @@ export default function CommunityMessages({ community, channel }) {
       const result = await api(path + "?limit=50&before=" + encodeURIComponent(nextCursor));
       setMessages((old) => mergeMessages(old, result.messages || []));
       setNextCursor(result.nextCursor || null);
-    } catch (failure) { setError(failure?.message || "Не удалось загрузить историю."); }
+    } catch (failure) { revokeIfDenied(failure); setError(failure?.message || "Не удалось загрузить историю."); }
     finally { setOlderLoading(false); }
   }
 
@@ -71,7 +82,7 @@ export default function CommunityMessages({ community, channel }) {
       setMessages((old) => mergeMessages(old, [result.message]));
       setContent("");
       nonceRef.current = null;
-    } catch (failure) { setError(failure?.message || "Сообщение не отправлено."); }
+    } catch (failure) { revokeIfDenied(failure); setError(failure?.message || "Сообщение не отправлено."); }
     finally { setSending(false); }
   }
 
@@ -81,7 +92,7 @@ export default function CommunityMessages({ community, channel }) {
       await remove(path + "/" + encodeURIComponent(messageId));
       setMessages((old) => old.map((item) => item.id === messageId
         ? { ...item, body: "", deletedAt: new Date().toISOString() } : item));
-    } catch (failure) { setError(failure?.message || "Не удалось удалить сообщение."); }
+    } catch (failure) { revokeIfDenied(failure); setError(failure?.message || "Не удалось удалить сообщение."); }
   }
 
   return <section className="communities-messages" aria-label={"Переписка: " + channel.name}>
@@ -91,6 +102,7 @@ export default function CommunityMessages({ community, channel }) {
     </header>
     {error && <p role="alert" className="communities-error">{error}</p>}
     {loading && <p role="status">Загружаем переписку…</p>}
+    {accessRevoked && <p role="status" className="communities-readonly">Доступ к каналу больше не предоставляется.</p>}
     {nextCursor && <button type="button" className="communities-load-history" onClick={loadOlder} disabled={olderLoading}>
       {olderLoading ? "Загрузка…" : "Показать ранние сообщения"}
     </button>}
