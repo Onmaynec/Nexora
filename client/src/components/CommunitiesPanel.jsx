@@ -196,7 +196,7 @@ export default function CommunitiesPanel({ onBack, showToast }) {
     const form = new FormData(event.currentTarget);
     const results = await perform(() => post(ROOT + "/" + currentId + "/roles", {
       name: form.get("name"),
-      permissions: form.get("viewPrivate") ? ["channel.view_private"] : [],
+      permissions: [form.get("viewPrivate") && "channel.view_private", form.get("canAnnounce") && "channel.announce"].filter(Boolean),
     }), "Роль создана");
     if (results) event.currentTarget.reset();
   }
@@ -341,6 +341,7 @@ export default function CommunitiesPanel({ onBack, showToast }) {
               <h3>Роли</h3>
               <form className="communities-horizontal" onSubmit={createRole}><label>Название<input name="name" minLength={2} maxLength={80} required /></label>
                 <label className="communities-inline"><input type="checkbox" name="viewPrivate" /> Доступ к приватным каналам</label>
+                <label className="communities-inline"><input type="checkbox" name="canAnnounce" /> Может публиковать объявления</label>
                 <button disabled={busy} type="submit">Создать роль</button></form>
               {roles.length > 0 && <form className="communities-horizontal" onSubmit={assignRole}>
                 <label>Участник<select name="userId">{members.filter((item) => item.role !== "owner").map((item) => <option key={item.userId} value={item.userId}>{item.userId}</option>)}</select></label>
